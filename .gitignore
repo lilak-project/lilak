@@ -1,0 +1,42 @@
+#geometry file
+*.gdml
+
+#build
+build
+*.swp
+*.o
+
+#simulation/analysis data
+data
+*.root
+*.graw
+
+#mac
+.AppleDouble
+
+#geant4 executable
+*.g4sim
+
+#log files created from build/run
+log/*
+*.log
+
+#cmake configuration log files
+!log/*.in
+
+#documetation directory(doxygen)
+doc
+
+#temporary directories
+temp*/
+
+#figures
+figures/
+*.pdf
+*.png
+*.eps
+*.jpg
+*.jpeg
+
+#trash
+trash
