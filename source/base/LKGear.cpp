@@ -1,4 +1,4 @@
-#include "LKGear.hh"
+#include "LKGear.hpp"
 
 void LKGear::CreateParameterContainer(bool debug) {
   if (fPar == nullptr)

@@ -5,7 +5,7 @@
 #include <fstream>
 #include "TString.h"
 #include "LKCompiled.h"
-#include "LKLogger.hh"
+#include "LKLogger.hpp"
 
 /// lilak logger shortcut macros
 #define lk_logger(logFileName) LKLogManager::RunLogger(logFileName)

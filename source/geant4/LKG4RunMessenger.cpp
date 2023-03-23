@@ -1,4 +1,4 @@
-#include "LKG4RunMessenger.hh"
+#include "LKG4RunMessenger.hpp"
 
 LKG4RunMessenger::LKG4RunMessenger(LKG4RunManager *runManager)
 : fRunManager(runManager)

@@ -1,33 +1,32 @@
 #ifndef LKRUN_HH
 #define LKRUN_HH
 
-#include "LKCompiled.h"
-#include "LKLogger.hh"
-#include "LKTask.hh"
-#include "LKParameterContainer.hh"
-#ifdef LKDETCTORSYSTEM_HH
-#include "LKDetectorSystem.hh"
-#include "LKDetector.hh"
-#endif
-
-#include "TDatabasePDG.h"
-#include "TError.h"
-#include "TH1D.h"
-#include "TGraph.h"
-#include "TFile.h"
-#include "TTree.h"
-#include "TChain.h"
-#include "TObject.h"
-#include "TClonesArray.h"
-#include "TCanvas.h"
-
 #include <map>
 #include <vector>
 #include <fstream>
 #include <stdlib.h>
 using namespace std;
 
+#include "TH1D.h"
+#include "TFile.h"
+#include "TTree.h"
+#include "TError.h"
+#include "TGraph.h"
+#include "TChain.h"
+#include "TObject.h"
+#include "TCanvas.h"
+#include "TDatabasePDG.h"
+#include "TClonesArray.h"
 #include "TSysEvtHandler.h"
+
+#include "LKCompiled.h"
+#include "LKTask.hpp"
+#include "LKLogger.hpp"
+#include "LKParameterContainer.hpp"
+#ifdef LKDETCTORSYSTEM_HH
+#include "LKDetectorSystem.hpp"
+#include "LKDetector.hpp"
+#endif
 
 /**
  *  If output file name is not set, output file name will be named as below.
@@ -122,7 +121,7 @@ class LKRun : public LKTask
     Int_t GetEntry(Long64_t entry = 0, Int_t getall = 0);
 
     void SetNumEvents(Long64_t num) { SetEntries(num); } ///< Equavalent to SetEntries
-    Long64_t GetNumEvents() const { return GetNumEvents(); } ///< Equavalent to GetNumEvents
+    Long64_t GetNumEvents() const { return fNumEntries; } ///< Equavalent to GetNumEvents
     Int_t GetEvent(Long64_t entry) { return GetEntry(entry); } ///< Equavalent to GetEntry
     bool GetNextEvent();
 

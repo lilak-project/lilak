@@ -5,7 +5,7 @@
 #include "G4ParticleGun.hh"
 #include "G4Event.hh"
 #include "globals.hh"
-#include "LKMCEventGenerator.hh"
+#include "LKMCEventGenerator.h"
 
 class LKPrimaryGeneratorAction : public G4VUserPrimaryGeneratorAction
 {

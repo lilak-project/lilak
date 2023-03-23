@@ -1,10 +1,10 @@
 #ifndef LKEVENTACTION_HH
 #define LKEVENTACTION_HH
 
-#include "LKG4RunManager.hh"
+#include "LKG4RunManager.h"
 #include "G4UserEventAction.hh"
 #include "G4Event.hh"
-#include "globals.hh"
+#include "globals.h"
 
 class LKEventAction : public G4UserEventAction
 {

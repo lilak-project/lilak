@@ -77,8 +77,8 @@ foreach(_directory ${LILAK_SOURCE_DIRECTORY_LIST})
   list(APPEND LILAK_SOURCE_NAME_LIST ${_name})
   set(LILAK_${_name}_G_NAME G__${_name}Dict)
   file(GLOB LILAK_${_name}_LINKDEF_FILE ${_directory}/LinkDef.h)
-  file(GLOB LILAK_${_name}_SOURCE_FILES ${_directory}/*cc)
-  file(GLOB LILAK_${_name}_HEADER_FILES ${_directory}/*hh)
+  file(GLOB LILAK_${_name}_SOURCE_FILES ${_directory}/*.cpp)
+  file(GLOB LILAK_${_name}_HEADER_FILES ${_directory}/*.hpp)
 endforeach(_directory)
 
 include_directories(${CMAKE_SOURCE_DIR}/log)
@@ -86,9 +86,11 @@ include_directories(${CMAKE_SOURCE_DIR}/log)
 add_definitions(${ROOT_CXX_FLAGS})
 
 foreach(_name ${LILAK_SOURCE_NAME_LIST})
-  ROOT_GENERATE_DICTIONARY(${LILAK_${_name}_G_NAME}
+  ROOT_GENERATE_DICTIONARY(
+    ${LILAK_${_name}_G_NAME}
     ${LILAK_${_name}_HEADER_FILES}
-    LINKDEF ${LILAK_${_name}_LINKDEF_FILE}
+    LINKDEF
+    ${LILAK_${_name}_LINKDEF_FILE}
   )
 endforeach(_name)
 
@@ -105,13 +107,13 @@ target_link_libraries(LILAK ${ROOT_LIBRARIES})
 if(BUILD_GEANT4_SIM)
   foreach(_directory ${LILAK_GEANT4_DIRECTORY_LIST})
     set(LILAK_GEANT4_SOURCE_FILES_TEMP)
-    file(GLOB LILAK_GEANT4_SOURCE_FILES_TEMP ${_directory}/*.cc)
+    file(GLOB LILAK_GEANT4_SOURCE_FILES_TEMP ${_directory}/*.cpp)
     foreach(_file ${LILAK_GEANT4_SOURCE_FILES_TEMP})
       list(APPEND LILAK_GEANT4_SOURCE_FILES ${_file})
     endforeach(_file)
 
     set(LILAK_GEANT4_HEADER_FILES_TEMP)
-    file(GLOB LILAK_GEANT4_HEADER_FILES_TEMP ${_directory}/*.hh)
+    file(GLOB LILAK_GEANT4_HEADER_FILES_TEMP ${_directory}/*.hpp)
     foreach(_file ${LILAK_GEANT4_HEADER_FILES_TEMP})
       list(APPEND LILAK_GEANT4_HEADER_FILES ${_file})
     endforeach(_file)
@@ -120,8 +122,8 @@ if(BUILD_GEANT4_SIM)
   foreach(_g4sim ${LILAK_GEANT4_EXECUTABLE_LIST})
     get_filename_component(_g4sim_name ${_g4sim} NAME)
     get_filename_component(_g4sim_directory ${_g4sim} DIRECTORY)
-    string(REPLACE .cc "" _executable_head ${_g4sim_name})
-    string(REPLACE .cc .g4sim _executable_name ${_g4sim_name})
+    string(REPLACE .cpp "" _executable_head ${_g4sim_name})
+    string(REPLACE .cpp .g4sim _executable_name ${_g4sim_name})
 
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${_g4sim_directory})
     add_executable(${_executable_name} ${_g4sim} ${LILAK_GEANT4_SOURCE_FILES} ${LILAK_GEANT4_HEADER_FILES})

@@ -9,19 +9,18 @@
 #include <map>
 using namespace std;
 
-#include "LKGear.hh"
 #include "G4RunManager.hh"
 #include "G4VPhysicalVolume.hh"
-#include "TString.h"
-//#include "globals.hh"
 
 #include "TFile.h"
 #include "TTree.h"
 #include "TClonesArray.h"
 #include "TObjArray.h"
+#include "TString.h"
 
-#include "LKMCTrack.hh"
-#include "LKMCStep.hh"
+#include "LKGear.h"
+#include "LKMCTrack.h"
+#include "LKMCStep.h"
 
 class LKG4RunManager : public G4RunManager, public LKGear
 {

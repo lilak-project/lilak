@@ -4,7 +4,7 @@
 #include "G4UImessenger.hh"
 #include "G4UIcmdWithoutParameter.hh"
 #include "G4UIcmdWithABool.hh"
-#include "LKG4RunManager.hh"
+#include "LKG4RunManager.h"
 
 class LKG4RunMessenger : public G4UImessenger
 {

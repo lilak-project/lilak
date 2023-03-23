@@ -1,20 +1,20 @@
-#include "NTSteppingAction.hh"
+#include "LKSteppingAction.hpp"
 
 #include "G4Event.hh"
 #include "G4RunManager.hh"
 
-NTSteppingAction::NTSteppingAction()
+LKSteppingAction::LKSteppingAction()
 : G4UserSteppingAction()
 {
-  fRunManager = (NTG4RunManager *) NTG4RunManager::GetRunManager();
+  fRunManager = (LKG4RunManager *) LKG4RunManager::GetRunManager();
 }
 
-NTSteppingAction::NTSteppingAction(NTG4RunManager *man)
+LKSteppingAction::LKSteppingAction(LKG4RunManager *man)
 : G4UserSteppingAction(), fRunManager(man)
 {
 }
 
-void NTSteppingAction::UserSteppingAction(const G4Step* step)
+void LKSteppingAction::UserSteppingAction(const G4Step* step)
 {
   G4StepStatus stat = step -> GetPostStepPoint() -> GetStepStatus();
 

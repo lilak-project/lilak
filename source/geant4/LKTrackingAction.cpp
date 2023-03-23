@@ -1,25 +1,25 @@
-#include "NTTrackingAction.hh"
-
 #include "G4Event.hh"
-#include "G4RunManager.hh"
-#include "G4ThreeVector.hh"
 #include "globals.hh"
 #include "G4VProcess.hh"
+#include "G4RunManager.hh"
+#include "G4ThreeVector.hh"
 
-NTTrackingAction::NTTrackingAction()
+#include "LKTrackingAction.hpp"
+
+LKTrackingAction::LKTrackingAction()
 : G4UserTrackingAction()
 {
-  fRunManager = (NTG4RunManager *) NTG4RunManager::GetRunManager();
+  fRunManager = (LKG4RunManager *) LKG4RunManager::GetRunManager();
   fProcessTable = fRunManager -> GetProcessTable();
 }
 
-NTTrackingAction::NTTrackingAction(NTG4RunManager *man)
+LKTrackingAction::LKTrackingAction(LKG4RunManager *man)
 : G4UserTrackingAction(), fRunManager(man)
 {
   fProcessTable = fRunManager -> GetProcessTable();
 }
 
-void NTTrackingAction::PreUserTrackingAction(const G4Track* track)
+void LKTrackingAction::PreUserTrackingAction(const G4Track* track)
 {
   G4ThreeVector momentum = track -> GetMomentum();
   G4ThreeVector position = track -> GetPosition();

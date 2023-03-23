@@ -3,7 +3,7 @@
 
 #include <iostream>
 #include <fstream>
-#include "LKParameterContainer.hh"
+#include "LKParameterContainer.hpp"
 
 /**
  * Virtual class for stear classes of KEBI

@@ -1,4 +1,4 @@
-#include "LKLogger.hh"
+#include "LKLogger.hpp"
 
 LKLogManager* LKLogManager::fLogManager = nullptr;
 TString LKLogManager::fLogFileName = "";

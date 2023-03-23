@@ -1,11 +1,11 @@
-#include "LKPrimaryGeneratorAction.hh"
-#include "LKG4RunManager.hh"
-
 #include "G4ParticleGun.hh"
 #include "G4ParticleTable.hh"
 #include "G4ParticleDefinition.hh"
 #include "G4SystemOfUnits.hh"
 #include <G4strstreambuf.hh>
+
+#include "LKPrimaryGeneratorAction.hpp"
+#include "LKG4RunManager.hpp"
 
 LKPrimaryGeneratorAction::LKPrimaryGeneratorAction()
 {

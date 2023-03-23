@@ -1,11 +1,11 @@
 #ifndef LKTASK_HH
 #define LKTASK_HH
 
-#include "LKGear.hh"
-#include "TTask.h"
 #include <string>
 #include <iostream>
 using namespace std;
+#include "TTask.h"
+#include "LKGear.hpp"
 
 class LKTask : public TTask, public LKGear
 {

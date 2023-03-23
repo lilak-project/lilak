@@ -1,20 +1,20 @@
-#include "LKG4RunManager.hh"
-#include "LKPrimaryGeneratorAction.hh"
-#include "G4VisExecutive.hh"
-#include "G4UImanager.hh"
-#include "G4UIExecutive.hh"
 #include "globals.hh"
-#include "G4ProcessTable.hh"
+#include "G4UImanager.hh"
 #include "G4GDMLParser.hh"
+#include "G4UIExecutive.hh"
 #include "G4strstreambuf.hh"
+#include "G4VisExecutive.hh"
+#include "G4ProcessTable.hh"
 
 #include "TSystem.h"
 
-#include "LKG4RunMessenger.hh"
-#include "LKPrimaryGeneratorAction.hh"
-#include "LKEventAction.hh"
-#include "LKTrackingAction.hh"
-#include "LKSteppingAction.hh"
+#include "LKEventAction.hpp"
+#include "LKG4RunManager.hpp"
+#include "LKG4RunMessenger.hpp"
+#include "LKTrackingAction.hpp"
+#include "LKSteppingAction.hpp"
+#include "LKPrimaryGeneratorAction.hpp"
+#include "LKPrimaryGeneratorAction.hpp"
 
 LKG4RunManager::LKG4RunManager()
 :G4RunManager()
