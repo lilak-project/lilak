@@ -18,9 +18,9 @@ using namespace std;
 #include "TObjArray.h"
 #include "TString.h"
 
-#include "LKGear.h"
-#include "LKMCTrack.h"
-#include "LKMCStep.h"
+#include "LKGear.hpp"
+#include "LKMCTrack.hpp"
+#include "LKMCStep.hpp"
 
 class LKG4RunManager : public G4RunManager, public LKGear
 {
