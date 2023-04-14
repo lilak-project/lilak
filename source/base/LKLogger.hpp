@@ -10,28 +10,31 @@
 /// lilak logger shortcut macros
 #define lk_logger(logFileName) LKLogManager::RunLogger(logFileName)
 #define lk_logger_name() LKLogManager::GetLogFileName()
+#define lx_logger(logFileName) LKLogManager::RunLogger(logFileName)
+#define lx_logger_name() LKLogManager::GetLogFileName()
 
 /// lilak logger manager
 class LKLogManager
 {
-  private:
-    static LKLogManager *fLogManager;
-    static TString fLogFileName;
-    static std::ofstream fLogFile;
-    static bool fLogToConsol;
-    static bool fLogToFile;
+    private:
+        static LKLogManager *fLogManager;
+        static TString fLogFileName;
+        static std::ofstream fLogFile;
+        static bool fLogToConsol;
+        static bool fLogToFile;
 
-  public:
-    LKLogManager(TString fileName);
-    static LKLogManager* RunLogger(TString fileName="");
-    static TString GetLogFileName();
-    static std::ofstream& GetLogFile();
-    static bool LogToConsol();
-    static bool LogToFile();
+    public:
+        LKLogManager(TString fileName);
+        static LKLogManager* RunLogger(TString fileName="");
+        static TString GetLogFileName();
+        static std::ofstream& GetLogFile();
+        static bool LogToConsol();
+        static bool LogToFile();
 };
 
 /// lilak debug logger
 #define lk_debug   LKLogger(__FILE__,__LINE__)
+#define lx_debug   LKLogger(__FILE__,__LINE__)
 
 /// lilak logger
 #define lk_cout    LKLogger(fName,__FUNCTION__,fRank,1)
@@ -48,23 +51,23 @@ class LKLogManager
 /// lilak logger
 class LKLogger
 {
-  public:
-    LKLogger(TString name, const std::string &title ,int rank, int option);
-    LKLogger(const std::string &title ,int line);
+    public:
+        LKLogger(TString name, const std::string &title ,int rank, int option);
+        LKLogger(const std::string &title ,int line);
 
-    template <class T> LKLogger &operator<<(const T &v)
-    {
-      if (LKLogManager::LogToConsol()) std::cout << v;
-      if (LKLogManager::LogToFile()) LKLogManager::GetLogFile() << v;
-      return *this;
-    }
+        template <class T> LKLogger &operator<<(const T &v)
+        {
+            if (LKLogManager::LogToConsol()) std::cout << v;
+            if (LKLogManager::LogToFile()) LKLogManager::GetLogFile() << v;
+            return *this;
+        }
 
-    LKLogger &operator<<(std::ostream&(*f)(std::ostream&))
-    {
-      if (LKLogManager::LogToConsol()) std::cout << *f;
-      if (LKLogManager::LogToFile()) LKLogManager::GetLogFile() << *f;
-      return *this;
-    }
+        LKLogger &operator<<(std::ostream&(*f)(std::ostream&))
+        {
+            if (LKLogManager::LogToConsol()) std::cout << *f;
+            if (LKLogManager::LogToFile()) LKLogManager::GetLogFile() << *f;
+            return *this;
+        }
 };
 
 #endif

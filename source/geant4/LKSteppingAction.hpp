@@ -8,15 +8,15 @@
 
 class LKSteppingAction : public G4UserSteppingAction
 {
-  public:
-    LKSteppingAction();
-    LKSteppingAction(LKG4RunManager *man);
-    virtual ~LKSteppingAction() {}
+    public:
+        LKSteppingAction();
+        LKSteppingAction(LKG4RunManager *man);
+        virtual ~LKSteppingAction() {}
 
-    virtual void UserSteppingAction(const G4Step*);
+        virtual void UserSteppingAction(const G4Step*);
 
-  private:
-    LKG4RunManager *fRunManager = nullptr;
+    private:
+        LKG4RunManager *fRunManager = nullptr;
 };
 
 #endif

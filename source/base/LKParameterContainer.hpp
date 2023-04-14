@@ -72,98 +72,98 @@ using namespace std;
  * - INPUT_FILE_ : INPUT_FILE_[i] is saved to keep the input file name
  * - INPUT_PARC_ : INPUT_PARC_[i] is saved to keep the existance of input parameter container
  * - [i]         : [par-name][i] is saved to keep the individual components of parameters
-*/
+ */
 
 class LKParameterContainer : public TObjArray
 {
-  public:
-    LKParameterContainer(Bool_t collect = false);
-    LKParameterContainer(const char *parName, Bool_t collect = false); ///< Constructor with input parameter file name
-    virtual ~LKParameterContainer() {}
+    public:
+        LKParameterContainer(Bool_t collect = false);
+        LKParameterContainer(const char *parName, Bool_t collect = false); ///< Constructor with input parameter file name
+        virtual ~LKParameterContainer() {}
 
-    /**
-     * Print to screen or file
-     *
-     * ## How to give option
-     *
-     * If file name is not given, parameter container will be printed on the screen. ex) Print()
-     * If file name is given with an extension (".par") parameter container will be written to the file. ex) Print("file.par")
-     * Options may be added with and addition to ":" or space. ex) Print("file.par:line#:par#"), Print("eval:par#")
-     *
-     * ## options
-     *
-     * - eval : evaluate and replace all unraveled variables with ({par},+,-,...)
-     * - line# : show line comments
-     * - par# : show parameter comments
-     * - all : show all hidden parameters (not recommended to write file with this mode)
-     * - raw : print from TObjArray::Print()
-    */
-    virtual void Print(Option_t *option = "") const;
-    void SaveAs(const char *filename, Option_t *option = "") const;
+        /**
+         * Print to screen or file
+         *
+         * ## How to give option
+         *
+         * If file name is not given, parameter container will be printed on the screen. ex) Print()
+         * If file name is given with an extension (".par") parameter container will be written to the file. ex) Print("file.par")
+         * Options may be added with and addition to ":" or space. ex) Print("file.par:line#:par#"), Print("eval:par#")
+         *
+         * ## options
+         *
+         * - eval : evaluate and replace all unraveled variables with ({par},+,-,...)
+         * - line# : show line comments
+         * - par# : show parameter comments
+         * - all : show all hidden parameters (not recommended to write file with this mode)
+         * - raw : print from TObjArray::Print()
+         */
+        virtual void Print(Option_t *option = "") const;
+        void SaveAs(const char *filename, Option_t *option = "") const;
 
-    bool IsEmpty() const; ///< Return true if empty
-    /*
-     * When fCollectionMode is set to true, LKParameterContainer will not terminate getter is called for non-existing parameter.
-     * Instead, it will print a message and create a default parameter.
-     * You might want to use this mode to find the parameters that are needed in the simulation and analysis runs.
-     */
-    void SetCollectingMode(Bool_t val = true) { fCollectionMode = val; }
-    void ReplaceVariables(TString &val, TString parName=""); ///< evaluate and replace all unraveled variables with ({par},+,-,...)
+        bool IsEmpty() const; ///< Return true if empty
+        /*
+         * When fCollectionMode is set to true, LKParameterContainer will not terminate getter is called for non-existing parameter.
+         * Instead, it will print a message and create a default parameter.
+         * You might want to use this mode to find the parameters that are needed in the simulation and analysis runs.
+         */
+        void SetCollectingMode(Bool_t val = true) { fCollectionMode = val; }
+        void ReplaceVariables(TString &val, TString parName=""); ///< evaluate and replace all unraveled variables with ({par},+,-,...)
 
-    /**
-     * Add parameter by given fileName.
-     * If fileName does not include path, file will be searched in path/to/LILAK/input.
-     *
-     * fileName will also be registered as parameter. 
-     * parameter name will be set as INPUT_PARAMETER_FILE[fNumInputFiles]
-    */
-    virtual Int_t AddFile(TString fileName, bool addFilePar=false); ///< Add parameter file
-    virtual Int_t AddParameterContainer(LKParameterContainer *parc); ///< Add parameter container pointer
-    Int_t GetNumInputFiles() const { return fNumInputFiles; } ///< Get number of input parameter files
+        /**
+         * Add parameter by given fileName.
+         * If fileName does not include path, file will be searched in path/to/LILAK/input.
+         *
+         * fileName will also be registered as parameter. 
+         * parameter name will be set as INPUT_PARAMETER_FILE[fNumInputFiles]
+         */
+        virtual Int_t AddFile(TString fileName, bool addFilePar=false); ///< Add parameter file
+        virtual Int_t AddParameterContainer(LKParameterContainer *parc); ///< Add parameter container pointer
+        Int_t GetNumInputFiles() const { return fNumInputFiles; } ///< Get number of input parameter files
 
-    Bool_t SetPar(std::string line); ///< Set parameter by line
-    Bool_t SetPar(TString name, TString val, TString comment=""); ///< Set parameter TString
-    Bool_t SetPar(TString name, Int_t val, TString comment="")    { return SetPar(name,Form("%d",val),comment); } ///< Set parameter Int_t
-    Bool_t SetPar(TString name, Double_t val, TString comment="") { return SetPar(name,Form("%f",val),comment); } ///< Set parameter Double_t
+        Bool_t SetPar(std::string line); ///< Set parameter by line
+        Bool_t SetPar(TString name, TString val, TString comment=""); ///< Set parameter TString
+        Bool_t SetPar(TString name, Int_t val, TString comment="")    { return SetPar(name,Form("%d",val),comment); } ///< Set parameter Int_t
+        Bool_t SetPar(TString name, Double_t val, TString comment="") { return SetPar(name,Form("%f",val),comment); } ///< Set parameter Double_t
 
-    Bool_t CheckPar(TString name) const;
+        Bool_t CheckPar(TString name) const;
 
-    Int_t    GetParN     (TString name) const;          ///< Get number of parameters in array of given name.
-    Bool_t   GetParBool  (TString name, Int_t idx=-1);  ///< Get parameter in Bool_t
-    Int_t    GetParInt   (TString name, Int_t idx=-1);  ///< Get parameter in Int_t
-    Double_t GetParDouble(TString name, Int_t idx=-1);  ///< Get parameter in Double_t
-    TString  GetParString(TString name, Int_t idx=-1);  ///< Get parameter in TString
-    Int_t    GetParColor (TString name, Int_t idx=-1);  ///< Get parameter in Color_t
-    TVector3 GetParV3    (TString name);                ///< Get parameter in TVector
-    Double_t GetParX     (TString name) { return GetParDouble(name,0); }
-    Double_t GetParY     (TString name) { return GetParDouble(name,1); }
-    Double_t GetParZ     (TString name) { return GetParDouble(name,2); }
-    Int_t    GetParWidth (TString name, int idx=-1) { return GetParInt(name,idx); }
-    Double_t GetParSize  (TString name, int idx=-1) { return GetParDouble(name,idx); }
+        Int_t    GetParN     (TString name) const;          ///< Get number of parameters in array of given name.
+        Bool_t   GetParBool  (TString name, Int_t idx=-1);  ///< Get parameter in Bool_t
+        Int_t    GetParInt   (TString name, Int_t idx=-1);  ///< Get parameter in Int_t
+        Double_t GetParDouble(TString name, Int_t idx=-1);  ///< Get parameter in Double_t
+        TString  GetParString(TString name, Int_t idx=-1);  ///< Get parameter in TString
+        Int_t    GetParColor (TString name, Int_t idx=-1);  ///< Get parameter in Color_t
+        TVector3 GetParV3    (TString name);                ///< Get parameter in TVector
+        Double_t GetParX     (TString name) { return GetParDouble(name,0); }
+        Double_t GetParY     (TString name) { return GetParDouble(name,1); }
+        Double_t GetParZ     (TString name) { return GetParDouble(name,2); }
+        Int_t    GetParWidth (TString name, int idx=-1) { return GetParInt(name,idx); }
+        Double_t GetParSize  (TString name, int idx=-1) { return GetParDouble(name,idx); }
 
-    std::vector<bool>    GetParVBool  (TString name);
-    std::vector<int>     GetParVInt   (TString name);
-    std::vector<double>  GetParVDouble(TString name);
-    std::vector<TString> GetParVString(TString name);
-    std::vector<int>     GetParVWidth (TString name) { return GetParVInt(name); }
-    std::vector<int>     GetParVColor (TString name) { return GetParVInt(name); }
-    std::vector<double>  GetParVSize  (TString name) { return GetParVDouble(name); }
+        std::vector<bool>    GetParVBool  (TString name);
+        std::vector<int>     GetParVInt   (TString name);
+        std::vector<double>  GetParVDouble(TString name);
+        std::vector<TString> GetParVString(TString name);
+        std::vector<int>     GetParVWidth (TString name) { return GetParVInt(name); }
+        std::vector<int>     GetParVColor (TString name) { return GetParVInt(name); }
+        std::vector<double>  GetParVSize  (TString name) { return GetParVDouble(name); }
 
-  private:
-    void ProcessParNotFound(TString name, TString val);
-    void ProcessTypeError(TString name, TString val, TString type) const;
-    bool CheckFormulaValidity(TString formula, bool isInt=false) const;
-    double Eval(TString formula) const;
+    private:
+        void ProcessParNotFound(TString name, TString val);
+        void ProcessTypeError(TString name, TString val, TString type) const;
+        bool CheckFormulaValidity(TString formula, bool isInt=false) const;
+        double Eval(TString formula) const;
 
-    void ReplaceVariablesFast(TString &val, TString parName="") const;
-    TString GetParStringFast(TString name, Int_t idx=-1) const;
+        void ReplaceVariablesFast(TString &val, TString parName="") const;
+        TString GetParStringFast(TString name, Int_t idx=-1) const;
 
 
-    Bool_t fCollectionMode = false;
-    Int_t fNumInputFiles = 0;
-    Int_t fRank = 0;
+        Bool_t fCollectionMode = false;
+        Int_t fNumInputFiles = 0;
+        Int_t fRank = 0;
 
-  ClassDef(LKParameterContainer, 1)
+    ClassDef(LKParameterContainer, 0)
 };
 
 #endif

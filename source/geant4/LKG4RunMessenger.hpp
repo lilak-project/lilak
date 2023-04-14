@@ -8,17 +8,17 @@
 
 class LKG4RunMessenger : public G4UImessenger
 {
-  public:
-    LKG4RunMessenger(LKG4RunManager *);
-    virtual ~LKG4RunMessenger();
+    public:
+        LKG4RunMessenger(LKG4RunManager *);
+        virtual ~LKG4RunMessenger();
 
-   void SetNewValue(G4UIcommand * command,G4String newValues);
+        void SetNewValue(G4UIcommand * command,G4String newValues);
 
-  private:
-    LKG4RunManager *fRunManager;
+    private:
+        LKG4RunManager *fRunManager;
 
-    G4UIcmdWithoutParameter *fBeamOnAll;
-    G4UIcmdWithABool *fSuppressMessage;
+        G4UIcmdWithoutParameter *fBeamOnAll;
+        G4UIcmdWithABool *fSuppressMessage;
 };
 
 #endif

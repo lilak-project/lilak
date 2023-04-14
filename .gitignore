@@ -40,3 +40,6 @@ figures/
 
 #trash
 trash
+
+#mac
+.DS_Store

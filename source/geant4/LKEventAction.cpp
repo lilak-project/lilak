@@ -6,7 +6,7 @@
 LKEventAction::LKEventAction()
 : G4UserEventAction()
 {
-  fRunManager = (LKG4RunManager *) LKG4RunManager::GetRunManager();
+    fRunManager = (LKG4RunManager *) LKG4RunManager::GetRunManager();
 }
 
 LKEventAction::LKEventAction(LKG4RunManager *man)
@@ -15,5 +15,5 @@ LKEventAction::LKEventAction(LKG4RunManager *man)
 }
 void LKEventAction::EndOfEventAction(const G4Event*)
 {
-  fRunManager -> NextEvent();
+    fRunManager -> NextEvent();
 }

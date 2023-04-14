@@ -9,17 +9,17 @@
 
 class LKTrackingAction : public G4UserTrackingAction
 {
-  public:
-    LKTrackingAction();
-    LKTrackingAction(LKG4RunManager *man);
-    virtual ~LKTrackingAction() {}
+    public:
+        LKTrackingAction();
+        LKTrackingAction(LKG4RunManager *man);
+        virtual ~LKTrackingAction() {}
 
-    virtual void PreUserTrackingAction(const G4Track* track);
+        virtual void PreUserTrackingAction(const G4Track* track);
 
-  private:
-    LKParameterContainer *fProcessTable;
+    private:
+        LKParameterContainer *fProcessTable;
 
-    LKG4RunManager *fRunManager = nullptr;
+        LKG4RunManager *fRunManager = nullptr;
 };
 
 #endif

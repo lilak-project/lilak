@@ -9,24 +9,24 @@ using namespace std;
 
 class LKTask : public TTask, public LKGear
 {
-  public:
-    LKTask();
-    LKTask(const char* name, const char *title);
-    virtual ~LKTask() {};
+    public:
+        LKTask();
+        LKTask(const char* name, const char *title);
+        virtual ~LKTask() {};
 
-    virtual void Add(TTask *task);
+        virtual void Add(TTask *task);
 
-    virtual void SetRank(Int_t rank);
+        virtual void SetRank(Int_t rank);
 
-    bool InitTask();
-    bool InitTasks();
-    virtual bool Init();
+        bool InitTask();
+        bool InitTasks();
+        virtual bool Init();
 
-    bool EndOfRunTask();
-    bool EndOfRunTasks();
-    virtual bool EndOfRun();
+        bool EndOfRunTask();
+        bool EndOfRunTasks();
+        virtual bool EndOfRun();
 
-    ClassDef(LKTask, 1)
+    ClassDef(LKTask, 0)
 };
 
 #endif

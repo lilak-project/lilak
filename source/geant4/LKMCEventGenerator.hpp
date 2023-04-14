@@ -57,23 +57,23 @@
 
 class LKMCEventGenerator
 {
-  public:
-    LKMCEventGenerator();
-    LKMCEventGenerator(TString fileName);
-    virtual ~LKMCEventGenerator();
+    public:
+        LKMCEventGenerator();
+        LKMCEventGenerator(TString fileName);
+        virtual ~LKMCEventGenerator();
 
-    bool ReadNextEvent(Double_t &vx, Double_t &vy, Double_t &vz);
-    bool ReadNextTrack(Int_t &pdg, Double_t &px, Double_t &py, Double_t &pz);
+        bool ReadNextEvent(Double_t &vx, Double_t &vy, Double_t &vz);
+        bool ReadNextTrack(Int_t &pdg, Double_t &px, Double_t &py, Double_t &pz);
 
-    Int_t GetNumEvents() { return fNumEvents; };
-    bool ReadMomentumOrEnergy() { return fReadMomentumOrEnergy; }
+        Int_t GetNumEvents() { return fNumEvents; };
+        bool ReadMomentumOrEnergy() { return fReadMomentumOrEnergy; }
 
-  private:
-    std::ifstream fInputFile;
-    bool fReadMomentumOrEnergy;
-    Int_t fNumEvents;
-    Int_t fNumTracks;
-    Int_t fCurrentTrackID;
+    private:
+        std::ifstream fInputFile;
+        bool fReadMomentumOrEnergy;
+        Int_t fNumEvents;
+        Int_t fNumTracks;
+        Int_t fCurrentTrackID;
 };
 
 #endif

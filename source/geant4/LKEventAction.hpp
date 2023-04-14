@@ -8,15 +8,15 @@
 
 class LKEventAction : public G4UserEventAction
 {
-  public:
-    LKEventAction();
-    LKEventAction(LKG4RunManager *man);
-    virtual ~LKEventAction() {}
+    public:
+        LKEventAction();
+        LKEventAction(LKG4RunManager *man);
+        virtual ~LKEventAction() {}
 
-    virtual void EndOfEventAction(const G4Event* event);
+        virtual void EndOfEventAction(const G4Event* event);
 
-  private:
-    LKG4RunManager *fRunManager = nullptr;
+    private:
+        LKG4RunManager *fRunManager = nullptr;
 };
 
 #endif

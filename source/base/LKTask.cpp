@@ -15,85 +15,85 @@ LKTask::LKTask(const char* name, const char *title)
 
 void LKTask::Add(TTask *task)
 {
-  TTask::Add(task);
+    TTask::Add(task);
 
-  auto task0 = (LKTask *) task;
-  task0 -> SetRank(fRank+1);
-  task0 -> AddPar(fPar);
+    auto task0 = (LKTask *) task;
+    task0 -> SetRank(fRank+1);
+    task0 -> AddPar(fPar);
 }
 
 bool LKTask::InitTask() 
 {
-  if (!fActive)
-    return false;
+    if (!fActive)
+        return false;
 
-  bool initialized = Init();
-  if (!initialized)
-    return false;
+    bool initialized = Init();
+    if (!initialized)
+        return false;
 
-  return InitTasks();
+    return InitTasks();
 }
 
 bool LKTask::Init() 
 {
-  return true;
+    return true;
 }
 
 bool LKTask::InitTasks()
 {
-  TIter iter(GetListOfTasks());
-  LKTask* task;
+    TIter iter(GetListOfTasks());
+    LKTask* task;
 
-  while ( (task = dynamic_cast<LKTask*>(iter())) ) {
-    lk_info << "Initializing " << task -> GetName() << "." << endl;
-    if (task -> Init() == false) {
-      lk_warning << "Initialization failed!" << endl;
-      return false;
+    while ( (task = dynamic_cast<LKTask*>(iter())) ) {
+        lk_info << "Initializing " << task -> GetName() << "." << endl;
+        if (task -> Init() == false) {
+            lk_warning << "Initialization failed!" << endl;
+            return false;
+        }
     }
-  }
 
-  return true;
+    return true;
 }
 
 bool LKTask::EndOfRunTask()
 {
-  if (!fActive)
-    return false;
+    if (!fActive)
+        return false;
 
-  bool endofrun = EndOfRun();
-  if (!endofrun)
-    return false;
+    bool endofrun = EndOfRun();
+    if (!endofrun)
+        return false;
 
-  return EndOfRunTasks();
+    return EndOfRunTasks();
 }
 
 bool LKTask::EndOfRun()
 {
-  return true;
+    return true;
 }
 
 bool LKTask::EndOfRunTasks()
 {
-  TIter iter(GetListOfTasks());
-  LKTask* task;
+    TIter iter(GetListOfTasks());
+    LKTask* task;
 
-  while ( (task = dynamic_cast<LKTask*>(iter())) ) {
-    lk_info << "EndOfRun " << task -> GetName() << "." << endl;
-    if (task -> EndOfRun() == false) {
-      lk_warning << "EndOfRun failed!" << endl;
-      return false;
+    while ( (task = dynamic_cast<LKTask*>(iter())) ) {
+        lk_info << "EndOfRun " << task -> GetName() << "." << endl;
+        if (task -> EndOfRun() == false) {
+            lk_warning << "EndOfRun failed!" << endl;
+            return false;
+        }
     }
-  }
 
-  return true;
+    return true;
 }
 
 void LKTask::SetRank(Int_t rank)
 {
-  fRank = rank;
+    fRank = rank;
 
-  TIter iter(GetListOfTasks());
-  LKTask* task;
-  while ( (task = dynamic_cast<LKTask*>(iter())) )
-    task -> SetRank(fRank+1);
+    TIter iter(GetListOfTasks());
+    LKTask* task;
+    while ( (task = dynamic_cast<LKTask*>(iter())) )
+        task -> SetRank(fRank+1);
 }
