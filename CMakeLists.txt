@@ -25,6 +25,8 @@ message(STATUS "Build Doxygen document : " ${BUILD_DOXYGEN_DOC})
 #---Add source directories. Directory should be under "/path/to/LILAK/"
 set(LILAK_SOURCE_DIRECTORY_LIST
   ${CMAKE_SOURCE_DIR}/source/base
+  ${CMAKE_SOURCE_DIR}/source/container
+  ${CMAKE_SOURCE_DIR}/source/task
   CACHE INTERNAL ""
 )
 

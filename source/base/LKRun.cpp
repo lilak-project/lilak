@@ -33,10 +33,6 @@ LKRun::LKRun()
     for (Int_t iBranch = 0; iBranch < 100; ++iBranch)
         fBranchPtr[iBranch] = nullptr;
 
-#ifdef LKDETCTORSYSTEM_HH
-    fDetectorSystem = new LKDetectorSystem();
-#endif
-
     ifstream log_branch_list(TString(LILAK_PATH)+"/log/LKBranchList.log");
     string line;
     TString hashTag, branchName;
@@ -132,9 +128,6 @@ void LKRun::Print(Option_t *option) const
     if (printDetectors) {
         lx_cout << endl;
         lk_info << "# Detectors" << endl;
-#ifdef LKDETCTORSYSTEM_HH
-        fDetectorSystem -> Print();
-#endif
     }
 
     for (auto io : {0,1})
@@ -327,8 +320,6 @@ bool LKRun::Init()
 
     lk_info << "Initializing" << endl;
 
-    GetDatabasePDG();
-
     Int_t idxInput = 0;
     if (fInputFileName.IsNull() && fInputFileNameArray.size() != 0) {
         fInputFileName = fInputFileNameArray[0];
@@ -443,16 +434,6 @@ bool LKRun::Init()
         fRunHeader -> SetPar("NumEventsInSplit",int(fNumSplitEntries));
     }
 
-#ifdef LKDETCTORSYSTEM_HH
-    if (fDetectorSystem -> GetEntries() != 0) {
-        fDetectorSystem -> SetParameterContainer(fPar);
-        fDetectorSystem -> Init();
-        fDetectorSystem -> SetTransparency(80);
-        lk_info << fDetectorSystem -> GetName() << " initialized" << endl;
-        fDetectorSystem -> Print();
-    }
-#endif
-
     if (fOutputFileName.IsNull())
     {
         if (fRunName.IsNull()) {
@@ -462,8 +443,7 @@ bool LKRun::Init()
         }
 
         if (fRunID >= 0)
-            fOutputFileName = fRunName + Form("_%d", fRunID);
-        //fOutputFileName = fRunName + Form("_%04d", fRunID);
+            fOutputFileName = fRunName + Form("_%04d", fRunID);
 
         if (!fTag.IsNull())
             fOutputFileName = fOutputFileName + "." + fTag;
@@ -509,38 +489,6 @@ bool LKRun::Init()
     fCurrentEventID = -1;
 
     return fInitialized;
-}
-
-TDatabasePDG *LKRun::GetDatabasePDG()
-{
-    TDatabasePDG *db = TDatabasePDG::Instance();
-
-    if (db->GetParticle("deuteron")==nullptr)
-    {
-        db -> AddParticle("deuteron","", 1.87561 ,1,0, 3,"Ion",1000010020);
-        db -> AddParticle("triton"  ,"", 2.80892 ,1,0, 3,"Ion",1000010030);
-        db -> AddParticle("He3"     ,"", 2.80839 ,1,0, 6,"Ion",1000020030);
-        db -> AddParticle("He4"     ,"", 3.72738 ,1,0, 6,"Ion",1000020040);
-        db -> AddParticle("Li6"     ,"", 5.6     ,1,0, 9,"Ion",1000030060);
-        db -> AddParticle("Li7"     ,"", 6.5     ,1,0, 9,"Ion",1000030070);
-        db -> AddParticle("Be7"     ,"", 6.5     ,1,0,12,"Ion",1000040070);
-        db -> AddParticle("Be9"     ,"", 8.4     ,1,0,12,"Ion",1000040090);
-        db -> AddParticle("Be10"    ,"", 9.3     ,1,0,12,"Ion",1000040100);
-        db -> AddParticle("Bo10"    ,"", 9.3     ,1,0,15,"Ion",1000050100);
-        db -> AddParticle("Bo11"    ,"",10.2     ,1,0,15,"Ion",1000050110);
-        db -> AddParticle("C11"     ,"",10.2     ,1,0,18,"Ion",1000060110);
-        db -> AddParticle("C12"     ,"",11.17793 ,1,0,18,"Ion",1000060120);
-        db -> AddParticle("C13"     ,"",12.11255 ,1,0,18,"Ion",1000060130);
-        db -> AddParticle("C14"     ,"",13.04394 ,1,0,18,"Ion",1000060140);
-        db -> AddParticle("N13"     ,"",12.1     ,1,0,21,"Ion",1000070130);
-        db -> AddParticle("N14"     ,"",13.0     ,1,0,21,"Ion",1000070140);
-        db -> AddParticle("N15"     ,"",14.0     ,1,0,21,"Ion",1000070150);
-        db -> AddParticle("O16"     ,"",14.89917 ,1,0,24,"Ion",1000080160);
-        db -> AddParticle("O17"     ,"",15.83459 ,1,0,24,"Ion",1000080170);
-        db -> AddParticle("O18"     ,"",16.76611 ,1,0,24,"Ion",1000080180);
-    }
-
-    return db;
 }
 
 void LKRun::CollectParFromInit(TString name)

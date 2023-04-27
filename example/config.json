@@ -1,0 +1,30 @@
+{
+  "numPoints": 5,
+// You can write an comment in this input file using delimeters of '//', '$' or '#'.
+// MFMHistServer will make a new input file after comments removed.
+  "ReadType": "3", //0:online, 1:offline with mfm file, 3: offline with list file, 11: offline with exptname and run number
+  //"MFMFileName": "/mnt/CRIBdisk/o14apf17/ganacq_manip/o14apf17/acquisition/run/run_1016.dat.25-03-23_03h39m31s",
+  "MFMFileName": "CRIB_disk1.txt",
+  //"MFMFileName": "o14apf17/run_0676",
+  "NumberofFiles": "1", //only valid for ReadType=1
+  "RootConvertEnable": "1", //0: online.root in temp directory, 1: mfmfilename.root in the mfm data directory
+  //"IgnoreMicromegas": "1", //0: include MM signals, 1: ignore MM signals
+  "DrawWaveformEnable": "0",
+  "CleanTrackEnable": "0", // 0: disable clean track, 1: enable clean track
+  "DrawTrackEnable": "0", // 0: disable draw track, 1: enable draw track
+  "watcherIP": "192.168.41.1",
+  "watcherPort" : "9090", // needed for histogram server
+  "ConverterPort" : "9998", // needed for mfm2rootwf
+  "CoBoServerPort"    : "10204", // port for CoBo unit in Narval
+  "MutantServerPort"    : "10205", // port for Mutant unit in Narval
+  "BucketSize"    : "512", // Time bucket size
+  "ScalerMode"    : "0", // to print out scaler data more often
+  "2pMode"    : "0", // reading data for 2p mode
+  "UpdateFast"    : "0", //save root tree more often in case of slow event rate
+  "ChanToMMMapFileName" : "mapchantomm.txt", // map file for Micromega channels
+  "ChanToSiMapFileName" : "mapchantosi.txt", // map file for Silicon detectors
+  "ChanToCsIMapFileName" : "mapchantocsi.txt", // map file for CsI detectors
+  "EnergyFindingMethod" : "0", //0: the maximum value of the waveform, 1: the value at time from deconvolution method, 2: the fit value using defined function
+  "ReadResponseWaveformFlag" : "1", //1: read response function from file, 0: read response function from data (you have to modify src code to set the event number and channels
+  "ResponseWaveformFileName" : "responsewaveform.txt" // name of the response function
+}

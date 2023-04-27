@@ -15,7 +15,6 @@ using namespace std;
 #include "TChain.h"
 #include "TObject.h"
 #include "TCanvas.h"
-#include "TDatabasePDG.h"
 #include "TClonesArray.h"
 #include "TSysEvtHandler.h"
 
@@ -23,10 +22,6 @@ using namespace std;
 #include "LKTask.hpp"
 #include "LKLogger.hpp"
 #include "LKParameterContainer.hpp"
-#ifdef LKDETCTORSYSTEM_HH
-#include "LKDetectorSystem.hpp"
-#include "LKDetector.hpp"
-#endif
 
 /**
  *  If output file name is not set, output file name will be named as below.
@@ -65,7 +60,7 @@ class LKRun : public LKTask
         TString GetDataPath() { return fDataPath; }
 
         /// Input file
-        void AddInputFile(TString fileName, TString treeName = "event"); ///< Add file to input file
+        void AddInputFile(TString fileName, TString treeName = "events"); ///< Add file to input file
         void SetInputTreeName(TString treeName) { fInputTreeName = treeName; } ///< Set input tree name
         TFile  *GetInputFile() { return fInputFile; }
         TTree  *GetInputTree() const { return (TTree *) fInputTree; }
@@ -103,16 +98,6 @@ class LKRun : public LKTask
         bool RegisterBranch(TString name, TObject *obj, bool persistent);
         TObject *GetBranch(TString name); ///< Get branch in TObject by name.
         TClonesArray *GetBranchA(TString name); ///< Get branch in TClonesArray by name. Return nullptr if branch is not inherited from TClonesArray
-
-#ifdef LKDETCTORSYSTEM_HH
-        void AddDetector(LKDetector *detector) { fDetectorSystem -> AddDetector(detector); } ///< Add detector
-        LKDetector *GetDetector(Int_t i) const { return (LKDetector *) fDetectorSystem -> At(i); }
-        LKDetectorSystem *GetDetectorSystem() const { return fDetectorSystem; }
-
-        void SetGeoManager(TGeoManager *gm) { fDetectorSystem -> SetGeoManager(gm); }
-        TGeoManager *GetGeoManager() const { return fDetectorSystem -> GetGeoManager(); }
-        void SetGeoTransparency(Int_t transparency) { fDetectorSystem -> SetTransparency(transparency); }
-#endif
 
         void SetEntries(Long64_t num) { fNumEntries = num; } ///< Set total number of entries. Use only input do not exist.
         Long64_t GetEntries() const { return fNumEntries; } ///< Get total number of entries
@@ -162,10 +147,6 @@ class LKRun : public LKTask
         TString GetFileHash(TString name);
         static TString ConfigureDataPath(TString name, bool search = false, TString pathData="", bool addVersion=false);
         static bool CheckFileExistence(TString fileName);
-
-        TDatabasePDG *GetDatabasePDG();
-        TParticlePDG *GetParticle(Int_t pdg)        { return GetDatabasePDG() -> GetParticle(pdg); }
-        TParticlePDG *GetParticle(const char *name) { return GetDatabasePDG() -> GetParticle(name); }
 
     private:
         void CheckIn();
@@ -218,10 +199,6 @@ class LKRun : public LKTask
         LKParameterContainer *fG4ProcessTable = nullptr; ///< List of Geant4 physics process
         LKParameterContainer *fG4SDTable = nullptr;      ///< List of Geant4 sensitive detectors
         LKParameterContainer *fG4VolumeTable = nullptr;
-
-#ifdef LKDETCTORSYSTEM_HH
-        LKDetectorSystem *fDetectorSystem = nullptr;
-#endif
 
         std::vector<TString> fListOfGitBranches;
         std::vector<int> fListOfNumTagsInGitBranches;
