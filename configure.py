@@ -22,7 +22,9 @@ options = {
     "BUILD_DOXYGEN_DOC": False,
 }
 
-def input01(question="(1/0)",possible_options=['0','1']):
+project_set = set()
+
+def input01(question="<1/0>",possible_options=['0','1']):
     while True:
         user_input = input(question)
         if user_input in ['0', '1']:
@@ -31,35 +33,74 @@ def input01(question="(1/0)",possible_options=['0','1']):
             print("Invalid input. Please try again.")
     return user_input
 
-confirm=0
 if os.path.exists(option_file_name):
     with open(option_file_name, "r") as f:
         for line in f:
-            key, value = line.strip().split("=")
-            options[key] = bool(int(value))
+            line = line.strip()
+            if line.find("=")>0:
+                key, value = line.strip().split("=")
+                options[key] = bool(int(value))
+            elif len(line)>0:
+                project_set.add(line)
+    #print("\n"+bline)
+    #print("## Saved options in", option_file_name)
+    #for key, value in options.items():
+    #    print(f"   {key} = {value}")
+    #print()
+    #for line in project_set:
+    #    print(f"   Project: {line}")
+    #confirm = input01("Use saved options? <1/0>: ")
+
+while True:
     print("\n"+bline)
     print("## Saved options in", option_file_name)
     for key, value in options.items():
         print(f"   {key} = {value}")
-    confirm = input01("Use saved options? (1/0): ")
+    print()
+    for line in project_set:
+        print(f"   Project: {line}")
+    print()
+    confirm = input01("Use above options? <1/0>: ")
+    if confirm==1:
+        print()
+        print("saving options to", option_file_name)
+        with open(option_file_name, "w") as f:
+            for key, value in options.items():
+                f.write(f"{key}={int(value)}\n")
+            for line in project_set:
+                f.write(line)
+        with open(cmake_file_name, "w") as f:
+            for key, value in options.items():
+                vonoff = "ON" if value==1 else "OFF"
+                f.write(f"set({key} {vonoff} CACHE INTERNAL \"\")\n")
+            project_all = ""
+            for name in project_set:
+                project_all = project_all+'\n    '+name
+            f.write(f"""
+    set(LILAK_PROJECT_LIST{project_all}
+        CACHE INTERNAL ""
+    )""")
+        break
 
-while confirm==0:
     print("\n"+bline)
     print("## Setting options")
-    options["ACTIVATE_EVE"]      = input01("1) Activate ROOT EVE? [EVE should be installed beforehand] (1/0): ")
-    options["BUILD_GEANT4_SIM"]  = input01("2) Build Geant4 Simulation? (1/0): ")
-    #options["BUILD_DOXYGEN_DOC"] = input01("3) Build Doxygen document? (1/0): ")
+    options["ACTIVATE_EVE"]      = input01("1) Activate ROOT EVE? [EVE should be installed beforehand] <1/0>: ")
+    options["BUILD_GEANT4_SIM"]  = input01("2) Build Geant4 Simulation? <1/0>: ")
+    #options["BUILD_DOXYGEN_DOC"] = input01("3) Build Doxygen document? <1/0>: ")
     options["BUILD_DOXYGEN_DOC"] = 0;
-    options["CREATE_GIT_LOG"]    = input01("4) Create Git Log? [Recommanded] (1/0): ")
-    print("saving options to", option_file_name)
-    with open(option_file_name, "w") as f:
-        for key, value in options.items():
-            f.write(f"{key}={int(value)}\n")
-    with open(cmake_file_name, "w") as f:
-        for key, value in options.items():
-            vonoff = "ON" if value==1 else "OFF"
-            f.write(f"set({key} {vonoff} CACHE INTERNAL \"\")\n")
-    confirm = 1
+    options["CREATE_GIT_LOG"]    = input01("4) Create Git Log? [Recommanded] <1/0>: ")
+
+    print()
+    user_input_project = "x"
+    project_set = set()
+    while len(user_input_project)>0:
+        user_input_project = input("Type project name to add. Type <Enter> if non: ")
+        if len(user_input_project)>0:
+            if os.path.exists(user_input_project) and os.path.isdir(user_input_project):
+                print(f"Adding project {user_input_project}")
+                project_set.add(user_input_project)
+            else:
+                print(f"Directory {user_input_project} do not exist in lilak home directory!")
 
 print("\n"+bline)
 print( "## Settings:")

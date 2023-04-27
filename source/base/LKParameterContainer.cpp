@@ -211,25 +211,33 @@ Int_t LKParameterContainer::AddFile(TString fileName, bool addFilePar)
     if (addFilePar)
         SetPar(parName, fileNameFull);
     else {
-        SetPar("","",TString("# ") + parName2 + " " + fileNameFull);
+        SetComment(TString("# ") + parName2 + " " + fileNameFull);
     }
 
     ifstream file(fileNameFull);
-    string line;
 
     Int_t countParameters = 0;
-    while (getline(file, line)) {
-        if (SetPar(line))
-            countParameters++;
-    }
 
-    if (countParameters == 0) {
-        this -> Remove(FindObject(parName));
-        fNumInputFiles--;
+    if (fileNameFull.EndsWith(".json")) {
+        file >> fJsonValues;
+        countParameters = AddJsonTree(fJsonValues);
     }
+    else {
+        string line;
 
-    parName.Replace(0,11,"<<");
-    SetPar("","", Form("%s %d parameters where added",parName.Data(),countParameters));
+        while (getline(file, line)) {
+            if (SetPar(line))
+                countParameters++;
+        }
+
+        if (countParameters == 0) {
+            this -> Remove(FindObject(parName));
+            fNumInputFiles--;
+        }
+
+        parName.Replace(0,11,"<<");
+        SetComment(Form("%s %d parameters where added",parName.Data(),countParameters));
+    }
 
     return countParameters;
 }
@@ -272,6 +280,56 @@ Int_t LKParameterContainer::AddParameterContainer(LKParameterContainer *parc)
     }
 
     return countParameters;
+}
+
+Int_t LKParameterContainer::AddJsonTree(const Json::Value &jsonTree, TString treeName)
+{
+    Int_t count_par = 0;
+    for (Json::ValueConstIterator it = jsonTree.begin(); it != jsonTree.end(); it++) {
+        auto branch = jsonTree[it.name()];
+
+        TString parName;
+        if (treeName.IsNull())
+            parName = TString(it.name());
+        else
+            parName = treeName + "/" + TString(it.name());
+
+        //nullValue : 0
+        //intValue : 1
+        //uintValue : 2
+        //realValue : 3
+        //stringValue : 4
+        //booleanValue : 5
+        //arrayValue : 6
+        //objectValue : 7
+        if (branch.type()==Json::ValueType::intValue
+                || branch.type()==Json::ValueType::uintValue
+                || branch.type()==Json::ValueType::realValue
+                || branch.type()==Json::ValueType::stringValue
+                || branch.type()==Json::ValueType::booleanValue
+           )
+        {
+            SetPar(parName, branch.asString());
+            count_par = count_par + 1;
+        }
+        else if (branch.type()==Json::ValueType::arrayValue) {
+            int nValues = branch.size();
+            SetParN(parName, nValues);
+            TString valueAll = "";
+            for (auto iVal=0; iVal<nValues; ++iVal) {
+                auto valueString = branch.get(iVal,Json::Value(-999)).asString();
+                valueAll = valueAll + valueString + " ";
+                SetParArray(parName, valueString, iVal);
+            }
+            SetParValue(parName, valueAll);
+        }
+        else if (branch.type()==Json::ValueType::objectValue) {
+            Int_t count_par2 = AddJsonTree(*it, parName);
+            count_par = count_par + count_par2;
+        }
+    }
+
+    return count_par;
 }
 
 void LKParameterContainer::Print(Option_t *option) const
@@ -343,10 +401,10 @@ void LKParameterContainer::Print(Option_t *option) const
 
         TString parComment;
         if (!showHiddenPar)
-            if (parName.Index("NUM_VALUES_")==0||parName.Index("COMMELK_PAR_")==0||parName.EndsWith("]"))
+            if (parName.Index("NUM_VALUES_")==0||parName.Index("COMMENT_PAR_")==0||parName.EndsWith("]"))
                 continue;
 
-        if (parName.Index("COMMELK_LINE_")>=0) {
+        if (parName.Index("COMMENT_LINE_")>=0) {
             if (!showLineComments)
                 continue;
             parName = parValues;
@@ -362,7 +420,7 @@ void LKParameterContainer::Print(Option_t *option) const
             parName.Replace(0,11,"# Parameter container was added here; ");
         }
         else if (showParComments) {
-            TNamed* objc = (TNamed *) FindObject(Form("COMMELK_PAR_%s",parName.Data()));
+            TNamed* objc = (TNamed *) FindObject(Form("COMMENT_PAR_%s",parName.Data()));
             if (objc!=nullptr)
                 parComment = objc -> GetTitle();
             if (!parComment.IsNull()&&parComment[0]!='#')
@@ -370,14 +428,12 @@ void LKParameterContainer::Print(Option_t *option) const
         }
 
         ostringstream ssLine;
-        if (parName.Sizeof()>40)
-            ssLine << parName << " " << parValues << " " << parComment << endl;
-        else if (parName.Sizeof()>30)
-            ssLine << left << setw(40) << parName << " " << parValues << " " << parComment << endl;
-        else if (parName.Sizeof()>20)
-            ssLine << left << setw(30) << parName << " " << parValues << " " << parComment << endl;
-        else
-            ssLine << left << setw(20) << parName << " " << parValues << " " << parComment << endl;
+             if (parName.Sizeof()>60) ssLine << left << setw(70) << parName << " " << parValues << " " << parComment << endl;
+        else if (parName.Sizeof()>50) ssLine << left << setw(60) << parName << " " << parValues << " " << parComment << endl;
+        else if (parName.Sizeof()>40) ssLine << left << setw(50) << parName << " " << parValues << " " << parComment << endl;
+        else if (parName.Sizeof()>30) ssLine << left << setw(40) << parName << " " << parValues << " " << parComment << endl;
+        else if (parName.Sizeof()>20) ssLine << left << setw(30) << parName << " " << parValues << " " << parComment << endl;
+        else                          ssLine << left << setw(20) << parName << " " << parValues << " " << parComment << endl;
 
         if (printToScreen)
             lk_cout << ssLine.str();
@@ -395,7 +451,7 @@ Bool_t LKParameterContainer::SetPar(std::string line)
         return false;
 
     if (line.find("#") == 0) {
-        SetPar("", "", TString(line));
+        SetComment(TString(line));
         return true;
     }
 
@@ -421,16 +477,7 @@ Bool_t LKParameterContainer::SetPar(std::string line)
         AddFile(parValues);
     }
     else {
-        auto valueTokens = parValues.Tokenize(" ");
-        Int_t numValues = valueTokens -> GetEntries();
         SetPar(parName, parValues, parComment);
-        SetPar(TString("NUM_VALUES_")+parName,numValues);
-        if (numValues>1) {
-            for (auto iVal=0; iVal<numValues; ++iVal) {
-                TString parValue(((TObjString *) valueTokens->At(iVal))->GetString());
-                SetPar(parName+"["+iVal+"]",parValue);
-            }
-        }
     }
 
     return true;
@@ -444,13 +491,40 @@ Bool_t LKParameterContainer::SetPar(TString name, TString val, TString comment)
     }
 
     if (name.IsNull()&&val.IsNull()&&!comment.IsNull())
-        Add(new TNamed(TString(Form("COMMELK_LINE_%d",GetEntries())), comment));
+        SetComment(comment);
     else {
-        Add(new TNamed(name, val));
+        SetParValue(name,val);
         if (!comment.IsNull())
-            Add(new TNamed(TString(Form("COMMELK_PAR_%s",name.Data())), comment));
+            SetParComment(name,comment);
     }
+
+    auto valueTokens = val.Tokenize(" ");
+    Int_t numValues = valueTokens -> GetEntries();
+    SetParN(name,numValues);
+    if (numValues>1) {
+        for (auto iVal=0; iVal<numValues; ++iVal) {
+            TString parValue(((TObjString *) valueTokens->At(iVal))->GetString());
+            SetParArray(name,parValue,iVal);
+        }
+    }
+
     return true;
+}
+
+void LKParameterContainer::SetParValue(TString name, TString val) {
+    Add(new TNamed(name, val));
+}
+void LKParameterContainer::SetParComment(TString name, TString val) {
+    SetParValue(TString(Form("COMMENT_PAR_%s",name.Data())), val);
+}
+void LKParameterContainer::SetParN(TString name, Int_t val) {
+    SetParValue(TString("NUM_VALUES_")+name, Form("%d",val));
+}
+void LKParameterContainer::SetParArray(TString name, TString val, Int_t idx) {
+    SetParValue(name+"["+idx+"]", val);
+}
+void LKParameterContainer::SetComment(TString comment) {
+    SetParValue(TString(Form("COMMENT_LINE_%d",GetEntries())), comment);
 }
 
 TString LKParameterContainer::GetParStringFast(TString name, Int_t idx) const

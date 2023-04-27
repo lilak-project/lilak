@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <vector>
 
+#include "json.h"
+
 #include "TObjArray.h"
 #include "TNamed.h"
 #include "TParameter.h"
@@ -121,10 +123,19 @@ class LKParameterContainer : public TObjArray
         virtual Int_t AddParameterContainer(LKParameterContainer *parc); ///< Add parameter container pointer
         Int_t GetNumInputFiles() const { return fNumInputFiles; } ///< Get number of input parameter files
 
+        Int_t  AddJsonTree(const Json::Value &value, TString treeName="");
+
         Bool_t SetPar(std::string line); ///< Set parameter by line
         Bool_t SetPar(TString name, TString val, TString comment=""); ///< Set parameter TString
         Bool_t SetPar(TString name, Int_t val, TString comment="")    { return SetPar(name,Form("%d",val),comment); } ///< Set parameter Int_t
         Bool_t SetPar(TString name, Double_t val, TString comment="") { return SetPar(name,Form("%f",val),comment); } ///< Set parameter Double_t
+
+        void SetParN      (TString name, Int_t val);
+        void SetComment   (TString comment);
+        void SetParValue  (TString name, TString val);
+        void SetParArray  (TString name, TString val, Int_t idx);
+        void SetParComment(TString name, TString val);
+
 
         Bool_t CheckPar(TString name) const;
 
@@ -162,6 +173,8 @@ class LKParameterContainer : public TObjArray
         Bool_t fCollectionMode = false;
         Int_t fNumInputFiles = 0;
         Int_t fRank = 0;
+
+        Json::Value fJsonValues;
 
     ClassDef(LKParameterContainer, 0)
 };

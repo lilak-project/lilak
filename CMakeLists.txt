@@ -8,7 +8,7 @@ set(ACTIVATE_EVE      OFF CACHE INTERNAL "") # Activate Root Eve package
 set(CREATE_GIT_LOG    OFF CACHE INTERNAL "") # Create Git log
 set(BUILD_GEANT4_SIM  OFF CACHE INTERNAL "") # Build Geant4 simulation
 set(BUILD_DOXYGEN_DOC OFF CACHE INTERNAL "") # Build Doxygen documentation with HTML
-set(LILAK_PROJECT_LIST     CACHE INTERNAL "") # List of LILAK projects to build
+set(LILAK_PROJECT_LIST    CACHE INTERNAL "") # List of LILAK projects to build
 
 #---Configuration
 include(log/build_options.cmake)
@@ -28,8 +28,14 @@ set(LILAK_SOURCE_DIRECTORY_LIST
   CACHE INTERNAL ""
 )
 
+#---Add source directories without LinkDef.h. Directory should be under "/path/to/LILAK/".
+set(LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF
+  ${CMAKE_SOURCE_DIR}/source/jsoncpp
+  CACHE INTERNAL ""
+)
+
 #---Add geant4 source directories. Directory should be under "/path/to/LILAK/".
-set(LILAK_GEANT4_DIRECTORY_LIST
+set(LILAK_GEANT4_SOURCE_DIRECDTORY_LIST
   ${CMAKE_SOURCE_DIR}/source/geant4
   CACHE INTERNAL ""
 )
@@ -65,21 +71,33 @@ if(BUILD_GEANT4_SIM)
   include(${Geant4_USE_FILE})
 endif(BUILD_GEANT4_SIM)
 
+foreach(_directory ${LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF})
+  include_directories(${_directory})
+  string(REPLACE / _ _name ${_directory})
+  list(APPEND LILAK_SOURCE_NAME_LIST_X ${_name})
+  file(GLOB LILAK_${_name}_SOURCE_FILES_X ${_directory}/*.cpp)
+endforeach(_directory)
+
 foreach(_directory ${LILAK_SOURCE_DIRECTORY_LIST})
   include_directories(${_directory})
-  if(BUILD_GEANT4_SIM)
-    foreach(_g4directory ${LILAK_GEANT4_DIRECTORY_LIST})
-      include_directories(${_g4directory})
-    endforeach(_g4directory)
-  endif(BUILD_GEANT4_SIM)
-
   string(REPLACE / _ _name ${_directory})
   list(APPEND LILAK_SOURCE_NAME_LIST ${_name})
   set(LILAK_${_name}_G_NAME G__${_name}Dict)
   file(GLOB LILAK_${_name}_LINKDEF_FILE ${_directory}/LinkDef.h)
   file(GLOB LILAK_${_name}_SOURCE_FILES ${_directory}/*.cpp)
   file(GLOB LILAK_${_name}_HEADER_FILES ${_directory}/*.hpp)
+  #foreach(_directory2 ${LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF})
+  #  file(GLOB LILAK_${_name}_SOURCE_FILES ${_directory2}/*.cpp)
+  #  file(GLOB LILAK_${_name}_HEADER_FILES ${_directory2}/*.hpp)
+  #  file(GLOB LILAK_${_name}_HEADER_FILES ${_directory2}/*.h)
+  #endforeach(_directory2)
 endforeach(_directory)
+
+if(BUILD_GEANT4_SIM)
+  foreach(_g4directory ${LILAK_GEANT4_SOURCE_DIRECDTORY_LIST})
+    include_directories(${_g4directory})
+  endforeach(_g4directory)
+endif(BUILD_GEANT4_SIM)
 
 include_directories(${CMAKE_SOURCE_DIR}/log)
 
@@ -101,11 +119,18 @@ foreach(_name ${LILAK_SOURCE_NAME_LIST})
   list(APPEND LILAK_LIB_LIST ${LILAK_${_name}_G_NAME}.cxx)
 endforeach(_name)
 
+foreach(_name ${LILAK_SOURCE_NAME_LIST_X})
+  foreach(_file ${LILAK_${_name}_SOURCE_FILES_X})
+    list(APPEND LILAK_LIB_LIST ${_file})
+  endforeach(_file)
+#  list(APPEND LILAK_LIB_LIST ${LILAK_${_name}_G_NAME}.cxx)
+endforeach(_name)
+
 add_library(LILAK SHARED ${LILAK_LIB_LIST})
 target_link_libraries(LILAK ${ROOT_LIBRARIES})
 
 if(BUILD_GEANT4_SIM)
-  foreach(_directory ${LILAK_GEANT4_DIRECTORY_LIST})
+  foreach(_directory ${LILAK_GEANT4_SOURCE_DIRECDTORY_LIST})
     set(LILAK_GEANT4_SOURCE_FILES_TEMP)
     file(GLOB LILAK_GEANT4_SOURCE_FILES_TEMP ${_directory}/*.cpp)
     foreach(_file ${LILAK_GEANT4_SOURCE_FILES_TEMP})
