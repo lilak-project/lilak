@@ -27,9 +27,10 @@ message(STATUS "Main Project           : " ${LILAK_PROJECT_MAIN})
 #---Add source directories. Directory should be under "/path/to/LILAK/"
 set(LILAK_SOURCE_DIRECTORY_LIST
     ${CMAKE_SOURCE_DIR}/source/base
+    ${CMAKE_SOURCE_DIR}/source/tool
+    ${CMAKE_SOURCE_DIR}/source/geometry
     ${CMAKE_SOURCE_DIR}/source/detector
     ${CMAKE_SOURCE_DIR}/source/container
-    ${CMAKE_SOURCE_DIR}/source/geometry
     CACHE INTERNAL ""
 )
 

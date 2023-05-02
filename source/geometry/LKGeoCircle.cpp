@@ -1,5 +1,5 @@
 #include "LKGeoCircle.hpp"
-#include "LKGlobal.hpp"
+#include "LKLogger.hpp"
 
 #include "TMath.h"
 #include "TRandom.h"
@@ -31,7 +31,7 @@ TVector3 LKGeoCircle::GetRandomPoint()
 
 void LKGeoCircle::Print(Option_t *) const
 {
-    LKLog("LKGeoCircle","Print",1,2) << "Center=(" << fX << "," << fY << "), R=" << fR << std::endl;
+    lx_info << "Center=(" << fX << "," << fY << "), R=" << fR << std::endl;
 }
 
 TVector3 LKGeoCircle::GetCenter() const { return TVector3(fX, fY, 0); }

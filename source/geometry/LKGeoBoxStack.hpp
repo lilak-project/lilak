@@ -1,5 +1,5 @@
-#ifndef KBGEOBOXSTACK_HH
-#define KBGEOBOXSTACK_HH
+#ifndef LKGEOBOXSTACK_HH
+#define LKGEOBOXSTACK_HH
 
 #include "TVector3.h"
 #include "TGraph.h"
@@ -7,21 +7,21 @@
 #include "TH2D.h"
 #include "TH2Poly.h"
 
-#include "KBVector3.hh"
-#include "KBGeometry.hh"
-#include "KBGeoBox.hh"
+#include "LKVector3.hpp"
+#include "LKGeometry.hpp"
+#include "LKGeoBox.hpp"
 
-typedef KBVector3::Axis axis_t;
+typedef LKVector3::Axis axis_t;
 
-class KBGeoBoxStack : public KBGeometry
+class LKGeoBoxStack : public LKGeometry
 {
     public:
-        KBGeoBoxStack();
-        KBGeoBoxStack(Double_t x,  Double_t y,  Double_t z,
+        LKGeoBoxStack();
+        LKGeoBoxStack(Double_t x,  Double_t y,  Double_t z,
                 Double_t dx, Double_t dy, Double_t dz,
-                Int_t n,     axis_t as, axis_t af = KBVector3::kZ);
+                Int_t n,     axis_t as, axis_t af = LKVector3::kZ);
 
-        virtual ~KBGeoBoxStack() {}
+        virtual ~LKGeoBoxStack() {}
 
         virtual void Print(Option_t *option = "") const;
 
@@ -29,7 +29,7 @@ class KBGeoBoxStack : public KBGeometry
 
         void SetBoxStack(Double_t x,  Double_t y,  Double_t z,
                 Double_t dx, Double_t dy, Double_t dz,
-                Int_t n,     axis_t as, axis_t af = KBVector3::kZ);
+                Int_t n,     axis_t as, axis_t af = LKVector3::kZ);
 
         axis_t GetStackAxis() const;
         axis_t GetFaceAxis() const;
@@ -50,11 +50,11 @@ class KBGeoBoxStack : public KBGeometry
         Double_t GetFaceAxisDisplacement() const;
         Double_t GetLongAxisDisplacement() const;
 
-        KBGeoBox GetBox(Int_t idx) const;
+        LKGeoBox GetBox(Int_t idx) const;
 
-        TMultiGraph *DrawStackGraph   (axis_t a1 = KBVector3::kNon, axis_t a2 = KBVector3::kNon);
-        TH2D        *DrawStackHist    (TString name="", TString title="", axis_t a1 = KBVector3::kNon, axis_t a2 = KBVector3::kNon);
-        TH2Poly     *DrawStackHistPoly(TString name="", TString title="", axis_t a1 = KBVector3::kNon, axis_t a2 = KBVector3::kNon);
+        TMultiGraph *DrawStackGraph   (axis_t a1 = LKVector3::kNon, axis_t a2 = LKVector3::kNon);
+        TH2D        *DrawStackHist    (TString name="", TString title="", axis_t a1 = LKVector3::kNon, axis_t a2 = LKVector3::kNon);
+        TH2Poly     *DrawStackHistPoly(TString name="", TString title="", axis_t a1 = LKVector3::kNon, axis_t a2 = LKVector3::kNon);
 
         Int_t FindBoxIndex(TVector3 pos) const;
         Int_t FindBoxIndex(Double_t x, Double_t y, Double_t z) const;
@@ -70,7 +70,7 @@ class KBGeoBoxStack : public KBGeometry
         axis_t fStackAxis;
         axis_t fFaceAxis;
 
-    ClassDef(KBGeoBoxStack, 0)
+    ClassDef(LKGeoBoxStack, 0)
 };
 
 #endif

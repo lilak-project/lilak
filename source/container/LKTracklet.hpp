@@ -5,7 +5,7 @@
 
 #include "LKContainer.hpp"
 
-//#include "LKHitArray.hpp"
+#include "LKHitArray.hpp"
 #include "LKHit.hpp"
 #include "LKDetectorPlane.hpp"
 
@@ -18,7 +18,7 @@ class LKTracklet : public LKContainer
         Int_t fParentID = -1;  ///< Vertex ID
         Int_t fPDG = -1;
 
-        //LKHitArray fHitArray; //!
+        LKHitArray fHitArray; //!
 
         TGraph *fTrajectoryOnPlane = nullptr; //!
 
@@ -30,7 +30,7 @@ class LKTracklet : public LKContainer
         virtual void Print(Option_t *option = "") const;
         virtual void Copy (TObject &object) const;
 
-        virtual void PropagateMC();
+        //virtual void PropagateMC();
 
         void SetTrackID(Int_t val) { fTrackID = val; }
         void SetParentID(Int_t val) { fParentID = val; }
@@ -40,7 +40,7 @@ class LKTracklet : public LKContainer
         Int_t GetParentID() const { return fParentID; }
         Int_t GetPDG() const { return fPDG; }
 
-        //LKHitArray *GetHitArray() { return &fHitArray; }
+        LKHitArray *GetHitArray() { return &fHitArray; }
 
         virtual void AddHit(LKHit *hit);
         virtual void RemoveHit(LKHit *hit);

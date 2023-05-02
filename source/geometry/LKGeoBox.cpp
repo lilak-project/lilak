@@ -1,5 +1,5 @@
-#include "LKGlobal.hh"
-#include "LKGeoBox.hh"
+#include "LKLogger.hpp"
+#include "LKGeoBox.hpp"
 #include <iomanip>
 #include <cmath>
 
@@ -21,23 +21,23 @@ LKGeoBox::LKGeoBox(TVector3 center, Double_t dx, Double_t dy, Double_t dz)
 
 void LKGeoBox::Print(Option_t *) const
 {
-    lk_out << "[LKGeoBox]" << std::endl;
-    lk_out << "  Center      : " << fX << " " << fY << " " << fZ << std::endl;
-    lk_out << "  Displacement: " << fdX << " " << fdY << " " << fdZ << std::endl;
-    lk_out << std::left << std::endl;;
-    lk_out << "             (7)-----------(0) +y=" << fY+.5*fdY << std::endl;
-    lk_out << "             /|            /|" << std::endl;
-    lk_out << "            / |           / |" << std::endl;
-    lk_out << "           /  |          /  |" << std::endl;
-    lk_out << "         (6)-----------(1)  |" << std::endl;
-    lk_out << "          |   |         |   |  -y=" << fY-.5*fdY << std::endl;
-    lk_out << " Y   Z    |  (4)--------|--(3) +z=" << fZ+.5*fdZ << std::endl;
-    lk_out << " ^  7     |  /          |  /" << std::endl;
-    lk_out << " | /      | /           | /" << std::endl;
-    lk_out << " |/       |/            |/" << std::endl;
-    lk_out << " *--->X  (5)-----------(2) -z=" << fZ - .5*fdZ << std::endl;
-    lk_out << "         -x=" << std::setw(11) << fX-.5*fdX << "+x=" << fX+.5*fdX << std::endl;
-    lk_out << std::right;
+    lx_cout << "[LKGeoBox]" << std::endl;
+    lx_cout << "  Center      : " << fX << " " << fY << " " << fZ << std::endl;
+    lx_cout << "  Displacement: " << fdX << " " << fdY << " " << fdZ << std::endl;
+    lx_cout << std::left << std::endl;;
+    lx_cout << "             (7)-----------(0) +y=" << fY+.5*fdY << std::endl;
+    lx_cout << "             /|            /|" << std::endl;
+    lx_cout << "            / |           / |" << std::endl;
+    lx_cout << "           /  |          /  |" << std::endl;
+    lx_cout << "         (6)-----------(1)  |" << std::endl;
+    lx_cout << "          |   |         |   |  -y=" << fY-.5*fdY << std::endl;
+    lx_cout << " Y   Z    |  (4)--------|--(3) +z=" << fZ+.5*fdZ << std::endl;
+    lx_cout << " ^  7     |  /          |  /" << std::endl;
+    lx_cout << " | /      | /           | /" << std::endl;
+    lx_cout << " |/       |/            |/" << std::endl;
+    lx_cout << " *--->X  (5)-----------(2) -z=" << fZ - .5*fdZ << std::endl;
+    lx_cout << "         -x=" << std::setw(11) << fX-.5*fdX << "+x=" << fX+.5*fdX << std::endl;
+    lx_cout << std::right;
 }
 
 void LKGeoBox::Copy(LKGeoBox *box) const

@@ -1,7 +1,7 @@
 #ifndef LKGEOROTATED_HH
 #define LKGEOROTATED_HH
 
-#include "LKGeometry.hh"
+#include "LKGeometry.hpp"
 #include "TRotation.h"
 
 class LKGeoRotated : public LKGeometry

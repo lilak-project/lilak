@@ -5,6 +5,7 @@
 #include "TVector3.h"
 
 #include "LKContainer.hpp"
+#include "LKVector3.hpp"
 
 #ifdef ACTIVATE_EVE
 #include "TEveElement.h"
@@ -29,6 +30,7 @@ class LKWPoint : public LKContainer
     void SetPosition(TVector3 pos);
 
      TVector3 GetPosition()                    const { return  TVector3(fX,fY,fZ); }
+    LKVector3 GetPosition(LKVector3::Axis ref) const { return LKVector3(fX,fY,fZ,ref); }
 
     Double_t x() const { return fX; }
     Double_t y() const { return fY; }

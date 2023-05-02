@@ -27,10 +27,9 @@ void LKHit::Clear(Option_t *option)
 
 void LKHit::Print(Option_t *option) const
 {
-    lx_info << title
+    lx_info << "HID,TID,X,Y,Z,W: "
         << setw(4)  << fHitID
-        << setw(4)  << fTrackID
-        << setw(4)  << fMCID << " |"
+        << setw(4)  << fTrackID << " |"
         << setw(12) << fX
         << setw(12) << fY
         << setw(12) << fZ << " |"
@@ -54,9 +53,6 @@ void LKHit::Copy(TObject &obj) const
 
 void LKHit::CopyFrom(LKHit *hit)
 {
-    fMCError   = hit -> GetMCError  ();
-    fMCID      = hit -> GetMCID     ();
-    fMCPurity  = hit -> GetMCPurity ();
     fDX        = hit -> GetDX       ();
     fDY        = hit -> GetDY       ();
     fDZ        = hit -> GetDZ       ();

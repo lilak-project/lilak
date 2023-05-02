@@ -1,31 +1,32 @@
-#include "KBGeoBoxStack.hh"
+#include "LKLogger.hpp"
+#include "LKGeoBoxStack.hpp"
 #include <cmath>
 
-ClassImp(KBGeoBoxStack)
+ClassImp(LKGeoBoxStack)
 
-KBGeoBoxStack::KBGeoBoxStack()
+LKGeoBoxStack::LKGeoBoxStack()
 {
 }
 
-KBGeoBoxStack::KBGeoBoxStack(Double_t x,  Double_t y,  Double_t z,
+LKGeoBoxStack::LKGeoBoxStack(Double_t x,  Double_t y,  Double_t z,
         Double_t dx, Double_t dy, Double_t dz,
         Int_t n, axis_t aStack, axis_t aFace)
 {
     SetBoxStack(x,y,z,dx,dy,dz,n,aStack,aFace);
 }
 
-void KBGeoBoxStack::Print(Option_t *) const
+void LKGeoBoxStack::Print(Option_t *) const
 {
-    lk_out << "[KBGeoBoxStack]" << std::endl;
-    lk_out << "  Center      : " << fX << " " << fY << " " << fZ << std::endl;
-    lk_out << "  Displacement: " << fdX << " " << fdY << " " << fdZ << std::endl;
-    lk_out << "  Stack Axis  : " << fStackAxis << std::endl;
-    lk_out << "  Face Axis   : " << fFaceAxis << std::endl;
+    lx_cout << "[LKGeoBoxStack]" << std::endl;
+    lx_cout << "  Center      : " << fX << " " << fY << " " << fZ << std::endl;
+    lx_cout << "  Displacement: " << fdX << " " << fdY << " " << fdZ << std::endl;
+    lx_cout << "  Stack Axis  : " << fStackAxis << std::endl;
+    lx_cout << "  Face Axis   : " << fFaceAxis << std::endl;
 }
 
-TVector3 KBGeoBoxStack::GetCenter() const { return TVector3(fX, fY, fZ); }
+TVector3 LKGeoBoxStack::GetCenter() const { return TVector3(fX, fY, fZ); }
 
-void KBGeoBoxStack::SetBoxStack(Double_t x,  Double_t y,  Double_t z,
+void LKGeoBoxStack::SetBoxStack(Double_t x,  Double_t y,  Double_t z,
         Double_t dx, Double_t dy, Double_t dz,
         Int_t n, axis_t aStack, axis_t aFace)
 {
@@ -40,41 +41,41 @@ void KBGeoBoxStack::SetBoxStack(Double_t x,  Double_t y,  Double_t z,
     fFaceAxis = aFace;
 }
 
-axis_t KBGeoBoxStack::GetStackAxis() const { return fStackAxis; }
-axis_t KBGeoBoxStack::GetFaceAxis()  const { return fFaceAxis; }
+axis_t LKGeoBoxStack::GetStackAxis() const { return fStackAxis; }
+axis_t LKGeoBoxStack::GetFaceAxis()  const { return fFaceAxis; }
 
-Double_t KBGeoBoxStack::GetStackAxisMax() const { return GetStackAxisCenter() + .5*fNumStacks*GetStackAxisDisplacement(); }
-Double_t KBGeoBoxStack::GetFaceAxisMax()  const { return GetFaceAxisCenter()  + .5*GetFaceAxisDisplacement(); }
-Double_t KBGeoBoxStack::GetLongAxisMax()  const { return GetLongAxisCenter()  + .5*GetLongAxisDisplacement(); }
+Double_t LKGeoBoxStack::GetStackAxisMax() const { return GetStackAxisCenter() + .5*fNumStacks*GetStackAxisDisplacement(); }
+Double_t LKGeoBoxStack::GetFaceAxisMax()  const { return GetFaceAxisCenter()  + .5*GetFaceAxisDisplacement(); }
+Double_t LKGeoBoxStack::GetLongAxisMax()  const { return GetLongAxisCenter()  + .5*GetLongAxisDisplacement(); }
 
-Double_t KBGeoBoxStack::GetStackAxisMin() const { return GetStackAxisCenter() - .5*fNumStacks*GetStackAxisDisplacement(); }
-Double_t KBGeoBoxStack::GetFaceAxisMin()  const { return GetFaceAxisCenter()  - .5*GetFaceAxisDisplacement(); }
-Double_t KBGeoBoxStack::GetLongAxisMin()  const { return GetLongAxisCenter()  - .5*GetLongAxisDisplacement(); }
+Double_t LKGeoBoxStack::GetStackAxisMin() const { return GetStackAxisCenter() - .5*fNumStacks*GetStackAxisDisplacement(); }
+Double_t LKGeoBoxStack::GetFaceAxisMin()  const { return GetFaceAxisCenter()  - .5*GetFaceAxisDisplacement(); }
+Double_t LKGeoBoxStack::GetLongAxisMin()  const { return GetLongAxisCenter()  - .5*GetLongAxisDisplacement(); }
 
-Double_t KBGeoBoxStack::GetStackAxisCenter() const { return KBVector3(fX,fY,fZ).At(fStackAxis); }
-Double_t KBGeoBoxStack::GetFaceAxisCenter()  const { return KBVector3(fX,fY,fZ).At(fFaceAxis); }
-Double_t KBGeoBoxStack::GetLongAxisCenter()  const { return KBVector3(fX,fY,fZ).At(++(fStackAxis%fFaceAxis)); }
+Double_t LKGeoBoxStack::GetStackAxisCenter() const { return LKVector3(fX,fY,fZ).At(fStackAxis); }
+Double_t LKGeoBoxStack::GetFaceAxisCenter()  const { return LKVector3(fX,fY,fZ).At(fFaceAxis); }
+Double_t LKGeoBoxStack::GetLongAxisCenter()  const { return LKVector3(fX,fY,fZ).At(++(fStackAxis%fFaceAxis)); }
 
-Double_t KBGeoBoxStack::GetStackAxisDisplacement() const { return KBVector3(fdX,fdY,fdZ).At(fStackAxis); }
-Double_t KBGeoBoxStack::GetFaceAxisDisplacement()  const { return KBVector3(fdX,fdY,fdZ).At(fFaceAxis); }
-Double_t KBGeoBoxStack::GetLongAxisDisplacement()  const { return KBVector3(fdX,fdY,fdZ).At(++(fStackAxis%fFaceAxis)); }
+Double_t LKGeoBoxStack::GetStackAxisDisplacement() const { return LKVector3(fdX,fdY,fdZ).At(fStackAxis); }
+Double_t LKGeoBoxStack::GetFaceAxisDisplacement()  const { return LKVector3(fdX,fdY,fdZ).At(fFaceAxis); }
+Double_t LKGeoBoxStack::GetLongAxisDisplacement()  const { return LKVector3(fdX,fdY,fdZ).At(++(fStackAxis%fFaceAxis)); }
 
-KBGeoBox KBGeoBoxStack::GetBox(Int_t idx) const
+LKGeoBox LKGeoBoxStack::GetBox(Int_t idx) const
 {
-    KBVector3 pos(fX, fY, fZ);
+    LKVector3 pos(fX, fY, fZ);
 
     pos.AddAt(GetStackAxisDisplacement()*(-.5*(fNumStacks-1)+idx),fStackAxis);
 
-    return KBGeoBox(pos, fdX, fdY, fdZ);
+    return LKGeoBox(pos, fdX, fdY, fdZ);
 }
 
-TMultiGraph *KBGeoBoxStack::DrawStackGraph(axis_t a1, axis_t a2)
+TMultiGraph *LKGeoBoxStack::DrawStackGraph(axis_t a1, axis_t a2)
 {
-    if (a1 == KBVector3::kNon || a2 == KBVector3::kNon) {
+    if (a1 == LKVector3::kNon || a2 == LKVector3::kNon) {
         a1 = fFaceAxis%fStackAxis;
         a1 = ++a1;
         a2 = fStackAxis;
-        if (KBVector3::IsNegative(a1%a2)) { auto ar = a1; a1 = a2; a2 = ar; }
+        if (LKVector3::IsNegative(a1%a2)) { auto ar = a1; a1 = a2; a2 = ar; }
     }
 
     auto mgraph = new TMultiGraph();
@@ -88,17 +89,17 @@ TMultiGraph *KBGeoBoxStack::DrawStackGraph(axis_t a1, axis_t a2)
     return mgraph;
 }
 
-TH2D *KBGeoBoxStack::DrawStackHist(TString name, TString title, axis_t a1, axis_t a2)
+TH2D *LKGeoBoxStack::DrawStackHist(TString name, TString title, axis_t a1, axis_t a2)
 {
-    if (a1 == KBVector3::kNon || a2 == KBVector3::kNon) {
+    if (a1 == LKVector3::kNon || a2 == LKVector3::kNon) {
         a1 = fFaceAxis%fStackAxis;
         a1 = ++a1;
         a2 = fStackAxis;
-        if (KBVector3::IsNegative(a1%a2)) { auto ar = a1; a1 = a2; a2 = ar; }
+        if (LKVector3::IsNegative(a1%a2)) { auto ar = a1; a1 = a2; a2 = ar; }
     }
 
-    KBVector3 pos(fX, fY, fZ);
-    KBVector3 dis(fdX, fdY, fdZ);
+    LKVector3 pos(fX, fY, fZ);
+    LKVector3 dis(fdX, fdY, fdZ);
 
     Int_t nx = 1;
     Double_t x1=pos.At(a1)-.5*dis.At(a1);
@@ -126,28 +127,28 @@ TH2D *KBGeoBoxStack::DrawStackHist(TString name, TString title, axis_t a1, axis_
         name = "BoxStack";
 
     if (title.Index(";")<0)
-        title = title+";"+KBVector3::AxisName(a1)+";"+KBVector3::AxisName(a2);
+        title = title+";"+LKVector3::AxisName(a1)+";"+LKVector3::AxisName(a2);
 
     auto hist = new TH2D(name,title,nx,x1,x2,ny,y1,y2);
 
     return hist;
 }
 
-TH2Poly *KBGeoBoxStack::DrawStackHistPoly(TString name, TString title, axis_t a1, axis_t a2)
+TH2Poly *LKGeoBoxStack::DrawStackHistPoly(TString name, TString title, axis_t a1, axis_t a2)
 {
-    if (a1 == KBVector3::kNon || a2 == KBVector3::kNon) {
+    if (a1 == LKVector3::kNon || a2 == LKVector3::kNon) {
         a1 = fFaceAxis%fStackAxis;
         a1 = ++a1;
         a2 = fStackAxis;
-        if (KBVector3::IsNegative(a1%a2)) { auto ar = a1; a1 = a2; a2 = ar; }
+        if (LKVector3::IsNegative(a1%a2)) { auto ar = a1; a1 = a2; a2 = ar; }
     }
     //axis_t a3 = ++(a1%a2);
 
     auto hist = new TH2Poly();
     for (auto idx = 0; idx < fNumStacks; ++idx) {
         auto box2D = GetBox(idx).GetFace(a1,a2);
-        auto cnn = KBVector3(box2D.GetCorner(-1,-1));
-        auto cnp = KBVector3(box2D.GetCorner(1,1));
+        auto cnn = LKVector3(box2D.GetCorner(-1,-1));
+        auto cnp = LKVector3(box2D.GetCorner(1,1));
         hist -> AddBin(cnn.At(a1),cnn.At(a2),cnp.At(a1),cnp.At(a2));
     }
 
@@ -155,19 +156,19 @@ TH2Poly *KBGeoBoxStack::DrawStackHistPoly(TString name, TString title, axis_t a1
         name = "BoxStack";
 
     if (title.Index(";")<0)
-        title = title+";"+KBVector3::AxisName(a1)+";"+KBVector3::AxisName(a2);
+        title = title+";"+LKVector3::AxisName(a1)+";"+LKVector3::AxisName(a2);
 
     hist -> SetNameTitle(name,title);
 
     return hist;
 }
 
-Int_t KBGeoBoxStack::FindBoxIndex(TVector3 pos) const
+Int_t LKGeoBoxStack::FindBoxIndex(TVector3 pos) const
 {
     return FindBoxIndex(pos.X(),pos.Y(),pos.Z());
 }
 
-Int_t KBGeoBoxStack::FindBoxIndex(Double_t x, Double_t y, Double_t z) const
+Int_t LKGeoBoxStack::FindBoxIndex(Double_t x, Double_t y, Double_t z) const
 {
     for (auto idx = 0; idx < fNumStacks; ++idx) {
         if (GetBox(idx).IsInside(x,y,z))

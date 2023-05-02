@@ -4,9 +4,9 @@
 #include "TVector3.h"
 #include "TGraph.h"
 
-#include "LKVector3.hh"
-#include "LKGeometry.hh"
-#include "LKGeoCircle.hh"
+#include "LKVector3.hpp"
+#include "LKGeometry.hpp"
+#include "LKGeoCircle.hpp"
 
 class LKGeoSphere : public LKGeometry
 {

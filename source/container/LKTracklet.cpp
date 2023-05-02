@@ -5,6 +5,7 @@
 
 ClassImp(LKTracklet)
 
+/*
 void LKTracklet::PropagateMC()
 {
     vector<Int_t> mcIDs;
@@ -85,6 +86,7 @@ void LKTracklet::PropagateMC()
         SetMCTag(mcIDFinal, errorFinal, purity);
     }
 }
+*/
 
 void LKTracklet::Clear(Option_t *option)
 {
@@ -180,7 +182,7 @@ TGraph *LKTracklet::TrajectoryOnPlane(TVector3 axis1, TVector3 axis2, bool (*fis
 TGraph *LKTracklet::TrajectoryOnPlane(TVector3 axis1, TVector3 axis2, Double_t scale)
 {
     auto fisout = [](TVector3 v3) { return true; };
-    TrajectoryOnPlane(axis1, axis2, fisout, scale);
+    return TrajectoryOnPlane(axis1, axis2, fisout, scale);
 }
 
 TGraph *LKTracklet::TrajectoryOnPlane(LKDetectorPlane *plane, Double_t scale)

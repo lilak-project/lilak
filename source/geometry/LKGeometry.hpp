@@ -1,7 +1,7 @@
 #ifndef LKGEOMETRY_HH
 #define LKGEOMETRY_HH
 
-#include "LKContainer.hh"
+#include "LKContainer.hpp"
 
 class LKGeometry
 {
