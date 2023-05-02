@@ -294,22 +294,24 @@ Int_t LKParameterContainer::AddJsonTree(const Json::Value &jsonTree, TString tre
         else
             parName = treeName + "/" + TString(it.name());
 
-        //nullValue : 0
-        //intValue : 1
-        //uintValue : 2
-        //realValue : 3
-        //stringValue : 4
-        //booleanValue : 5
-        //arrayValue : 6
-        //objectValue : 7
-        if (branch.type()==Json::ValueType::intValue
-                || branch.type()==Json::ValueType::uintValue
-                || branch.type()==Json::ValueType::realValue
-                || branch.type()==Json::ValueType::stringValue
-                || branch.type()==Json::ValueType::booleanValue
-           )
-        {
+        //nullValue
+        //intValue
+        //uintValue
+        //realValue
+        //stringValue
+        //booleanValue
+        //arrayValue
+        //objectValue
+        if (branch.type()==Json::ValueType::stringValue || branch.type()==Json::ValueType::booleanValue) {
             SetPar(parName, branch.asString());
+            count_par = count_par + 1;
+        }
+        else if (branch.type()==Json::ValueType::intValue || branch.type()==Json::ValueType::uintValue) {
+            SetPar(parName, branch. asInt());
+            count_par = count_par + 1;
+        }
+        else if (branch.type()==Json::ValueType::realValue) {
+            SetPar(parName, branch. asDouble());
             count_par = count_par + 1;
         }
         else if (branch.type()==Json::ValueType::arrayValue) {

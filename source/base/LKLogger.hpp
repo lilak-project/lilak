@@ -8,7 +8,8 @@
 #include "LKLogger.hpp"
 
 /// lilak logger shortcut macros
-#define lk_logger(logFileName) LKLogManager::RunLogger(logFileName, forceNewLogger)
+#define lk_logger(logFileName) LKLogManager::RunLogger(logFileName, false)
+#define lk_logger_new(logFileName,forceNewLogger) LKLogManager::RunLogger(logFileName, true)
 #define lk_logger_name() LKLogManager::GetLogFileName()
 
 /// lilak logger manager
