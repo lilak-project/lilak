@@ -1,6 +1,6 @@
 #include "LKLogger.hpp"
 #include "LKODRFitter.hpp"
-#include "LKGlobal.hpp"
+#include "LKLogger.hpp"
 
 #include <iostream>
 #include <iomanip>

@@ -69,8 +69,8 @@ class LKTracklet : public LKContainer
 #endif
 
         virtual bool DoDrawOnDetectorPlane();
-        virtual TGraph *TrajectoryOnPlane(TVector3 axis1, TVector3 axis2, bool (*fisout)(TVector3 pos), Double_t scale=1);
-        virtual TGraph *TrajectoryOnPlane(TVector3 axis1, TVector3 axis2, Double_t scale=1);
+        virtual TGraph *TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3::Axis axis2, bool (*fisout)(TVector3 pos), Double_t scale=1);
+        virtual TGraph *TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3::Axis axis2, Double_t scale=1);
         virtual TGraph *TrajectoryOnPlane(LKDetectorPlane *plane, Double_t scale=1);
         //virtual TGraph *CrossSectionOnPlane(TVector3, TVector3, Double_t) { return (TGraph *) nullptr; }
 

@@ -31,6 +31,7 @@ set(LILAK_SOURCE_DIRECTORY_LIST
     ${CMAKE_SOURCE_DIR}/source/geometry
     ${CMAKE_SOURCE_DIR}/source/detector
     ${CMAKE_SOURCE_DIR}/source/container
+    ${CMAKE_SOURCE_DIR}/source/container/track
     CACHE INTERNAL ""
 )
 
