@@ -18,10 +18,14 @@ LKLogManager::LKLogManager(TString fileName)
     std::cout << "Log file is set: " << fileName << std::endl;
 }
 
-LKLogManager* LKLogManager::RunLogger(TString fileName)
+LKLogManager* LKLogManager::RunLogger(TString fileName, bool forceNewLogger)
 {
     if (fLogManager != nullptr) {
         std::cout << "Logger is already running :" << LKLogManager::fLogFileName << std::endl;
+        if (forceNewLogger) {
+            std::cout << "forceNewLogger flag is set. Creating new logger " << fileName << std::endl;
+            return new LKLogManager(fileName);
+        }
         return fLogManager;
     }
     return new LKLogManager(fileName);

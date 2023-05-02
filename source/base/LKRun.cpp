@@ -644,7 +644,7 @@ void LKRun::Run(Long64_t numEvents)
         ++fEventCount;
     }
 
-    EndOfRunTasks();
+    EndOfRunTask();
 
     lx_cout << endl;
     lk_info << "End of Run " << fStartEventID << " -> " << fEndEventID << " (" << fEndEventID - fStartEventID + 1 << ")" << endl;

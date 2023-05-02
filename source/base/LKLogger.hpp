@@ -8,10 +8,8 @@
 #include "LKLogger.hpp"
 
 /// lilak logger shortcut macros
-#define lk_logger(logFileName) LKLogManager::RunLogger(logFileName)
+#define lk_logger(logFileName) LKLogManager::RunLogger(logFileName, forceNewLogger)
 #define lk_logger_name() LKLogManager::GetLogFileName()
-#define lx_logger(logFileName) LKLogManager::RunLogger(logFileName)
-#define lx_logger_name() LKLogManager::GetLogFileName()
 
 /// lilak logger manager
 class LKLogManager
@@ -25,7 +23,7 @@ class LKLogManager
 
     public:
         LKLogManager(TString fileName);
-        static LKLogManager* RunLogger(TString fileName="");
+        static LKLogManager* RunLogger(TString fileName="", bool forceNewLogger=false);
         static TString GetLogFileName();
         static std::ofstream& GetLogFile();
         static bool LogToConsol();
