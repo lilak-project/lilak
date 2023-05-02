@@ -27,8 +27,8 @@ class LKTracklet : public LKContainer
         virtual ~LKTracklet() {}
 
         virtual void Clear(Option_t *option = "");
-        virtual void Print(Option_t *option = "") const;
-        virtual void Copy (TObject &object) const;
+        //virtual void Print(Option_t *option = "") const;
+        //virtual void Copy (TObject &object) const;
 
         //virtual void PropagateMC();
 

@@ -210,6 +210,20 @@ void LKEveTask::DrawEve3D()
     gEve -> Redraw3D();
 }
 
+void LKEveTask::ConfigureDetectorPlanes()
+{
+  if (fCvsDetectorPlaneArray->GetEntries()>0)
+    return;
+
+  auto numPlanes = fDetectorSystem -> GetNumPlanes();
+  for (Int_t iPlane = 0; iPlane < numPlanes; iPlane++) {
+    LKDetectorPlane *plane = fDetectorSystem -> GetDetectorPlane(iPlane);
+    TCanvas *cvs = plane -> GetCanvas();
+    //cvs -> AddExec("ex", "LKRun::ClickSelectedPadPlane()");
+    fCvsDetectorPlaneArray -> Add(cvs);
+  }
+}
+
 void LKEveTask::DrawDetectorPlanes()
 {
     auto run = LKRun::GetRun();

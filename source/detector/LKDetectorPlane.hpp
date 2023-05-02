@@ -31,8 +31,8 @@ class LKDetectorPlane : public TNamed, public LKGear
         virtual void DrawFrame(Option_t *option = "");
         virtual TH2* GetHist(Option_t *option = "-1") = 0;
 
-        virtual LKVector3::Axis GetAxis1();// { return TVector3(1,0,0); }
-        virtual LKVector3::Axis GetAxis2();// { return TVector3(0,1,0); }
+        virtual LKVector3::Axis GetAxis1() { return LKVector3::kZ; }
+        virtual LKVector3::Axis GetAxis2() { return LKVector3::kX; }
 
     public:
         void SetPlaneID(Int_t id);

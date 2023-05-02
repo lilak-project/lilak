@@ -1,3 +1,4 @@
+#include "LKLogger.hpp"
 #include "LKMCStep.hpp"
 
 #ifdef ACTIVATE_EVE
