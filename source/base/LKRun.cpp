@@ -78,6 +78,7 @@ void LKRun::PrintLILAK()
 {
     LKLogger("LKRun",__FUNCTION__,0,2) << "# LILAK Compiled Information" << endl;
     LKLogger("LKRun",__FUNCTION__,0,2) << "  LILAK Version       : " << LILAK_VERSION << endl;
+    LKLogger("LKRun",__FUNCTION__,0,2) << "  MAIN PROJ. Version  : " << MAINPROJECT_VERSION << endl;
     LKLogger("LKRun",__FUNCTION__,0,2) << "  LILAK Host Name     : " << LILAK_HOSTNAME << endl;
     LKLogger("LKRun",__FUNCTION__,0,2) << "  LILAK User Name     : " << LILAK_USERNAME << endl;
     LKLogger("LKRun",__FUNCTION__,0,2) << "  LILAK Path          : " << LILAK_PATH << endl;
@@ -297,7 +298,7 @@ TString LKRun::ConfigureDataPath(TString name, bool search, TString pathData, bo
             fullName = name;
 
         if (addVersion)
-            fullName.ReplaceAll(".root",TString(".")+LILAK_VERSION+".root");
+            fullName.ReplaceAll(".root",TString(".")+MAINPROJECT_VERSION+".root");
 
         name = fullName;
         return name;
@@ -419,6 +420,7 @@ bool LKRun::Init()
 
     fRunHeader = new LKParameterContainer();
     fRunHeader -> SetName("RunHeader");
+    fRunHeader -> SetPar("MAIN_Project_Version",MAINPROJECT_VERSION);
     fRunHeader -> SetPar("LILAK_Version",LILAK_VERSION);
     fRunHeader -> SetPar("LILAK_HostName",LILAK_HOSTNAME);
     fRunHeader -> SetPar("LILAK_UserName",LILAK_USERNAME);
@@ -451,7 +453,7 @@ bool LKRun::Init()
         if (fSplit != -1)
             fOutputFileName = fOutputFileName + Form(".s%d",fSplit);
 
-        fOutputFileName = fOutputFileName + Form(".%s",LILAK_VERSION);
+        fOutputFileName = fOutputFileName + Form(".%s",MAINPROJECT_VERSION);
 
         fOutputFileName = LKRun::ConfigureDataPath(fOutputFileName,false,fDataPath);
         fOuputHash = GetFileHash(fOutputFileName);

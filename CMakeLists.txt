@@ -9,6 +9,7 @@ set(CREATE_GIT_LOG    OFF CACHE INTERNAL "") # Create Git log
 set(BUILD_GEANT4_SIM  OFF CACHE INTERNAL "") # Build Geant4 simulation
 set(BUILD_DOXYGEN_DOC OFF CACHE INTERNAL "") # Build Doxygen documentation with HTML
 set(LILAK_PROJECT_LIST    CACHE INTERNAL "") # List of LILAK projects to build
+set(LILAK_PROJECT_MAIN    CACHE INTERNAL "")
 
 #---Configuration
 include(log/build_options.cmake)
@@ -21,6 +22,7 @@ message(STATUS "Activate Eve package   : " ${ACTIVATE_EVE})
 message(STATUS "Create Git log         : " ${CREATE_GIT_LOG})
 message(STATUS "Build Geant4 simulation: " ${BUILD_GEANT4_SIM})
 message(STATUS "Build Doxygen document : " ${BUILD_DOXYGEN_DOC})
+message(STATUS "Main Project           : " ${LILAK_PROJECT_MAIN})
 
 #---Add source directories. Directory should be under "/path/to/LILAK/"
 set(LILAK_SOURCE_DIRECTORY_LIST
@@ -46,7 +48,7 @@ set(LILAK_GEANT4_EXECUTABLE_LIST
 )
 
 foreach(lilak_project ${LILAK_PROJECT_LIST})
-    message(STATUS "Project directory: " ${lilak_project})
+    message(STATUS "Project directory      : " ${lilak_project})
     add_subdirectory(${lilak_project})
 endforeach(lilak_project)
 
