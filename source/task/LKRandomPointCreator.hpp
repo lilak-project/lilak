@@ -18,7 +18,8 @@ class LKRandomPointCreator : public LKTask
   private:
     TClonesArray* fPointArray = nullptr;
 
-    Int_t fNumPoints = 100;
+    double fWidth = 1;
+    int fNumPoints = 100;
 
   ClassDef(LKRandomPointCreator, 0)
 };

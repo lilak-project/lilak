@@ -22,6 +22,9 @@ bool LKRandomPointCreator::Init()
   fNumPoints = par -> GetParInt("numPoints");
   lk_info << "Number of points: " << fNumPoints << endl;
 
+  fWidth = par -> GetParInt("width");
+  lk_info << "Random width: " << fWidth << endl;
+
   return true;
 }
 
@@ -33,12 +36,11 @@ void LKRandomPointCreator::Exec(Option_t*)
   {
       auto point = (LKWPoint *) fPointArray -> ConstructedAt(iPoint);
 
-      auto x = gRandom -> Uniform(-1,1);
-      auto y = gRandom -> Uniform(-1,1);
-      auto z = gRandom -> Uniform(-1,1);
-      auto w = gRandom -> Uniform(1,10);
+      auto x = gRandom -> Uniform(-fWidth/2,fWidth/2);
+      auto y = gRandom -> Uniform(-fWidth/2,fWidth/2);
+      auto z = gRandom -> Uniform(-fWidth/2,fWidth/2);
 
-      point -> Set(x,y,z,w);
+      point -> Set(x,y,z);
   }
 
   lk_info << "Created 100 points" << endl;
