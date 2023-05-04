@@ -54,7 +54,7 @@ class LKDetectorPlane : public TNamed, public LKGear
         TCanvas *fCanvas = nullptr;
         TH2 *fH2Plane = nullptr;
 
-        ClassDef(LKDetectorPlane, 0)
+        ClassDef(LKDetectorPlane, 1)
 };
 
 #endif

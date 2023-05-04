@@ -74,7 +74,7 @@ class LKTracklet : public LKContainer
         virtual TGraph *TrajectoryOnPlane(LKDetectorPlane *plane, Double_t scale=1);
         //virtual TGraph *CrossSectionOnPlane(TVector3, TVector3, Double_t) { return (TGraph *) nullptr; }
 
-        ClassDef(LKTracklet, 0)
+        ClassDef(LKTracklet, 1)
 };
 
 #endif

@@ -104,7 +104,7 @@ class LKMCTrack : public LKTracklet
 
         Int_t fCreatorProcessID = 0;
 
-        ClassDef(LKMCTrack, 0)
+        ClassDef(LKMCTrack, 1)
 };
 
 #endif

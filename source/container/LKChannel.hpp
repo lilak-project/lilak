@@ -23,7 +23,7 @@ class LKChannel : public LKContainer
     protected:
         Int_t fID = -1;
 
-        ClassDef(LKChannel, 0)
+        ClassDef(LKChannel, 1)
 };
 
 #endif

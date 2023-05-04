@@ -107,7 +107,7 @@ class LKHit : public LKWPoint
         virtual void AddToEveSet(TEveElement *eveSet, Double_t scale=1);
 #endif
 
-        ClassDef(LKHit, 0)
+        ClassDef(LKHit, 1)
 };
 
 class LKHitSortDirection {

@@ -23,7 +23,7 @@ class LKContainer : public TObject
         virtual void   AddToEveSet(TEveElement *, Double_t) {} ///< Add TEveElement to this eve-set
 #endif
 
-    ClassDef(LKContainer, 0)
+    ClassDef(LKContainer, 1)
 };
 
 #endif

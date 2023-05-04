@@ -224,7 +224,7 @@ class LKRun : public LKTask
     private:
         static LKRun *fInstance;
 
-    ClassDef(LKRun, 0)
+    ClassDef(LKRun, 1)
 };
 
 #endif

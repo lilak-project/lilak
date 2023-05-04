@@ -26,7 +26,7 @@ class LKTask : public TTask, public LKGear
         bool EndOfRunTasks();
         virtual bool EndOfRun();
 
-    ClassDef(LKTask, 0)
+    ClassDef(LKTask, 1)
 };
 
 #endif

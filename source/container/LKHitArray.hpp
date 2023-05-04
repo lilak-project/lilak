@@ -130,7 +130,7 @@ class LKHitArray : public TObjArray
         TGraphErrors *DrawGraph(axis_t,axis_t);
 
 
-        ClassDef(LKHitArray, 0);
+        ClassDef(LKHitArray, 1);
 };
 
 #endif

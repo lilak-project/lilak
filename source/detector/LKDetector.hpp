@@ -46,7 +46,7 @@ class LKDetector : public TNamed, public LKGear
 
         LKDetectorSystem *fParent = nullptr;
 
-        ClassDef(LKDetector, 0)
+        ClassDef(LKDetector, 1)
 };
 
 #endif

@@ -63,7 +63,7 @@ class LKEveTask : public LKTask
 
         Double_t fEveScale = 1;
 
-        ClassDef(LKEveTask, 0)
+        ClassDef(LKEveTask, 1)
 };
 
 #endif

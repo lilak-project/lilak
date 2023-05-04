@@ -61,7 +61,7 @@ class LKExtrapolatedTrack : public LKTracklet
         vector<TVector3> fPoints;
         vector<Double_t> fLengths;
 
-        ClassDef(LKExtrapolatedTrack, 0)
+        ClassDef(LKExtrapolatedTrack, 1)
 };
 
 #endif

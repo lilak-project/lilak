@@ -34,7 +34,7 @@ class LKGear
 
         Int_t fRank = 0;
 
-    ClassDef(LKGear, 0)
+    ClassDef(LKGear, 1)
 };
 
 #endif

@@ -49,7 +49,7 @@ class LKMCStep : public LKContainer
         Double_t fTime;
         Double_t fEdep;
 
-        ClassDef(LKMCStep, 3)
+        ClassDef(LKMCStep, 1)
 };
 
 #endif
