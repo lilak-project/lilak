@@ -12,5 +12,6 @@
 #pragma link C++ class LKParameterContainer+;
 #pragma link C++ class LKTask+;
 #pragma link C++ class LKRun+;
+#pragma link C++ class LKEveTask+;
 
 #endif

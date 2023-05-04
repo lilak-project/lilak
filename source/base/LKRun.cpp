@@ -33,6 +33,8 @@ LKRun::LKRun()
     for (Int_t iBranch = 0; iBranch < 100; ++iBranch)
         fBranchPtr[iBranch] = nullptr;
 
+    fDetectorSystem = new LKDetectorSystem();
+
     ifstream log_branch_list(TString(LILAK_PATH)+"/log/LKBranchList.log");
     string line;
     TString hashTag, branchName;
@@ -129,6 +131,7 @@ void LKRun::Print(Option_t *option) const
     if (printDetectors) {
         lx_cout << endl;
         lk_info << "# Detectors" << endl;
+        fDetectorSystem -> Print();
     }
 
     for (auto io : {0,1})
@@ -436,6 +439,13 @@ bool LKRun::Init()
         fRunHeader -> SetPar("NumEventsInSplit",int(fNumSplitEntries));
     }
 
+    if (fDetectorSystem -> GetEntries() != 0) {
+        fDetectorSystem -> AddParameterContainer(fPar);
+        fDetectorSystem -> Init();
+        fDetectorSystem -> SetTransparency(80);
+        fDetectorSystem -> Print();
+    }
+
     if (fOutputFileName.IsNull())
     {
         if (fRunName.IsNull()) {
@@ -543,6 +553,26 @@ bool LKRun::RegisterBranch(TString name, TObject *obj, bool persistent)
     lk_info << "Output branch " << name << " " << persistentParName << endl;
 
     return true;
+}
+
+TString LKRun::GetBranchName(int idx) const
+{
+    TString branchName = fBranchNames[idx];
+    return branchName;
+}
+
+TObject *LKRun::GetBranch(int idx)
+{
+    TObject *dataContainer = fBranchPtr[idx];
+    return dataContainer;
+}
+
+TClonesArray *LKRun::GetBranchA(int idx)
+{
+    TObject *dataContainer = fBranchPtr[idx];
+    if (dataContainer -> InheritsFrom("TClonesArray"))
+        return (TClonesArray *) dataContainer;
+    return nullptr;
 }
 
 TObject *LKRun::GetBranch(TString name)

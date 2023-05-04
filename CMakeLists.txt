@@ -4,12 +4,12 @@ cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
 project(LILAK)
 
 #---Configuration
-set(ACTIVATE_EVE      OFF CACHE INTERNAL "") # Activate Root Eve package
-set(CREATE_GIT_LOG    OFF CACHE INTERNAL "") # Create Git log
-set(BUILD_GEANT4_SIM  OFF CACHE INTERNAL "") # Build Geant4 simulation
-set(BUILD_DOXYGEN_DOC OFF CACHE INTERNAL "") # Build Doxygen documentation with HTML
-set(LILAK_PROJECT_LIST    CACHE INTERNAL "") # List of LILAK projects to build
-set(LILAK_PROJECT_MAIN    CACHE INTERNAL "")
+set(ACTIVATE_EVE       OFF CACHE INTERNAL "") # Activate Root Eve package
+set(CREATE_GIT_LOG     OFF CACHE INTERNAL "") # Create Git log
+set(BUILD_GEANT4_SIM   OFF CACHE INTERNAL "") # Build Geant4 simulation
+set(BUILD_DOXYGEN_DOC  OFF CACHE INTERNAL "") # Build Doxygen documentation with HTML
+set(LILAK_PROJECT_LIST     CACHE INTERNAL "") # List of LILAK projects to build
+set(LILAK_PROJECT_MAIN     CACHE INTERNAL "")
 
 #---Configuration
 include(log/build_options.cmake)
@@ -27,6 +27,9 @@ message(STATUS "Main Project           : " ${LILAK_PROJECT_MAIN})
 #---Add source directories. Directory should be under "/path/to/LILAK/"
 set(LILAK_SOURCE_DIRECTORY_LIST
     ${CMAKE_SOURCE_DIR}/source/base
+    ${CMAKE_SOURCE_DIR}/source/detector
+    ${CMAKE_SOURCE_DIR}/source/container
+    ${CMAKE_SOURCE_DIR}/source/geometry
     CACHE INTERNAL ""
 )
 

@@ -23,6 +23,9 @@ using namespace std;
 #include "LKLogger.hpp"
 #include "LKParameterContainer.hpp"
 
+#include "LKDetectorSystem.hpp"
+#include "LKDetector.hpp"
+
 /**
  *  If output file name is not set, output file name will be named as below.
  *  In general:   [run_name]_[run_id(4-digits)].[lilak_version].root;
@@ -96,8 +99,17 @@ class LKRun : public LKTask
          * If persistent is false, branch will not be written. However the data is accessible during the run
          */
         bool RegisterBranch(TString name, TObject *obj, bool persistent);
+
+        TString GetBranchName(int idx) const;
         TObject *GetBranch(TString name); ///< Get branch in TObject by name.
         TClonesArray *GetBranchA(TString name); ///< Get branch in TClonesArray by name. Return nullptr if branch is not inherited from TClonesArray
+        TObject *GetBranch(int idx);
+        TClonesArray *GetBranchA(int idx);
+        int GetNumBranches() const { return fNumBranches; }
+
+        void AddDetector(LKDetector *detector); ///< Set detector
+        LKDetector *GetDetector(Int_t idx=0) const;
+        LKDetectorSystem *GetDetectorSystem() const;
 
         void SetEntries(Long64_t num) { fNumEntries = num; } ///< Set total number of entries. Use only input do not exist.
         Long64_t GetEntries() const { return fNumEntries; } ///< Get total number of entries
@@ -199,6 +211,8 @@ class LKRun : public LKTask
         LKParameterContainer *fG4ProcessTable = nullptr; ///< List of Geant4 physics process
         LKParameterContainer *fG4SDTable = nullptr;      ///< List of Geant4 sensitive detectors
         LKParameterContainer *fG4VolumeTable = nullptr;
+
+        LKDetectorSystem *fDetectorSystem = nullptr;
 
         std::vector<TString> fListOfGitBranches;
         std::vector<int> fListOfNumTagsInGitBranches;
