@@ -181,7 +181,7 @@ TGraph *LKTracklet::TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3::Axis axi
 
 TGraph *LKTracklet::TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3::Axis axis2, Double_t scale)
 {
-    auto fisout = [](TVector3 v3) { return true; };
+    auto fisout = [](TVector3 v3) { return false; };
     return TrajectoryOnPlane(axis1, axis2, fisout, scale);
 }
 

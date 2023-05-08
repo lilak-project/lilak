@@ -331,28 +331,21 @@ void LKEveTask::DrawDetectorPlanes()
 
             Int_t numTracklets = branch -> GetEntries();
 
-            lk_debug << iBranch << " " << branch -> GetName() << " " << numTracklets << endl;
-
             if (numTracklets != 0) {
                 objSample = branch -> At(0);
-                lk_debug << endl;
                 if (objSample -> InheritsFrom("LKContainer") == false || objSample -> InheritsFrom("LKTracklet") == false) {
-                lk_debug << endl;
                     continue;
                 }
             }
             else {
-                lk_debug << endl;
                 continue;
             }
 
             auto trackletSample = (LKTracklet *) objSample;
-            lk_debug << iBranch << " " << branch -> GetName() << " " << numTracklets << " " << trackletSample -> DoDrawOnDetectorPlane() << endl;
             if (trackletSample -> DoDrawOnDetectorPlane())
             {
                 for (auto iTracklet = 0; iTracklet < numTracklets; ++iTracklet) {
                     auto tracklet = (LKTracklet *) branch -> At(iTracklet);
-                    lk_debug << iTracklet << " " << SelectTrack(tracklet) << endl;
                     if (!SelectTrack(tracklet))
                         continue;
 

@@ -280,8 +280,6 @@ TGraph *LKMCTrack::TrajectoryOnPlane(axis_t axis1, axis_t axis2, bool (*fisout)(
     if (fParentID != 0)
         fTrajectoryOnPlane  -> SetLineStyle(2);
 
-
-
     Int_t numVertices = fPX.size();
     if (numVertices==1) {
         auto pos0 = scale * LKVector3(GetPrimaryPosition());

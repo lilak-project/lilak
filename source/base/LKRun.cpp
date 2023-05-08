@@ -757,11 +757,12 @@ bool LKRun::RunEvent(Long64_t eventID)
     }
     else if (eventID==-2) {
         fCurrentEventID = fCurrentEventID + 1;
-        eventID = fCurrentEventID;
-        if (eventID > fNumEntries - 1) {
-            lk_info << "End of run! (at event " << eventID << ")" << endl;
+        if (fCurrentEventID > fNumEntries - 1) {
+            fCurrentEventID = fCurrentEventID - 1;
+            lk_info << "End of run! (at event " << fCurrentEventID << ")" << endl;
             return false;
         }
+        eventID = fCurrentEventID;
     }
 
     if (eventID < 0 || eventID > fNumEntries - 1) {
