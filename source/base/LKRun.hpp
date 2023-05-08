@@ -144,7 +144,8 @@ class LKRun : public LKTask
          */
         void Run(Long64_t numEvents = -1);
         void Run(Long64_t startID, Long64_t endID); ///< Run in range from startID to endID
-        void RunEvent(Long64_t eventID); ///< Run just one event of eventID.
+        bool RunEvent(Long64_t eventID=-1); ///< Run just one event of eventID.
+        bool RunNextEvent() { return RunEvent(-2); }
         //void RuSplit(Long64_t eventID);
 
         /**
@@ -152,12 +153,15 @@ class LKRun : public LKTask
          * In general Run() should be used instead of Event(). See descriptions in Run() for detail.
          * If you want to write trees after using Event() method, 
          */
-        void Event(Long64_t eventID); ///< Run single event 
-        void NextEvent() { Event(fCurrentEventID+1); } ///< Run next event (will not write any object)
+        //void Event(Long64_t eventID); ///< Run single event
+
+        bool StartOfRun(Long64_t numEvents = -1);
+        bool EndOfRun();
 
         void SignalEndOfRun() { fSignalEndOfRun = true; }
-        void SetAutoTermination(Bool_t val) { fAutoTerminate = val; }
+        void SetAutoEndOfRun(Bool_t val) { fAutoEndOfRun = val; }
 
+        void SetAutoTermination(Bool_t val) { fAutoTerminate = val; }
         void Terminate(TObject *obj, TString message = "");
 
         TString GetFileHash(TString name);
@@ -209,6 +213,7 @@ class LKRun : public LKTask
         Long64_t fEndEventID = -1;
         Long64_t fCurrentEventID = 0;
         Long64_t fEventCount = 0;
+        Long64_t fNumRunEntries = 0;
         bool fSignalEndOfRun = false;
         bool fCheckIn = false;
 
@@ -224,6 +229,7 @@ class LKRun : public LKTask
         std::vector<TString> fListOfGitHashTags; ///<@todo
         std::vector<TString> fListOfVersionMarks; ///<@todo
 
+        Bool_t fAutoEndOfRun = true;
         Bool_t fAutoTerminate = true;
 
     private:

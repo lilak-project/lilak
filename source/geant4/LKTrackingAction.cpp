@@ -3,6 +3,7 @@
 #include "G4VProcess.hh"
 #include "G4RunManager.hh"
 #include "G4ThreeVector.hh"
+#include "G4ProcessTable.hh"
 
 #include "LKTrackingAction.hpp"
 
@@ -29,7 +30,10 @@ void LKTrackingAction::PreUserTrackingAction(const G4Track* track)
     G4String processName = "Primary";
     if (process != nullptr)
         processName = process -> GetProcessName();
-    G4int processID = fProcessTable -> GetParInt(processName);
+
+    G4int processID = -1;
+    if (fProcessTable -> CheckPar(processName))
+        processID = fProcessTable -> GetParInt(processName);
 
     fRunManager -> AddMCTrack(track -> GetTrackID(), track -> GetParentID(), track -> GetDefinition() -> GetPDGEncoding(), momentum.x(), momentum.y(), momentum.z(), volumeID, position.x(), position.y(), position.z(), processID);
 }

@@ -1,6 +1,6 @@
 #include "globals.hh"
 #include "G4UImanager.hh"
-#include "G4GDMLParser.hh"
+//#include "G4GDMLParser.hh"
 #include "G4UIExecutive.hh"
 #include "G4strstreambuf.hh"
 #include "G4VisExecutive.hh"
@@ -43,8 +43,8 @@ void LKG4RunManager::Initialize()
     if (GetUserTrackingAction() == nullptr) SetUserAction(new LKTrackingAction(this));
     if (GetUserSteppingAction() == nullptr) SetUserAction(new LKSteppingAction(this));
 
-    if (fPar -> CheckPar("SensitiveDetectors")) {
-        auto sdNames = fPar -> GetParVString("SensitiveDetectors");
+    if (fPar -> CheckPar("LKG4Manager/SensitiveDetectors")) {
+        auto sdNames = fPar -> GetParVString("LKG4Manager/SensitiveDetectors");
         for (auto sdName : sdNames)
         {
             if (sdName.Index("!")!=0)
@@ -59,15 +59,18 @@ void LKG4RunManager::Initialize()
 
     G4RunManager::Initialize();
 
-    SetOutputFile(fPar->GetParString("G4OutputFile").Data());
-    SetGeneratorFile(fPar->GetParString("G4InputFile").Data());
+    SetOutputFile(fPar->GetParString("LKG4Manager/G4OutputFile").Data());
+    SetGeneratorFile(fPar->GetParString("LKG4Manager/G4InputFile").Data());
 
     auto procNames = G4ProcessTable::GetProcessTable() -> GetNameList();
     Int_t idx = 0;
     fProcessTable -> SetPar("Primary", idx++);
     for (auto name : *procNames)
-        fProcessTable -> SetPar(name, idx++);
+        if (fProcessTable -> CheckPar(name) == false)
+            fProcessTable -> SetPar(name, idx++);
+    fProcessTable -> Print();
 
+    /*
     if (fPar->CheckPar("G4ExportGDML"))
     {
         TString fileName = fPar -> GetParString("G4ExportGDML");
@@ -84,6 +87,7 @@ void LKG4RunManager::Initialize()
             g4man_warning << "Stopped exporting geomtry" << endl;
         }
     }
+    */
 }
 
 void LKG4RunManager::InitializeGeometry()
@@ -121,8 +125,8 @@ void LKG4RunManager::Run(G4int argc, char **argv, const G4String &type)
     G4UImanager* uiManager = G4UImanager::GetUIpointer();
     TString command("/control/execute ");
 
-    if (fPar->CheckPar("G4VisFile")) {
-        auto fileName = fPar -> GetParString("G4VisFile");
+    if (fPar->CheckPar("LKG4Manager/G4VisFile")) {
+        auto fileName = fPar -> GetParString("LKG4Manager/G4VisFile");
 
         G4VisManager* visManager = new G4VisExecutive;
         visManager -> Initialize();
@@ -135,8 +139,8 @@ void LKG4RunManager::Run(G4int argc, char **argv, const G4String &type)
         delete uiExecutive;
         delete visManager;
     }
-    else if (fPar->CheckPar("G4MacroFile")) {
-        auto fileName = fPar -> GetParString("G4MacroFile");
+    else if (fPar->CheckPar("LKG4Manager/G4MacroFile")) {
+        auto fileName = fPar -> GetParString("LKG4Manager/G4MacroFile");
         g4man_info << "Initializing Geant4 run with macro " << fileName << endl;
         uiManager -> ApplyCommand(command+fileName);
     }
@@ -192,10 +196,10 @@ void LKG4RunManager::SetOutputFile(TString name)
 {
     //fPar -> ReplaceEnvironmentVariable(name);
 
-    fSetEdepSumTree         = fPar->GetParBool("MCSetEdepSumTree");;
-    fStepPersistency        = fPar->GetParBool("MCStepPersistency");;
-    fSecondaryPersistency   = fPar->GetParBool("MCSecondaryPersistency");
-    fTrackVertexPersistency = fPar->GetParBool("MCTrackVertexPersistency");
+    fSetEdepSumTree         = fPar->GetParBool("LKG4Manager/MCSetEdepSumTree");;
+    fStepPersistency        = fPar->GetParBool("LKG4Manager/MCStepPersistency");;
+    fSecondaryPersistency   = fPar->GetParBool("LKG4Manager/MCSecondaryPersistency");
+    fTrackVertexPersistency = fPar->GetParBool("LKG4Manager/MCTrackVertexPersistency");
 
     fFile = new TFile(name,"recreate");
     fTree = new TTree("event", name);

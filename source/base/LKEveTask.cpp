@@ -1,3 +1,13 @@
+#include "TStyle.h"
+#include "TRootBrowser.h"
+#include "TBrowser.h"
+#include "TGTab.h"
+#include "TVirtualX.h"
+#include "TGWindow.h"
+#include "TGeoManager.h"
+#include "TRootEmbeddedCanvas.h"
+
+#ifdef ACTIVATE_EVE
 #include "TEveViewer.h"
 #include "TGLViewer.h"
 #include "TEveGeoNode.h"
@@ -7,18 +17,10 @@
 #include "TEveWindowManager.h"
 #include "TEveGedEditor.h"
 #include "TEveBrowser.h"
-#include "TRootBrowser.h"
-#include "TBrowser.h"
-#include "TGTab.h"
-#include "TVirtualX.h"
-#include "TGWindow.h"
-#include "TGeoManager.h"
-#include "TRootEmbeddedCanvas.h"
 #include "TEvePointSet.h"
 #include "TEveLine.h"
 #include "TEveArrow.h"
-
-#include "TStyle.h"
+#endif
 
 #include "LKLogger.hpp"
 #include "LKRun.hpp"
@@ -71,18 +73,25 @@ bool LKEveTask::Init()
             fSelBranchNames.push_back(branchName);
     }
 
-    ConfigureDisplayWindow();
+    fDetectorSystem = run -> GetDetectorSystem();
+
+    ConfigureDetectorPlanes();
 
     return true;
 }
 
 void LKEveTask::Exec(Option_t*)
 {
-    RunEve();
+    Bool_t drawEve3D = true;
+    Bool_t drawDetectorPlanes = true;
+
+    if (drawEve3D) DrawEve3D();
+    if (drawDetectorPlanes) DrawDetectorPlanes();
 }
 
 void LKEveTask::DrawEve3D()
 {
+#ifdef ACTIVATE_EVE
     auto run = LKRun::GetRun();
 
     if (gEve!=nullptr) {
@@ -208,27 +217,12 @@ void LKEveTask::DrawEve3D()
     }
 
     gEve -> Redraw3D();
-}
-
-void LKEveTask::ConfigureDetectorPlanes()
-{
-  if (fCvsDetectorPlaneArray->GetEntries()>0)
-    return;
-
-  auto numPlanes = fDetectorSystem -> GetNumPlanes();
-  for (Int_t iPlane = 0; iPlane < numPlanes; iPlane++) {
-    LKDetectorPlane *plane = fDetectorSystem -> GetDetectorPlane(iPlane);
-    TCanvas *cvs = plane -> GetCanvas();
-    //cvs -> AddExec("ex", "LKRun::ClickSelectedPadPlane()");
-    fCvsDetectorPlaneArray -> Add(cvs);
-  }
+#endif
 }
 
 void LKEveTask::DrawDetectorPlanes()
 {
     auto run = LKRun::GetRun();
-
-    ConfigureDetectorPlanes();
 
     if (fGraphChannelBoundaryNb[0] == nullptr) { // TODO
         for (Int_t iGraph = 0; iGraph < 20; ++iGraph) {
@@ -238,8 +232,8 @@ void LKEveTask::DrawDetectorPlanes()
         }
     }
 
-    auto hitArray = run -> GetBranchA("Hit");
-    auto padArray = run -> GetBranchA("Pad");
+    //auto hitArray = run -> GetBranchA("Hit");
+    //auto padArray = run -> GetBranchA("Pad");
 
     auto ppHistMin = 0.01;
     if (fPar->CheckPar("evePPHistMin"))
@@ -336,19 +330,29 @@ void LKEveTask::DrawDetectorPlanes()
             TObject *objSample = nullptr;
 
             Int_t numTracklets = branch -> GetEntries();
+
+            lk_debug << iBranch << " " << branch -> GetName() << " " << numTracklets << endl;
+
             if (numTracklets != 0) {
                 objSample = branch -> At(0);
-                if (objSample -> InheritsFrom("LKContainer") == false || objSample -> InheritsFrom("LKTracklet") == false)
+                lk_debug << endl;
+                if (objSample -> InheritsFrom("LKContainer") == false || objSample -> InheritsFrom("LKTracklet") == false) {
+                lk_debug << endl;
                     continue;
+                }
             }
-            else
+            else {
+                lk_debug << endl;
                 continue;
+            }
 
             auto trackletSample = (LKTracklet *) objSample;
+            lk_debug << iBranch << " " << branch -> GetName() << " " << numTracklets << " " << trackletSample -> DoDrawOnDetectorPlane() << endl;
             if (trackletSample -> DoDrawOnDetectorPlane())
             {
                 for (auto iTracklet = 0; iTracklet < numTracklets; ++iTracklet) {
                     auto tracklet = (LKTracklet *) branch -> At(iTracklet);
+                    lk_debug << iTracklet << " " << SelectTrack(tracklet) << endl;
                     if (!SelectTrack(tracklet))
                         continue;
 
@@ -362,15 +366,38 @@ void LKEveTask::DrawDetectorPlanes()
     gStyle -> SetPalette(kBird);
 }
 
-void LKEveTask::RunEve()
+void LKEveTask::ConfigureDetectorPlanes()
 {
-    Bool_t drawEve3D = true;
-    Bool_t drawDetectorPlanes = true;
+    if (fCvsDetectorPlaneArray==nullptr)
+        fCvsDetectorPlaneArray = new TObjArray();
 
-    if (drawEve3D) DrawEve3D();
-    if (drawDetectorPlanes) DrawDetectorPlanes();
+    if (fCvsDetectorPlaneArray->GetEntries()>0)
+        return;
+
+    auto numPlanes = fDetectorSystem -> GetNumPlanes();
+    for (Int_t iPlane = 0; iPlane < numPlanes; iPlane++) {
+        LKDetectorPlane *plane = fDetectorSystem -> GetDetectorPlane(iPlane);
+        TCanvas *cvs = plane -> GetCanvas();
+        //cvs -> AddExec("ex", "LKRun::ClickSelectedPadPlane()");
+        fCvsDetectorPlaneArray -> Add(cvs);
+    }
 }
 
+bool LKEveTask::SelectTrack(LKTracklet *tracklet)
+{
+    bool isGood = 1;
+    if (fSelTrkIDs.size()!=0) { isGood=0; for (auto id:fSelTrkIDs) { if (tracklet->GetTrackID()==id)  { isGood=1; break; }}} if (!isGood) return false;
+    if (fIgnTrkIDs.size()!=0) { isGood=1; for (auto id:fIgnTrkIDs) { if (tracklet->GetTrackID()==id)  { isGood=0; break; }}} if (!isGood) return false;
+    if (fSelPntIDs.size()!=0) { isGood=0; for (auto id:fSelPntIDs) { if (tracklet->GetParentID()==id) { isGood=1; break; }}} if (!isGood) return false;
+    if (fIgnPntIDs.size()!=0) { isGood=1; for (auto id:fIgnPntIDs) { if (tracklet->GetParentID()==id) { isGood=0; break; }}} if (!isGood) return false;
+    if (fSelPDGs.size()!=0)   { isGood=0; for (auto id:fSelPDGs)   { if (tracklet->GetPDG()==id)      { isGood=1; break; }}} if (!isGood) return false;
+    if (fIgnPDGs.size()!=0)   { isGood=1; for (auto id:fIgnPDGs)   { if (tracklet->GetPDG()==id)      { isGood=0; break; }}} if (!isGood) return false;
+    //if (fSelMCIDs.size()!=0)  { isGood=0; for (auto id:fSelMCIDs)  { if (tracklet->GetMCID()==id)     { isGood=1; break; }}} if (!isGood) return false;
+    //if (fIgnMCIDs.size()!=0)  { isGood=1; for (auto id:fIgnMCIDs)  { if (tracklet->GetMCID()==id)     { isGood=0; break; }}} if (!isGood) return false;
+    return true;
+}
+
+#ifdef ACTIVATE_EVE
 void LKEveTask::ConfigureDisplayWindow()
 {
     if (fDetectorSystem -> GetEntries() == 0)
@@ -483,20 +510,6 @@ void LKEveTask::SetEveMarkerAtt(TEveElement *el, TString branchName)
     }
 }
 
-bool LKEveTask::SelectTrack(LKTracklet *tracklet)
-{
-    bool isGood = 1;
-    if (fSelTrkIDs.size()!=0) { isGood=0; for (auto id:fSelTrkIDs) { if (tracklet->GetTrackID()==id)  { isGood=1; break; }}} if (!isGood) return false;
-    if (fIgnTrkIDs.size()!=0) { isGood=1; for (auto id:fIgnTrkIDs) { if (tracklet->GetTrackID()==id)  { isGood=0; break; }}} if (!isGood) return false;
-    if (fSelPntIDs.size()!=0) { isGood=0; for (auto id:fSelPntIDs) { if (tracklet->GetParentID()==id) { isGood=1; break; }}} if (!isGood) return false;
-    if (fIgnPntIDs.size()!=0) { isGood=1; for (auto id:fIgnPntIDs) { if (tracklet->GetParentID()==id) { isGood=0; break; }}} if (!isGood) return false;
-    if (fSelPDGs.size()!=0)   { isGood=0; for (auto id:fSelPDGs)   { if (tracklet->GetPDG()==id)      { isGood=1; break; }}} if (!isGood) return false;
-    if (fIgnPDGs.size()!=0)   { isGood=1; for (auto id:fIgnPDGs)   { if (tracklet->GetPDG()==id)      { isGood=0; break; }}} if (!isGood) return false;
-    //if (fSelMCIDs.size()!=0)  { isGood=0; for (auto id:fSelMCIDs)  { if (tracklet->GetMCID()==id)     { isGood=1; break; }}} if (!isGood) return false;
-    //if (fIgnMCIDs.size()!=0)  { isGood=1; for (auto id:fIgnMCIDs)  { if (tracklet->GetMCID()==id)     { isGood=0; break; }}} if (!isGood) return false;
-    return true;
-}
-
 bool LKEveTask::SelectHit(LKHit *hit)
 {
     bool isGood = 1;
@@ -527,3 +540,4 @@ void LKEveTask::AddEveElementToEvent(TEveElement *element, bool permanent)
     if (permanent) fPermanentEveElementList.push_back(element);
     gEve -> Redraw3D();
 }
+#endif

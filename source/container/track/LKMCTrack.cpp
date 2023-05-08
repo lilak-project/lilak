@@ -1,8 +1,8 @@
 #include "LKMCTrack.hpp"
 #include "TVector3.h"
-#include "TDatabasePDG.h"
 
 #ifdef ACTIVATE_EVE
+#include "TDatabasePDG.h"
 #include "TEveLine.h"
 #endif
 
@@ -224,80 +224,6 @@ void LKMCTrack::AddToEveSet(TEveElement *, Double_t)
 }
 #endif
 
-TGraph *LKMCTrack::TrajectoryOnPlane(axis_t axis1, axis_t axis2, Double_t scale)
-{
-    if (fTrajectoryOnPlane == nullptr)
-    {
-        fTrajectoryOnPlane = new TGraph();
-        fTrajectoryOnPlane -> SetLineColor(kRed);
-
-        auto particle = TDatabasePDG::Instance() -> GetParticle(fPDG);
-
-        TString pClass;
-        Int_t pCharge = 0;
-
-        if (particle == nullptr) {}
-        else {
-            pClass = particle -> ParticleClass();
-            pCharge = particle -> Charge();
-        }
-
-        Color_t color = kGray+2;
-        Color_t width = 1;
-
-        if (pClass == "Lepton") {
-            if (pCharge < 0) color = kOrange-3;
-            else if (pCharge > 0) color = kAzure+7;
-            else                  color = kGray+1;
-        }
-        else if (pClass == "Meson") {
-            if (pCharge < 0) color = kPink-1;
-            else if (pCharge > 0) color = kCyan+1;
-            else                  color = kGray+1;
-        }
-        else if (pClass == "Baryon") {
-            if (pCharge < 0) color = kRed-4;
-            else if (pCharge > 0) color = kBlue-4;
-            else                  color = kOrange;
-        }
-        else if (pClass == "Ion") {
-            width = 2;
-            if (pCharge < 0) color = kRed;
-            else if (pCharge > 0) color = kBlue;
-            else                  color = kGray+1;
-        }
-        else if (pClass == "GaugeBoson")
-            color = kGreen;
-
-        fTrajectoryOnPlane  -> SetLineColor(color);
-        fTrajectoryOnPlane  -> SetLineWidth(width);
-    }
-
-    fTrajectoryOnPlane -> Set(0);
-
-    if (fParentID != 0)
-        fTrajectoryOnPlane  -> SetLineStyle(2);
-
-
-
-    Int_t numVertices = fPX.size();
-    if (numVertices==1) {
-        auto pos0 = scale * LKVector3(GetPrimaryPosition());
-        auto pos1 = scale * (pos0 + LKVector3(GetMomentum().Unit()));
-
-        fTrajectoryOnPlane -> SetPoint(fTrajectoryOnPlane -> GetN(), pos0.At(axis1), pos0.At(axis2));
-        fTrajectoryOnPlane -> SetPoint(fTrajectoryOnPlane -> GetN(), pos1.At(axis1), pos1.At(axis2));
-    }
-    else {
-        for (auto idx = 0; idx < numVertices; ++idx) {
-            auto pos = scale * LKVector3(fVX[idx], fVY[idx], fVZ[idx]);
-            fTrajectoryOnPlane -> SetPoint(fTrajectoryOnPlane -> GetN(), pos.At(axis1), pos.At(axis2));
-        }
-    }
-
-    return fTrajectoryOnPlane;
-}
-
 TGraph *LKMCTrack::TrajectoryOnPlane(axis_t axis1, axis_t axis2, bool (*fisout)(TVector3 pos), Double_t scale)
 {
     if (fTrajectoryOnPlane == nullptr)
@@ -305,16 +231,18 @@ TGraph *LKMCTrack::TrajectoryOnPlane(axis_t axis1, axis_t axis2, bool (*fisout)(
         fTrajectoryOnPlane = new TGraph();
         fTrajectoryOnPlane -> SetLineColor(kRed);
 
-        auto particle = TDatabasePDG::Instance() -> GetParticle(fPDG);
-
         TString pClass;
         Int_t pCharge = 0;
+
+#ifdef ACTIVATE_EVE
+        auto particle = TDatabasePDG::Instance() -> GetParticle(fPDG);
 
         if (particle == nullptr) {}
         else {
             pClass = particle -> ParticleClass();
             pCharge = particle -> Charge();
         }
+#endif
 
         Color_t color = kGray+2;
         Color_t width = 1;

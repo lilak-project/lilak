@@ -588,7 +588,7 @@ bool LKRun::Init()
     else
         lk_error << "[LKRun] FAILED initializing tasks." << endl;
 
-    fCurrentEventID = -1;
+    fCurrentEventID = 0;
 
     return fInitialized;
 }
@@ -716,12 +716,84 @@ bool LKRun::WriteOutputFile()
 void LKRun::Run(Long64_t numEvents)
 {
     lx_cout << endl;
+
+    if (!StartOfRun(numEvents))
+        return;
+
+    fEventCount = 1;
+
+    for (fIdxEntry = fStartEventID; fIdxEntry <= fEndEventID; ++fIdxEntry) {
+        fCurrentEventID = fIdxEntry;
+
+        bool continueRun = RunEvent(fCurrentEventID);
+        if (!continueRun)
+            break;
+
+        ++fEventCount;
+    }
+
+    EndOfRun();
+}
+
+
+void LKRun::Run(Long64_t startID, Long64_t endID)
+{
+    if (startID > endID || startID < 0 || endID > fNumEntries - 1) {
+        lk_error << "startID " << startID << " and endID " << endID << " not in proper range." << endl;
+        lk_error << "entry range : " << 0 << " -> " << fNumEntries - 1 << endl;
+        lk_error << "Exit run" << endl;
+        return;
+    }
+
+    fStartEventID = startID;
+    fEndEventID = endID;
+    Run();
+}
+
+bool LKRun::RunEvent(Long64_t eventID)
+{
+    if (eventID==-1) {
+        eventID = fCurrentEventID;
+    }
+    else if (eventID==-2) {
+        fCurrentEventID = fCurrentEventID + 1;
+        eventID = fCurrentEventID;
+        if (eventID > fNumEntries - 1) {
+            lk_info << "End of run! (at event " << eventID << ")" << endl;
+            return false;
+        }
+    }
+
+    if (eventID < 0 || eventID > fNumEntries - 1) {
+        lk_error << "EventID: " << eventID << ", not in proper range." << endl;
+        lk_error << "Entry range : " << 0 << " -> " << fNumEntries - 1 << endl;
+        lk_error << "Exit run" << endl;
+        return false;
+    }
+
+    GetEntry(fCurrentEventID);
+
+    lx_cout << endl;
+    lk_info << "Execute Event " << fCurrentEventID << " (" << fEventCount << "/" << fNumRunEntries << ")" << endl;
+    ExecuteTask("");
+
+    if (fSignalEndOfRun)
+        return false;
+
+    if (fOutputTree != nullptr)
+        fOutputTree -> Fill();
+
+    return true;
+}
+
+bool LKRun::StartOfRun(Long64_t numEvents)
+{
     if (fInitialized == false) {
         lk_info << "LKRun is not initialized!" << endl;
         lk_info << "try initialization..." << endl;
         if (!Init()) {
             lk_error << "Exit Run() due to initialization fail." << endl;
-            return;
+            return false;
         }
     }
 
@@ -746,26 +818,13 @@ void LKRun::Run(Long64_t numEvents)
             fEndEventID = fNumEntries - 1;
     }
 
-    Int_t numRunEntries = fEndEventID - fStartEventID + 1;
+    fNumRunEntries = fEndEventID - fStartEventID + 1;
 
-    fEventCount = 1;
+    return true;
+}
 
-    for (fIdxEntry = fStartEventID; fIdxEntry <= fEndEventID; ++fIdxEntry) {
-        fCurrentEventID = fIdxEntry;
-        GetEntry(fCurrentEventID);
-
-        lx_cout << endl;
-        lk_info << "Execute Event " << fCurrentEventID << " (" << fEventCount << "/" << numRunEntries << ")" << endl;
-        ExecuteTask("");
-
-        if (fSignalEndOfRun)
-            break;
-        if (fOutputTree != nullptr)
-            fOutputTree -> Fill();
-
-        ++fEventCount;
-    }
-
+bool LKRun::EndOfRun()
+{
     EndOfRunTask();
 
     lx_cout << endl;
@@ -779,35 +838,8 @@ void LKRun::Run(Long64_t numEvents)
     CheckOut();
 
     if (fAutoTerminate) Terminate(this);
-}
 
-
-void LKRun::Run(Long64_t startID, Long64_t endID)
-{
-    if (startID > endID || startID < 0 || endID > fNumEntries - 1) {
-        lk_error << "startID " << startID << " and endID " << endID << " not in proper range." << endl;
-        lk_error << "entry range : " << 0 << " -> " << fNumEntries - 1 << endl;
-        lk_error << "Exit run" << endl;
-        return;
-    }
-
-    fStartEventID = startID;
-    fEndEventID = endID;
-    Run();
-}
-
-void LKRun::RunEvent(Long64_t eventID)
-{
-    if (eventID < 0 || eventID > fNumEntries - 1) {
-        lk_error << "EventID: " << eventID << ", not in proper range." << endl;
-        lk_error << "Entry range : " << 0 << " -> " << fNumEntries - 1 << endl;
-        lk_error << "Exit run" << endl;
-        return;
-    }
-
-    fStartEventID = eventID;
-    fEndEventID = eventID;
-    Run();
+    return true;
 }
 
 void LKRun::Terminate(TObject *obj, TString message)

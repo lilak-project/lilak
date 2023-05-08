@@ -1,7 +1,9 @@
 #ifndef LKEVETASK_HH
 #define LKEVETASK_HH
 
+#ifdef ACTIVATE_EVE
 #include "TEveEventManager.h"
+#endif
 
 #include "LKTask.hpp"
 #include "LKContainer.hpp"
@@ -19,18 +21,22 @@ class LKEveTask : public LKTask
         bool Init();
         void Exec(Option_t*);
 
-        void RunEve();
-        void AddEveElementToEvent(LKContainer *eveObj, bool permanent = true);
-        void AddEveElementToEvent(TEveElement *element, bool permanent = true);
+        void DrawEve3D();
+        void DrawDetectorPlanes();
+        void ConfigureDetectorPlanes();
+
+        bool SelectTrack(LKTracklet *track);
+
+#ifdef ACTIVATE_EVE
         void ConfigureDisplayWindow();
 
-        void DrawEve3D();
-        void ConfigureDetectorPlanes();
-        void DrawDetectorPlanes();
         void SetEveLineAtt(TEveElement *el, TString branchName);
         void SetEveMarkerAtt(TEveElement *el, TString branchName);
-        bool SelectTrack(LKTracklet *track);
         bool SelectHit(LKHit *hit);
+
+        void AddEveElementToEvent(LKContainer *eveObj, bool permanent = true);
+        void AddEveElementToEvent(TEveElement *element, bool permanent = true);
+#endif
 
     private:
         vector<Int_t> fSelTrkIDs;
@@ -57,13 +63,15 @@ class LKEveTask : public LKTask
         LKDetectorSystem *fDetectorSystem = nullptr;
 
         TObjArray *fEveEventManagerArray = nullptr;
+#ifdef ACTIVATE_EVE
         TEveEventManager *fEveEventManager = nullptr;
         std::vector<TEveElement *> fEveElementList;
         std::vector<TEveElement *> fPermanentEveElementList;
+#endif
 
         Double_t fEveScale = 1;
 
-        ClassDef(LKEveTask, 1)
+    ClassDef(LKEveTask, 1)
 };
 
 #endif
