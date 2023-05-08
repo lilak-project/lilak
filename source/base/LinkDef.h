@@ -9,6 +9,7 @@
 
 #pragma link C++ class LKGear+;
 #pragma link C++ class LKContainer+;
+#pragma link C++ class LKParameter+;
 #pragma link C++ class LKParameterContainer+;
 #pragma link C++ class LKTask+;
 #pragma link C++ class LKRun+;

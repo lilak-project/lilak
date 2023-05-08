@@ -21,6 +21,8 @@ using namespace std;
 #include "LKGear.hpp"
 #include "LKMCTrack.hpp"
 #include "LKMCStep.hpp"
+#include "LKParameter.hpp"
+#include "LKParameterContainer.hpp"
 
 class LKG4RunManager : public G4RunManager, public LKGear
 {

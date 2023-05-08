@@ -92,8 +92,6 @@ class LKRun : public LKTask
         LKParameterContainer *GetG4SDTable() const { return fG4SDTable; }
         LKParameterContainer *GetG4VolumeTable() const { return fG4VolumeTable; }
 
-        void CollectParFromInit(TString name); ///< Collect parameters from Init() methods using LKParameterContainer collecting mode
-
         /**
          * Register obj as a output branch with given name.
          * obj will not be registered if same name already exist in the branch list and return fail.

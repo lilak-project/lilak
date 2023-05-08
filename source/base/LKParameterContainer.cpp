@@ -13,38 +13,26 @@
 #include "TSystemDirectory.h"
 #include "TList.h"
 
+#include "LKParameter.hpp"
 #include "LKParameterContainer.hpp"
 
 using namespace std;
 
 ClassImp(LKParameterContainer)
 
-LKParameterContainer::LKParameterContainer(Bool_t collect)
-    :TObjArray(), fCollectionMode(collect)
+LKParameterContainer::LKParameterContainer()
+    :TObjArray()
 {
     fName = "ParameterContainer";
 }
 
-LKParameterContainer::LKParameterContainer(const char *parName, Bool_t collect)
-    :LKParameterContainer(collect)
+LKParameterContainer::LKParameterContainer(const char *parName)
 {
     AddFile(TString(parName));
 }
 
-void LKParameterContainer::ProcessParNotFound(TString name, TString val) {
-    if (fCollectionMode) {
-        lk_warning << "parameter " << name << " does not exist!" << endl;
-        lk_warning << "parameter will be added with default value." << endl;
-        SetPar(name,val,"This parameter is collected from parameter collecting mode. Please modify the value");
-    }
-    else {
-        lk_error << "parameter " << name << " does not exist!" << endl;
-        gApplication -> Terminate();
-    }
-}
-
 void LKParameterContainer::ProcessTypeError(TString name, TString value, TString type) const {
-    lk_error << "parameter " << name << "=" << value << " is not convertable to " << type << endl;
+    lk_error << "parameter " << name << " = " << value << " is not convertable to " << type << endl;
     gApplication -> Terminate();
 }
 
@@ -59,6 +47,8 @@ bool LKParameterContainer::CheckFormulaValidity(TString formula, bool isInt) con
     formula2.ReplaceAll("/"," ");
     formula2.ReplaceAll("*"," ");
     formula2.ReplaceAll("."," ");
+    formula2.ReplaceAll("e","1");
+    formula2.ReplaceAll("E","1");
 
     if (!formula2.IsDigit())
         return false;
@@ -86,7 +76,7 @@ bool LKParameterContainer::IsEmpty() const
     return true;
 }
 
-void LKParameterContainer::ReplaceVariablesConst(TString &valInput, TString parName) const
+void LKParameterContainer::ReplaceEnvVariables(TString &valInput)
 {
     int ienv = valInput.Index("e{");
     while (ienv>=0) {
@@ -95,24 +85,26 @@ void LKParameterContainer::ReplaceVariablesConst(TString &valInput, TString parN
         ienv = valInput.Index("e{");
     }
 
-    int ipar = valInput.Index("{");
-    while (ipar>=0) {
-        int fpar = valInput.Index("}",1,ipar,TString::kExact);
-        TString parName2 = valInput(ipar+1,fpar-ipar-1);
-        if (parName2==parName || parName2.Index(parName+"[")>=0) {
-            lk_error << "The parameter is refering to the valInput it self!" << endl;
-            gApplication -> Terminate();
-        }
-        TString parValue2 = GetParStringConst(parName2);
-        valInput.Replace(ipar,fpar-ipar+1,parValue2);
-        ipar = valInput.Index("{");
-    }
-
     if (valInput[0] == '$') {
         TString env = valInput;
         Ssiz_t nenv = env.First("/");
         env.Resize(nenv);
+        env.Remove(0,1);
         valInput.Replace(0, nenv+1, getenv(env));
+    }
+}
+
+void LKParameterContainer::ReplaceVariables(TString &valInput)
+{
+    ReplaceEnvVariables(valInput);
+
+    int ipar = valInput.Index("{");
+    while (ipar>=0) {
+        int fpar = valInput.Index("}",1,ipar,TString::kExact);
+        TString parName2 = valInput(ipar+1,fpar-ipar-1);
+        TString parValue2 = GetParString(parName2);
+        valInput.Replace(ipar,fpar-ipar+1,parValue2);
+        ipar = valInput.Index("{");
     }
 
     valInput.ReplaceAll("kWhite"  ,"0");
@@ -141,41 +133,9 @@ void LKParameterContainer::ReplaceVariablesConst(TString &valInput, TString parN
     }
 }
 
-void LKParameterContainer::ReplaceVariables(TString &valInput, TString parName)
-{
-    int ienv = valInput.Index("e{");
-    while (ienv>=0) {
-        int fenv = valInput.Index("}",1,ienv,TString::kExact);
-        valInput.Replace(ienv,fenv-ienv+1,getenv(TString(valInput(ienv+2,fenv-ienv-2))));
-        ienv = valInput.Index("e{");
-    }
-
-    int ipar = valInput.Index("{");
-    while (ipar>=0) {
-        int fpar = valInput.Index("}",1,ipar,TString::kExact);
-        TString parName2 = valInput(ipar+1,fpar-ipar-1);
-        if (parName2==parName || parName2.Index(parName+"[")>=0) {
-            lk_error << "The parameter is refering to the valInput it self!" << endl;
-            gApplication -> Terminate();
-        }
-        TString parValue2 = GetParString(parName2);
-        valInput.Replace(ipar,fpar-ipar+1,parValue2);
-        ipar = valInput.Index("{");
-    }
-
-    if (valInput[0] == '$') {
-        TString env = valInput;
-        Ssiz_t nenv = env.First("/");
-        env.Resize(nenv);
-        env.Remove(0,1);
-        valInput.Replace(0, nenv+1, getenv(env));
-    }
-
-}
-
 Int_t LKParameterContainer::AddFile(TString fileName, bool addFilePar)
 {
-    ReplaceVariables(fileName);
+    ReplaceEnvVariables(fileName);
 
     TString fileNameFull;
 
@@ -208,14 +168,15 @@ Int_t LKParameterContainer::AddFile(TString fileName, bool addFilePar)
 
     lk_info << "Adding parameter file " << fileNameFull << endl;
 
-    TString parName = Form("INPUT_FILE_%d", fNumInputFiles);
+    TString parName = Form("%d", fNumInputFiles);
     TString parName2 = Form("<<%d", fNumInputFiles);
 
     fNumInputFiles++;
+    LKParameter *parFile;
     if (addFilePar)
-        SetPar(parName, fileNameFull);
+        parFile = SetParFile(fileNameFull);
     else {
-        SetComment(TString("# ") + parName2 + " " + fileNameFull);
+        SetLineComment(parName2 + " " + fileNameFull);
     }
 
     ifstream file(fileNameFull);
@@ -230,17 +191,18 @@ Int_t LKParameterContainer::AddFile(TString fileName, bool addFilePar)
         string line;
 
         while (getline(file, line)) {
-            if (SetPar(line))
+            if (AddLine(line))
                 countParameters++;
         }
 
         if (countParameters == 0) {
-            this -> Remove(FindObject(parName));
+            if (addFilePar)
+                this -> Remove(parFile);
             fNumInputFiles--;
         }
 
         parName.Replace(0,11,"<<");
-        SetComment(Form("%s %d parameters where added",parName.Data(),countParameters));
+        SetLineComment(Form("%s %d parameters where added",parName.Data(),countParameters));
     }
 
     return countParameters;
@@ -250,36 +212,32 @@ Int_t LKParameterContainer::AddParameterContainer(LKParameterContainer *parc)
 {
     lk_info << "Adding parameter container " << parc -> GetName() << endl;
 
-    TString parName = Form("INPUT_PARC_%d", fNumInputFiles);
+    TString parName = Form("%d", fNumInputFiles);
     fNumInputFiles++;
-    SetPar(parName, ""); //@todo
+    auto parameter_parc = SetParCont(parc->GetName());
 
     Int_t countParameters = 0;
     Int_t countSameParameters = 0;
 
     TIter iterator(parc);
-    TObject *obj;
-    while ((obj = dynamic_cast<TObject*>(iterator())))
+    LKParameter *parameter;
+    while ((parameter = dynamic_cast<LKParameter*>(iterator())))
     {
-        TString name = obj -> GetName();
-
-        TObject *found = FindObject(name);
+        TString name = parameter -> GetName();
+        LKParameter *found = FindPar(name);
         if (found != nullptr) {
-            if (name.Index("INPUT_FILE_")==0)
-                ((TNamed *) obj) -> SetName(name+"_");
-            else {
-                lk_error << "Parameter " << name << " already exist!" << endl;
-                ++countSameParameters ;
-                continue;
-            }
+            lk_error << "Parameter " << name << " already exist!" << endl;
+            ++countSameParameters ;
+            continue;
         }
-
-        Add(obj);
-        ++countParameters;
+        else {
+            SetPar(parameter->GetName(),parameter->GetRaw(),parameter->GetTitle(),parameter->GetComment());
+            ++countParameters;
+        }
     }
 
     if (countParameters == 0) {
-        this -> Remove(FindObject(parName));
+        this -> Remove(parameter_parc);
         fNumInputFiles--;
     }
 
@@ -371,7 +329,6 @@ bool LKParameterContainer::SearchAndAddPar(TString dirName)
                 else {
                     int idxDir = countAll - countFile - 1;
                     TString dirName2 = dirName + "/" + listDir[idxDir];
-                    lk_debug << idxDir << " / " << numDir << " " << dirName2 << endl;
                     return SearchAndAddPar(dirName2);
                 }
             }
@@ -409,36 +366,34 @@ Int_t LKParameterContainer::AddJsonTree(const Json::Value &jsonTree, TString tre
         else
             parName = treeName + "/" + TString(it.name());
 
-        //nullValue
-        //intValue
-        //uintValue
-        //realValue
-        //stringValue
-        //booleanValue
-        //arrayValue
-        //objectValue
+        // nullValue
+        // intValue
+        // uintValue
+        // realValue
+        // stringValue
+        // booleanValue
+        // arrayValue
+        // objectValue
         if (branch.type()==Json::ValueType::stringValue || branch.type()==Json::ValueType::booleanValue) {
-            SetPar(parName, branch.asString());
+            AddPar(parName, branch.asString());
             count_par = count_par + 1;
         }
         else if (branch.type()==Json::ValueType::intValue || branch.type()==Json::ValueType::uintValue) {
-            SetPar(parName, branch. asInt());
+            AddPar(parName, branch. asInt());
             count_par = count_par + 1;
         }
         else if (branch.type()==Json::ValueType::realValue) {
-            SetPar(parName, branch. asDouble());
+            AddPar(parName, branch. asDouble());
             count_par = count_par + 1;
         }
         else if (branch.type()==Json::ValueType::arrayValue) {
             int nValues = branch.size();
-            SetParN(parName, nValues);
             TString valueAll = "";
             for (auto iVal=0; iVal<nValues; ++iVal) {
                 auto valueString = branch.get(iVal,Json::Value(-999)).asString();
                 valueAll = valueAll + valueString + " ";
-                SetParArray(parName, valueString, iVal);
             }
-            SetParValue(parName, valueAll);
+            SetPar(parName, valueAll);
         }
         else if (branch.type()==Json::ValueType::objectValue) {
             Int_t count_par2 = AddJsonTree(*it, parName);
@@ -458,20 +413,21 @@ void LKParameterContainer::Print(Option_t *option) const
         return;
     }
 
-    bool evalulatePar = false;
-    bool showHiddenPar = false;
-    bool showLineComments = false;
+    bool evaluatePar = false;
+    bool showLineComment = true;
     bool showParComments = false;
     bool printToScreen = true;
     bool printToFile = false;
     ofstream fileOut;
 
-    printOptions.ReplaceAll(":"," ");
-    if (printOptions.Index("eval" )>=0) { evalulatePar = true;     printOptions.ReplaceAll("eval", ""); }
-    if (printOptions.Index("line#")>=0) { showLineComments = true; printOptions.ReplaceAll("line#",""); }
-    if (printOptions.Index("par#" )>=0) { showParComments = true;  printOptions.ReplaceAll("par#", ""); }
-    if (printOptions.Index("all"  )>=0) { showHiddenPar = true;    printOptions.ReplaceAll("all",  ""); }
-    printOptions.ReplaceAll(" ","");
+    if (printOptions.Index("!eval" )>=0) { evaluatePar = false;      printOptions.ReplaceAll("!eval", ""); }
+    if (printOptions.Index("eval"  )>=0) { evaluatePar = true;       printOptions.ReplaceAll("eval",  ""); }
+
+    if (printOptions.Index("!line#")>=0) { showLineComment = false;  printOptions.ReplaceAll("!line#",""); }
+    if (printOptions.Index("line#" )>=0) { showLineComment = true;   printOptions.ReplaceAll("line#", ""); }
+
+    if (printOptions.Index("!par#" )>=0) { showParComments = false;  printOptions.ReplaceAll("!par#", ""); }
+    if (printOptions.Index("par#"  )>=0) { showParComments = true;   printOptions.ReplaceAll("par#",  ""); }
 
     TString fileName = printOptions;
     if (fileName.IsNull()) {
@@ -495,69 +451,46 @@ void LKParameterContainer::Print(Option_t *option) const
         fileOut << endl;
     }
 
+
+    int parNumber = 0;
     TIter iterator(this);
-    TNamed *obj;
-    while ((obj = dynamic_cast<TNamed*>(iterator())))
+    LKParameter *parameter;
+    while ((parameter = dynamic_cast<LKParameter*>(iterator())))
     {
-        TString parName = obj -> GetName();
+        TString parName = parameter -> GetName();
+        TString parRaw = parameter -> GetRaw();
+        TString parValue = parameter -> GetValue();
+        TString parComment = parameter -> GetComment();
+        if (evaluatePar)
+            parValue = parRaw;
 
-        TString parValues = obj -> GetTitle();
-        if (evalulatePar) {
-            auto parN = GetParN(parName);
-            if (parN==1)
-                ReplaceVariablesConst(parValues,parName);
-            else {
-                parValues = "";
-                for (auto iPar=0; iPar<parN; ++iPar) {
-                    TString parValue = GetParStringConst(parName,iPar);
-                    if (iPar==0) parValues = parValue;
-                    else parValues = parValues + " " + parValue;
-                }
-            }
-        }
+        bool isLineComment = false;
+        if (parName.IsNull() && parValue.IsNull())
+            isLineComment = true;
 
-        TString parComment;
-        if (!showHiddenPar)
-            if (parName.Index("NUM_VALUES_")==0||parName.Index("COMMENT_PAR_")==0||parName.EndsWith("]"))
-                continue;
-
-        if (parName.Index("COMMENT_LINE_")>=0) {
-            if (!showLineComments)
-                continue;
-            parName = parValues;
-            parValues = "";
-            if (parName[0]!='#')
-                parName = TString("# ") + parName;
-        }
-        else if (parName.Index("INPUT_FILE_")>=0)
-            parName.Replace(0,11,"<<");
-        else if (parName.Index("INPUT_PARC_")>=0) {
-            if (!showLineComments)
-                continue;
-            parName.Replace(0,11,"# Parameter container was added here; ");
-        }
-        else if (showParComments) {
-            TNamed* objc = (TNamed *) FindObject(Form("COMMENT_PAR_%s",parName.Data()));
-            if (objc!=nullptr)
-                parComment = objc -> GetTitle();
-            if (!parComment.IsNull()&&parComment[0]!='#')
-                parComment = TString("# ") + parComment;
+        if (!isLineComment){
+            if (!showParComments)
+                parComment = "";
+            else
+            parComment = TString(" # ") + parComment;
         }
 
         ostringstream ssLine;
-             if (parName.Sizeof()>60) ssLine << left << setw(70) << parName << " " << parValues << " " << parComment << endl;
-        else if (parName.Sizeof()>50) ssLine << left << setw(60) << parName << " " << parValues << " " << parComment << endl;
-        else if (parName.Sizeof()>40) ssLine << left << setw(50) << parName << " " << parValues << " " << parComment << endl;
-        else if (parName.Sizeof()>30) ssLine << left << setw(40) << parName << " " << parValues << " " << parComment << endl;
-        else if (parName.Sizeof()>20) ssLine << left << setw(30) << parName << " " << parValues << " " << parComment << endl;
-        else                          ssLine << left << setw(20) << parName << " " << parValues << " " << parComment << endl;
+             if (isLineComment) {
+                 if (showLineComment) ssLine << "      # " << parComment << endl;
+             }
+        else if (parName.Sizeof()>60) ssLine << right << setw(3) << parNumber << ".  " << left << setw(70) << parName << " " << parValue << " " << parComment << endl;
+        else if (parName.Sizeof()>50) ssLine << right << setw(3) << parNumber << ".  " << left << setw(60) << parName << " " << parValue << " " << parComment << endl;
+        else if (parName.Sizeof()>40) ssLine << right << setw(3) << parNumber << ".  " << left << setw(50) << parName << " " << parValue << " " << parComment << endl;
+        else if (parName.Sizeof()>30) ssLine << right << setw(3) << parNumber << ".  " << left << setw(40) << parName << " " << parValue << " " << parComment << endl;
+        else if (parName.Sizeof()>20) ssLine << right << setw(3) << parNumber << ".  " << left << setw(30) << parName << " " << parValue << " " << parComment << endl;
+        else                          ssLine << right << setw(3) << parNumber << ".  " << left << setw(20) << parName << " " << parValue << " " << parComment << endl;
+        if (!isLineComment)
+            parNumber++;
 
-        if (printToScreen)
-            lx_cout << ssLine.str();
-        if (printToFile)
-            fileOut << ssLine.str();
+        if (printToScreen) lx_cout << ssLine.str();
+        if (printToFile) fileOut << ssLine.str();
     }
-
 
     if (printToScreen)
         lk_info << "End of Parameter Container " << fName << endl;
@@ -567,13 +500,15 @@ void LKParameterContainer::Print(Option_t *option) const
         fileOut << endl;
 }
 
-Bool_t LKParameterContainer::SetPar(std::string line)
+Bool_t LKParameterContainer::AddLine(std::string line)
 {
     if (line.empty())
         return false;
 
     if (line.find("#") == 0) {
-        SetComment(TString(line));
+        TString line2 = TString(line);
+        line2 = line2(1,line2.Sizeof()-2);
+        SetLineComment(line2);
         return true;
     }
 
@@ -599,21 +534,21 @@ Bool_t LKParameterContainer::SetPar(std::string line)
         AddFile(parValues);
     }
     else {
-        SetPar(parName, parValues, parComment);
+        return AddPar(parName, parValues, parComment);
     }
 
-    return true;
+    return false;
 }
 
-Bool_t LKParameterContainer::SetPar(TString name, TString val, TString comment)
+Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment)
 {
-    if (FindObject(name) != nullptr) {
+    if (FindPar(name) != nullptr) {
         lk_error << "Parameter " << name << " already exist!" << endl;
         return false;
     }
 
-    if (name.IsNull()&&val.IsNull()&&!comment.IsNull())
-        SetComment(comment);
+    if (name.IsNull()&&value.IsNull()&&!comment.IsNull())
+        SetLineComment(comment);
     else
     {
         bool allowSetPar = true;
@@ -630,293 +565,166 @@ Bool_t LKParameterContainer::SetPar(TString name, TString val, TString comment)
         }
 
         if (allowSetPar) {
-            SetParValue(name,val);
-
-            if (!comment.IsNull())
-                SetParComment(name,comment);
-
-            auto valueTokens = val.Tokenize(" ");
-            Int_t numValues = valueTokens -> GetEntries();
-            SetParN(name,numValues);
-            if (numValues>1) {
-                for (auto iVal=0; iVal<numValues; ++iVal) {
-                    TString parValue(((TObjString *) valueTokens->At(iVal))->GetString());
-                    SetParArray(name,parValue,iVal);
-                }
-            }
+            SetPar(name,value,comment);
+            return true;
         }
     }
 
-    return true;
+    return false;
 }
 
-void LKParameterContainer::SetParValue(TString name, TString val) {
-    Add(new TNamed(name, val));
-}
-void LKParameterContainer::SetParComment(TString name, TString val) {
-    SetParValue(TString(Form("COMMENT_PAR_%s",name.Data())), val);
-}
-void LKParameterContainer::SetParN(TString name, Int_t val) {
-    SetParValue(TString("NUM_VALUES_")+name, Form("%d",val));
-}
-void LKParameterContainer::SetParArray(TString name, TString val, Int_t idx) {
-    SetParValue(name+"["+idx+"]", val);
-}
-void LKParameterContainer::SetComment(TString comment) {
-    SetParValue(TString(Form("COMMENT_LINE_%d",GetEntries())), comment);
+LKParameter *LKParameterContainer::SetPar(TString name, TString raw, TString value, TString comment) {
+    auto named = new LKParameter(name, raw, value, comment);
+    Add(named);
+    return named;
 }
 
-TString LKParameterContainer::GetParStringConst(TString name, Int_t idx) const
+LKParameter *LKParameterContainer::SetPar(TString name, TString raw, TString comment) {
+    TString value = raw;
+    ReplaceVariables(value);
+    auto named = new LKParameter(name, raw, value, comment);
+    Add(named);
+    return named;
+}
+
+LKParameter *LKParameterContainer::SetLineComment(TString comment) {
+    auto named = new LKParameter();
+    named -> SetLineComment(comment);
+    Add(named);
+    return named;
+}
+
+LKParameter *LKParameterContainer::SetParFile(TString name) {
+    return SetLineComment(Form("input file %s", name.Data()));
+}
+
+LKParameter *LKParameterContainer::SetParCont(TString name) {
+    return SetLineComment(Form("input container %s", name.Data()));
+}
+
+TString LKParameterContainer::GetParString(TString name, int idx) const
 {
-    if (idx>=0) return GetParStringConst(name+"["+idx+"]");
-
-    TObject *obj = FindObject(name);
-    TString value = ((TNamed *) obj) -> GetTitle();
-    ReplaceVariablesConst(value,name);
-
-    return value;
-}
-
-TString LKParameterContainer::GetParString(TString name, Int_t idx)
-{
-    if (idx>=0) return GetParString(name+"["+idx+"]");
-
-    TObject *obj = FindObject(name);
-    if (obj == nullptr) {
-        ProcessParNotFound(name,"default_parameter_value");
-        return "default_parameter_value";
-    }
-
-    TString value = ((TNamed *) obj) -> GetTitle();
-    ReplaceVariables(value,name);
-
+    auto parameter = FindPar(name,true);
+    TString value = parameter -> GetString(idx);
     return value;
 }
 
 Int_t LKParameterContainer::GetParN(TString name) const
 {
-    TString name_n = TString("NUM_VALUES_") + name;
-
-    TObject *obj = FindObject(name_n);
-    if (obj == nullptr) {
-        if (FindObject(name)==nullptr)
-            return 0;
-        else
-            return 1;
-    }
-
-    TString value = ((TNamed *) obj) -> GetTitle();
-
-    return value.Atoi();
+    auto parameter = FindPar(name,true);
+    auto numValues = parameter -> GetN();
+    return numValues;
 }
 
-Bool_t LKParameterContainer::GetParBool(TString name, Int_t idx)
+Bool_t LKParameterContainer::GetParBool(TString name, int idx) const
 {
-    if (idx>=0) return GetParBool(name+"["+idx+"]");
-
-    TObject *obj = FindObject(name);
-    if (obj == nullptr) {
-        ProcessParNotFound(name,"false");
-        return false;
-    }
-
-    TString value = ((TNamed *) obj) -> GetTitle();
-    ReplaceVariables(value,name);
-
-    value.ToLower();
-    if (value=="true"||value=="1") return true;
-    else if (value=="false"||value=="0") return false;
-    else 
-        ProcessTypeError(name,value,"bool");
-
-    return true;
+    auto parameter = FindPar(name,true);
+    auto valueBool = parameter -> GetBool(idx);
+    return valueBool;
 }
 
-Int_t LKParameterContainer::GetParInt(TString name, Int_t idx)
+Int_t LKParameterContainer::GetParInt(TString name, int idx) const
 {
-    if (idx>=0) return GetParInt(name+"["+idx+"]");
-
-    TObject *obj = FindObject(name);
-    if (obj == nullptr) {
-        ProcessParNotFound(name,"0");
-        return 0;
-    }
-
-    TString value = ((TNamed *) obj) -> GetTitle();
-    ReplaceVariables(value,name);
-
-    if (!CheckFormulaValidity(value,1))
-        ProcessTypeError(name, value, "int");
-
-    return Int_t(Eval(value));
+    auto parameter = FindPar(name,true);
+    auto valueInt = parameter -> GetInt(idx);
+    return valueInt;
 }
 
-Double_t LKParameterContainer::GetParDouble(TString name, Int_t idx)
+Double_t LKParameterContainer::GetParDouble(TString name, int idx) const
 {
-    if (idx>=0) return GetParDouble(name+"["+idx+"]");
-
-    TObject *obj = FindObject(name);
-    if (obj == nullptr) {
-        ProcessParNotFound(name,"0.1");
-        return 0.1;
-    }
-
-    TString value = ((TNamed *) obj) -> GetTitle();
-    ReplaceVariables(value,name);
-
-    if (!CheckFormulaValidity(value))
-        ProcessTypeError(name, value, "double");
-
-    return Eval(value);
+    auto parameter = FindPar(name,true);
+    auto valueDouble = parameter -> GetDouble(idx);
+    return valueDouble;
 }
 
-TVector3 LKParameterContainer::GetParV3(TString name)
+TVector3 LKParameterContainer::GetParV3(TString name) const
 {
-    TString xname = name + "[0]";
-    TString yname = name + "[1]";
-    TString zname = name + "[2]";
-
-    TObject *xobj = FindObject(xname);
-    if (xobj == nullptr) {
-        ProcessParNotFound(name,".9,.9,.9");
-        return TVector3(.9,.9,.9);
-    }
-
-    double x = GetParDouble(xname);
-    double y = GetParDouble(yname);
-    double z = GetParDouble(zname);
-
-    return TVector3(x,y,z);
+    auto parameter = FindPar(name,true);
+    auto valueV3 = parameter -> GetV3();
+    return valueV3;
 }
 
-Int_t LKParameterContainer::GetParColor(TString name, Int_t idx)
+Int_t LKParameterContainer::GetParColor(TString name, int idx) const
 {
-    if (idx>=0) return GetParColor(name+"["+idx+"]");
-
-    TObject *obj = FindObject(name);
-    if (obj == nullptr) {
-        ProcessParNotFound(name,"kBlack");
-        return 1;//"kBlack";
-    }
-
-    TString value = ((TNamed *) obj) -> GetTitle();
-    ReplaceVariables(value,name);
-
-    if (value.Index("k")==0)
-    {
-        value.ReplaceAll("kWhite"  ,"0");
-        value.ReplaceAll("kBlack"  ,"1");
-        value.ReplaceAll("kGray"   ,"920");
-        value.ReplaceAll("kRed"    ,"632");
-        value.ReplaceAll("kGreen"  ,"416");
-        value.ReplaceAll("kBlue"   ,"600");
-        value.ReplaceAll("kYellow" ,"400");
-        value.ReplaceAll("kMagenta","616");
-        value.ReplaceAll("kCyan"   ,"432");
-        value.ReplaceAll("kOrange" ,"800");
-        value.ReplaceAll("kSpring" ,"820");
-        value.ReplaceAll("kTeal"   ,"840");
-        value.ReplaceAll("kAzure"  ,"860");
-        value.ReplaceAll("kViolet" ,"880");
-        value.ReplaceAll("kPink"   ,"900");
-    }
-
-    if (!CheckFormulaValidity(value,1))
-        ProcessTypeError(name,value,"color");
-
-    return Int_t(Eval(value));
+    auto parameter = FindPar(name,true);
+    auto valueColor = parameter -> GetColor(idx);
+    return valueColor;
 }
 
-axis_t LKParameterContainer::GetParAxis(TString name, int idx)
+axis_t LKParameterContainer::GetParAxis(TString name, int idx) const
 {
-    if (idx>=0) return GetParAxis(name+"["+idx+"]");
-
-    TObject *obj = FindObject(name);
-    if (obj == nullptr) {
-        ProcessParNotFound(name, LKVector3::kNon);
-        return LKVector3::kNon;
-    }
-
-    TString value = ((TNamed *) obj) -> GetTitle();
-
-         if (value=="x")  return LKVector3::kX;
-    else if (value=="y")  return LKVector3::kY;
-    else if (value=="z")  return LKVector3::kZ;
-    else if (value=="-x") return LKVector3::kMX;
-    else if (value=="-y") return LKVector3::kMY;
-    else if (value=="-z") return LKVector3::kMZ;
-    else if (value=="i")  return LKVector3::kI;
-    else if (value=="j")  return LKVector3::kJ;
-    else if (value=="k")  return LKVector3::kK;
-    else if (value=="-i") return LKVector3::kMI;
-    else if (value=="-j") return LKVector3::kMJ;
-    else if (value=="-k") return LKVector3::kMK;
-    else                  return LKVector3::kNon;
+    auto parameter = FindPar(name,true);
+    auto valueAxis = parameter -> GetAxis(idx);
+    return valueAxis;
 }
 
-std::vector<bool> LKParameterContainer::GetParVBool(TString name)
+std::vector<bool> LKParameterContainer::GetParVBool(TString name) const
 {
-    std::vector<bool> array;
-    auto npar = GetParN(name);
-    if (npar==1)
-        array.push_back(GetParBool(name));
-    else
-        for (auto i=0; i<npar; ++i)
-            array.push_back(GetParBool(name,i));
+    auto parameter = FindPar(name,true);
+    auto array = parameter -> GetVBool();
     return array;
 }
 
-std::vector<int> LKParameterContainer::GetParVInt(TString name)
+std::vector<int> LKParameterContainer::GetParVInt(TString name) const
 {
-    std::vector<int> array;
-    auto npar = GetParN(name);
-    if (npar==1)
-        array.push_back(GetParInt(name));
-    else
-        for (auto i=0; i<npar; ++i)
-            array.push_back(GetParInt(name,i));
+    auto parameter = FindPar(name,true);
+    auto array = parameter -> GetVInt();
     return array;
 }
 
-std::vector<double> LKParameterContainer::GetParVDouble(TString name)
+std::vector<double> LKParameterContainer::GetParVDouble(TString name) const
 {
-    std::vector<double> array;
-    auto npar = GetParN(name);
-    if (npar==1)
-        array.push_back(GetParDouble(name));
-    else
-        for (auto i=0; i<npar; ++i)
-            array.push_back(GetParDouble(name,i));
+    auto parameter = FindPar(name,true);
+    auto array = parameter -> GetVDouble();
     return array;
 }
 
-std::vector<TString> LKParameterContainer::GetParVString(TString name)
+std::vector<TString> LKParameterContainer::GetParVString(TString name) const
 {
-    std::vector<TString> array;
-    auto npar = GetParN(name);
-    if (npar==1)
-        array.push_back(GetParString(name));
-    else
-        for (auto i=0; i<npar; ++i)
-            array.push_back(GetParString(name,i));
+    auto parameter = FindPar(name,true);
+    auto array = parameter -> GetVString();
     return array;
 }
 
 Bool_t LKParameterContainer::CheckPar(TString name) const
 {
-    if (FindObject(name) != nullptr) return true;
-    return false;
+    if (FindPar(name) == nullptr)
+        return false;
+    return true;
 }
 
 Bool_t LKParameterContainer::CheckValue(TString name) const
 {
     TIter iterator(this);
-    TNamed *obj;
-    while ((obj = dynamic_cast<TNamed*>(iterator())))
+    LKParameter *parameter;
+    while ((parameter = dynamic_cast<LKParameter*>(iterator())))
     {
-        TString parValue = obj -> GetTitle();
+        TString parValue = parameter -> GetTitle();
         if (parValue==name)
             return true;
     }
     return false;
+}
+
+LKParameter *LKParameterContainer::FindPar(TString givenName, bool terminateIfNull) const
+{
+    R__COLLECTION_READ_LOCKGUARD(ROOT::gCoreMutex);
+
+    TIter iterator(this);
+    LKParameter *parameter;
+    while ((parameter = dynamic_cast<LKParameter*>(iterator())))
+    {
+        if (parameter) {
+            auto parName = parameter -> GetName();
+            if (parName==givenName)
+                return parameter;
+        }
+    }
+
+    if (terminateIfNull) {
+        lk_error << "parameter " << givenName << " does not exist!" << endl;
+        gApplication -> Terminate();
+    }
+
+    return (LKParameter *) nullptr;
 }
