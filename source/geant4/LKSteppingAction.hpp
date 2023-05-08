@@ -1,7 +1,7 @@
 #ifndef LKSTEPPINGACTION_HH
 #define LKSTEPPINGACTION_HH
 
-#include "LKG4RunManager.hh"
+#include "LKG4RunManager.hpp"
 #include "G4UserSteppingAction.hh"
 #include "G4Step.hh"
 #include "globals.hh"

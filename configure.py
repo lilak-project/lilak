@@ -27,19 +27,21 @@ options = {
 }
 
 project_list = []
-def print_project_list():
+def print_project_list(numbering=False):
     global project_list
     global main_project
     if main_project=="lilak":
         print(f"   >> Main: {main_project}")
     if len(project_list)==0:
         print(f"   No Projects")
+    elif numbering:
+        for idx, line in enumerate(project_list):
+            if line==main_project:  print(f"   {idx}) Project: {line} (main)")
+            else:                   print(f"   {idx}) Project: {line}")
     else:
         for line in project_list:
-            if line==main_project:
-                print(f"   Project: {line} (main)")
-            else:
-                print(f"   Project: {line}")
+            if line==main_project:  print(f"   Project: {line} (main)")
+            else:                   print(f"   Project: {line}")
 
 def input01(question="<1/0>",possible_options=['0','1']):
     while True:
@@ -119,14 +121,22 @@ set(LILAK_PROJECT_LIST{project_all}
         else:
             bline()
             print("## List of projects")
-            print_project_list()
+            print_project_list(True)
             main_project = "lilak"
             while True:
                 if len(project_list)==0:
                     break
-                main_project = input("Type project name to set as main. Type <Enter> for no change: ")
+                main_project = input("Select index (or name) to set as main project. Type <Enter> to set main as lilak: ")
                 if main_project in project_list:
-                    print(f"Main project is: {main_project}")
+                    print(f"Main project is {main_project}")
+                    break
+                elif main_project.isdigit() and int(main_project) < len(project_list):
+                    main_project = project_list[int(main_project)]
+                    print(f"Main project is {main_project}")
+                    break
+                elif len(main_project)==0:
+                    main_project = "lilak"
+                    print(f"Main project is {main_project}")
                     break
                 else:
                     print(f"Project must be one in the list!")

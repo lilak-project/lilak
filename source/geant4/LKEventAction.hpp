@@ -4,7 +4,6 @@
 #include "LKG4RunManager.hpp"
 #include "G4UserEventAction.hh"
 #include "G4Event.hh"
-#include "globals.h"
 
 class LKEventAction : public G4UserEventAction
 {

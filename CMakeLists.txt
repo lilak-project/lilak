@@ -30,8 +30,9 @@ set(LILAK_SOURCE_DIRECTORY_LIST
     ${CMAKE_SOURCE_DIR}/source/tool
     ${CMAKE_SOURCE_DIR}/source/geometry
     ${CMAKE_SOURCE_DIR}/source/detector
-    ${CMAKE_SOURCE_DIR}/source/container
+    ${CMAKE_SOURCE_DIR}/source/container/measurement
     ${CMAKE_SOURCE_DIR}/source/container/track
+    ${CMAKE_SOURCE_DIR}/source/container/readout
     CACHE INTERNAL ""
 )
 
@@ -82,17 +83,39 @@ foreach(_directory ${LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF})
     include_directories(${_directory})
     string(REPLACE / _ _name ${_directory})
     list(APPEND LILAK_SOURCE_NAME_LIST_X ${_name})
-    file(GLOB LILAK_${_name}_SOURCE_FILES_X ${_directory}/*.cpp)
+    file(GLOB   LILAK_${_name}_SOURCE_FILES_X_TEMP  ${_directory}/*.cpp)
+    file(GLOB   LILAK_${_name}_SOURCE_FILES_X_TEMP2 ${_directory}/*.cc)
+    foreach(_file ${LILAK_${_name}_SOURCE_FILES_X_TEMP})
+        list(APPEND LILAK_${_name}_SOURCE_FILES_X ${_file})
+    endforeach(_file)
+    foreach(_file ${LILAK_${_name}_SOURCE_FILES_X_TEMP2})
+        list(APPEND LILAK_${_name}_SOURCE_FILES_X ${_file})
+    endforeach(_file)
 endforeach(_directory)
 
 foreach(_directory ${LILAK_SOURCE_DIRECTORY_LIST})
     include_directories(${_directory})
     string(REPLACE / _ _name ${_directory})
     list(APPEND LILAK_SOURCE_NAME_LIST ${_name})
-    set(LILAK_${_name}_G_NAME G__${_name}Dict)
-    file(GLOB LILAK_${_name}_LINKDEF_FILE ${_directory}/LinkDef.h)
-    file(GLOB LILAK_${_name}_SOURCE_FILES ${_directory}/*.cpp)
-    file(GLOB LILAK_${_name}_HEADER_FILES ${_directory}/*.hpp)
+    set(LILAK_${_name}_G_NAME G__${_name}_Dict)
+    file(GLOB   LILAK_${_name}_LINKDEF_FILE  ${_directory}/LinkDef.h)
+    file(GLOB   LILAK_${_name}_SOURCE_FILES_TEMP  ${_directory}/*.cpp)
+    file(GLOB   LILAK_${_name}_SOURCE_FILES_TEMP2 ${_directory}/*.cc)
+    foreach(_file ${LILAK_${_name}_SOURCE_FILES_TEMP})
+        list(APPEND LILAK_${_name}_SOURCE_FILES ${_file})
+    endforeach(_file)
+    foreach(_file ${LILAK_${_name}_SOURCE_FILES_TEMP2})
+        list(APPEND LILAK_${_name}_SOURCE_FILES ${_file})
+    endforeach(_file)
+
+    file(GLOB   LILAK_${_name}_HEADER_FILES_TEMP  ${_directory}/*.hpp)
+    file(GLOB   LILAK_${_name}_HEADER_FILES_TEMP2 ${_directory}/*.hh)
+    foreach(_file ${LILAK_${_name}_HEADER_FILES_TEMP})
+        list(APPEND LILAK_${_name}_HEADER_FILES ${_file})
+    endforeach(_file)
+    foreach(_file ${LILAK_${_name}_HEADER_FILES_TEMP2})
+        list(APPEND LILAK_${_name}_HEADER_FILES ${_file})
+    endforeach(_file)
 endforeach(_directory)
 
 if(BUILD_GEANT4_SIM)
@@ -132,23 +155,34 @@ target_link_libraries(LILAK ${ROOT_LIBRARIES})
 if(BUILD_GEANT4_SIM)
     foreach(_directory ${LILAK_GEANT4_SOURCE_DIRECDTORY_LIST})
         set(LILAK_GEANT4_SOURCE_FILES_TEMP)
-        file(GLOB LILAK_GEANT4_SOURCE_FILES_TEMP ${_directory}/*.cpp)
+        file(GLOB   LILAK_GEANT4_SOURCE_FILES_TEMP  ${_directory}/*.cpp)
+        file(GLOB   LILAK_GEANT4_SOURCE_FILES_TEMP2 ${_directory}/*.cc)
         foreach(_file ${LILAK_GEANT4_SOURCE_FILES_TEMP})
-        list(APPEND LILAK_GEANT4_SOURCE_FILES ${_file})
+            list(APPEND LILAK_GEANT4_SOURCE_FILES ${_file}) # ? why not use LILAK_GEANT4_SOURCE_FILES_TEMP
+        endforeach(_file)
+        foreach(_file ${LILAK_GEANT4_SOURCE_FILES_TEMP2})
+            list(APPEND LILAK_GEANT4_SOURCE_FILES ${_file}) # ? why not use LILAK_GEANT4_SOURCE_FILES_TEMP
         endforeach(_file)
 
         set(LILAK_GEANT4_HEADER_FILES_TEMP)
-        file(GLOB LILAK_GEANT4_HEADER_FILES_TEMP ${_directory}/*.hpp)
+        file(GLOB   LILAK_GEANT4_HEADER_FILES_TEMP  ${_directory}/*.hpp)
+        file(GLOB   LILAK_GEANT4_HEADER_FILES_TEMP2 ${_directory}/*.hh)
         foreach(_file ${LILAK_GEANT4_HEADER_FILES_TEMP})
-        list(APPEND LILAK_GEANT4_HEADER_FILES ${_file})
+            list(APPEND LILAK_GEANT4_HEADER_FILES ${_file}) # ? why not use LILAK_GEANT4_HEADER_FILES_TEMP
+        endforeach(_file)
+        foreach(_file ${LILAK_GEANT4_HEADER_FILES_TEMP2})
+            list(APPEND LILAK_GEANT4_HEADER_FILES ${_file}) # ? why not use LILAK_GEANT4_HEADER_FILES_TEMP
         endforeach(_file)
     endforeach(_directory)
 
     foreach(_g4sim ${LILAK_GEANT4_EXECUTABLE_LIST})
+        message(STATUS "Geant4 executable main: " ${_g4sim})
         get_filename_component(_g4sim_name ${_g4sim} NAME)
         get_filename_component(_g4sim_directory ${_g4sim} DIRECTORY)
-        string(REPLACE .cpp "" _executable_head ${_g4sim_name})
         string(REPLACE .cpp .g4sim _executable_name ${_g4sim_name})
+        string(REPLACE .cxx .g4sim _executable_name ${_executable_name})
+        string(REPLACE .cc  .g4sim _executable_name ${_executable_name})
+        message(STATUS "Geant4 executable out : " ${_g4sim_directory}/${_executable_name})
 
         set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${_g4sim_directory})
         add_executable(${_executable_name} ${_g4sim} ${LILAK_GEANT4_SOURCE_FILES} ${LILAK_GEANT4_HEADER_FILES})

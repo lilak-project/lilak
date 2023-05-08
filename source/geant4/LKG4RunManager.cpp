@@ -7,6 +7,7 @@
 #include "G4ProcessTable.hh"
 
 #include "TSystem.h"
+#include "TObjString.h"
 
 #include "LKEventAction.hpp"
 #include "LKG4RunManager.hpp"
@@ -183,13 +184,13 @@ void LKG4RunManager::SetSuppressInitMessage(bool val) { fSuppressInitMessage = v
 void LKG4RunManager::SetGeneratorFile(TString value)
 {
     auto pga = (LKPrimaryGeneratorAction *) userPrimaryGeneratorAction;
-    fPar -> ReplaceEnvironmentVariable(value);
+    //fPar -> ReplaceEnvironmentVariable(value);
     pga -> SetEventGenerator(value.Data());
 }
 
 void LKG4RunManager::SetOutputFile(TString name)
 {
-    fPar -> ReplaceEnvironmentVariable(name);
+    //fPar -> ReplaceEnvironmentVariable(name);
 
     fSetEdepSumTree         = fPar->GetParBool("MCSetEdepSumTree");;
     fStepPersistency        = fPar->GetParBool("MCStepPersistency");;

@@ -1,8 +1,8 @@
 #ifndef LKTRACKINGACTION_HH
 #define LKTRACKINGACTION_HH
 
-#include "LKParameterContainer.h"
-#include "LKG4RunManager.h"
+#include "LKParameterContainer.hpp"
+#include "LKG4RunManager.hpp"
 #include "G4UserTrackingAction.hh"
 #include "G4Track.hh"
 #include "globals.hh"

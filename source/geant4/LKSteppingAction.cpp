@@ -38,5 +38,4 @@ void LKSteppingAction::UserSteppingAction(const G4Step* step)
     G4double time = step -> GetPreStepPoint() -> GetGlobalTime();
     G4ThreeVector stepPos = .5 * (step -> GetPreStepPoint() -> GetPosition() + step -> GetPostStepPoint() -> GetPosition());
     fRunManager -> AddMCStep(preNo, stepPos.x(), stepPos.y(), stepPos.z(), time, edep);
-
-
+}

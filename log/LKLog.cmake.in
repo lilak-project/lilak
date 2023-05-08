@@ -88,8 +88,8 @@ if(CREATE_GIT_LOG)
     configure_file(${LILAK_PATH}/log/LKBranchList.log.in ${LILAK_PATH}/log/LKBranchList.log @ONLY)
 endif()
 
+configure_file(${LILAK_PATH}/log/doxy.conf.in ${LILAK_PATH}/log/doxy.conf @ONLY)
 if(BUILD_DOXYGEN_DOC)
-  configure_file(${LILAK_PATH}/log/doxy.conf.in ${LILAK_PATH}/log/doxy.conf @ONLY)
   execute_process(COMMAND ${DOXYGEN_EXECUTABLE} ${LILAK_PATH}/log/doxy.conf 
                   WORKING_DIRECTORY ${LILAK_PATH})
 endif()
