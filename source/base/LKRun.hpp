@@ -54,7 +54,7 @@ class LKRun : public LKTask
         virtual void Print(Option_t *option="all") const;
 
         /// Run name/id
-        void SetRunName(TString name, Int_t id=-1); ///< Set Run name and id.
+        void SetRunName(TString name, Int_t id=0); ///< Set Run name and id.
         TString GetRunName() const { return fRunName; }
         Int_t GetRunID() const { return fRunID; }
 
@@ -62,8 +62,12 @@ class LKRun : public LKTask
         void SetDataPath(TString path) { fDataPath = path; } ///< Set data directory path. Default directory : path/to/LILAK/data
         TString GetDataPath() { return fDataPath; }
 
+        bool ConfigureRunFromFileName(TString inputName);
+        TString ConfigureFileName();
+
         /// Input file
-        void AddInputFile(TString fileName, TString treeName = "events"); ///< Add file to input file
+        void AddInputFile(TString fileName, TString treeName = "event"); ///< Add file to input file
+        void SetInputFile(TString fileName, TString treeName = "event") { return AddInputFile(fileName, treeName); } ///< Add file to input file
         void SetInputTreeName(TString treeName) { fInputTreeName = treeName; } ///< Set input tree name
         TFile  *GetInputFile() { return fInputFile; }
         TTree  *GetInputTree() const { return (TTree *) fInputTree; }
@@ -165,8 +169,9 @@ class LKRun : public LKTask
         void CheckOut();
 
     private:
-        TString fRunName = "";
-        Int_t   fRunID = -1;
+        bool fRunNameIsSet = "run";
+        TString fRunName = "run";
+        Int_t   fRunID = 0;
 
         bool fInitialized = false;
 

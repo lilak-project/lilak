@@ -87,8 +87,118 @@ void LKRun::PrintLILAK()
 }
 
 void LKRun::SetRunName(TString name, Int_t id) {
+    fRunNameIsSet = true;
     fRunName = name;
     fRunID = id;
+}
+
+bool LKRun::ConfigureRunFromFileName(TString inputName)
+{
+    bool nameIsInFormat = false;
+    TString runPath;
+    TString runFileName = inputName;
+    TString runName;
+    int runID;
+    TString runTag;
+    int runSplit;
+    TString runVersion;
+
+    int iPathBreak = inputName.Last('/');
+    if (iPathBreak>=0) {
+        runPath = inputName(0,iPathBreak+1).Data(); // including '/'
+        runFileName = inputName(iPathBreak+1,inputName.Sizeof()-iPathBreak-2).Data();
+    }
+
+    auto array = runFileName.Tokenize(".");
+
+    if (array -> GetEntries()==6) {
+        nameIsInFormat = true;
+        TString token1 = ((TObjString *) array->At(1)) -> GetString();
+        TString token2 = ((TObjString *) array->At(2)) -> GetString();
+
+        int szSPLIT = 6; // SPLIT_
+        TString runSplitH = token1(0,szSPLIT).Data();
+        TString runSplitN = token1(szSPLIT,token1.Sizeof()-szSPLIT-1).Data();
+        if (runSplitH=="SPLIT_" && runSplitN.IsDec()) {
+            runTag = token1;
+            runSplit = runSplitN.Atoi();
+        }
+        else
+            nameIsInFormat = false;
+    }
+    else if (array -> GetEntries()==5) {
+        nameIsInFormat = true;
+        TString token1 = ((TObjString *) array->At(1)) -> GetString();
+
+        int szSPLIT = 6; // SPLIT_
+        TString runSplitH = token1(0,szSPLIT).Data();
+        TString runSplitN = token1(szSPLIT,token1.Sizeof()-szSPLIT-1).Data();
+        if (runSplitH=="SPLIT_" && runSplitN.IsDec()) {
+            runTag = "";
+            runSplit = runSplitN.Atoi();
+        }
+        else {
+            runTag = token1;
+            runSplit = -1;
+        }
+    }
+    else if (array -> GetEntries()==4) {
+        runTag = "";
+        runSplit = -1;
+        nameIsInFormat = true;
+    }
+    else if (array -> GetEntries()<4) {
+        nameIsInFormat = false;
+    }
+
+    if (nameIsInFormat) {
+        TString name_id = ((TObjString *) array->At(0)) -> GetString();
+
+        int iUnderBreak = name_id.Last('_');
+        runName = name_id(0,iUnderBreak);
+        TString runIDTemp = name_id(iUnderBreak+1,4);
+        if (!runIDTemp.IsDec())
+            nameIsInFormat = false;
+        else
+            runID = runIDTemp.Atoi();
+    }
+
+    if (nameIsInFormat) {
+        fRunName = runName;
+        fRunID = runID;
+        fTag = runTag;
+        fSplit = runSplit;
+
+        /*
+        TString gitBranch = ((TObjString *) array->At(array->GetEntriesFast()-3)) -> GetString();
+        TString gitCount  = ((TObjString *) array->At(array->GetEntriesFast()-2)) -> GetString();
+        TString gitHash   = ((TObjString *) array->At(array->GetEntriesFast()-1)) -> GetString();
+        if (!git_c.IsDec() || git_hash.Sizeof()!=8)
+            nameIsInFormat = false;
+        else
+            runVersion = gitBrach + "." + gitCount + "." + gitHash;
+        */
+    }
+
+    return nameIsInFormat;
+}
+
+TString LKRun::ConfigureFileName()
+{
+
+    TString fileName = fRunName + Form("_%04d", fRunID);
+
+    if (!fTag.IsNull())
+        fileName = fileName + "." + fTag;
+
+    if (fSplit != -1)
+        fileName = fileName + Form(".SPLIT_%d",fSplit);
+
+    fileName = fileName + Form(".%s",MAINPROJECT_VERSION);
+
+    fileName = LKRun::ConfigureDataPath(fileName,false,fDataPath);
+
+    return fileName;
 }
 
 void LKRun::Print(Option_t *option) const
@@ -324,10 +434,10 @@ bool LKRun::Init()
 
     lk_info << "Initializing" << endl;
 
-    Int_t idxInput = 0;
+    Int_t idxInput = 1;
     if (fInputFileName.IsNull() && fInputFileNameArray.size() != 0) {
         fInputFileName = fInputFileNameArray[0];
-        idxInput = 1;
+        //idxInput = 1;
     }
 
     if (!fInputFileName.IsNull()) {
@@ -339,7 +449,7 @@ bool LKRun::Init()
         fInputFile = new TFile(fInputFileName, "read");
 
         if (fInputTreeName.IsNull())
-            fInputTreeName = "events";
+            fInputTreeName = "event";
 
         fInputTree = new TChain(fInputTreeName);
         fInputTree -> AddFile(fInputFileName);
@@ -397,23 +507,17 @@ bool LKRun::Init()
         fG4SDTable = (LKParameterContainer *) fInputFile -> Get("SensitiveDetectors");
         fG4VolumeTable = (LKParameterContainer *) fInputFile -> Get("Volumes");
 
-        if (fInputFile -> Get("RunHeader") != nullptr) {
-            LKParameterContainer *runHeaderIn = (LKParameterContainer *) fInputFile -> Get("RunHeader");
-
-            TString runName = runHeaderIn -> GetParString("RunName");
-            if (fRunName.IsNull())
-                fRunName = runName;
-            else if (!fRunName.IsNull() && fRunName != runName) {
-                lk_error << "Run name for input and output file do not match!" << endl;
-                return false;
+        if (!fRunNameIsSet) {
+            if (fInputFile -> Get("RunHeader") != nullptr)
+            {
+                LKParameterContainer *runHeaderIn = (LKParameterContainer *) fInputFile -> Get("RunHeader");
+                fRunName = runHeaderIn -> GetParString("RunName");
+                fRunID = runHeaderIn -> GetParInt("RunID");
+                fTag = runHeaderIn -> GetParString("Tag");
+                fSplit = runHeaderIn -> GetParInt("Split");
             }
-
-            Int_t runID = runHeaderIn -> GetParInt("RunID");
-            if (fRunID < 0)
-                fRunID = runID;
-            else if (runID != -1 && fRunID != runID) {
-                lk_error << "RunID for input and output file do not match!" << endl;
-                return false;
+            else {
+                ConfigureRunFromFileName(fInputFileName);
             }
         }
     }
@@ -428,16 +532,13 @@ bool LKRun::Init()
     fRunHeader -> SetPar("LILAK_HostName",LILAK_HOSTNAME);
     fRunHeader -> SetPar("LILAK_UserName",LILAK_USERNAME);
     fRunHeader -> SetPar("LILAK_Path",LILAK_PATH);
+    fRunHeader -> SetPar("InputFile",fInputFileName);
+    fRunHeader -> SetPar("OutputFile",fOutputFileName);
     fRunHeader -> SetPar("RunName",fRunName);
     fRunHeader -> SetPar("RunID",fRunID);
-    if (fInputFileName.IsNull() == false)
-        fRunHeader -> SetPar("InputFile",fInputFileName);
-    if (fOutputFileName.IsNull() == false)
-        fRunHeader -> SetPar("OutputFile",fOutputFileName);
-    if (fSplit>0) {
-        fRunHeader -> SetPar("Split",fSplit);
-        fRunHeader -> SetPar("NumEventsInSplit",int(fNumSplitEntries));
-    }
+    fRunHeader -> SetPar("Tag",fTag);
+    fRunHeader -> SetPar("Split",fSplit);
+    fRunHeader -> SetPar("NumEventsInSplit",int(fNumSplitEntries));
 
     if (fDetectorSystem -> GetEntries() != 0) {
         fDetectorSystem -> AddParameterContainer(fPar);
@@ -454,19 +555,8 @@ bool LKRun::Init()
             Terminate(this);
         }
 
-        if (fRunID >= 0)
-            fOutputFileName = fRunName + Form("_%04d", fRunID);
-
-        if (!fTag.IsNull())
-            fOutputFileName = fOutputFileName + "." + fTag;
-
-        if (fSplit != -1)
-            fOutputFileName = fOutputFileName + Form(".s%d",fSplit);
-
-        fOutputFileName = fOutputFileName + Form(".%s",MAINPROJECT_VERSION);
-
-        fOutputFileName = LKRun::ConfigureDataPath(fOutputFileName,false,fDataPath);
-        fOuputHash = GetFileHash(fOutputFileName);
+        fOutputFileName = ConfigureFileName();
+        lk_info << "Setting output file name to " << fOutputFileName << endl;
     }
     else {
         fOutputFileName = LKRun::ConfigureDataPath(fOutputFileName,false,fDataPath,fAddVersion);
@@ -479,7 +569,7 @@ bool LKRun::Init()
 
         lk_info << "Output file : " << fOutputFileName << endl;
         fOutputFile = new TFile(fOutputFileName, "recreate");
-        fOutputTree = new TTree("events", "");
+        fOutputTree = new TTree("event", "");
     }
 
     if (!fOutputFileName.IsNull() && !fInputFileName.IsNull()) {
@@ -758,3 +848,7 @@ void LKRun::CheckOut()
 
     fCheckIn = false;
 }
+
+void LKRun::AddDetector(LKDetector *detector) { fDetectorSystem -> AddDetector(detector); }
+LKDetector *LKRun::GetDetector(Int_t i) const { return (LKDetector *) fDetectorSystem -> At(i); }
+LKDetectorSystem *LKRun::GetDetectorSystem() const { return fDetectorSystem; }

@@ -15,7 +15,10 @@
 #include "TFormula.h"
 #include "TVector3.h"
 
+#include "LKVector3.hpp"
 #include "LKLogger.hpp"
+
+typedef LKVector3::Axis axis_t;
 
 using namespace std;
 
@@ -122,6 +125,7 @@ class LKParameterContainer : public TObjArray
         virtual Int_t AddFile(TString fileName, bool addFilePar=false); ///< Add parameter file
         virtual Int_t AddParameterContainer(LKParameterContainer *parc); ///< Add parameter container pointer
         Int_t GetNumInputFiles() const { return fNumInputFiles; } ///< Get number of input parameter files
+        bool SearchAndAddPar(TString dirName="");
 
         Int_t  AddJsonTree(const Json::Value &value, TString treeName="");
 
@@ -151,6 +155,7 @@ class LKParameterContainer : public TObjArray
         Double_t GetParZ     (TString name) { return GetParDouble(name,2); }
         Int_t    GetParWidth (TString name, int idx=-1) { return GetParInt(name,idx); }
         Double_t GetParSize  (TString name, int idx=-1) { return GetParDouble(name,idx); }
+        axis_t   GetParAxis  (TString name, int idx=-1);
 
         std::vector<bool>    GetParVBool  (TString name);
         std::vector<int>     GetParVInt   (TString name);
@@ -166,9 +171,8 @@ class LKParameterContainer : public TObjArray
         bool CheckFormulaValidity(TString formula, bool isInt=false) const;
         double Eval(TString formula) const;
 
-        void ReplaceVariablesFast(TString &val, TString parName="") const;
-        TString GetParStringFast(TString name, Int_t idx=-1) const;
-
+        void ReplaceVariablesConst(TString &val, TString parName="") const;
+        TString GetParStringConst(TString name, Int_t idx=-1) const;
 
         Bool_t fCollectionMode = false;
         Int_t fNumInputFiles = 0;

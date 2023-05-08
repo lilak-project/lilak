@@ -3,12 +3,16 @@
 #include <sstream>
 #include <iostream>
 #include <stdlib.h>
+
 #include "TROOT.h"
 #include "TSystem.h"
 #include "TFormula.h"
 #include "TObjString.h"
 #include "TDirectory.h"
 #include "TApplication.h"
+#include "TSystemDirectory.h"
+#include "TList.h"
+
 #include "LKParameterContainer.hpp"
 
 using namespace std;
@@ -82,7 +86,7 @@ bool LKParameterContainer::IsEmpty() const
     return true;
 }
 
-void LKParameterContainer::ReplaceVariablesFast(TString &valInput, TString parName) const
+void LKParameterContainer::ReplaceVariablesConst(TString &valInput, TString parName) const
 {
     int ienv = valInput.Index("e{");
     while (ienv>=0) {
@@ -99,7 +103,7 @@ void LKParameterContainer::ReplaceVariablesFast(TString &valInput, TString parNa
             lk_error << "The parameter is refering to the valInput it self!" << endl;
             gApplication -> Terminate();
         }
-        TString parValue2 = GetParStringFast(parName2);
+        TString parValue2 = GetParStringConst(parName2);
         valInput.Replace(ipar,fpar-ipar+1,parValue2);
         ipar = valInput.Index("{");
     }
@@ -282,6 +286,114 @@ Int_t LKParameterContainer::AddParameterContainer(LKParameterContainer *parc)
     return countParameters;
 }
 
+bool LKParameterContainer::SearchAndAddPar(TString dirName)
+{
+    if (dirName.IsNull())
+        dirName = gSystem -> pwd();
+
+    lk_info << "Looking for parameter file in " << dirName << endl;
+
+    TSystemDirectory sysDir(dirName, dirName);
+    TList *listFiles = sysDir.GetListOfFiles();
+    vector<TString> listDir;
+
+    if (listFiles)
+    {
+        TSystemFile *sysFile;
+        TString fileName;
+        TIter next(listFiles);
+
+        while ((sysFile=(TSystemFile*)next()))
+        {
+            fileName = sysFile -> GetName();
+            if (sysFile->IsDirectory()) {
+                if (fileName.Index("input")==0
+                        ||fileName.Index("conf")==0
+                        ||fileName.Index("par")==0
+                        ||fileName.Index("json")==0) {
+                    listDir.push_back(fileName);
+                }
+                listFiles -> Remove(sysFile);
+            }
+            else if (  fileName.EndsWith(".par")
+                    || fileName.EndsWith(".conf")
+                    || fileName.EndsWith(".json")
+                    ) {
+            }
+            else {
+                listFiles -> Remove(sysFile);
+            }
+        }
+
+        int countAll = 0;
+        int countDir = 0;
+        int countFile = 0;
+
+        TIter next2(listFiles);
+        lx_info << "* Select index from the below list: " << endl;
+        lx_info << "  " << "0) Exit" << endl;
+        while ((sysFile=(TSystemFile*)next2()))
+        {
+            countAll++;
+            countFile++;
+            fileName = sysFile -> GetName();
+            lx_info << "  " << countAll << ") " << fileName << endl;
+        }
+
+        int numDir = listDir.size();
+        for (auto iDir=0; iDir<numDir; ++iDir) {
+            countAll++;
+            countDir++;
+            TString dirName2 = dirName + "/" + listDir[iDir];
+            lx_info << "  " << countAll << ") " << dirName2 << endl;
+        }
+
+        TString strSelected;
+        lx_info << "Enter index: ";
+        cin >> strSelected;
+
+        if (strSelected.IsDigit()) {
+            int idxSelected = strSelected.Atoi();
+            if (idxSelected==0) {
+                lx_info << "Exit" << endl;
+                return false;
+            }
+            else if (idxSelected>0 && idxSelected <= countAll) {
+                if (idxSelected <= countFile) {
+                    TString nameSelected = listFiles -> At(idxSelected-1) -> GetName();
+                    lx_info << nameSelected << " selected!" << endl;
+                    LKParameterContainer::AddFile(nameSelected);
+                    return true;
+                }
+                else {
+                    int idxDir = countAll - countFile - 1;
+                    TString dirName2 = dirName + "/" + listDir[idxDir];
+                    lk_debug << idxDir << " / " << numDir << " " << dirName2 << endl;
+                    return SearchAndAddPar(dirName2);
+                }
+            }
+            else {
+                lx_error << "Invalid index selected." << endl;
+                return false;
+            }
+        }
+        else {
+            lx_error << "Invalid input." << endl;
+            return false;
+        }
+    }
+    lx_warning << "No parameter files found in current directory" << endl;
+
+    int numDir = listDir.size();
+    for (auto iDir=0; iDir<numDir; ++iDir) {
+        TString dirName2 = dirName + "/" + listDir[iDir];
+        if (SearchAndAddPar(dirName2))
+            return true;
+    }
+
+    return false;
+}
+
 Int_t LKParameterContainer::AddJsonTree(const Json::Value &jsonTree, TString treeName)
 {
     Int_t count_par = 0;
@@ -390,11 +502,11 @@ void LKParameterContainer::Print(Option_t *option) const
         if (evalulatePar) {
             auto parN = GetParN(parName);
             if (parN==1)
-                ReplaceVariablesFast(parValues,parName);
+                ReplaceVariablesConst(parValues,parName);
             else {
                 parValues = "";
                 for (auto iPar=0; iPar<parN; ++iPar) {
-                    TString parValue = GetParStringFast(parName,iPar);
+                    TString parValue = GetParStringConst(parName,iPar);
                     if (iPar==0) parValues = parValue;
                     else parValues = parValues + " " + parValue;
                 }
@@ -529,13 +641,13 @@ void LKParameterContainer::SetComment(TString comment) {
     SetParValue(TString(Form("COMMENT_LINE_%d",GetEntries())), comment);
 }
 
-TString LKParameterContainer::GetParStringFast(TString name, Int_t idx) const
+TString LKParameterContainer::GetParStringConst(TString name, Int_t idx) const
 {
-    if (idx>=0) return GetParStringFast(name+"["+idx+"]");
+    if (idx>=0) return GetParStringConst(name+"["+idx+"]");
 
     TObject *obj = FindObject(name);
     TString value = ((TNamed *) obj) -> GetTitle();
-    ReplaceVariablesFast(value,name);
+    ReplaceVariablesConst(value,name);
 
     return value;
 }
@@ -690,12 +802,42 @@ Int_t LKParameterContainer::GetParColor(TString name, Int_t idx)
     return Int_t(Eval(value));
 }
 
+axis_t LKParameterContainer::GetParAxis(TString name, int idx)
+{
+    if (idx>=0) return GetParAxis(name+"["+idx+"]");
+
+    TObject *obj = FindObject(name);
+    if (obj == nullptr) {
+        ProcessParNotFound(name, LKVector3::kNon);
+        return LKVector3::kNon;
+    }
+
+    TString value = ((TNamed *) obj) -> GetTitle();
+
+         if (value=="x")  return LKVector3::kX;
+    else if (value=="y")  return LKVector3::kY;
+    else if (value=="z")  return LKVector3::kZ;
+    else if (value=="-x") return LKVector3::kMX;
+    else if (value=="-y") return LKVector3::kMY;
+    else if (value=="-z") return LKVector3::kMZ;
+    else if (value=="i")  return LKVector3::kI;
+    else if (value=="j")  return LKVector3::kJ;
+    else if (value=="k")  return LKVector3::kK;
+    else if (value=="-i") return LKVector3::kMI;
+    else if (value=="-j") return LKVector3::kMJ;
+    else if (value=="-k") return LKVector3::kMK;
+    else                  return LKVector3::kNon;
+}
+
 std::vector<bool> LKParameterContainer::GetParVBool(TString name)
 {
     std::vector<bool> array;
     auto npar = GetParN(name);
-    for (auto i=0; i<npar; ++i)
-        array.push_back(GetParBool(name,i));
+    if (npar==1)
+        array.push_back(GetParBool(name));
+    else
+        for (auto i=0; i<npar; ++i)
+            array.push_back(GetParBool(name,i));
     return array;
 }
 
@@ -703,8 +845,11 @@ std::vector<int> LKParameterContainer::GetParVInt(TString name)
 {
     std::vector<int> array;
     auto npar = GetParN(name);
-    for (auto i=0; i<npar; ++i)
-        array.push_back(GetParInt(name,i));
+    if (npar==1)
+        array.push_back(GetParInt(name));
+    else
+        for (auto i=0; i<npar; ++i)
+            array.push_back(GetParInt(name,i));
     return array;
 }
 
@@ -712,8 +857,11 @@ std::vector<double> LKParameterContainer::GetParVDouble(TString name)
 {
     std::vector<double> array;
     auto npar = GetParN(name);
-    for (auto i=0; i<npar; ++i)
-        array.push_back(GetParDouble(name,i));
+    if (npar==1)
+        array.push_back(GetParDouble(name));
+    else
+        for (auto i=0; i<npar; ++i)
+            array.push_back(GetParDouble(name,i));
     return array;
 }
 
@@ -721,8 +869,11 @@ std::vector<TString> LKParameterContainer::GetParVString(TString name)
 {
     std::vector<TString> array;
     auto npar = GetParN(name);
-    for (auto i=0; i<npar; ++i)
-        array.push_back(GetParString(name,i));
+    if (npar==1)
+        array.push_back(GetParString(name));
+    else
+        for (auto i=0; i<npar; ++i)
+            array.push_back(GetParString(name,i));
     return array;
 }
 

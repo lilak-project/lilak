@@ -6,7 +6,7 @@
 #include "LKParameterContainer.hpp"
 
 /**
- * Virtual class for stear classes of KEBI
+ * LKGear is basically parameter container holder
  */
 
 class LKGear
@@ -17,9 +17,11 @@ class LKGear
 
         void CreateParameterContainer(bool debug=false);
 
+        virtual void SetParameterContainer(LKParameterContainer *par);
         virtual void AddParameterContainer(LKParameterContainer *par);
         virtual void AddParameterContainer(TString fname);
 
+        void SetPar(LKParameterContainer *par) { SetParameterContainer(par); }
         void AddPar(LKParameterContainer *par) { AddParameterContainer(par); }
         void AddPar(TString fname) { AddParameterContainer(fname); }
 
