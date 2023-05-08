@@ -142,6 +142,7 @@ class LKParameterContainer : public TObjArray
 
 
         Bool_t CheckPar(TString name) const;
+        Bool_t CheckValue(TString name) const;
 
         Int_t    GetParN     (TString name) const;          ///< Get number of parameters in array of given name.
         Bool_t   GetParBool  (TString name, Int_t idx=-1);  ///< Get parameter in Bool_t

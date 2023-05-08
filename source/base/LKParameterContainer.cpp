@@ -309,15 +309,18 @@ bool LKParameterContainer::SearchAndAddPar(TString dirName)
             if (sysFile->IsDirectory()) {
                 if (fileName.Index("input")==0
                         ||fileName.Index("conf")==0
+                        ||fileName.Index("json")==0
                         ||fileName.Index("par")==0
-                        ||fileName.Index("json")==0) {
+                        ||fileName.Index("mac")==0
+                   ) {
                     listDir.push_back(fileName);
                 }
                 listFiles -> Remove(sysFile);
             }
-            else if (  fileName.EndsWith(".par")
-                    || fileName.EndsWith(".conf")
+            else if (  fileName.EndsWith(".conf")
                     || fileName.EndsWith(".json")
+                    || fileName.EndsWith(".par")
+                    || fileName.EndsWith(".mac")
                     ) {
             }
             else {
@@ -481,7 +484,7 @@ void LKParameterContainer::Print(Option_t *option) const
 
     if (printToScreen) {
         lx_cout << endl;
-        lk_info << "Parameter Container" << endl;
+        lk_info << "Parameter Container " << fName << endl;
     }
 
     if (printToFile)
@@ -550,10 +553,15 @@ void LKParameterContainer::Print(Option_t *option) const
         else                          ssLine << left << setw(20) << parName << " " << parValues << " " << parComment << endl;
 
         if (printToScreen)
-            lk_cout << ssLine.str();
+            lx_cout << ssLine.str();
         if (printToFile)
             fileOut << ssLine.str();
     }
+
+
+    if (printToScreen)
+        lk_info << "End of Parameter Container " << fName << endl;
+        lx_cout << endl;
 
     if (printToFile)
         fileOut << endl;
@@ -606,19 +614,36 @@ Bool_t LKParameterContainer::SetPar(TString name, TString val, TString comment)
 
     if (name.IsNull()&&val.IsNull()&&!comment.IsNull())
         SetComment(comment);
-    else {
-        SetParValue(name,val);
-        if (!comment.IsNull())
-            SetParComment(name,comment);
-    }
+    else
+    {
+        bool allowSetPar = true;
+        TString groupName;
 
-    auto valueTokens = val.Tokenize(" ");
-    Int_t numValues = valueTokens -> GetEntries();
-    SetParN(name,numValues);
-    if (numValues>1) {
-        for (auto iVal=0; iVal<numValues; ++iVal) {
-            TString parValue(((TObjString *) valueTokens->At(iVal))->GetString());
-            SetParArray(name,parValue,iVal);
+        if (name[0]=='*') {
+            name = name(1, name.Sizeof()-2);
+            groupName = name(0,name.Index("/"));
+            if (name.Index("/")<0)
+                lk_error << "Parameter name " << name << " is out of naming rule" << endl;
+
+            if (CheckPar(groupName)==false&&CheckValue(groupName)==false)
+                allowSetPar = false; // @todo save as hidden parameter when they are not allowed to be set
+        }
+
+        if (allowSetPar) {
+            SetParValue(name,val);
+
+            if (!comment.IsNull())
+                SetParComment(name,comment);
+
+            auto valueTokens = val.Tokenize(" ");
+            Int_t numValues = valueTokens -> GetEntries();
+            SetParN(name,numValues);
+            if (numValues>1) {
+                for (auto iVal=0; iVal<numValues; ++iVal) {
+                    TString parValue(((TObjString *) valueTokens->At(iVal))->GetString());
+                    SetParArray(name,parValue,iVal);
+                }
+            }
         }
     }
 
@@ -699,7 +724,7 @@ Bool_t LKParameterContainer::GetParBool(TString name, Int_t idx)
     ReplaceVariables(value,name);
 
     value.ToLower();
-    if (value=="true "||value=="1") return true;
+    if (value=="true"||value=="1") return true;
     else if (value=="false"||value=="0") return false;
     else 
         ProcessTypeError(name,value,"bool");
@@ -880,5 +905,18 @@ std::vector<TString> LKParameterContainer::GetParVString(TString name)
 Bool_t LKParameterContainer::CheckPar(TString name) const
 {
     if (FindObject(name) != nullptr) return true;
+    return false;
+}
+
+Bool_t LKParameterContainer::CheckValue(TString name) const
+{
+    TIter iterator(this);
+    TNamed *obj;
+    while ((obj = dynamic_cast<TNamed*>(iterator())))
+    {
+        TString parValue = obj -> GetTitle();
+        if (parValue==name)
+            return true;
+    }
     return false;
 }
