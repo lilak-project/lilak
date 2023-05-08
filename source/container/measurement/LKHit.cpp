@@ -21,7 +21,7 @@ void LKHit::Clear(Option_t *option)
     fDZ = -999;
     fSortValue = 0;
 
-    //fHitArray.Clear("C");
+    fHitArray.Clear("C");
     fTrackCandArray.clear();
 }
 
@@ -211,7 +211,6 @@ void LKHit::SetY(Double_t y) { fY = y; }
 void LKHit::SetZ(Double_t z) { fZ = z; }
 void LKHit::SetCharge(Double_t charge) { fW = charge; }
 
-/*
 void LKHit::AddHit(LKHit *hit)
 {
     fHitArray.AddHit(hit);
@@ -229,7 +228,6 @@ void LKHit::RemoveHit(LKHit *hit)
     fZ = fHitArray.GetMeanZ();
     fW = fHitArray.GetW();
 }
-*/
 
 Int_t LKHit::GetHitID()   const { return fHitID; }
 Int_t LKHit::GetTrackID() const { return fTrackID; }
@@ -244,12 +242,12 @@ Double_t LKHit::GetZ()       const { return fZ; }
 Double_t LKHit::GetCharge()  const { return fW; }
 
 
-//TVector3 LKHit::GetMean()          const { return fHitArray.GetMean();          }
-//TVector3 LKHit::GetVariance()      const { return fHitArray.GetVariance();      }
-//TVector3 LKHit::GetCovariance()    const { return fHitArray.GetCovariance();    }
-//TVector3 LKHit::GetStdDev()        const { return fHitArray.GetStdDev();        }
-//TVector3 LKHit::GetSquaredMean()   const { return fHitArray.GetSquaredMean();   }
-//TVector3 LKHit::GetCoSquaredMean() const { return fHitArray.GetCoSquaredMean(); }
+TVector3 LKHit::GetMean()          const { return fHitArray.GetMean();          }
+TVector3 LKHit::GetVariance()      const { return fHitArray.GetVariance();      }
+TVector3 LKHit::GetCovariance()    const { return fHitArray.GetCovariance();    }
+TVector3 LKHit::GetStdDev()        const { return fHitArray.GetStdDev();        }
+TVector3 LKHit::GetSquaredMean()   const { return fHitArray.GetSquaredMean();   }
+TVector3 LKHit::GetCoSquaredMean() const { return fHitArray.GetCoSquaredMean(); }
 
 
 std::vector<Int_t> *LKHit::GetTrackCandArray() { return &fTrackCandArray; }

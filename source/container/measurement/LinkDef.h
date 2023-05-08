@@ -7,8 +7,9 @@
 #pragma link C++ class LKWPoint+;
 #pragma link C++ class LKMCStep+;
 #pragma link C++ class LKHit+;
+#pragma link C++ class LKTpcHit+;
 #pragma link C++ class LKHitArray+;
-#pragma link C++ class LKChannel+;
+#pragma link C++ class LKVertex+;
 
 #endif
 

@@ -4,7 +4,7 @@
 #include "LKLogger.hpp"
 #include "LKHitArray.hpp"
 #include "LKHit.hpp"
-//#include "LKTpcHit.hpp"
+#include "LKTpcHit.hpp"
 #include "LKGeoSphere.hpp"
 #include "LKGeoLine.hpp"
 
@@ -75,7 +75,6 @@ void LKHitArray::SortByDistanceTo(TVector3 point, bool sortEarlierIfCloser)
     Sort();
 }
 
-/*
 void LKHitArray::SortByLayer(bool sortEarlierIfSmaller)
 {
     TIter next(this);
@@ -84,7 +83,6 @@ void LKHitArray::SortByLayer(bool sortEarlierIfSmaller)
         hit -> SetSortByLayer(sortEarlierIfSmaller);
     Sort();
 }
-*/
 
 
 void LKHitArray::Clear(Option_t *option)

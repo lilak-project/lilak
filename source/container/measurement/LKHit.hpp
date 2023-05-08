@@ -3,7 +3,7 @@
 
 #include "LKWPoint.hpp"
 #include "LKContainer.hpp"
-//#include "LKHitArray.hpp"
+#include "LKHitArray.hpp"
 
 #ifdef ACTIVATE_EVE
 #include "TEveElement.h"
@@ -29,7 +29,7 @@ class LKHit : public LKWPoint
         Double_t fDZ = -999;
         Double_t fSortValue = 0; //! sort earlier if smaller, latter if larger
 
-        //LKHitArray fHitArray; //!
+        LKHitArray fHitArray; //!
 
         vector<Int_t> fTrackCandArray;  //!
 
@@ -66,12 +66,12 @@ class LKHit : public LKWPoint
         void SetZ(Double_t z);
         void SetCharge(Double_t charge);
 
-        //virtual void AddHit(LKHit *hit);
-        //virtual void RemoveHit(LKHit *hit);
+        virtual void AddHit(LKHit *hit);
+        virtual void RemoveHit(LKHit *hit);
 
         Double_t GetSortValue() const;
 
-        //LKHitArray *GetHitArray() { return &fHitArray; }
+        LKHitArray *GetHitArray() { return &fHitArray; }
 
         Int_t GetNumHits() const;
 
@@ -87,12 +87,12 @@ class LKHit : public LKWPoint
         Double_t GetZ()       const;
         Double_t GetCharge()  const;
 
-        //TVector3 GetMean()          const;
-        //TVector3 GetVariance()      const;
-        //TVector3 GetCovariance()    const;
-        //TVector3 GetStdDev()        const;
-        //TVector3 GetSquaredMean()   const;
-        //TVector3 GetCoSquaredMean() const;
+        TVector3 GetMean()          const;
+        TVector3 GetVariance()      const;
+        TVector3 GetCovariance()    const;
+        TVector3 GetStdDev()        const;
+        TVector3 GetSquaredMean()   const;
+        TVector3 GetCoSquaredMean() const;
 
         vector<Int_t> *GetTrackCandArray();
         Int_t GetNumTrackCands();
