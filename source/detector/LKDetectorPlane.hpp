@@ -12,6 +12,8 @@
 #include "TObjArray.h"
 #include "TClonesArray.h"
 
+typedef LKVector3::Axis axis_t;
+
 class LKDetectorPlane : public TNamed, public LKGear
 {
     public:
@@ -31,8 +33,9 @@ class LKDetectorPlane : public TNamed, public LKGear
         virtual void DrawFrame(Option_t *option = "");
         virtual TH2* GetHist(Option_t *option = "-1") = 0;
 
-        virtual LKVector3::Axis GetAxis1() { return LKVector3::kZ; }
-        virtual LKVector3::Axis GetAxis2() { return LKVector3::kX; }
+        void SetAxis(axis_t axis1, axis_t axis2);
+        axis_t GetAxis1();
+        axis_t GetAxis2();
 
     public:
         void SetPlaneID(Int_t id);
@@ -54,7 +57,10 @@ class LKDetectorPlane : public TNamed, public LKGear
         TCanvas *fCanvas = nullptr;
         TH2 *fH2Plane = nullptr;
 
-        ClassDef(LKDetectorPlane, 1)
+        axis_t fAxis1 = LKVector3::kX;
+        axis_t fAxis2 = LKVector3::kY;
+
+    ClassDef(LKDetectorPlane, 1)
 };
 
 #endif

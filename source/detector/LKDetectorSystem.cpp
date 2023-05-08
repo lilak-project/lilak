@@ -83,6 +83,17 @@ void LKDetectorSystem::AddDetector(LKDetector *detector)
 Int_t LKDetectorSystem::GetNumDetectors() const { return GetEntries(); }
 LKDetector *LKDetectorSystem::GetDetector(Int_t idx) const { return (LKDetector *) At(idx); }
 
+LKTpc *LKDetectorSystem::GetTpc() const
+{
+  TIter next(this);
+  TObject *detector;
+  while ((detector = next()))
+    if (detector -> InheritsFrom("LKTpc"))
+      return (LKTpc *) detector;
+
+  return (LKTpc *) nullptr;
+}
+
 Int_t LKDetectorSystem::GetNumPlanes() const
 {
     Int_t numPlanes = 0;

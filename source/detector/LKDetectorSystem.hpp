@@ -4,6 +4,7 @@
 #include "LKGear.hpp"
 #include "LKDetectorPlane.hpp"
 #include "LKDetector.hpp"
+#include "LKTpc.hpp"
 
 #include "TObjArray.h"
 #include "TGeoManager.h"
@@ -31,6 +32,9 @@ class LKDetectorSystem : public TObjArray, public LKGear
 
         Int_t GetNumDetectors() const;
         LKDetector *GetDetector(Int_t idx = 0) const;
+
+
+        LKTpc *GetTpc() const;
 
         Int_t GetNumPlanes() const;
         LKDetectorPlane *GetDetectorPlane(Int_t idx = 0) const;

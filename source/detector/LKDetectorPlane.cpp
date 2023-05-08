@@ -58,3 +58,12 @@ TCanvas *LKDetectorPlane::GetCanvas(Option_t *)
 void LKDetectorPlane::DrawFrame(Option_t *)
 {
 }
+
+void LKDetectorPlane::SetAxis(axis_t axis1, axis_t axis2)
+{
+  fAxis1 = axis1;
+  fAxis2 = axis2;
+}
+
+axis_t LKDetectorPlane::GetAxis1() { return fAxis1; }
+axis_t LKDetectorPlane::GetAxis2() { return fAxis2; }
