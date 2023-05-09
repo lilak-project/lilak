@@ -141,6 +141,7 @@ void LKPadPlane::FillDataToHist(Option_t *option)
     TIter iterPads(fChannelArray);
 
     if (optionString == "hit") {
+        lk_info << "Filling Hits to PadPlane" << endl;
         fH2Plane -> SetTitle("Hit charge distribution");
         while ((pad = (LKPad *) iterPads.Next())) {
             if (pad -> GetNumHits() == 0)
@@ -157,6 +158,7 @@ void LKPadPlane::FillDataToHist(Option_t *option)
         }
     }
     else if (optionString == "out") {
+        lk_info << "Filling output buffer to PadPlane" << endl;
         fH2Plane -> SetTitle("pad calibrated output distribution");
         while ((pad = (LKPad *) iterPads.Next())) {
             auto buffer = pad -> GetBufferOut();
@@ -166,6 +168,7 @@ void LKPadPlane::FillDataToHist(Option_t *option)
         }
     }
     else if (optionString == "raw") {
+        lk_info << "Filling raw buffer PadPlane" << endl;
         fH2Plane -> SetTitle("pad raw input distribution");
         while ((pad = (LKPad *) iterPads.Next())) {
             auto buffer = pad -> GetBufferRaw();
@@ -175,6 +178,7 @@ void LKPadPlane::FillDataToHist(Option_t *option)
         }
     }
     else if (optionString == "in") {
+        lk_info << "Filling input buffer PadPlane" << endl;
         fH2Plane -> SetTitle("pad calibrated input distribution");
         while ((pad = (LKPad *) iterPads.Next())) {
             auto buffer = pad -> GetBufferIn();
@@ -185,26 +189,31 @@ void LKPadPlane::FillDataToHist(Option_t *option)
     }
 
     else if (optionString == "section") {
+        lk_info << "Filling section PadPlane" << endl;
         fH2Plane -> SetTitle("pad section");
         while ((pad = (LKPad *) iterPads.Next()))
             fH2Plane -> Fill(pad->GetI(),pad->GetJ(),pad->GetSection());
     }
     else if (optionString == "row") {
+        lk_info << "Filling row PadPlane" << endl;
         fH2Plane -> SetTitle("pad raw");
         while ((pad = (LKPad *) iterPads.Next()))
             fH2Plane -> Fill(pad->GetI(),pad->GetJ(),pad->GetRow());
     }
     else if (optionString == "layer") {
+        lk_info << "Filling layer PadPlane" << endl;
         fH2Plane -> SetTitle("pad layer");
         while ((pad = (LKPad *) iterPads.Next()))
             fH2Plane -> Fill(pad->GetI(),pad->GetJ(),pad->GetLayer());
     }
     else if (optionString == "padid") {
+        lk_info << "Filling pad id PadPlane" << endl;
         fH2Plane -> SetTitle("pad id");
         while ((pad = (LKPad *) iterPads.Next()))
             fH2Plane -> Fill(pad->GetI(),pad->GetJ(),pad->GetPadID());
     }
     else if (optionString == "nhit") {
+        lk_info << "Filling number of hits PadPlane" << endl;
         fH2Plane -> SetTitle("pad nhit");
         while ((pad = (LKPad *) iterPads.Next()))
             fH2Plane -> Fill(pad->GetI(),pad->GetJ(),pad->GetNumHits());

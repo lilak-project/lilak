@@ -5,6 +5,7 @@
 #include "Rtypes.h"
 #include "LKSamplePoint.hpp"
 #include "LKParameterContainer.hpp"
+#include "LKGear.hpp"
 #include "TGraph.h"
 
 class LKPulseGenerator

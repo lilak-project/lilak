@@ -23,17 +23,16 @@ class LKPad : public LKChannel
         virtual void Print(Option_t *option = "") const;
 
         /// option (default is "")
-        /// - p : Add Pad[ID] to main title
-        /// - a : Add AsAd,AGET,Channel-IDs to main title
-        /// - mc: Draw MCID and line at corresponding tb
-        /// - o : Draw output buffer
-        /// - r : Draw raw buffer
-        /// - i : Draw input buffer (not written by default)
-        /// - h : Draw hit
-        virtual void Draw(Option_t *option = "mcoh");
+        /// * ids : Add AsAd,AGET,Channel-IDs to main title
+        /// * mc: Draw MCID and line at corresponding tb
+        /// * out : Draw output buffer
+        /// * raw : Draw raw buffer
+        /// * in : Draw input buffer (not written by default)
+        /// * hit : Draw hit
+        virtual void Draw(Option_t *option = "ids mc out hit");
 
         void DrawMCID(Option_t *option = "mc");
-        void DrawHit(Option_t *option = "h");
+        void DrawHit(Option_t *option = "hit");
 
         virtual Bool_t IsSortable() const;
         virtual Int_t Compare(const TObject *obj) const;
@@ -113,14 +112,13 @@ class LKPad : public LKChannel
         void LetGo();
 
         /// option (default is "")
-        /// * p : Add Pad[ID] to main title
-        /// * a : Add AsAd,AGET,Channel-IDs to main title
+        /// * ids : Add AsAd,AGET,Channel-IDs to main title
         /// * mc: Draw MCID and line at corresponding tb
-        /// * o : Draw output buffer
-        /// * r : Draw raw buffer
-        /// * i : Draw input buffer (not written by default)
-        /// * h : Draw hit
-        void SetHist(TH1D *hist, Option_t *option = "mcoh");
+        /// * out : Draw output buffer
+        /// * raw : Draw raw buffer
+        /// * in : Draw input buffer (not written by default)
+        /// * hit : Draw hit
+        void SetHist(TH1D *hist, Option_t *option = "ids mc out hit");
         TH1D *GetHist(Option_t *option = "");
 
         Int_t             GetNumMCIDs()      { return fMCIDArray.size(); }
@@ -132,7 +130,7 @@ class LKPad : public LKChannel
         Double_t GetSortValue() { return fSortValue; }
 
     private:
-        bool fActive = false; //!
+        bool fActive = false;
 
         Int_t fPlaneID = 0;
         Int_t fAsAdID = -1;
