@@ -147,6 +147,7 @@ class LKParameterContainer : public TObjArray
         Double_t GetParX     (TString name) const { return GetParDouble(name,0); }
         Double_t GetParY     (TString name) const { return GetParDouble(name,1); }
         Double_t GetParZ     (TString name) const { return GetParDouble(name,2); }
+        Int_t    GetParStyle (TString name, int idx=-1) const { return GetParInt(name,idx); }
         Int_t    GetParWidth (TString name, int idx=-1) const { return GetParInt(name,idx); }
         Double_t GetParSize  (TString name, int idx=-1) const { return GetParDouble(name,idx); }
         axis_t   GetParAxis  (TString name, int idx=-1) const;
@@ -155,6 +156,7 @@ class LKParameterContainer : public TObjArray
         std::vector<int>     GetParVInt   (TString name) const;
         std::vector<double>  GetParVDouble(TString name) const;
         std::vector<TString> GetParVString(TString name) const;
+        std::vector<int>     GetParVStyle (TString name) const { return GetParVInt(name); }
         std::vector<int>     GetParVWidth (TString name) const { return GetParVInt(name); }
         std::vector<int>     GetParVColor (TString name) const { return GetParVInt(name); }
         std::vector<double>  GetParVSize  (TString name) const { return GetParVDouble(name); }

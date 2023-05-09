@@ -34,14 +34,19 @@ void LKParameter::SetPar(TString name, TString raw, TString value, TString comme
     fValue = value;
     fComment = comment;
 
+    if (fName.Index("/")>=0)
+        fGroup = fName.Index(0,fName.Index("/"));
+    else
+        fGroup = "";
+
     if (fRaw.IsNull() && !fValue.IsNull()) fRaw = fValue;
     if (!fRaw.IsNull() && fValue.IsNull()) fValue = fRaw;
 
-    auto valueTokens = value.Tokenize(" ");
-    Int_t fNumValues = valueTokens -> GetEntries();
+    auto listOfTokens = value.Tokenize(" ");
+    Int_t fNumValues = listOfTokens -> GetEntries();
     if (fNumValues>1) {
         for (auto iVal=0; iVal<fNumValues; ++iVal) {
-            TString parValue(((TObjString *) valueTokens->At(iVal))->GetString());
+            TString parValue(((TObjString *) listOfTokens->At(iVal))->GetString());
             fValueArray.push_back(parValue);
         }
     }

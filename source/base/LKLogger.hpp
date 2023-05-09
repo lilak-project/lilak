@@ -40,12 +40,14 @@ class LKLogManager
 #define lk_info    LKLogger(fName,__FUNCTION__,fRank,2)
 #define lk_warning LKLogger(fName,__FUNCTION__,fRank,3)
 #define lk_error   LKLogger(fName,__FUNCTION__,fRank,4)
+#define lk_list(i) LKLogger(fName,__FUNCTION__,i,5)
 
 /// lilak logger for non-LKGear classes and macros. These will not create line-header
 #define lx_cout     LKLogger("","",0,1)
 #define lx_info     LKLogger("","",0,2)
 #define lx_warning  LKLogger("","",0,3)
 #define lx_error    LKLogger("","",0,4)
+#define lx_list(i)  LKLogger("","",i,5)
 
 /// lilak logger
 class LKLogger

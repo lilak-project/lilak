@@ -21,6 +21,7 @@ class LKParameter : public TNamed
         void SetPar(TString name, TString raw, TString value, TString comment);
 
         //const char *GetName()
+        TString GetGroup()    const { return fGroup; }
         TString GetComment()  const { return fComment; }
         TString GetRaw()      const { return fRaw; }
         TString GetValue()    const { return fValue; }
@@ -53,8 +54,9 @@ class LKParameter : public TNamed
         void ProcessTypeError(TString type) const;
         bool CheckFormulaValidity(TString formula, bool isInt=false) const;
 
-        TString fRaw; // raw value with no replacements
-        TString fValue; // configured value
+        TString fGroup; ///< group of parameter
+        TString fRaw; ///< raw value with no replacements
+        TString fValue; ///< configured value
         TString fComment;
         int fNumValues = 0;
         std::vector<TString> fValueArray;

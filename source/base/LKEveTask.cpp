@@ -39,17 +39,17 @@ bool LKEveTask::Init()
 
     fNumBranches = run -> GetNumBranches();
 
-    fSelTrkIDs    = fPar -> GetParVInt("eveSelectTrackIDs");
-    fIgnTrkIDs    = fPar -> GetParVInt("eveIgnoreTrackIDs");
-    fSelPntIDs    = fPar -> GetParVInt("eveSelectTrackParentIDs");
-    fIgnPntIDs    = fPar -> GetParVInt("eveIgnoreTrackParentIDs");
-    fSelPDGs      = fPar -> GetParVInt("eveSelectTrackPDGs");
-    fIgnPDGs      = fPar -> GetParVInt("eveIgnoreTrackPDGs");
-    fSelMCIDs     = fPar -> GetParVInt("eveSelectMCIDs");
-    fIgnMCIDs     = fPar -> GetParVInt("eveIgnoreMCIDs");
-    fSelHitPntIDs = fPar -> GetParVInt("eveSelectHitParentIDs");
-    fIgnHitPntIDs = fPar -> GetParVInt("eveIgnoreHitParentIDs");
-    fSelBranchNames = fPar -> GetParVString("eveSelectBranches");
+    if (fPar -> CheckPar("LKEveTask/selectTrackIDs"))       fSelTrkIDs      = fPar -> GetParVInt("LKEveTask/selectTrackIDs");
+    if (fPar -> CheckPar("LKEveTask/ignoreTrackIDs"))       fIgnTrkIDs      = fPar -> GetParVInt("LKEveTask/ignoreTrackIDs");
+    if (fPar -> CheckPar("LKEveTask/selectTrackParentIDs")) fSelPntIDs      = fPar -> GetParVInt("LKEveTask/selectTrackParentIDs");
+    if (fPar -> CheckPar("LKEveTask/ignoreTrackParentIDs")) fIgnPntIDs      = fPar -> GetParVInt("LKEveTask/ignoreTrackParentIDs");
+    if (fPar -> CheckPar("LKEveTask/selectTrackPDGs"))      fSelPDGs        = fPar -> GetParVInt("LKEveTask/selectTrackPDGs");
+    if (fPar -> CheckPar("LKEveTask/ignoreTrackPDGs"))      fIgnPDGs        = fPar -> GetParVInt("LKEveTask/ignoreTrackPDGs");
+    if (fPar -> CheckPar("LKEveTask/selectMCIDs"))          fSelMCIDs       = fPar -> GetParVInt("LKEveTask/selectMCIDs");
+    if (fPar -> CheckPar("LKEveTask/ignoreMCIDs"))          fIgnMCIDs       = fPar -> GetParVInt("LKEveTask/ignoreMCIDs");
+    if (fPar -> CheckPar("LKEveTask/selectHitParentIDs"))   fSelHitPntIDs   = fPar -> GetParVInt("LKEveTask/selectHitParentIDs");
+    if (fPar -> CheckPar("LKEveTask/ignoreHitParentIDs"))   fIgnHitPntIDs   = fPar -> GetParVInt("LKEveTask/ignoreHitParentIDs");
+    if (fPar -> CheckPar("LKEveTask/selectBranches"))       fSelBranchNames = fPar -> GetParVString("LKEveTask/selectBranches");
 
     fNumSelectedBranches = fSelBranchNames.size();
     if (fNumSelectedBranches==0) {
@@ -104,7 +104,7 @@ void LKEveTask::DrawEve3D()
     if (gEve == nullptr)
         ConfigureDisplayWindow();
 
-    bool removePointTrack = (fPar->CheckPar("eveRemovePointTrack")) ? (fPar->GetParBool("eveRemovePointTrack")) : false;
+    bool removePointTrack = (fPar->CheckPar("LKEveTask/removePointTrack")) ? (fPar->GetParBool("LKEveTask/removePointTrack")) : false;
 
     for (Int_t iBranch = 0; iBranch < fNumSelectedBranches; ++iBranch)
     {
@@ -197,11 +197,11 @@ void LKEveTask::DrawEve3D()
         lk_info << "Drawing " << branchName << " [" << branch -> At(0) -> ClassName() << "] " << numSelected << "(" << branch -> GetEntries() << ")" << endl;
     }
 
-    if (fPar->CheckPar("eveAxisOrigin")) {
+    if (fPar->CheckPar("LKEveTask/axisOrigin")) {
         Double_t length = 100.;
-        if (fPar->CheckPar("eveAxisLength"))
-            length = fPar->GetParDouble("eveAxisLength");
-        TVector3 origin = fPar -> GetParV3("eveAxisOrigin");
+        if (fPar->CheckPar("LKEveTask/axisLength"))
+            length = fPar->GetParDouble("LKEveTask/axisLength");
+        TVector3 origin = fPar -> GetParV3("LKEveTask/axisOrigin");
         for (auto iaxis : {0,1,2}) {
             TVector3 direction;
             if (iaxis==0) direction = TVector3(length,0,0);
@@ -232,12 +232,20 @@ void LKEveTask::DrawDetectorPlanes()
         }
     }
 
-    //auto hitArray = run -> GetBranchA("Hit");
-    //auto padArray = run -> GetBranchA("Pad");
+    TString hitBranchName = "Hit";
+    if (fPar -> CheckPar("hitBranchName"))
+        hitBranchName = fPar -> GetParString("hitBranchName");
 
-    auto ppHistMin = 0.01;
-    if (fPar->CheckPar("evePPHistMin"))
-        ppHistMin = fPar -> GetParDouble("evePPHistMin");
+    TString padBranchName = "Pad";
+    if (fPar -> CheckPar("padBranchName"))
+        padBranchName = fPar -> GetParString("padBranchName");
+
+    auto hitArray = run -> GetBranchA(hitBranchName);
+    auto padArray = run -> GetBranchA(padBranchName);
+
+    auto ppHistZMin = 0.01;
+    if (fPar->CheckPar("LKEveTask/ppHistZMin"))
+        ppHistZMin = fPar -> GetParDouble("LKEveTask/ppHistZMin");
 
     auto numPlanes = fDetectorSystem -> GetNumPlanes();
     for (auto iPlane = 0; iPlane < numPlanes; ++iPlane)
@@ -246,12 +254,11 @@ void LKEveTask::DrawDetectorPlanes()
         lk_info << "Drawing " << plane -> GetName() << endl;
 
         auto histPlane = plane -> GetHist();
-        histPlane -> SetMinimum(ppHistMin);
+        histPlane -> SetMinimum(ppHistZMin);
         histPlane -> Reset();
 
         auto cvs = (TCanvas *) fCvsDetectorPlaneArray -> At(iPlane);
 
-        /*
         if (plane -> InheritsFrom("LKPadPlane"))
         {
             auto padplane = (LKPadPlane *) plane;
@@ -267,7 +274,7 @@ void LKEveTask::DrawDetectorPlanes()
                     TString branchName = fSelBranchNames.at(iBranch);
                     if (branchName.Index("Hit")==0) {
                         lk_info << branchName << " is to be filled to pad plane" << endl;
-                        hitArray = (TClonesArray *) fBranchPtrMap[branchName];
+                        hitArray = run -> GetBranchA(branchName);
                         hitArray -> Print();
                         exist_hit = true;
                         break;
@@ -288,9 +295,9 @@ void LKEveTask::DrawDetectorPlanes()
             if (exist_hit) padplane -> SetHitArray(hitArray);
             if (exist_pad) padplane -> SetPadArray(padArray);
 
-            if (fPar -> CheckPar("evePPFillOption"))
+            if (fPar -> CheckPar("LKEveTask/ppFillOption"))
             {
-                auto fillOption = fPar -> GetParString("evePPFillOption");
+                auto fillOption = fPar -> GetParString("LKEveTask/ppFillOption");
                 lk_info << "Filling " << fillOption << " to PadPlane" << endl;
                 padplane -> FillDataToHist(fillOption);
             }
@@ -305,7 +312,6 @@ void LKEveTask::DrawDetectorPlanes()
                 padplane -> FillDataToHist("out");
             }
         }
-        */
 
         cvs -> Clear();
         cvs -> cd();
@@ -475,32 +481,32 @@ void LKEveTask::ConfigureDisplayWindow()
 
 void LKEveTask::SetEveLineAtt(TEveElement *el, TString branchName)
 {
-    TString colorPar = Form("eveLineColor__%s",branchName.Data());
-    if (fPar->CheckPar(colorPar)) {
-        auto color = fPar -> GetParColor(colorPar);
+    if (fPar->CheckPar(branchName+"/lineAtt")) {
+        auto style = fPar -> GetParStyle(branchName+"/lineAtt",0);
+        auto color = fPar -> GetParWidth(branchName+"/lineAtt",1);
+        auto width = fPar -> GetParColor(branchName+"/lineAtt",2);
+        ((TEveLine *) el) -> SetLineStyle(style);
+        ((TEveLine *) el) -> SetLineWidth(width);
         ((TEveLine *) el) -> SetLineColor(color);
     }
-
-    TString widthPar = Form("eveLineWidth__%s",branchName.Data());
-    if (fPar->CheckPar(widthPar)) {
-        auto width = fPar -> GetParInt(widthPar);
-        ((TEveLine *) el) -> SetLineWidth(width);
-    }
+    else if (fPar->CheckPar(branchName+"/lineStyle")) ((TEveLine *) el) -> SetLineStyle(fPar -> GetParStyle(branchName+"/lineStyle")); 
+    else if (fPar->CheckPar(branchName+"/lineWidth")) ((TEveLine *) el) -> SetLineWidth(fPar -> GetParWidth(branchName+"/lineWidth"));
+    else if (fPar->CheckPar(branchName+"/lineColor")) ((TEveLine *) el) -> SetLineColor(fPar -> GetParColor(branchName+"/lineColor"));
 }
 
 void LKEveTask::SetEveMarkerAtt(TEveElement *el, TString branchName)
 {
-    TString colorPar = Form("eveMarkerColor__%s",branchName.Data());
-    if (fPar->CheckPar(colorPar)) {
-        auto color = fPar -> GetParColor(colorPar);
-        ((TEvePointSet *) el) -> SetMarkerColor(color);
+    if (fPar->CheckPar(branchName+"/markerAtt")) {
+        auto style = fPar -> GetParStyle(branchName+"/markerAtt",0);
+        auto size  = fPar -> GetParSize (branchName+"/markerAtt",1);
+        auto color = fPar -> GetParColor(branchName+"/markerAtt",2);
+        ((TEvePointSet *) el) -> SetLineStyle(style);
+        ((TEvePointSet *) el) -> SetLineSize(size);
+        ((TEvePointSet *) el) -> SetLineColor(color);
     }
-
-    TString sizePar = Form("eveMarkerSize__%s",branchName.Data());
-    if (fPar->CheckPar(sizePar)) {
-        auto size = fPar -> GetParSize(sizePar);
-        ((TEvePointSet *) el) -> SetMarkerSize(size);
-    }
+    else if (fPar->CheckPar(branchName+"/markerStyle")) ((TEvePointSet *) el) -> SetLineStyle(fPar -> GetParStyle(branchName+"/markerStyle")); 
+    else if (fPar->CheckPar(branchName+"/markerSize"))  ((TEvePointSet *) el) -> SetLineSize (fPar -> GetParSize (branchName+"/markerSize" ));
+    else if (fPar->CheckPar(branchName+"/markerColor")) ((TEvePointSet *) el) -> SetLineColor(fPar -> GetParColor(branchName+"/markerColor"));
 }
 
 bool LKEveTask::SelectHit(LKHit *hit)

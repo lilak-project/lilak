@@ -202,7 +202,7 @@ Int_t LKParameterContainer::AddFile(TString fileName, bool addFilePar)
         }
 
         parName.Replace(0,11,"<<");
-        SetLineComment(Form("%s %d parameters where added",parName.Data(),countParameters));
+        SetLineComment(Form("%s %d parameters were added",parName.Data(),countParameters));
     }
 
     return countParameters;
@@ -231,7 +231,7 @@ Int_t LKParameterContainer::AddParameterContainer(LKParameterContainer *parc)
             continue;
         }
         else {
-            SetPar(parameter->GetName(),parameter->GetRaw(),parameter->GetTitle(),parameter->GetComment());
+            SetPar(parameter->GetName(),parameter->GetRaw(),parameter->GetValue(),parameter->GetComment());
             ++countParameters;
         }
     }
@@ -413,9 +413,9 @@ void LKParameterContainer::Print(Option_t *option) const
         return;
     }
 
-    bool evaluatePar = false;
+    bool evaluatePar = true;
     bool showLineComment = true;
-    bool showParComments = false;
+    bool showParComments = true;
     bool printToScreen = true;
     bool printToFile = false;
     ofstream fileOut;
@@ -455,41 +455,77 @@ void LKParameterContainer::Print(Option_t *option) const
     int parNumber = 0;
     TIter iterator(this);
     LKParameter *parameter;
+    TString preGroup = "/";
     while ((parameter = dynamic_cast<LKParameter*>(iterator())))
     {
         TString parName = parameter -> GetName();
+        TString parGroup = parameter -> GetGroup();
         TString parRaw = parameter -> GetRaw();
         TString parValue = parameter -> GetValue();
         TString parComment = parameter -> GetComment();
-        if (evaluatePar)
+
+        if (!evaluatePar)
             parValue = parRaw;
 
-        bool isLineComment = false;
-        if (parName.IsNull() && parValue.IsNull())
-            isLineComment = true;
+        bool addEmptyLine = false;
+        if (preGroup!="/" && preGroup!=parGroup)
+            addEmptyLine = true;
 
-        if (!isLineComment){
-            if (!showParComments)
-                parComment = "";
-            else
-            parComment = TString(" # ") + parComment;
+        bool isLineComment = false;
+        bool isParameter = true;
+        if (parName.IsNull() && parValue.IsNull()) {
+            isLineComment = true;
+            isParameter = false;
+        }
+        else {
+            isLineComment = false;
+            isParameter = true;
         }
 
-        ostringstream ssLine;
-             if (isLineComment) {
-                 if (showLineComment) ssLine << "      # " << parComment << endl;
-             }
-        else if (parName.Sizeof()>60) ssLine << right << setw(3) << parNumber << ".  " << left << setw(70) << parName << " " << parValue << " " << parComment << endl;
-        else if (parName.Sizeof()>50) ssLine << right << setw(3) << parNumber << ".  " << left << setw(60) << parName << " " << parValue << " " << parComment << endl;
-        else if (parName.Sizeof()>40) ssLine << right << setw(3) << parNumber << ".  " << left << setw(50) << parName << " " << parValue << " " << parComment << endl;
-        else if (parName.Sizeof()>30) ssLine << right << setw(3) << parNumber << ".  " << left << setw(40) << parName << " " << parValue << " " << parComment << endl;
-        else if (parName.Sizeof()>20) ssLine << right << setw(3) << parNumber << ".  " << left << setw(30) << parName << " " << parValue << " " << parComment << endl;
-        else                          ssLine << right << setw(3) << parNumber << ".  " << left << setw(20) << parName << " " << parValue << " " << parComment << endl;
-        if (!isLineComment)
-            parNumber++;
+        if (isParameter) {
+            if (!showParComments)
+                parComment = "";
+            else if (!parComment.IsNull())
+                parComment = TString(" # ") + parComment;
+        }
 
-        if (printToScreen) lx_cout << ssLine.str();
-        if (printToFile) fileOut << ssLine.str();
+        int nwidth = 20;
+             if (parName.Sizeof()>60) nwidth = 70;
+        else if (parName.Sizeof()>50) nwidth = 60;
+        else if (parName.Sizeof()>40) nwidth = 50;
+        else if (parName.Sizeof()>30) nwidth = 40;
+        else if (parName.Sizeof()>20) nwidth = 30;
+        else                          nwidth = 20;
+
+        int vwidth = 5;
+             if (parValue.Sizeof()>60) vwidth = 70;
+        else if (parValue.Sizeof()>50) vwidth = 60;
+        else if (parValue.Sizeof()>40) vwidth = 50;
+        else if (parValue.Sizeof()>30) vwidth = 40;
+        else if (parValue.Sizeof()>20) vwidth = 30;
+        else if (parValue.Sizeof()>10) vwidth = 20;
+        else if (parValue.Sizeof()>5)  vwidth = 10;
+        else                           vwidth = 5;
+
+        if (addEmptyLine) {
+            if (printToScreen) lx_cout << endl;
+            if (printToFile)   fileOut << endl;
+        }
+
+        if (isLineComment && showLineComment) {
+            if (showLineComment) {
+                if (printToScreen) lx_cout << "# " << parComment << endl;
+                if (printToFile)   fileOut << "# " << parComment << endl;
+            }
+        }
+        else if (isParameter) {
+            if (printToScreen) lx_list(parNumber) << left << setw(nwidth) << parName << " " << setw(vwidth) << parValue << " " << parComment << endl;
+            if (printToFile) fileOut << parNumber << ". " << left << setw(nwidth) << parName << " " << setw(vwidth) << parValue << " " << parComment << endl;
+        }
+
+        preGroup = parGroup;
+        if (isParameter)
+            parNumber++;
     }
 
     if (printToScreen)
@@ -522,10 +558,16 @@ Bool_t LKParameterContainer::AddLine(std::string line)
         parValues.Remove(0,1);
 
     int icomment = parValues.Index("#");
-    TString parComment = parValues(icomment,parValues.Sizeof());
+    TString parComment;
 
     if (icomment>0) {
+        parComment = parValues(icomment+1,parValues.Sizeof()-1);
+        while (parComment[0]==' ')
+            parComment.Remove(0,1);
+
         parValues = parValues(0,icomment);
+        while (parValues[0]==' ')
+            parValues.Remove(0,1);
         while (parValues[parValues.Sizeof()-2]==' ')
             parValues.Remove(parValues.Sizeof()-2,1);
     }
@@ -582,9 +624,7 @@ LKParameter *LKParameterContainer::SetPar(TString name, TString raw, TString val
 LKParameter *LKParameterContainer::SetPar(TString name, TString raw, TString comment) {
     TString value = raw;
     ReplaceVariables(value);
-    auto named = new LKParameter(name, raw, value, comment);
-    Add(named);
-    return named;
+    return SetPar(name, raw, value, comment);
 }
 
 LKParameter *LKParameterContainer::SetLineComment(TString comment) {
