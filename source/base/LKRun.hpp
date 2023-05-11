@@ -100,7 +100,7 @@ class LKRun : public LKTask
          * If persistent is true, branch will write it's data to output tree.
          * If persistent is false, branch will not be written. However the data is accessible during the run
          */
-        bool RegisterBranch(TString name, TObject *obj, bool persistent);
+        bool RegisterBranch(TString name, TObject *obj, bool persistent=true);
 
         TString GetBranchName(int idx) const;
         TObject *GetBranch(TString name); ///< Get branch in TObject by name.

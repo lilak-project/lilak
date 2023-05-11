@@ -607,19 +607,19 @@ bool LKRun::RegisterBranch(TString name, TObject *obj, bool persistent)
     if (fBranchPtrMap[name] != nullptr)
         return false;
 
-    TString persistentParName = name+"__PERSISTENCY";
-    if (fPar -> CheckPar(persistentParName)) {
-        persistent = fPar -> GetParBool(persistentParName);
+    TString persistencyMessage = name+"/persistency";
+    if (fPar -> CheckPar(persistencyMessage)) {
+        persistent = fPar -> GetParBool(persistencyMessage);
         if (persistent)
-            persistentParName = TString("(persistent by par. ") + persistentParName + ")";
+            persistencyMessage = TString("(persistent by par. ") + persistencyMessage + ")";
         else
-            persistentParName = TString("(temporary by par. ") + persistentParName + ")";
+            persistencyMessage = TString("(temporary by par. ") + persistencyMessage + ")";
     }
     else {
         if (persistent)
-            persistentParName = "(persistent)";
+            persistencyMessage = "(persistent)";
         else
-            persistentParName = "(temporary)";
+            persistencyMessage = "(temporary)";
     }
 
     fBranchPtr[fNumBranches] = obj;
@@ -634,7 +634,7 @@ bool LKRun::RegisterBranch(TString name, TObject *obj, bool persistent)
     } else {
         fTemporaryBranchArray -> Add(obj);
     }
-    lk_info << "Output branch " << name << " " << persistentParName << endl;
+    lk_info << "Output branch " << name << " " << persistencyMessage << endl;
 
     return true;
 }
@@ -654,9 +654,9 @@ TObject *LKRun::GetBranch(int idx)
 TClonesArray *LKRun::GetBranchA(int idx)
 {
     TObject *dataContainer = fBranchPtr[idx];
-    if (dataContainer -> InheritsFrom("TClonesArray"))
+    if (dataContainer!=nullptr && dataContainer -> InheritsFrom("TClonesArray"))
         return (TClonesArray *) dataContainer;
-    return nullptr;
+    return (TClonesArray *) nullptr;
 }
 
 TObject *LKRun::GetBranch(TString name)
@@ -668,9 +668,9 @@ TObject *LKRun::GetBranch(TString name)
 TClonesArray *LKRun::GetBranchA(TString name)
 {
     TObject *dataContainer = fBranchPtrMap[name];
-    if (dataContainer -> InheritsFrom("TClonesArray"))
+    if (dataContainer!=nullptr && dataContainer -> InheritsFrom("TClonesArray"))
         return (TClonesArray *) dataContainer;
-    return nullptr;
+    return (TClonesArray *) nullptr;
 }
 
 Int_t LKRun::GetEntry(Long64_t entry, Int_t getall)

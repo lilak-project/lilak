@@ -227,12 +227,12 @@ void LKEveTask::DrawDetectorPlanes()
     }
 
     TString hitBranchName = "Hit";
-    if (fPar -> CheckPar("hitBranchName"))
-        hitBranchName = fPar -> GetParString("hitBranchName");
+    if (fPar -> CheckPar("LKEveTask/hitBranchName"))
+        hitBranchName = fPar -> GetParString("LKEveTask/hitBranchName");
 
     TString padBranchName = "Pad";
-    if (fPar -> CheckPar("padBranchName"))
-        padBranchName = fPar -> GetParString("padBranchName");
+    if (fPar -> CheckPar("LKEveTask/padBranchName"))
+        padBranchName = fPar -> GetParString("LKEveTask/padBranchName");
 
     auto hitArray = fRun -> GetBranchA(hitBranchName);
     auto padArray = fRun -> GetBranchA(padBranchName);

@@ -414,7 +414,7 @@ void LKParameterContainer::Print(Option_t *option) const
     }
 
     bool evaluatePar = true;
-    bool showLineComment = true;
+    bool showLineComment = false;
     bool showParComments = true;
     bool printToScreen = true;
     bool printToFile = false;
@@ -455,7 +455,7 @@ void LKParameterContainer::Print(Option_t *option) const
     int parNumber = 0;
     TIter iterator(this);
     LKParameter *parameter;
-    TString preGroup = "/";
+    TString preGroup = "";
     while ((parameter = dynamic_cast<LKParameter*>(iterator())))
     {
         TString parName = parameter -> GetName();
@@ -468,7 +468,7 @@ void LKParameterContainer::Print(Option_t *option) const
             parValue = parRaw;
 
         bool addEmptyLine = false;
-        if (preGroup!="/" && preGroup!=parGroup)
+        if (preGroup!="" && preGroup!=parGroup)
             addEmptyLine = true;
 
         bool isLineComment = false;
