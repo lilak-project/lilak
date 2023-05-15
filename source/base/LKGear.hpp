@@ -15,7 +15,7 @@ class LKGear
         LKGear() {};
         virtual ~LKGear() {};
 
-        void CreateParameterContainer(bool debug=false);
+        void CreateParameterContainer();
 
         virtual void SetParameterContainer(LKParameterContainer *par);
         virtual void AddParameterContainer(LKParameterContainer *par);

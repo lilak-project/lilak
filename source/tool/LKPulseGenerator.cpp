@@ -16,42 +16,35 @@ LKPulseGenerator* LKPulseGenerator::fInstance = nullptr;
 
 LKPulseGenerator* LKPulseGenerator::GetPulseGenerator(LKParameterContainer *par) {
     if (fInstance == nullptr) {
-        TString fileName;
-        if (par -> CheckPar("pulserData"))
-            fileName = par -> GetParString("pulserData");
-        fInstance = new LKPulseGenerator(fileName);
+        TString pulserFile;
+        fInstance = new LKPulseGenerator(pulserFile);
     }
     return fInstance;
 }
 
-LKPulseGenerator* LKPulseGenerator::GetPulseGenerator(TString fileName) {
+LKPulseGenerator* LKPulseGenerator::GetPulseGenerator(TString pulserFile) {
     if (fInstance == nullptr)
-        fInstance = new LKPulseGenerator(fileName);
+        fInstance = new LKPulseGenerator(pulserFile);
     return fInstance;
 }
 
-LKPulseGenerator::LKPulseGenerator(TString fileName)
+LKPulseGenerator::LKPulseGenerator(TString pulserFile)
 {
-    Initialize(fileName);
+    Initialize(pulserFile);
 }
 
-bool LKPulseGenerator::Initialize(TString fileName)
+bool LKPulseGenerator::Initialize(TString pulserFile)
 {
-    if (fileName=="deltaFunction") {
+    if (pulserFile=="deltaFunction") {
         fIsDeltaFunction = true;
         return true;
     }
 
-    if (fileName.IsNull())
-        fileName = "pulser_464ns.dat";
-    TString fileNameConfigured = LKRun::ConfigureDataPath(fileName,true,"$(KEBIPATH)/input/",false);
-    if (fileNameConfigured.IsNull()) {
-        lx_info << "Input pulser file: " << fileName << " is not found!" << endl; 
-        return false;
-    }
+    if (pulserFile.IsNull())
+        pulserFile = "input/pulser_464ns.dat";
 
-    lx_info << "Using pulser file: " << fileNameConfigured << endl;
-    ifstream file(fileNameConfigured);
+    lx_info << "Using pulser file: " << pulserFile << endl;
+    ifstream file(pulserFile);
     string line;
 
     while (getline(file, line) && line.find("#") == 0) {}
@@ -60,7 +53,7 @@ bool LKPulseGenerator::Initialize(TString fileName)
 
     if (fNumDataPoints < 20 || fStepSize > 1) {
         lx_error << "Number of data points (" << fNumDataPoints << ") should be >= 20, fStepSize (" << fStepSize << " should be < 1." << endl;
-        lx_error << "Check file: " << fileName << endl;
+        lx_error << "Check file: " << pulserFile << endl;
         return false;
     }
 
@@ -198,20 +191,19 @@ LKPulseGenerator::GetPulseFunction(TString name)
     return f1;
 }
 
-Int_t  LKPulseGenerator::GetShapingTime()     { return fShapingTime;     }
-Double_t  LKPulseGenerator::GetTbAtThreshold()   { return fTbAtThreshold;   }
-Double_t  LKPulseGenerator::GetTbAtTail()        { return fTbAtTail;        }
-Double_t  LKPulseGenerator::GetTbAtMax()         { return fTbAtMax;         }
-Int_t  LKPulseGenerator::GetNumAscending()    { return fNumAscending;    }
-Double_t  LKPulseGenerator::GetThresholdTbStep() { return fThresholdTbStep; }
-Int_t  LKPulseGenerator::GetNumDataPoints()   { return fNumDataPoints;   }
-Double_t  LKPulseGenerator::GetStepSize()        { return fStepSize;        }
-Int_t  LKPulseGenerator::GetNDFTbs()          { return fNDFTbs;          }
+Int_t       LKPulseGenerator::GetShapingTime()     { return fShapingTime;     }
+Double_t    LKPulseGenerator::GetTbAtThreshold()   { return fTbAtThreshold;   }
+Double_t    LKPulseGenerator::GetTbAtTail()        { return fTbAtTail;        }
+Double_t    LKPulseGenerator::GetTbAtMax()         { return fTbAtMax;         }
+Int_t       LKPulseGenerator::GetNumAscending()    { return fNumAscending;    }
+Double_t    LKPulseGenerator::GetThresholdTbStep() { return fThresholdTbStep; }
+Int_t       LKPulseGenerator::GetNumDataPoints()   { return fNumDataPoints;   }
+Double_t    LKPulseGenerator::GetStepSize()        { return fStepSize;        }
+Int_t       LKPulseGenerator::GetNDFTbs()          { return fNDFTbs;          }
 
 LKSamplePoint **LKPulseGenerator::GetPulseData()  { return &fPulseData; }
 
-    void
-LKPulseGenerator::Print()
+void LKPulseGenerator::Print()
 {
     if (fIsDeltaFunction) {
         lx_info << "[LKPulseGenerator INFO] DeltaFunction" << endl;

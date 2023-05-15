@@ -1,3 +1,4 @@
+#include <iomanip>
 #include "LKLogger.hpp"
 
 LKLogManager* LKLogManager::fLogManager = nullptr;
@@ -56,6 +57,7 @@ LKLogger::LKLogger(TString name, const std::string &title ,int rank, int option)
             case 2:  std::cout << header << "\033[0;32m" << "info> "     << "\033[0m"; break;
             case 3:  std::cout << header << "\033[0;33m" << "warning> " << "\033[0m"; break;
             case 4:  std::cout << header << "\033[0;31m" << "error> "    << "\033[0m"; break;
+            case 5:  std::cout << header << "\033[0;34m" << std::right << std::setw(3) << rank << ". " << "\033[0m"; break;
             default: ;
         }
 
@@ -67,6 +69,7 @@ LKLogger::LKLogger(TString name, const std::string &title ,int rank, int option)
                 case 2:  LKLogManager::GetLogFile() << header << "info> "; break;
                 case 3:  LKLogManager::GetLogFile() << header << "warning> "; break;
                 case 4:  LKLogManager::GetLogFile() << header << "error> "; break;
+                case 5:  LKLogManager::GetLogFile() << header << std::right << std::setw(3) << rank << ". "; break;
                 default: ;
             }
         }

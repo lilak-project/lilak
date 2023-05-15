@@ -196,14 +196,16 @@ void LKG4RunManager::SetOutputFile(TString name)
 {
     //fPar -> ReplaceEnvironmentVariable(name);
 
-    fSetEdepSumTree         = fPar->GetParBool("LKG4Manager/MCSetEdepSumTree");;
-    fStepPersistency        = fPar->GetParBool("LKG4Manager/MCStepPersistency");;
-    fSecondaryPersistency   = fPar->GetParBool("LKG4Manager/MCSecondaryPersistency");
-    fTrackVertexPersistency = fPar->GetParBool("LKG4Manager/MCTrackVertexPersistency");
+    fSetEdepSumTree         = fPar -> GetParBool("LKG4Manager/MCSetEdepSumTree");;
+    fStepPersistency        = fPar -> GetParBool("LKG4Manager/MCStepPersistency");;
+    fSecondaryPersistency   = fPar -> GetParBool("LKG4Manager/MCSecondaryPersistency");
+    fTrackVertexPersistency = fPar -> GetParBool("LKG4Manager/MCTrackVertexPersistency");
 
+    g4man_info << "Setting output file " << name << endl;
     fFile = new TFile(name,"recreate");
     fTree = new TTree("event", name);
 
+    g4man_info << "Adding mctrack branch MCTrack" << endl;
     fTrackArray = new TClonesArray("LKMCTrack", 100);
     fTree -> Branch("MCTrack", &fTrackArray);
 
@@ -211,22 +213,27 @@ void LKG4RunManager::SetOutputFile(TString name)
 
     if (fStepPersistency)
     {
+        g4man_info << "Step is persistent!" << endl;
+
         TIter itDetectors(fSensitiveDetectors);
-        TParameter<Int_t> *det;
+        LKParameter *parameter;
 
-        while ((det = dynamic_cast<TParameter<Int_t>*>(itDetectors())))
+        while ((parameter = dynamic_cast<LKParameter*>(itDetectors())))
         {
-            TString detName = det -> GetName();
-            Int_t copyNo = det -> GetVal();
+            TString detName = parameter -> GetName();
+            Int_t copyNo = parameter -> GetInt();
 
-            if (detName.Index("_PARTOFASSEMBLY")>0)
+            if (detName.Index("_PARTOFASSEMBLY")>0) {
+                g4man_info << "Detector " << detName << " is part of assembly" << endl;
                 continue;
+            }
 
             TString branchHeader = "MCStep";
             if (detName.Index("_ASSEMBLY")>0)
                 branchHeader = "MCStepAssembly";
 
-            g4man_info << "Set " << detName << " " << copyNo << endl;
+            g4man_info << "Adding new step branch " << branchHeader+Form("%d", copyNo) << " for detector " << detName << endl;
+
             auto stepArray = new TClonesArray("LKMCStep", 10000);
             stepArray -> SetName(branchHeader+Form("%d", copyNo));
 
@@ -239,6 +246,8 @@ void LKG4RunManager::SetOutputFile(TString name)
             ++fNumActiveVolumes;
         }
     }
+    else
+        g4man_info << "Step is NOT persistent!" << endl;
 }
 
 void LKG4RunManager::SetVolume(G4VPhysicalVolume *physicalVolume)
@@ -299,8 +308,10 @@ void LKG4RunManager::SetSensitiveDetector(G4VPhysicalVolume *physicalVolume, TSt
     TString name = physicalVolume -> GetName().data();
     Int_t copyNo = physicalVolume -> GetCopyNo();
 
-    if (assemblyName.IsNull())
+    if (assemblyName.IsNull()) {
+        g4man_info << "New sensitive detector " << name << " (" << copyNo << ")" << endl;
         fSensitiveDetectors -> SetPar(name, copyNo);
+    }
     else {
         Int_t assemblyID;
         if (fSensitiveDetectors -> CheckPar(assemblyName+"_ASSEMBLY")) {
@@ -309,10 +320,12 @@ void LKG4RunManager::SetSensitiveDetector(G4VPhysicalVolume *physicalVolume, TSt
         else {
             assemblyID = fNumSDAssemblyInTree;
             fSensitiveDetectors -> SetPar(assemblyName+"_ASSEMBLY",assemblyID);
+            g4man_info << "New sensitive assembly " << assemblyName+"_ASSEMBLY" << " (" << assemblyID << ")" << endl;
             ++fNumSDAssemblyInTree;
         }
         fMapSDToAssembly[copyNo] = assemblyID;
         fSensitiveDetectors -> SetPar(name+"_PARTOFASSEMBLY",assemblyID);
+        g4man_info << "New sensitive assembly part " << name+"_PARTOFASSEMBLY" << " (" << assemblyID << ")" << endl;
     }
 }
 

@@ -602,21 +602,6 @@ bool LKRun::Init()
     return fInitialized;
 }
 
-void LKRun::CollectParFromInit(TString name)
-{
-    lk_info << "# Collecting parameters from Init and create parameter file " << name << endl;
-    lk_info << "- This method will create skeleton parameter file." << endl;
-    lk_info << "- Add parameter file and tasks as usual." << endl;
-    lk_info << "- Parameters will be collected from Init()." << endl;
-    lk_info << "- This method will not work if program stops due to missing parameters. " << endl;
-
-    fPar -> SetCollectingMode(true);
-    Init();
-    fPar -> SaveAs(name);
-
-    if (fAutoTerminate) Terminate(this);
-}
-
 bool LKRun::RegisterBranch(TString name, TObject *obj, bool persistent)
 {
     if (fBranchPtrMap[name] != nullptr)
@@ -741,7 +726,7 @@ void LKRun::Run(Long64_t numEvents)
         ++fEventCount;
     }
 
-    EndOfRun();
+    LKRun::EndOfRun();
 }
 
 
@@ -849,7 +834,9 @@ void LKRun::ClearArrays() {
 
 bool LKRun::EndOfRun()
 {
-    EndOfRunTask();
+    lx_cout << endl;
+    lk_info << "Executing of EndOfRunTask" << endl;
+    EndOfRunTasks();
 
     lx_cout << endl;
     lk_info << "End of Run " << fStartEventID << " -> " << fEndEventID << " (" << fEndEventID - fStartEventID + 1 << ")" << endl;

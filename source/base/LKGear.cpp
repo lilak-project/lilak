@@ -1,8 +1,8 @@
 #include "LKGear.hpp"
 
-void LKGear::CreateParameterContainer(bool debug) {
+void LKGear::CreateParameterContainer() {
     if (fPar == nullptr)
-        fPar = new LKParameterContainer(debug);
+        fPar = new LKParameterContainer();
 }
 
 void LKGear::SetParameterContainer(LKParameterContainer *par) {

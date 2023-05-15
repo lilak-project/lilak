@@ -178,6 +178,7 @@ void LKPad::CopyPadData(LKPad* padRef)
     SetBufferIn(padRef->GetBufferIn());
     SetBufferRaw(padRef->GetBufferRaw());
     SetBufferOut(padRef->GetBufferOut());
+    SetActive(padRef->IsActive());
 
     auto is = padRef -> GetMCIDArray();
     auto ws = padRef -> GetMCWeightArray();
@@ -371,12 +372,10 @@ void LKPad::SetHist(TH1D *hist, Option_t *option)
 
     TString name;
 
-    if (opts.Index("p") >= 0) {
+    if (opts.Index("ids") >= 0) {
+        opts.ReplaceAll("ids","");
         name = name + namePad;
         firstNameOn = true;
-    }
-
-    if (opts.Index("a") >= 0) {
         if (firstNameOn) name = name + "_";
         name = name + nameID;
         firstNameOn = true;
@@ -387,13 +386,16 @@ void LKPad::SetHist(TH1D *hist, Option_t *option)
 
     hist -> SetNameTitle(name,name+";Time Bucket;ADC");
 
-    if (opts.Index("o") >= 0) {
+    if (opts.Index("out") >= 0) {
+        opts.ReplaceAll("out","");
         for (auto tb = 0; tb < 512; tb++)
             hist -> SetBinContent(tb+1, fBufferOut[tb]);
-    } else if (opts.Index("r") >= 0) {
+    } else if (opts.Index("raw") >= 0) {
+        opts.ReplaceAll("raw","");
         for (auto tb = 0; tb < 512; tb++)
             hist -> SetBinContent(tb+1, fBufferRaw[tb]);
-    } else if (opts.Index("i") >= 0) {
+    } else if (opts.Index("in") >= 0) {
+        opts.ReplaceAll("in","");
         for (auto tb = 0; tb < 512; tb++)
             hist -> SetBinContent(tb+1, fBufferIn[tb]);
     }

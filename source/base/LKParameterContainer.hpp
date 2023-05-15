@@ -17,6 +17,7 @@
 
 #include "LKVector3.hpp"
 #include "LKLogger.hpp"
+#include "LKParameter.hpp"
 
 typedef LKVector3::Axis axis_t;
 
@@ -64,12 +65,6 @@ using namespace std;
  * GetParV3 use the first 3 values as the x, y, and z coordinates of the return value TVector3(x,y,z).
  * The root color keyword will be converted from kRed+1 to an integer value 633 when GetParColor is called.
  *
- * ## Parameter collecting mode
- *
- * When fCollectionMode is set to true, LKParameterContainer will not terminate getter is called for non-existing parameter.
- * Instead, it will print a message and create a default parameter.
- * You might want to use this mode to find the parameters that are needed in the simulation and analysis runs.
- *
  * ## Keywords used internally
  *
  * - COMMENT_PAR_: COMMENT_PAR_[par-name] is used to save comment of [par-name]
@@ -82,8 +77,8 @@ using namespace std;
 class LKParameterContainer : public TObjArray
 {
     public:
-        LKParameterContainer(Bool_t collect = false);
-        LKParameterContainer(const char *parName, Bool_t collect = false); ///< Constructor with input parameter file name
+        LKParameterContainer();
+        LKParameterContainer(const char *parName); ///< Constructor with input parameter file name
         virtual ~LKParameterContainer() {}
 
         /**
@@ -107,13 +102,8 @@ class LKParameterContainer : public TObjArray
         void SaveAs(const char *filename, Option_t *option = "") const;
 
         bool IsEmpty() const; ///< Return true if empty
-        /*
-         * When fCollectionMode is set to true, LKParameterContainer will not terminate getter is called for non-existing parameter.
-         * Instead, it will print a message and create a default parameter.
-         * You might want to use this mode to find the parameters that are needed in the simulation and analysis runs.
-         */
-        void SetCollectingMode(Bool_t val = true) { fCollectionMode = val; }
-        void ReplaceVariables(TString &val, TString parName=""); ///< evaluate and replace all unraveled variables with ({par},+,-,...)
+        void ReplaceEnvVariables(TString &val); ///< evaluate and replace all unraveled variables with ({par},+,-,...)
+        void ReplaceVariables(TString &val); ///< evaluate and replace all unraveled variables with ({par},+,-,...)
 
         /**
          * Add parameter by given fileName.
@@ -129,53 +119,53 @@ class LKParameterContainer : public TObjArray
 
         Int_t  AddJsonTree(const Json::Value &value, TString treeName="");
 
-        Bool_t SetPar(std::string line); ///< Set parameter by line
-        Bool_t SetPar(TString name, TString val, TString comment=""); ///< Set parameter TString
-        Bool_t SetPar(TString name, Int_t val, TString comment="")    { return SetPar(name,Form("%d",val),comment); } ///< Set parameter Int_t
-        Bool_t SetPar(TString name, Double_t val, TString comment="") { return SetPar(name,Form("%f",val),comment); } ///< Set parameter Double_t
+        Bool_t AddLine(std::string line); ///< Set parameter by line
+        Bool_t AddPar(TString name, TString val, TString comment=""); ///< Set parameter TString
+        Bool_t AddPar(TString name, Int_t val, TString comment="")    { return AddPar(name,Form("%d",val),comment); } ///< Set parameter Int_t
+        Bool_t AddPar(TString name, Double_t val, TString comment="") { return AddPar(name,Form("%f",val),comment); } ///< Set parameter Double_t
 
-        void SetParN      (TString name, Int_t val);
-        void SetComment   (TString comment);
-        void SetParValue  (TString name, TString val);
-        void SetParArray  (TString name, TString val, Int_t idx);
-        void SetParComment(TString name, TString val);
+        LKParameter *SetPar      (TString name, TString  raw, TString val, TString comment);
+        LKParameter *SetPar      (TString name, TString  val, TString comment="");
+        LKParameter *SetPar      (TString name, Int_t    val, TString comment="") { return SetPar(name,Form("%d",val),comment); } ///< Set parameter Int_t
+        LKParameter *SetPar      (TString name, Double_t val, TString comment="") { return SetPar(name,Form("%f",val),comment); } ///< Set parameter Double_t
+        LKParameter *SetParCont  (TString name);
+        LKParameter *SetParFile  (TString name);
+        LKParameter *SetLineComment(TString comment);
 
+        LKParameter *FindPar(TString givenName, bool terminateIfNull=false) const;
 
         Bool_t CheckPar(TString name) const;
         Bool_t CheckValue(TString name) const;
 
-        Int_t    GetParN     (TString name) const;          ///< Get number of parameters in array of given name.
-        Bool_t   GetParBool  (TString name, Int_t idx=-1);  ///< Get parameter in Bool_t
-        Int_t    GetParInt   (TString name, Int_t idx=-1);  ///< Get parameter in Int_t
-        Double_t GetParDouble(TString name, Int_t idx=-1);  ///< Get parameter in Double_t
-        TString  GetParString(TString name, Int_t idx=-1);  ///< Get parameter in TString
-        Int_t    GetParColor (TString name, Int_t idx=-1);  ///< Get parameter in Color_t
-        TVector3 GetParV3    (TString name);                ///< Get parameter in TVector
-        Double_t GetParX     (TString name) { return GetParDouble(name,0); }
-        Double_t GetParY     (TString name) { return GetParDouble(name,1); }
-        Double_t GetParZ     (TString name) { return GetParDouble(name,2); }
-        Int_t    GetParWidth (TString name, int idx=-1) { return GetParInt(name,idx); }
-        Double_t GetParSize  (TString name, int idx=-1) { return GetParDouble(name,idx); }
-        axis_t   GetParAxis  (TString name, int idx=-1);
+        Int_t    GetParN     (TString name) const;              ///< Get number of parameters in array of given name.
+        Bool_t   GetParBool  (TString name, int idx=-1) const;  ///< Get parameter in Bool_t
+        Int_t    GetParInt   (TString name, int idx=-1) const;  ///< Get parameter in Int_t
+        Double_t GetParDouble(TString name, int idx=-1) const;  ///< Get parameter in Double_t
+        TString  GetParString(TString name, int idx=-1) const;  ///< Get parameter in TString
+        Int_t    GetParColor (TString name, int idx=-1) const;  ///< Get parameter in Color_t
+        TVector3 GetParV3    (TString name) const;              ///< Get parameter in TVector
+        Double_t GetParX     (TString name) const { return GetParDouble(name,0); }
+        Double_t GetParY     (TString name) const { return GetParDouble(name,1); }
+        Double_t GetParZ     (TString name) const { return GetParDouble(name,2); }
+        Int_t    GetParStyle (TString name, int idx=-1) const { return GetParInt(name,idx); }
+        Int_t    GetParWidth (TString name, int idx=-1) const { return GetParInt(name,idx); }
+        Double_t GetParSize  (TString name, int idx=-1) const { return GetParDouble(name,idx); }
+        axis_t   GetParAxis  (TString name, int idx=-1) const;
 
-        std::vector<bool>    GetParVBool  (TString name);
-        std::vector<int>     GetParVInt   (TString name);
-        std::vector<double>  GetParVDouble(TString name);
-        std::vector<TString> GetParVString(TString name);
-        std::vector<int>     GetParVWidth (TString name) { return GetParVInt(name); }
-        std::vector<int>     GetParVColor (TString name) { return GetParVInt(name); }
-        std::vector<double>  GetParVSize  (TString name) { return GetParVDouble(name); }
+        std::vector<bool>    GetParVBool  (TString name) const;
+        std::vector<int>     GetParVInt   (TString name) const;
+        std::vector<double>  GetParVDouble(TString name) const;
+        std::vector<TString> GetParVString(TString name) const;
+        std::vector<int>     GetParVStyle (TString name) const { return GetParVInt(name); }
+        std::vector<int>     GetParVWidth (TString name) const { return GetParVInt(name); }
+        std::vector<int>     GetParVColor (TString name) const { return GetParVInt(name); }
+        std::vector<double>  GetParVSize  (TString name) const { return GetParVDouble(name); }
 
     private:
-        void ProcessParNotFound(TString name, TString val);
         void ProcessTypeError(TString name, TString val, TString type) const;
         bool CheckFormulaValidity(TString formula, bool isInt=false) const;
         double Eval(TString formula) const;
 
-        void ReplaceVariablesConst(TString &val, TString parName="") const;
-        TString GetParStringConst(TString name, Int_t idx=-1) const;
-
-        Bool_t fCollectionMode = false;
         Int_t fNumInputFiles = 0;
         Int_t fRank = 0;
 
