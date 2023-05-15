@@ -35,9 +35,7 @@ LKEveTask::LKEveTask()
 
 bool LKEveTask::Init()
 {
-    auto run = LKRun::GetRun();
-
-    fNumBranches = run -> GetNumBranches();
+    fNumBranches = fRun -> GetNumBranches();
 
     fSelTrkIDs    = fPar -> GetParVInt("eveSelectTrackIDs");
     fIgnTrkIDs    = fPar -> GetParVInt("eveIgnoreTrackIDs");
@@ -61,7 +59,7 @@ bool LKEveTask::Init()
         vector<TString> tempBranchNames;
         for (auto iBranch=0; iBranch<fNumSelectedBranches; ++iBranch) {
             TString branchName = fSelBranchNames.at(iBranch);
-            auto branchPtr = run -> GetBranchA(branchName);
+            auto branchPtr = fRun -> GetBranchA(branchName);
             if (branchPtr == nullptr) {
                 lk_error << "No eve-branch name " << branchName << endl;
                 continue;
@@ -73,7 +71,7 @@ bool LKEveTask::Init()
             fSelBranchNames.push_back(branchName);
     }
 
-    fDetectorSystem = run -> GetDetectorSystem();
+    fDetectorSystem = fRun -> GetDetectorSystem();
 
     ConfigureDetectorPlanes();
 
@@ -92,8 +90,6 @@ void LKEveTask::Exec(Option_t*)
 void LKEveTask::DrawEve3D()
 {
 #ifdef ACTIVATE_EVE
-    auto run = LKRun::GetRun();
-
     if (gEve!=nullptr) {
         auto numEveEvents = fEveEventManagerArray -> GetEntries();
         for (auto iEveEvent=0; iEveEvent<numEveEvents; ++iEveEvent) {
@@ -109,7 +105,7 @@ void LKEveTask::DrawEve3D()
     for (Int_t iBranch = 0; iBranch < fNumSelectedBranches; ++iBranch)
     {
         TString branchName = fSelBranchNames.at(iBranch);
-        auto branch = run -> GetBranchA(branchName);
+        auto branch = fRun -> GetBranchA(branchName);
         if (branch == nullptr) {
             lk_error << "No eve-branch name " << branchName << endl;
             continue;
@@ -222,8 +218,6 @@ void LKEveTask::DrawEve3D()
 
 void LKEveTask::DrawDetectorPlanes()
 {
-    auto run = LKRun::GetRun();
-
     if (fGraphChannelBoundaryNb[0] == nullptr) { // TODO
         for (Int_t iGraph = 0; iGraph < 20; ++iGraph) {
             fGraphChannelBoundaryNb[iGraph] = new TGraph();
@@ -232,8 +226,8 @@ void LKEveTask::DrawDetectorPlanes()
         }
     }
 
-    //auto hitArray = run -> GetBranchA("Hit");
-    //auto padArray = run -> GetBranchA("Pad");
+    //auto hitArray = fRun -> GetBranchA("Hit");
+    //auto padArray = fRun -> GetBranchA("Pad");
 
     auto ppHistMin = 0.01;
     if (fPar->CheckPar("evePPHistMin"))
@@ -322,10 +316,10 @@ void LKEveTask::DrawDetectorPlanes()
             TClonesArray *branch = nullptr;
             if (fNumSelectedBranches != 0) {
                 TString branchName = fSelBranchNames.at(iBranch);
-                branch = run -> GetBranchA(branchName);
+                branch = fRun -> GetBranchA(branchName);
             }
             else
-                branch = run -> GetBranchA(iBranch);
+                branch = fRun -> GetBranchA(iBranch);
 
             TObject *objSample = nullptr;
 

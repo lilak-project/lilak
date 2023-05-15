@@ -97,3 +97,7 @@ void LKTask::SetRank(Int_t rank)
     while ( (task = dynamic_cast<LKTask*>(iter())) )
         task -> SetRank(fRank+1);
 }
+
+void LKTask::SetRun(LKRun *run) {
+    fRun = run;
+}

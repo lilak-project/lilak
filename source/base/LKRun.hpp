@@ -156,6 +156,7 @@ class LKRun : public LKTask
         //void Event(Long64_t eventID); ///< Run single event
 
         bool StartOfRun(Long64_t numEvents = -1);
+        void ClearArrays();
         bool EndOfRun();
 
         void SignalEndOfRun() { fSignalEndOfRun = true; }

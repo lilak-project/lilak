@@ -418,6 +418,15 @@ TString LKRun::ConfigureDataPath(TString name, bool search, TString pathData, bo
     }
 }
 
+void LKRun::Add(TTask *task)
+{
+    LKask::Add(task);
+
+    auto task0 = (LKTask *) task;
+    task0 -> SetRun(this);
+}
+
+
 void LKRun::AddInputFile(TString fileName, TString treeName) {
     if (fInputFileName.IsNull()) fInputFileName = fileName;
     fileName = LKRun::ConfigureDataPath(fileName,true,fDataPath);
@@ -776,6 +785,7 @@ bool LKRun::RunEvent(Long64_t eventID)
 
     lx_cout << endl;
     lk_info << "Execute Event " << fCurrentEventID << " (" << fEventCount << "/" << fNumRunEntries << ")" << endl;
+    ClearArrays();
     ExecuteTask("");
 
     if (fSignalEndOfRun)
@@ -822,6 +832,19 @@ bool LKRun::StartOfRun(Long64_t numEvents)
     fNumRunEntries = fEndEventID - fStartEventID + 1;
 
     return true;
+}
+
+void LKRun::ClearArrays() {
+    // fBranchPtr contains branches from input file too.
+    // So we use fPersistentBranchArray fTemporaryBranchArray for ouput branch initialization
+    // @todo We may need to sort out branch that needs clear before Exec()
+    for (auto branchArray : {fPersistentBranchArray, fTemporaryBranchArray}) {
+        Int_t numBranches = branchArray -> GetEntries();
+        for (Int_t iBranch = 0; iBranch < numBranches; iBranch++) {
+            auto branch = (TClonesArray *) branchArray -> At(iBranch);
+            branch -> Clear("C");
+        }
+    }
 }
 
 bool LKRun::EndOfRun()
