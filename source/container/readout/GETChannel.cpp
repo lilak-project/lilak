@@ -5,7 +5,7 @@ ClassImp(GETChannel)
 void GETChannel::Clear(Option_t *option)
 {
     LKContainer::Clear(option);
-    memset(fWaveform, 0, sizeof(Float_t)*512);
+    memset(fWaveform, 0, sizeof(Int_t)*512);
 }
 
 TH1D *GETChannel::GetHist(TString name)
@@ -20,6 +20,6 @@ TH1D *GETChannel::GetHist(TString name)
     return hist;
 }
 
-void GETChannel::SetWaveform(Float_t *buffer) {
-    memcpy(fWaveform, buffer, sizeof(Float_t)*512);
+void GETChannel::SetWaveform(Int_t *buffer) {
+    memcpy(fWaveform, buffer, sizeof(Int_t)*512);
 }

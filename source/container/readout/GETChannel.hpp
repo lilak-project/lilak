@@ -30,9 +30,9 @@ class GETChannel : public LKContainer
         Float_t GetTime()   const { return fTime; }
         Float_t GetEnergy() const { return fEnergy; }
 
-        void SetWaveform(Float_t *buffer);
-        Float_t *GetWaveform() { return fWaveform; };
-        const Float_t *GetWaveform() const { return fWaveform; };
+        void SetWaveform(Int_t *buffer);
+        Int_t *GetWaveform() { return fWaveform; };
+        const Int_t *GetWaveform() const { return fWaveform; };
 
     private:
         Int_t fCobo;
@@ -41,7 +41,7 @@ class GETChannel : public LKContainer
         Int_t fChan;
         Float_t fTime;
         Float_t fEnergy;
-        Float_t fWaveform[512];
+        Int_t fWaveform[512];
 
     ClassDef(GETChannel, 1)
 };

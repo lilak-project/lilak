@@ -1,5 +1,6 @@
 # CMakeLists.txt LILAK project.
-cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
+#cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 
 project(LILAK)
 
@@ -12,6 +13,11 @@ set(BUILD_GEANT4_SIM   OFF CACHE INTERNAL "") # Build Geant4 simulation
 set(BUILD_DOXYGEN_DOC  OFF CACHE INTERNAL "") # Build Doxygen documentation with HTML
 set(LILAK_PROJECT_LIST     CACHE INTERNAL "") # List of LILAK projects to build
 set(LILAK_PROJECT_MAIN     CACHE INTERNAL "")
+
+set(BUILD_FFTW_GET_GRU OFF)
+if(BUILD_FFTW_GET_GRU)
+add_definitions( -DTIXML_USE_STL )
+endif(BUILD_FFTW_GET_GRU)
 
 #---Configuration
 include(log/build_options.cmake)
@@ -52,7 +58,7 @@ set(LILAK_GEANT4_SOURCE_DIRECDTORY_LIST
 )
 
 #---Add geant4 main programs. Directory should be under "/path/to/LILAK/"
-set(LILAK_GEANT4_EXECUTABLE_LIST
+set(LILAK_EXECUTABLE_LIST
     CACHE INTERNAL ""
 )
 
@@ -77,26 +83,92 @@ endif(ACTIVATE_EVE)
 
 include(${ROOT_USE_FILE})
 
+if(BUILD_FFTW_GET_GRU)
+    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/local/etc/cmake")
+    #set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR})
+    add_definitions( -DTIXML_USE_STL )
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ROOT_CXX_FLAGS} -std=c++14 -pthread -Wno-deprecated-declarations")
+    set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -lncurses" )
+
+    set(GETDIR "/usr/local/get")
+    set(GRUDIR "/usr/local/gru")
+    set(GETDIR2 "/opt/software/get_src/20210208/MultiFrame/src")
+    set(GETDIR3 "/opt/software/get_src/20210208/MultiFrame/src/mfm/")
+    set(LIBGRUDIR "${GRUDIR}")
+
+    message(STATUS "FFTW_INCLUDES : " ${FFTW_INCLUDES})
+    message(STATUS "GETDIR        : " ${GETDIR})
+    message(STATUS "GRUDIR        : " ${GRUDIR})
+    message(STATUS "GETDIR2       : " ${GETDIR2})
+
+    message(STATUS "include_directories : " ${FFTW_INCLUDES})
+    message(STATUS "include_directories : " ${GETDIR}/include)
+    message(STATUS "include_directories : " ${GRUDIR}/include)
+    message(STATUS "include_directories : " ${GRUDIR}/vigru)
+    message(STATUS "include_directories : " ${GRUDIR}/gsoap)
+
+    message(STATUS "link_directories : " ${FFTW_LIBRARIES})
+    message(STATUS "link_directories : " ${LIBGRUDIR}/lib)
+    message(STATUS "link_directories : " ${ROOT_LIBRARY_DIR})
+    message(STATUS "link_directories : " ${GRUDIR}/lib)
+    message(STATUS "link_directories : " ${GETDIR}/lib)
+
+    message(STATUS ${ROOT_LIBRARIES})
+
+    #include_directories(${MFMHistServer_SOURCE_DIR}/source)
+    #include_directories(${ROOT_INCLUDE_DIR} ${CMAKE_SOURCE_DIR})
+
+    find_package(FFTW REQUIRED)
+    include_directories(${FFTW_INCLUDES})
+    link_directories(${FFTW_LIBRARIES})
+
+    include_directories(${GETDIR}/include)
+    include_directories(${GRUDIR}/include)
+    include_directories(${GRUDIR}/vigru)
+    include_directories(${GRUDIR}/gsoap)
+    #include_directories(${GETDIR2})
+    #/opt/software/sources_MFMHS/get_src/20210208/MultiFrame/src/mfm/Frame.*
+
+    link_directories(${LIBGRUDIR}/lib)
+    link_directories(${ROOT_LIBRARY_DIR})
+    link_directories(${GRUDIR}/lib)
+    link_directories(${GETDIR}/lib)
+endif(BUILD_FFTW_GET_GRU)
+
 if(BUILD_GEANT4_SIM)
     find_package(Geant4 REQUIRED ui_all vis_all)
     include(${Geant4_USE_FILE})
 endif(BUILD_GEANT4_SIM)
 
 foreach(_directory ${LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF})
+    message(STATUS "source    directory : " ${_directory})
     include_directories(${_directory})
     string(REPLACE / _ _name ${_directory})
     list(APPEND LILAK_SOURCE_NAME_LIST_X ${_name})
+
     file(GLOB   LILAK_${_name}_SOURCE_FILES_X_TEMP  ${_directory}/*.cpp)
     file(GLOB   LILAK_${_name}_SOURCE_FILES_X_TEMP2 ${_directory}/*.cc)
     foreach(_file ${LILAK_${_name}_SOURCE_FILES_X_TEMP})
         list(APPEND LILAK_${_name}_SOURCE_FILES_X ${_file})
+        list(APPEND LILAK_SOURCE_FILES ${_file})
     endforeach(_file)
     foreach(_file ${LILAK_${_name}_SOURCE_FILES_X_TEMP2})
         list(APPEND LILAK_${_name}_SOURCE_FILES_X ${_file})
+        list(APPEND LILAK_SOURCE_FILES ${_file})
+    endforeach(_file)
+
+    file(GLOB   LILAK_${_name}_HEADER_FILES_X_TEMP  ${_directory}/*.hpp)
+    file(GLOB   LILAK_${_name}_HEADER_FILES_X_TEMP2 ${_directory}/*.hh)
+    foreach(_file ${LILAK_${_name}_HEADER_FILES_X_TEMP})
+        list(APPEND LILAK_HEADER_FILES ${_file})
+    endforeach(_file)
+    foreach(_file ${LILAK_${_name}_HEADER_FILES_X_TEMP2})
+        list(APPEND LILAK_HEADER_FILES ${_file})
     endforeach(_file)
 endforeach(_directory)
 
 foreach(_directory ${LILAK_SOURCE_DIRECTORY_LIST})
+    message(STATUS "root-link directory : " ${_directory})
     include_directories(${_directory})
     string(REPLACE / _ _name ${_directory})
     list(APPEND LILAK_SOURCE_NAME_LIST ${_name})
@@ -106,18 +178,22 @@ foreach(_directory ${LILAK_SOURCE_DIRECTORY_LIST})
     file(GLOB LILAK_${_name}_SOURCE_FILES_TEMP2 ${_directory}/*.cc)
     foreach(_file ${LILAK_${_name}_SOURCE_FILES_TEMP})
         list(APPEND LILAK_${_name}_SOURCE_FILES ${_file})
+        list(APPEND LILAK_SOURCE_FILES ${_file})
     endforeach(_file)
     foreach(_file ${LILAK_${_name}_SOURCE_FILES_TEMP2})
         list(APPEND LILAK_${_name}_SOURCE_FILES ${_file})
+        list(APPEND LILAK_SOURCE_FILES ${_file})
     endforeach(_file)
 
     file(GLOB LILAK_${_name}_HEADER_FILES_TEMP  ${_directory}/*.hpp)
     file(GLOB LILAK_${_name}_HEADER_FILES_TEMP2 ${_directory}/*.hh)
     foreach(_file ${LILAK_${_name}_HEADER_FILES_TEMP})
         list(APPEND LILAK_${_name}_HEADER_FILES ${_file})
+        list(APPEND LILAK_HEADER_FILES ${_file})
     endforeach(_file)
     foreach(_file ${LILAK_${_name}_HEADER_FILES_TEMP2})
         list(APPEND LILAK_${_name}_HEADER_FILES ${_file})
+        list(APPEND LILAK_HEADER_FILES ${_file})
     endforeach(_file)
 
     # list separate strings using ";". list append add semicolon automatically just after previous string.
@@ -133,6 +209,31 @@ foreach(_directory ${LILAK_SOURCE_DIRECTORY_LIST})
     configure_file(${LILAK_PATH}/log/LinkDef.h.in ${CMAKE_BINARY_DIR}/link_${_name}_LinkDef.h @ONLY)
     file(GLOB LILAK_${_name}_LINKDEF_FILE ${CMAKE_BINARY_DIR}/link_${_name}_LinkDef.h)
 endforeach(_directory)
+
+if(BUILD_GEANT4_SIM)
+    foreach(_directory ${LILAK_GEANT4_SOURCE_DIRECDTORY_LIST})
+        message(STATUS "geant4    directory : " ${_directory})
+        set(LILAK_GEANT4_SOURCE_FILES_TEMP)
+        file(GLOB   LILAK_GEANT4_SOURCE_FILES_TEMP  ${_directory}/*.cpp)
+        file(GLOB   LILAK_GEANT4_SOURCE_FILES_TEMP2 ${_directory}/*.cc)
+        foreach(_file ${LILAK_GEANT4_SOURCE_FILES_TEMP})
+            list(APPEND LILAK_SOURCE_FILES ${_file}) # ? why not use LILAK_GEANT4_SOURCE_FILES_TEMP
+        endforeach(_file)
+        foreach(_file ${LILAK_GEANT4_SOURCE_FILES_TEMP2})
+            list(APPEND LILAK_SOURCE_FILES ${_file}) # ? why not use LILAK_GEANT4_SOURCE_FILES_TEMP
+        endforeach(_file)
+
+        set(LILAK_GEANT4_HEADER_FILES_TEMP)
+        file(GLOB   LILAK_GEANT4_HEADER_FILES_TEMP  ${_directory}/*.hpp)
+        file(GLOB   LILAK_GEANT4_HEADER_FILES_TEMP2 ${_directory}/*.hh)
+        foreach(_file ${LILAK_GEANT4_HEADER_FILES_TEMP})
+            list(APPEND LILAK_HEADER_FILES ${_file}) # ? why not use LILAK_GEANT4_HEADER_FILES_TEMP
+        endforeach(_file)
+        foreach(_file ${LILAK_GEANT4_HEADER_FILES_TEMP2})
+            list(APPEND LILAK_HEADER_FILES ${_file}) # ? why not use LILAK_GEANT4_HEADER_FILES_TEMP
+        endforeach(_file)
+    endforeach(_directory)
+endif(BUILD_GEANT4_SIM)
 
 if(BUILD_GEANT4_SIM)
     foreach(_g4directory ${LILAK_GEANT4_SOURCE_DIRECDTORY_LIST})
@@ -166,46 +267,20 @@ foreach(_name ${LILAK_SOURCE_NAME_LIST_X})
 endforeach(_name)
 
 add_library(LILAK SHARED ${LILAK_LIB_LIST})
-target_link_libraries(LILAK ${ROOT_LIBRARIES})
+#target_link_libraries(LILAK ${ROOT_LIBRARIES})
+target_link_libraries(LILAK ${ROOT_LIBRARIES} ${FFTW_LIBRARIES})
 
-if(BUILD_GEANT4_SIM)
-    foreach(_directory ${LILAK_GEANT4_SOURCE_DIRECDTORY_LIST})
-        set(LILAK_GEANT4_SOURCE_FILES_TEMP)
-        file(GLOB   LILAK_GEANT4_SOURCE_FILES_TEMP  ${_directory}/*.cpp)
-        file(GLOB   LILAK_GEANT4_SOURCE_FILES_TEMP2 ${_directory}/*.cc)
-        foreach(_file ${LILAK_GEANT4_SOURCE_FILES_TEMP})
-            list(APPEND LILAK_GEANT4_SOURCE_FILES ${_file}) # ? why not use LILAK_GEANT4_SOURCE_FILES_TEMP
-        endforeach(_file)
-        foreach(_file ${LILAK_GEANT4_SOURCE_FILES_TEMP2})
-            list(APPEND LILAK_GEANT4_SOURCE_FILES ${_file}) # ? why not use LILAK_GEANT4_SOURCE_FILES_TEMP
-        endforeach(_file)
-
-        set(LILAK_GEANT4_HEADER_FILES_TEMP)
-        file(GLOB   LILAK_GEANT4_HEADER_FILES_TEMP  ${_directory}/*.hpp)
-        file(GLOB   LILAK_GEANT4_HEADER_FILES_TEMP2 ${_directory}/*.hh)
-        foreach(_file ${LILAK_GEANT4_HEADER_FILES_TEMP})
-            list(APPEND LILAK_GEANT4_HEADER_FILES ${_file}) # ? why not use LILAK_GEANT4_HEADER_FILES_TEMP
-        endforeach(_file)
-        foreach(_file ${LILAK_GEANT4_HEADER_FILES_TEMP2})
-            list(APPEND LILAK_GEANT4_HEADER_FILES ${_file}) # ? why not use LILAK_GEANT4_HEADER_FILES_TEMP
-        endforeach(_file)
-    endforeach(_directory)
-
-    foreach(_g4sim ${LILAK_GEANT4_EXECUTABLE_LIST})
-        get_filename_component(_g4sim_name ${_g4sim} NAME)
-        get_filename_component(_g4sim_directory ${_g4sim} DIRECTORY)
-        string(REPLACE .cpp .g4sim _executable_name ${_g4sim_name})
-        string(REPLACE .cxx .g4sim _executable_name ${_executable_name})
-        string(REPLACE .cc  .g4sim _executable_name ${_executable_name})
-        message(STATUS "Geant4 executable : " ${_g4sim_directory}/${_executable_name})
-
-        set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${_g4sim_directory})
-        add_executable(${_executable_name} ${_g4sim} ${LILAK_GEANT4_SOURCE_FILES} ${LILAK_GEANT4_HEADER_FILES})
-        execute_process(COMMAND root-config --libs OUTPUT_VARIABLE ROOT_LD_FLAGS OUTPUT_STRIP_TRAILING_WHITESPACE)
-        set(CMAKE_EXE_LINKER_FLAGS ${ROOT_LD_FLAGS})
-        target_link_libraries(${_executable_name} ${Geant4_LIBRARIES} LILAK)
-    endforeach(_g4sim)
-endif(BUILD_GEANT4_SIM)
+foreach(_executable ${LILAK_EXECUTABLE_LIST})
+    get_filename_component(_executable_name ${_executable} NAME)
+    get_filename_component(_executable_directory ${_executable} DIRECTORY)
+    string(REPLACE .cc  .exe _executable_name ${_executable_name})
+    message(STATUS "Executable : " ${_executable_directory}/${_executable_name})
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${_executable_directory})
+    add_executable(${_executable_name} ${_executable} ${LILAK_SOURCE_FILES} ${LILAK_HEADER_FILES})
+    execute_process(COMMAND root-config --libs OUTPUT_VARIABLE ROOT_LD_FLAGS OUTPUT_STRIP_TRAILING_WHITESPACE)
+    set(CMAKE_EXE_LINKER_FLAGS ${ROOT_LD_FLAGS})
+    target_link_libraries(${_executable_name} LILAK ${Geant4_LIBRARIES} ${ROOT_LIBRARIES} ${FFTW_LIBRARIES} Html Spectrum XMLIO GRU MultiFrame)
+endforeach(_executable)
 
 configure_file(${LILAK_PATH}/log/LKLog.cmake.in ${LILAK_PATH}/log/LKLog.cmake @ONLY)
 add_custom_target(LILAK_LOG ALL

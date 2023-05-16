@@ -26,7 +26,8 @@ options = {
     "BUILD_DOXYGEN_DOC": False,
 }
 
-list_allowed_prj_subdir = ["container","detector","tool","task"] #geant4
+list_prj_subdir_link = ["container","detector","tool","task"]
+list_prj_subdir_xlink = ["source"]
 
 project_list = []
 def print_project_list(numbering=False):
@@ -103,26 +104,30 @@ while True:
             project_cmake_file_name = os.path.join(projct_path, "CMakeLists.txt")
             with open(project_cmake_file_name, "w") as f:
                 print("creating CMakeLists.txt for ", project_cmake_file_name)
-                ls_project = os.listdir("lamps")
+                ls_project = os.listdir(project_name)
                 f.write("set(LILAK_SOURCE_DIRECTORY_LIST ${LILAK_SOURCE_DIRECTORY_LIST}\n")
                 for directory_name in ls_project:
-                    if directory_name in list_allowed_prj_subdir:
+                    if directory_name in list_prj_subdir_link:
                         f.write("    ${CMAKE_CURRENT_SOURCE_DIR}/"+directory_name+"\n")
-                f.write("""    CACHE INTERNAL ""
-)
+                f.write('    CACHE INTERNAL ""\n)\n\n')
 
-set(LILAK_GEANT4_SOURCE_DIRECDTORY_LIST ${LILAK_GEANT4_SOURCE_DIRECDTORY_LIST}
-""")
+                f.write("set(LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF ${LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF}\n")
                 for directory_name in ls_project:
-                    if directory_name == "geant4":
+                    if directory_name in list_prj_subdir_xlink:
+                        f.write("    ${CMAKE_CURRENT_SOURCE_DIR}/"+directory_name+"\n")
+                        break
+                f.write('    CACHE INTERNAL ""\n)\n\n')
+
+                f.write("set(LILAK_GEANT4_SOURCE_DIRECDTORY_LIST ${LILAK_GEANT4_SOURCE_DIRECDTORY_LIST}\n")
+                for directory_name in ls_project:
+                    if directory_name=="geant4":
                         f.write("    ${CMAKE_CURRENT_SOURCE_DIR}/geant4\n")
                         break
-                f.write("""    CACHE INTERNAL ""
-)
+                f.write('    CACHE INTERNAL ""\n)\n\n')
 
-file(GLOB MACROS_FOR_EXECUTABLE_PROCESS ${CMAKE_CURRENT_SOURCE_DIR}/macros/*.cc)
+                f.write("""file(GLOB MACROS_FOR_EXECUTABLE_PROCESS ${CMAKE_CURRENT_SOURCE_DIR}/macros/*.cc)
 
-set(LILAK_GEANT4_EXECUTABLE_LIST ${LILAK_GEANT4_EXECUTABLE_LIST}
+set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
     ${MACROS_FOR_EXECUTABLE_PROCESS}
     CACHE INTERNAL ""
 )""")
