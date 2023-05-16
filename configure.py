@@ -61,7 +61,7 @@ if os.path.exists(cmake_file_name):
                 if len(tokens)>1:
                     if tokens[0]=="LILAK_PROJECT_MAIN":
                         main_project = tokens[1]
-                    else:
+                    elif tokens[0]!="LILAK_PROJECT_LIST":
                         options[tokens[0]] = (True if tokens[1]=="ON" else False)
             elif len(line)>0 and line!=")" and line.strip().find("CACHE INTERNAL")<0 and line.strip().find("LILAK")!=0:
                 comment = ""
@@ -69,6 +69,7 @@ if os.path.exists(cmake_file_name):
                     line, comment = line[:line.find("#")].strip(), line[line.find("#")+1:].strip()
                 project_list.append(line)
 
+confirm = 0
 while True:
     bline()
     print("## Loading configuration from", cmake_file_name)
@@ -78,7 +79,8 @@ while True:
     print()
     print_project_list()
     print()
-    confirm = input01("Use above options? <1/0>: ")
+    if confirm==0:
+        confirm = input01("Use above options? <1/0>: ")
     if confirm==1:
         print("saving options to", cmake_file_name)
         with open(cmake_file_name, "w") as f:
@@ -88,12 +90,11 @@ while True:
             project_all = ""
             for name in project_list:
                 project_all = project_all+'\n    '+name
-            f.write(f"""
-set(LILAK_PROJECT_LIST{project_all}
-    CACHE INTERNAL ""
-)""")
+            f.write("\nset(LILAK_PROJECT_LIST ${LILAK_PROJECT_LIST}")
+            f.write(f"{project_all}")
+            f.write('\n\tCACHE INTERNAL ""\n)')
             if main_project!="lilak":
-                f.write(f'\nset(LILAK_PROJECT_MAIN {main_project} CACHE INTERNAL "")')
+                f.write(f'\n\nset(LILAK_PROJECT_MAIN {main_project} CACHE INTERNAL "")')
         break
 
     bline()
@@ -140,6 +141,7 @@ set(LILAK_PROJECT_LIST{project_all}
                     break
                 else:
                     print(f"Project must be one in the list!")
+    confirm = 0
 
 bline()
 print( "## How to build lilak")

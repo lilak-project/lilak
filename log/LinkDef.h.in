@@ -3,9 +3,5 @@
 #pragma link off all globals;
 #pragma link off all classes;
 #pragma link off all functions;
-
-#pragma link C++ class LKChannel+;
-#pragma link C++ class LKPad+;
-
+@PRAGMA_LINE_CPP_CLASS_LIST@
 #endif
-

@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
 
 project(LILAK)
 
+set(LILAK_PATH ${CMAKE_SOURCE_DIR})
+
 #---Configuration
 set(ACTIVATE_EVE       OFF CACHE INTERNAL "") # Activate Root Eve package
 set(CREATE_GIT_LOG     OFF CACHE INTERNAL "") # Create Git log
@@ -26,25 +28,26 @@ message(STATUS "Main Project           : " ${LILAK_PROJECT_MAIN})
 
 #---Add source directories. Directory should be under "/path/to/LILAK/"
 set(LILAK_SOURCE_DIRECTORY_LIST
-    ${CMAKE_SOURCE_DIR}/source/base
-    ${CMAKE_SOURCE_DIR}/source/tool
-    ${CMAKE_SOURCE_DIR}/source/geometry
-    ${CMAKE_SOURCE_DIR}/source/detector
-    ${CMAKE_SOURCE_DIR}/source/container/measurement
-    ${CMAKE_SOURCE_DIR}/source/container/track
-    ${CMAKE_SOURCE_DIR}/source/container/readout
+    ${LILAK_PATH}/source/base
+    ${LILAK_PATH}/source/tool
+    ${LILAK_PATH}/source/geometry
+    ${LILAK_PATH}/source/detector
+    ${LILAK_PATH}/source/container
+    ${LILAK_PATH}/source/container/measurement
+    ${LILAK_PATH}/source/container/track
+    ${LILAK_PATH}/source/container/readout
     CACHE INTERNAL ""
 )
 
-#---Add source directories without LinkDef.h. Directory should be under "/path/to/LILAK/".
+#---Add source directories that do not need rootcling. Directory should be under "/path/to/LILAK/".
 set(LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF
-    ${CMAKE_SOURCE_DIR}/source/jsoncpp
+    ${LILAK_PATH}/source/jsoncpp
     CACHE INTERNAL ""
 )
 
 #---Add geant4 source directories. Directory should be under "/path/to/LILAK/".
 set(LILAK_GEANT4_SOURCE_DIRECDTORY_LIST
-    ${CMAKE_SOURCE_DIR}/source/geant4
+    ${LILAK_PATH}/source/geant4
     CACHE INTERNAL ""
 )
 
@@ -55,7 +58,7 @@ set(LILAK_GEANT4_EXECUTABLE_LIST
 
 foreach(lilak_project ${LILAK_PROJECT_LIST})
     message(STATUS "Project directory      : " ${lilak_project})
-    add_subdirectory(${lilak_project})
+    #add_subdirectory(${lilak_project})
 endforeach(lilak_project)
 
 #=====================================================================================
@@ -98,9 +101,9 @@ foreach(_directory ${LILAK_SOURCE_DIRECTORY_LIST})
     string(REPLACE / _ _name ${_directory})
     list(APPEND LILAK_SOURCE_NAME_LIST ${_name})
     set(LILAK_${_name}_G_NAME G__${_name}_Dict)
-    file(GLOB   LILAK_${_name}_LINKDEF_FILE  ${_directory}/LinkDef.h)
-    file(GLOB   LILAK_${_name}_SOURCE_FILES_TEMP  ${_directory}/*.cpp)
-    file(GLOB   LILAK_${_name}_SOURCE_FILES_TEMP2 ${_directory}/*.cc)
+
+    file(GLOB LILAK_${_name}_SOURCE_FILES_TEMP  ${_directory}/*.cpp)
+    file(GLOB LILAK_${_name}_SOURCE_FILES_TEMP2 ${_directory}/*.cc)
     foreach(_file ${LILAK_${_name}_SOURCE_FILES_TEMP})
         list(APPEND LILAK_${_name}_SOURCE_FILES ${_file})
     endforeach(_file)
@@ -108,14 +111,27 @@ foreach(_directory ${LILAK_SOURCE_DIRECTORY_LIST})
         list(APPEND LILAK_${_name}_SOURCE_FILES ${_file})
     endforeach(_file)
 
-    file(GLOB   LILAK_${_name}_HEADER_FILES_TEMP  ${_directory}/*.hpp)
-    file(GLOB   LILAK_${_name}_HEADER_FILES_TEMP2 ${_directory}/*.hh)
+    file(GLOB LILAK_${_name}_HEADER_FILES_TEMP  ${_directory}/*.hpp)
+    file(GLOB LILAK_${_name}_HEADER_FILES_TEMP2 ${_directory}/*.hh)
     foreach(_file ${LILAK_${_name}_HEADER_FILES_TEMP})
         list(APPEND LILAK_${_name}_HEADER_FILES ${_file})
     endforeach(_file)
     foreach(_file ${LILAK_${_name}_HEADER_FILES_TEMP2})
         list(APPEND LILAK_${_name}_HEADER_FILES ${_file})
     endforeach(_file)
+
+    # list separate strings using ";". list append add semicolon automatically just after previous string.
+    set(PRAGMA_LINE_CPP_CLASS_LIST)
+    foreach(_full_name ${LILAK_${_name}_HEADER_FILES})
+        get_filename_component(file_name ${_full_name} NAME)
+        string(REPLACE .hh  "" class_name0 ${file_name})
+        string(REPLACE .hpp "" class_name1 ${class_name0})
+        set(pragma_line "\n#pragma link C++ class ${class_name1}+")
+        list(APPEND PRAGMA_LINE_CPP_CLASS_LIST ${pragma_line})
+    endforeach(_full_name)
+    list(APPEND PRAGMA_LINE_CPP_CLASS_LIST "\n")
+    configure_file(${LILAK_PATH}/log/LinkDef.h.in ${CMAKE_BINARY_DIR}/link_${_name}_LinkDef.h @ONLY)
+    file(GLOB LILAK_${_name}_LINKDEF_FILE ${CMAKE_BINARY_DIR}/link_${_name}_LinkDef.h)
 endforeach(_directory)
 
 if(BUILD_GEANT4_SIM)
@@ -124,7 +140,7 @@ if(BUILD_GEANT4_SIM)
     endforeach(_g4directory)
 endif(BUILD_GEANT4_SIM)
 
-include_directories(${CMAKE_SOURCE_DIR}/log)
+include_directories(${LILAK_PATH}/log)
 
 add_definitions(${ROOT_CXX_FLAGS})
 
@@ -192,10 +208,9 @@ if(BUILD_GEANT4_SIM)
     endforeach(_g4sim)
 endif(BUILD_GEANT4_SIM)
 
-set(LILAK_PATH ${CMAKE_SOURCE_DIR})
 configure_file(${LILAK_PATH}/log/LKLog.cmake.in ${LILAK_PATH}/log/LKLog.cmake @ONLY)
 add_custom_target(LILAK_LOG ALL
-                  COMMAND ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/log/LKLog.cmake
+                  COMMAND ${CMAKE_COMMAND} -P ${LILAK_PATH}/log/LKLog.cmake
                   VERBATIM)
 add_dependencies(LILAK LILAK_LOG)
 
