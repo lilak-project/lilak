@@ -16,6 +16,8 @@ class LKDetector;
 class LKDetectorSystem : public TObjArray, public LKGear
 {
     public:
+        static LKDetectorSystem* GetDS();
+
         LKDetectorSystem();
         LKDetectorSystem(const char *name);
         virtual ~LKDetectorSystem() {}
@@ -41,6 +43,9 @@ class LKDetectorSystem : public TObjArray, public LKGear
 
         void SetDetector(LKDetector *detector);
         void SetDetectorPar(); 
+
+    private:
+        static LKDetectorSystem *fInstance;
 
     ClassDef(LKDetectorSystem, 1)
 };

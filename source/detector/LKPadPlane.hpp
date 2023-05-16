@@ -51,8 +51,8 @@ class LKPadPlane : public LKDetectorPlane
 
         //virtual bool DrawEvent(Option_t *option = ""); // options: hit, in, raw, out, section, row, layer, padid, nhit
         virtual bool SetDataFromBranch();
-        virtual bool FillDataToHist(Option_t *option = "");
         virtual void DrawHist();
+        void FillDataToHist();
 
     public:
         LKPad *GetPadFast(Int_t padID);
@@ -90,6 +90,9 @@ class LKPadPlane : public LKDetectorPlane
         bool PadPositionChecker(bool checkCorners = true);
         bool PadNeighborChecker();
 
+    private:
+        virtual void ClickedAtPosition(Double_t x, Double_t y);
+
     protected:
         Int_t fEFieldAxis = -1;
         Double_t fPlaneK = -999;
@@ -98,6 +101,10 @@ class LKPadPlane : public LKDetectorPlane
 
         bool fFilledPad = false;
         bool fFilledHit = false;
+
+        TCanvas *fCvsChannelBuffer = nullptr;
+        TGraph *fGraphChannelBoundary = nullptr;
+        TGraph *fGraphChannelBoundaryNb[20] = {0};
 
     ClassDef(LKPadPlane, 1)
 };

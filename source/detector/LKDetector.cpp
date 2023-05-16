@@ -39,6 +39,9 @@ void LKDetector::SetTransparency(Int_t transparency)
 void LKDetector::AddPlane(LKDetectorPlane *plane)
 {
     plane -> SetRank(fRank+1);
+    plane -> SetDetector(this);
+    if (fRun!=nullptr)
+        plane -> SetRun(fRun);
     fDetectorPlaneArray -> Add(plane);
     fNumPlanes = fDetectorPlaneArray -> GetEntries();
 }
@@ -76,8 +79,28 @@ void LKDetector::FinishGeometry()
 
 void LKDetector::SetRun(LKRun *run) {
     fRun = run;
+    lk_debug << fRun << endl;
     for (auto iPlane = 0; iPlane < fNumPlanes; ++iPlane) {
         auto plane = (LKDetectorPlane *) fDetectorPlaneArray -> At(iPlane);
+        lk_debug << fRun << endl;
         plane -> SetRun(run);
     }
 };
+
+
+LKPulseGenerator *LKDetector::GetPulseGenerator() {
+    if (fPulseGenerator==nullptr) {
+        TString pulserFile = "";
+        TString pulserFileParName = fName+"/pulserFile";
+        lk_info << "Looking for pulser file parameter : " << pulserFileParName << endl;
+        if (fPar -> CheckPar(pulserFileParName)) {
+            pulserFile = fPar -> GetParString(pulserFileParName);
+            lk_info << "pulser file found : " << pulserFile << endl;
+        }
+        else {
+            lk_warning << "not found : " << pulserFile << endl;
+        }
+        fPulseGenerator = new LKPulseGenerator(pulserFile);
+    }
+    return fPulseGenerator;
+}

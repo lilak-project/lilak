@@ -3,7 +3,7 @@
 
 #include "LKGear.hpp"
 #include "LKRun.hpp"
-//#include "LKDetectorPlane.hpp"
+#include "LKPulseGenerator.hpp"
 
 #include "TNamed.h"
 #include "TGeoManager.h"
@@ -39,6 +39,8 @@ class LKDetector : public TNamed, public LKGear
 
         void SetRun(LKRun *run);
 
+        LKPulseGenerator *GetPulseGenerator();
+
     protected:
         virtual bool BuildGeometry() = 0;
         virtual bool BuildDetectorPlane() = 0;
@@ -48,6 +50,7 @@ class LKDetector : public TNamed, public LKGear
         Int_t fNumPlanes = 0;
         TObjArray *fDetectorPlaneArray;
 
+        LKPulseGenerator *fPulseGenerator = nullptr;
         LKDetectorSystem *fParent = nullptr;
 
     ClassDef(LKDetector, 1)

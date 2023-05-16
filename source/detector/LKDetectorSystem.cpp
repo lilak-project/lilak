@@ -6,9 +6,18 @@ using namespace std;
 
 ClassImp(LKDetectorSystem)
 
+LKDetectorSystem* LKDetectorSystem::fInstance = nullptr;
+
+LKDetectorSystem* LKDetectorSystem::GetDS() {
+    if (fInstance != nullptr)
+        return fInstance;
+    return new LKDetectorSystem();
+}
+
 LKDetectorSystem::LKDetectorSystem()
     :LKDetectorSystem("LKDetectorSystem")
 {
+    fInstance = this;
 }
 
 LKDetectorSystem::LKDetectorSystem(const char *name)
@@ -36,8 +45,6 @@ bool LKDetectorSystem::Init()
     TIter next(this);
     LKDetector *detector;
     while ((detector = (LKDetector *) next())) {
-        if (fRun!=nullptr)
-            detector -> SetRun(fRun);
         SetDetector(detector);
         detector -> Init();
         title = title + ", " + detector -> GetName();
@@ -48,6 +55,13 @@ bool LKDetectorSystem::Init()
     if (!fGeoManager -> IsClosed()) {
         fGeoManager -> SetTitle(title);
         fGeoManager -> CloseGeometry();
+    }
+
+    auto numPlanes = GetNumPlanes();
+    for (auto iPlane=0; iPlane<numPlanes; ++iPlane)
+    {
+        auto plane = GetDetectorPlane(iPlane);
+        plane -> SetPlaneID(iPlane);
     }
 
     lk_info << title << " initialized"<< endl;
@@ -127,6 +141,8 @@ void LKDetectorSystem::SetDetector(LKDetector *detector)
     detector -> SetGeoManager(fGeoManager);
     detector -> SetRank(fRank+1);
     detector -> SetParent(this);
+    if (fRun!=nullptr)
+        detector -> SetRun(fRun);
 }
 
 void LKDetectorSystem::SetDetectorPar()

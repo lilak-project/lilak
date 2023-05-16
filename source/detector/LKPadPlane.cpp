@@ -130,23 +130,21 @@ void LKPadPlane::FillBufferIn(Double_t i, Double_t j, Double_t tb, Double_t val,
         pad -> FillBufferIn(tb, val, trackID);
 }
 
-bool LKPadPlane::FillDataToHist(Option_t *option)
+void LKPadPlane::FillDataToHist()
 {
-    TString optionString = TString(option);
-    if (optionString.IsNull())
-    {
-        // LKPadPlane/fillOption : hit, in, raw, out, section, row, layer, padid, nhit
-        if (fPar -> CheckPar("LKPadPlane/fillOption")) {
-            optionString = fPar -> GetParString("LKPadPlane/fillOption");
-        }
-        else if (fFilledHit)
-            optionString = "hit";
-        else if (fFilledPad)
-            optionString = "pad";
-        else {
-            lk_error << "Fail to fill data!" << endl;
-            return false;
-        }
+    TString optionString;
+
+    // LKPadPlane/fillOption : hit, in, raw, out, section, row, layer, padid, nhit
+    if (fPar -> CheckPar("LKPadPlane/fillOption")) {
+        optionString = fPar -> GetParString("LKPadPlane/fillOption");
+    }
+    else if (fFilledHit)
+        optionString = "hit";
+    else if (fFilledPad)
+        optionString = "pad";
+    else {
+        lk_error << "Fail to fill data!" << endl;
+        return;
     }
 
     if (fH2Plane == nullptr)
@@ -236,7 +234,7 @@ bool LKPadPlane::FillDataToHist(Option_t *option)
             fH2Plane -> Fill(pad->GetI(),pad->GetJ(),pad->GetNumHits());
     }
 
-    return true;
+    return;
 }
 
 Int_t LKPadPlane::GetNumPads() { return GetNChannels(); }
@@ -258,6 +256,19 @@ void LKPadPlane::Clear(Option_t *)
 
 Int_t LKPadPlane::FindChannelID(Double_t i, Double_t j) { return FindPadID(i,j); }
 
+/*
+bool LKDetectorPlane::DrawEvent(Option_t *)
+{
+    if (!SetDataFromBranch())
+        return false;
+
+    DrawHist();
+
+    DrawFrame();
+
+    return true;
+}
+*/
 
 bool LKPadPlane::SetDataFromBranch()
 {
@@ -271,6 +282,7 @@ bool LKPadPlane::SetDataFromBranch()
         hitBranchName = fPar -> GetParString(hitBranchParName);
     }
     lk_info << "hit-branch name is " << hitBranchName << endl;
+    lk_debug << fRun << endl;
     auto hitArray = fRun -> GetBranchA(hitBranchName);
     if (hitArray==nullptr)
         lk_warning << "hit array is nullptr!" << endl;
@@ -301,17 +313,21 @@ bool LKPadPlane::SetDataFromBranch()
 
 void LKPadPlane::DrawHist()
 {
+    FillDataToHist();
+
     if (fH2Plane == nullptr)
         GetHist();
 
     if (fPar->CheckPar("LKPadPlane/histZMin"))
-        fH2Plane -> SetMinimum(fPar->GetParDouble("LKEveTask/histZMin"));
+        fH2Plane -> SetMinimum(fPar->GetParDouble("LKPadPlane/histZMin"));
     else
         fH2Plane -> SetMinimum(0.01);
 
     if (fPar->CheckPar("LKPadPlane/histZMax"))
-        fH2Plane -> SetMaximum(fPar->GetParDouble("LKEveTask/histZMin"));
+        fH2Plane -> SetMaximum(fPar->GetParDouble("LKPadPlane/histZMin"));
 
+    fCanvas -> Clear();
+    fCanvas -> cd();
     fH2Plane -> Reset();
     fH2Plane -> DrawClone("colz");
     fH2Plane -> Reset();
@@ -621,4 +637,94 @@ bool LKPadPlane::PadNeighborChecker()
     lk_info << "No. of pads with > neighbors = " << ids9Neighbors.size() << "(" << examples9 << " )" << endl;
 
     return true;
+}
+
+void LKPadPlane::ClickedAtPosition(Double_t x, Double_t y)
+{
+    if (fCvsChannelBuffer == nullptr)
+        fCvsChannelBuffer = new TCanvas("selected pad","selected pad",700,400);
+    fCvsChannelBuffer -> cd();
+
+    Int_t id = FindPadID(x, y);
+    if (id < 0) {
+        lk_error << "Could not find pad at position: " << x << ", " << y << endl;
+        return;
+    }
+
+    auto pad = GetPad(id);
+    pad -> Print();
+
+    auto hist = pad -> GetHist("pao");
+    hist -> Draw("hist");
+
+    auto pg = fDetector -> GetPulseGenerator();
+
+    for (auto iHit = 0; iHit < pad -> GetNumHits(); ++iHit) {
+        auto hit = pad -> GetHit(iHit);
+        hit -> Print();
+        auto f1 = pg -> GetPulseFunction("pulse");
+        f1 -> SetParameters(hit->W(),hit->GetTb());
+        f1 -> SetNpx(500);
+        f1 -> Draw("samel");
+    }
+    pad -> DrawMCID("mc");
+    fCvsChannelBuffer -> Modified();
+    fCvsChannelBuffer -> Update();
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // clicked pad ane neighbor pad boundary
+    ////////////////////////////////////////////////////////////////////////////////
+
+    auto cvs = GetCanvas();
+    cvs -> cd();
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // clicked pad
+    if (fGraphChannelBoundary == nullptr) {
+        fGraphChannelBoundary = new TGraph();
+        fGraphChannelBoundary -> SetLineColor(kRed);
+        fGraphChannelBoundary -> SetLineWidth(2);
+    }
+    fGraphChannelBoundary -> Set(0);
+    auto corners = pad -> GetPadCorners();
+    for (UInt_t iCorner = 0; iCorner < corners -> size(); ++iCorner) {
+        TVector2 corner = corners -> at(iCorner);
+        fGraphChannelBoundary -> SetPoint(fGraphChannelBoundary -> GetN(), corner.X(), corner.Y());
+    }
+    TVector2 corner = corners -> at(0);
+    fGraphChannelBoundary -> SetPoint(fGraphChannelBoundary -> GetN(), corner.X(), corner.Y());
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // neighbor pad
+    auto nbPadArray = pad -> GetNeighborPadArray();
+    Int_t numNbs = nbPadArray -> size();
+    if (fGraphChannelBoundaryNb[0] == nullptr) { // TODO
+        for (Int_t iGraph = 0; iGraph < 20; ++iGraph) {
+            fGraphChannelBoundaryNb[iGraph] = new TGraph();
+            fGraphChannelBoundaryNb[iGraph] -> SetLineColor(kGreen);
+            fGraphChannelBoundaryNb[iGraph] -> SetLineWidth(2);
+        }
+    }
+    for (Int_t iBLine = 0; iBLine < numNbs; ++iBLine) fGraphChannelBoundaryNb[iBLine] -> Set(0);
+    for (Int_t iBLine = numNbs; iBLine < 20; ++iBLine) fGraphChannelBoundaryNb[iBLine] -> Set(1);
+    for (auto iNb = 0; iNb < numNbs; ++iNb)
+    {
+        auto padNb = (LKPad *) nbPadArray -> at(iNb);
+        auto cornersNb = padNb -> GetPadCorners();
+        for (UInt_t iCorner = 0; iCorner < cornersNb -> size(); ++iCorner) {
+            TVector2 cornerNb = cornersNb -> at(iCorner);
+            fGraphChannelBoundaryNb[iNb] -> SetPoint(fGraphChannelBoundaryNb[iNb] -> GetN(), cornerNb.X(), cornerNb.Y());
+        }
+        TVector2 cornerNb = cornersNb -> at(0);
+        fGraphChannelBoundaryNb[iNb] -> SetPoint(fGraphChannelBoundaryNb[iNb] -> GetN(), cornerNb.X(), cornerNb.Y());
+    }
+
+    fGraphChannelBoundary -> Draw("samel");
+    for (auto iNb = 0; iNb < numNbs; ++iNb) {
+        if (fGraphChannelBoundaryNb[iNb] -> GetN() > 0)
+            fGraphChannelBoundaryNb[iNb] -> Draw("samel");
+    }
+
+    cvs -> Modified();
+    cvs -> Update();
 }

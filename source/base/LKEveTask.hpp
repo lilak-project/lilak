@@ -15,8 +15,6 @@
 class LKEveTask : public LKTask
 { 
     public:
-        static LKEveTask* GetEve(); ///< Get KBRun static pointer.
-
         LKEveTask();
         virtual ~LKEveTask() {}
 
@@ -59,10 +57,6 @@ class LKEveTask : public LKTask
         int fNumSelectedBranches;
 
         TObjArray *fCvsDetectorPlaneArray = nullptr;
-        TCanvas *fCvsChannelBuffer = nullptr;
-        TH1D *fHistChannelBuffer = nullptr;
-        TGraph *fGraphChannelBoundary = nullptr;
-        TGraph *fGraphChannelBoundaryNb[20] = {0};
 
         LKDetectorSystem *fDetectorSystem = nullptr;
 
@@ -74,9 +68,6 @@ class LKEveTask : public LKTask
 #endif
 
         Double_t fEveScale = 1;
-
-    private:
-        static LKEveTask *fInstance;
 
     ClassDef(LKEveTask, 1)
 };

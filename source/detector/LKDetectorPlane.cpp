@@ -68,10 +68,39 @@ bool LKDetectorPlane::DrawEvent(Option_t *)
     if (!SetDataFromBranch())
         return false;
 
-    if (!FillDataToHist())
-        return false;
-
     DrawHist();
 
+    DrawFrame();
+
     return true;
+}
+
+void LKDetectorPlane::MouseClickEvent(int iPlane)
+{
+    TObject* select = ((TCanvas*)gPad) -> GetClickSelected();
+    if (select == nullptr)
+        return;
+
+    bool isNotH2 = !(select -> InheritsFrom(TH2::Class()));
+    bool isNotGraph = !(select -> InheritsFrom(TGraph::Class()));
+    if (isNotH2 && isNotGraph)
+        return;
+
+    TH2D* hist = (TH2D*) select;
+
+    Int_t xEvent = gPad -> GetEventX();
+    Int_t yEvent = gPad -> GetEventY();
+
+    Float_t xAbs = gPad -> AbsPixeltoX(xEvent);
+    Float_t yAbs = gPad -> AbsPixeltoY(yEvent);
+    Double_t xOnClick = gPad -> PadtoX(xAbs);
+    Double_t yOnClick = gPad -> PadtoY(yAbs);
+
+    Int_t bin = hist -> FindBin(xOnClick, yOnClick);
+    gPad -> SetUniqueID(bin);
+    gPad -> GetCanvas() -> SetClickSelected(NULL);
+
+    auto plane = LKDetectorSystem::GetDS() -> GetDetectorPlane(iPlane);
+    if (plane != nullptr)
+        plane -> ClickedAtPosition(xOnClick,yOnClick);
 }
