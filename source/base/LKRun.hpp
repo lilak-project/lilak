@@ -52,6 +52,7 @@ class LKRun : public LKTask
          * - det : Print detector information
          */
         virtual void Print(Option_t *option="all") const;
+        virtual void Add(TTask *task);
 
         /// Run name/id
         void SetRunName(TString name, Int_t id=0); ///< Set Run name and id.

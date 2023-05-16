@@ -7,6 +7,8 @@ using namespace std;
 #include "TTask.h"
 #include "LKGear.hpp"
 
+class LKRun;
+
 class LKTask : public TTask, public LKGear
 {
     public:

@@ -420,7 +420,7 @@ TString LKRun::ConfigureDataPath(TString name, bool search, TString pathData, bo
 
 void LKRun::Add(TTask *task)
 {
-    LKask::Add(task);
+    LKTask::Add(task);
 
     auto task0 = (LKTask *) task;
     task0 -> SetRun(this);
