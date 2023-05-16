@@ -196,10 +196,10 @@ void LKG4RunManager::SetOutputFile(TString name)
 {
     //fPar -> ReplaceEnvironmentVariable(name);
 
-    fSetEdepSumTree         = fPar -> GetParBool("LKG4Manager/MCSetEdepSumTree");;
-    fStepPersistency        = fPar -> GetParBool("LKG4Manager/MCStepPersistency");;
-    fSecondaryPersistency   = fPar -> GetParBool("LKG4Manager/MCSecondaryPersistency");
-    fTrackVertexPersistency = fPar -> GetParBool("LKG4Manager/MCTrackVertexPersistency");
+    fSetEdepSumTree         = fPar -> GetParBool("MCSetEdepSum/persistency");;
+    fStepPersistency        = fPar -> GetParBool("MCStep/persistency");;
+    fSecondaryPersistency   = fPar -> GetParBool("MCSecondary/persistency");
+    fTrackVertexPersistency = fPar -> GetParBool("MCTrackVertex/persistency");
 
     g4man_info << "Setting output file " << name << endl;
     fFile = new TFile(name,"recreate");
