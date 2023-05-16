@@ -16,7 +16,7 @@ log_path = os.path.join(lilak_path,"log")
 os.environ["LILAK_PATH"] = lilak_path
 print("   LILAK_PATH is", lilak_path)
 
-cmake_file_name = os.path.join(log_path, "build_options.cmake")
+build_option_file_name = os.path.join(log_path, "build_options.cmake")
 
 main_project = "lilak"
 options = {
@@ -25,6 +25,8 @@ options = {
     "BUILD_GEANT4_SIM": True,
     "BUILD_DOXYGEN_DOC": False,
 }
+
+list_allowed_prj_subdir = ["container","detector","tool","task"] #geant4
 
 project_list = []
 def print_project_list(numbering=False):
@@ -52,8 +54,8 @@ def input01(question="<1/0>",possible_options=['0','1']):
             print("Invalid input. Please try again.")
     return user_input
 
-if os.path.exists(cmake_file_name):
-    with open(cmake_file_name, "r") as f:
+if os.path.exists(build_option_file_name):
+    with open(build_option_file_name, "r") as f:
         for line in f:
             line = line.strip()
             if line.find("set(")==0:
@@ -72,7 +74,7 @@ if os.path.exists(cmake_file_name):
 confirm = 0
 while True:
     bline()
-    print("## Loading configuration from", cmake_file_name)
+    print("## Loading configuration from", build_option_file_name)
     print()
     for key, value in options.items():
         print(f"   {key} = {value}")
@@ -82,19 +84,48 @@ while True:
     if confirm==0:
         confirm = input01("Use above options? <1/0>: ")
     if confirm==1:
-        print("saving options to", cmake_file_name)
-        with open(cmake_file_name, "w") as f:
+        print("saving options to", build_option_file_name)
+        with open(build_option_file_name, "w") as f:
             for key, value in options.items():
                 vonoff = "ON" if value==1 else "OFF"
                 f.write(f"set({key} {vonoff} CACHE INTERNAL \"\")\n")
             project_all = ""
-            for name in project_list:
-                project_all = project_all+'\n    '+name
+            for project_name in project_list:
+                project_all = project_all+'\n    '+project_name
             f.write("\nset(LILAK_PROJECT_LIST ${LILAK_PROJECT_LIST}")
             f.write(f"{project_all}")
-            f.write('\n\tCACHE INTERNAL ""\n)')
+            f.write('\n    CACHE INTERNAL ""\n)')
             if main_project!="lilak":
                 f.write(f'\n\nset(LILAK_PROJECT_MAIN {main_project} CACHE INTERNAL "")')
+
+        for project_name in project_list:
+            projct_path = os.path.join(lilak_path,project_name)
+            project_cmake_file_name = os.path.join(projct_path, "CMakeLists.txt")
+            with open(project_cmake_file_name, "w") as f:
+                print("creating CMakeLists.txt for ", project_cmake_file_name)
+                ls_project = os.listdir("lamps")
+                f.write("set(LILAK_SOURCE_DIRECTORY_LIST ${LILAK_SOURCE_DIRECTORY_LIST}\n")
+                for directory_name in ls_project:
+                    if directory_name in list_allowed_prj_subdir:
+                        f.write("    ${CMAKE_CURRENT_SOURCE_DIR}/"+directory_name+"\n")
+                f.write("""    CACHE INTERNAL ""
+)
+
+set(LILAK_GEANT4_SOURCE_DIRECDTORY_LIST ${LILAK_GEANT4_SOURCE_DIRECDTORY_LIST}
+""")
+                for directory_name in ls_project:
+                    if directory_name == "geant4":
+                        f.write("    ${CMAKE_CURRENT_SOURCE_DIR}/geant4\n")
+                        break
+                f.write("""    CACHE INTERNAL ""
+)
+
+file(GLOB MACROS_FOR_EXECUTABLE_PROCESS ${CMAKE_CURRENT_SOURCE_DIR}/macros/*.cc)
+
+set(LILAK_GEANT4_EXECUTABLE_LIST ${LILAK_GEANT4_EXECUTABLE_LIST}
+    ${MACROS_FOR_EXECUTABLE_PROCESS}
+    CACHE INTERNAL ""
+)""")
         break
 
     bline()

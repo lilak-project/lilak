@@ -81,6 +81,7 @@ LKPad *LKPadPlane::GetPad(Int_t section, Int_t row, Int_t layer)
 
 void LKPadPlane::SetPadArray(TClonesArray *padArray)
 {
+    fFilledPad = true;
     TIter iterPads(padArray);
     LKPad *padWithData;
     while ((padWithData = (LKPad *) iterPads.Next())) {
@@ -97,6 +98,7 @@ void LKPadPlane::SetPadArray(TClonesArray *padArray)
 
 void LKPadPlane::SetHitArray(TClonesArray *hitArray)
 {
+    fFilledHit = true;
     Int_t numHits = hitArray -> GetEntries();
     for (auto iHit = 0; iHit < numHits; ++iHit)
     {
@@ -128,12 +130,27 @@ void LKPadPlane::FillBufferIn(Double_t i, Double_t j, Double_t tb, Double_t val,
         pad -> FillBufferIn(tb, val, trackID);
 }
 
-void LKPadPlane::FillDataToHist(Option_t *option)
+bool LKPadPlane::FillDataToHist(Option_t *option)
 {
+    TString optionString = TString(option);
+    if (optionString.IsNull())
+    {
+        // LKPadPlane/fillOption : hit, in, raw, out, section, row, layer, padid, nhit
+        if (fPar -> CheckPar("LKPadPlane/fillOption")) {
+            optionString = fPar -> GetParString("LKPadPlane/fillOption");
+        }
+        else if (fFilledHit)
+            optionString = "hit";
+        else if (fFilledPad)
+            optionString = "pad";
+        else {
+            lk_error << "Fail to fill data!" << endl;
+            return false;
+        }
+    }
+
     if (fH2Plane == nullptr)
         GetHist();
-
-    TString optionString = TString(option);
 
     lk_info << "Filling " << optionString << " into pad-plane histogram" << endl;
 
@@ -218,6 +235,8 @@ void LKPadPlane::FillDataToHist(Option_t *option)
         while ((pad = (LKPad *) iterPads.Next()))
             fH2Plane -> Fill(pad->GetI(),pad->GetJ(),pad->GetNumHits());
     }
+
+    return true;
 }
 
 Int_t LKPadPlane::GetNumPads() { return GetNChannels(); }
@@ -227,6 +246,9 @@ Double_t LKPadPlane::GetPlaneK() { return fPlaneK; }
 
 void LKPadPlane::Clear(Option_t *)
 {
+    fFilledPad = false;
+    fFilledHit = false;
+
     LKPad *pad;
     TIter iterPads(fChannelArray);
     while ((pad = (LKPad *) iterPads.Next())) {
@@ -235,6 +257,68 @@ void LKPadPlane::Clear(Option_t *)
 }
 
 Int_t LKPadPlane::FindChannelID(Double_t i, Double_t j) { return FindPadID(i,j); }
+
+
+bool LKPadPlane::SetDataFromBranch()
+{
+    LKPadPlane::Clear();
+
+    TString hitBranchName = "Hit";
+    TString hitBranchParName = "LKPadPlane/hitBranchName";
+    lk_cout << "Looking for hit-branch name from ParameterContainer of " << hitBranchParName << endl;
+    if (fPar -> CheckPar(hitBranchParName)) {
+        lk_warning << "cannot find from ParameterContainer" << endl;
+        hitBranchName = fPar -> GetParString(hitBranchParName);
+    }
+    lk_info << "hit-branch name is " << hitBranchName << endl;
+    auto hitArray = fRun -> GetBranchA(hitBranchName);
+    if (hitArray==nullptr)
+        lk_warning << "hit array is nullptr!" << endl;
+    else
+        SetHitArray(hitArray);
+
+    TString padBranchName = "Pad";
+    TString padBranchParName = "LKPadPlane/padBranchName";
+    lk_cout << "Looking for pad-branch name from ParameterContainer of " << padBranchParName << endl;
+    if (fPar -> CheckPar(padBranchParName)) {
+        lk_warning << "cannot find from ParameterContainer" << endl;
+        padBranchName = fPar -> GetParString(padBranchParName);
+    }
+    lk_info << "pad-branch name is " << padBranchName << endl;
+    auto padArray = fRun -> GetBranchA(padBranchName);
+    if (padArray==nullptr)
+        lk_warning << "pad array is nullptr!" << endl;
+    else
+        SetPadArray(padArray);
+
+    if (hitArray==nullptr && padArray==nullptr) {
+        lk_error << "No data array (hit, pad) are found check if GetEntris has been called!" << endl;
+        return false;
+    }
+
+    return true;
+}
+
+void LKPadPlane::DrawHist()
+{
+    if (fH2Plane == nullptr)
+        GetHist();
+
+    if (fPar->CheckPar("LKPadPlane/histZMin"))
+        fH2Plane -> SetMinimum(fPar->GetParDouble("LKEveTask/histZMin"));
+    else
+        fH2Plane -> SetMinimum(0.01);
+
+    if (fPar->CheckPar("LKPadPlane/histZMax"))
+        fH2Plane -> SetMaximum(fPar->GetParDouble("LKEveTask/histZMin"));
+
+    fH2Plane -> Reset();
+    fH2Plane -> DrawClone("colz");
+    fH2Plane -> Reset();
+    fH2Plane -> Draw("same");
+    DrawFrame();
+}
+
 
 void LKPadPlane::ResetEvent()
 {

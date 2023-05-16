@@ -550,6 +550,7 @@ bool LKRun::Init()
     fRunHeader -> SetPar("NumEventsInSplit",int(fNumSplitEntries));
 
     if (fDetectorSystem -> GetEntries() != 0) {
+        fDetectorSystem -> SetRun(this);
         fDetectorSystem -> AddParameterContainer(fPar);
         fDetectorSystem -> Init();
         fDetectorSystem -> SetTransparency(80);
@@ -892,6 +893,9 @@ void LKRun::CheckOut()
     fCheckIn = false;
 }
 
-void LKRun::AddDetector(LKDetector *detector) { fDetectorSystem -> AddDetector(detector); }
+void LKRun::AddDetector(LKDetector *detector) {
+    detector -> SetRun(this);
+    fDetectorSystem -> AddDetector(detector);
+}
 LKDetector *LKRun::GetDetector(Int_t i) const { return (LKDetector *) fDetectorSystem -> At(i); }
 LKDetectorSystem *LKRun::GetDetectorSystem() const { return fDetectorSystem; }

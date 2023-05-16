@@ -18,7 +18,6 @@ class LKTask : public TTask, public LKGear
 
         virtual void Add(TTask *task);
         virtual void SetRank(Int_t rank);
-        virtual void SetRun(LKRun *run);
 
         bool InitTask();
         bool InitTasks();
@@ -27,9 +26,6 @@ class LKTask : public TTask, public LKGear
         bool EndOfRunTask();
         bool EndOfRunTasks();
         virtual bool EndOfRun();
-
-    protected:
-        LKRun *fRun;
 
     ClassDef(LKTask, 1)
 };

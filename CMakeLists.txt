@@ -33,9 +33,9 @@ set(LILAK_SOURCE_DIRECTORY_LIST
     ${LILAK_PATH}/source/geometry
     ${LILAK_PATH}/source/detector
     ${LILAK_PATH}/source/container
-    ${LILAK_PATH}/source/container/measurement
     ${LILAK_PATH}/source/container/track
     ${LILAK_PATH}/source/container/readout
+    ${LILAK_PATH}/source/container/measurement
     CACHE INTERNAL ""
 )
 
@@ -58,7 +58,7 @@ set(LILAK_GEANT4_EXECUTABLE_LIST
 
 foreach(lilak_project ${LILAK_PROJECT_LIST})
     message(STATUS "Project directory      : " ${lilak_project})
-    #add_subdirectory(${lilak_project})
+    add_subdirectory(${lilak_project})
 endforeach(lilak_project)
 
 #=====================================================================================
@@ -192,13 +192,12 @@ if(BUILD_GEANT4_SIM)
     endforeach(_directory)
 
     foreach(_g4sim ${LILAK_GEANT4_EXECUTABLE_LIST})
-        message(STATUS "Geant4 executable main: " ${_g4sim})
         get_filename_component(_g4sim_name ${_g4sim} NAME)
         get_filename_component(_g4sim_directory ${_g4sim} DIRECTORY)
         string(REPLACE .cpp .g4sim _executable_name ${_g4sim_name})
         string(REPLACE .cxx .g4sim _executable_name ${_executable_name})
         string(REPLACE .cc  .g4sim _executable_name ${_executable_name})
-        message(STATUS "Geant4 executable out : " ${_g4sim_directory}/${_executable_name})
+        message(STATUS "Geant4 executable : " ${_g4sim_directory}/${_executable_name})
 
         set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${_g4sim_directory})
         add_executable(${_executable_name} ${_g4sim} ${LILAK_GEANT4_SOURCE_FILES} ${LILAK_GEANT4_HEADER_FILES})

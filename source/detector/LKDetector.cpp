@@ -73,3 +73,11 @@ void LKDetector::FinishGeometry()
         }
     }
 }
+
+void LKDetector::SetRun(LKRun *run) {
+    fRun = run;
+    for (auto iPlane = 0; iPlane < fNumPlanes; ++iPlane) {
+        auto plane = (LKDetectorPlane *) fDetectorPlaneArray -> At(iPlane);
+        plane -> SetRun(run);
+    }
+};

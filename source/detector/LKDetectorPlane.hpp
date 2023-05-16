@@ -4,6 +4,7 @@
 #include "LKChannel.hpp"
 #include "LKVector3.hpp"
 #include "LKGear.hpp"
+#include "LKRun.hpp"
 
 #include "TH2.h"
 #include "TCanvas.h"
@@ -13,6 +14,8 @@
 #include "TClonesArray.h"
 
 typedef LKVector3::Axis axis_t;
+
+class LKRun;
 
 class LKDetectorPlane : public TNamed, public LKGear
 {
@@ -30,8 +33,13 @@ class LKDetectorPlane : public TNamed, public LKGear
         virtual Int_t FindChannelID(Double_t i, Double_t j) = 0;
 
         virtual TCanvas *GetCanvas(Option_t *option = "");
-        virtual void DrawFrame(Option_t *option = "");
         virtual TH2* GetHist(Option_t *option = "-1") = 0;
+
+        virtual bool SetDataFromBranch() { return false; }
+        virtual bool DrawEvent(Option_t *option = "");
+        virtual void DrawFrame(Option_t *option = "") {}
+        virtual bool FillDataToHist(Option_t *option = "") { return false; }
+        virtual void DrawHist() {};
 
         void SetAxis(axis_t axis1, axis_t axis2);
         axis_t GetAxis1();

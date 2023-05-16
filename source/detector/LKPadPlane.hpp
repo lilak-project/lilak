@@ -49,6 +49,11 @@ class LKPadPlane : public LKDetectorPlane
 
         virtual Double_t PadDisplacement() const = 0; ///< Rough (maximum) value of displacements between pads
 
+        //virtual bool DrawEvent(Option_t *option = ""); // options: hit, in, raw, out, section, row, layer, padid, nhit
+        virtual bool SetDataFromBranch();
+        virtual bool FillDataToHist(Option_t *option = "");
+        virtual void DrawHist();
+
     public:
         LKPad *GetPadFast(Int_t padID);
         LKPad *GetPad(Int_t padID);
@@ -63,8 +68,6 @@ class LKPadPlane : public LKDetectorPlane
         Int_t GetNumPads();
 
         void FillBufferIn(Double_t i, Double_t j, Double_t tb, Double_t val, Int_t trackID = -1);
-        /// options: hit, in, raw, out, section, row, layer, padid, nhit
-        void FillDataToHist(Option_t *option = "out");
 
         void SetPlaneK(Double_t k);
         Double_t GetPlaneK();
@@ -93,7 +96,10 @@ class LKPadPlane : public LKDetectorPlane
 
         Int_t fFreePadIdx = 0;
 
-        ClassDef(LKPadPlane, 1)
+        bool fFilledPad = false;
+        bool fFilledHit = false;
+
+    ClassDef(LKPadPlane, 1)
 };
 
 #endif

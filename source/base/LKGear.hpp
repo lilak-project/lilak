@@ -3,11 +3,14 @@
 
 #include <iostream>
 #include <fstream>
+
 #include "LKParameterContainer.hpp"
 
 /**
- * LKGear is basically parameter container holder
+ * LKGear is parameter container holder
  */
+
+class LKRun;
 
 class LKGear
 {
@@ -31,9 +34,11 @@ class LKGear
         virtual void SetRank(Int_t rank);
         Int_t GetRank() const;
 
+        void SetRun(LKRun *run) { fRun = run; }
+
     protected:
         LKParameterContainer *fPar = nullptr;
-
+        LKRun *fRun = nullptr;
         Int_t fRank = 0;
 
     ClassDef(LKGear, 1)

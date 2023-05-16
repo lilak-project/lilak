@@ -2,7 +2,8 @@
 #define LKDETECTOR_HH
 
 #include "LKGear.hpp"
-#include "LKDetectorPlane.hpp"
+#include "LKRun.hpp"
+//#include "LKDetectorPlane.hpp"
 
 #include "TNamed.h"
 #include "TGeoManager.h"
@@ -10,6 +11,7 @@
 #include "TObjArray.h"
 
 class LKDetectorSystem;
+class LKDetectorPlane;
 
 class LKDetector : public TNamed, public LKGear
 {
@@ -35,6 +37,8 @@ class LKDetector : public TNamed, public LKGear
         LKDetectorSystem *GetParent();
         void SetParent(LKDetectorSystem *system);
 
+        void SetRun(LKRun *run);
+
     protected:
         virtual bool BuildGeometry() = 0;
         virtual bool BuildDetectorPlane() = 0;
@@ -46,7 +50,7 @@ class LKDetector : public TNamed, public LKGear
 
         LKDetectorSystem *fParent = nullptr;
 
-        ClassDef(LKDetector, 1)
+    ClassDef(LKDetector, 1)
 };
 
 #endif

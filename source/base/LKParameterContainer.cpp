@@ -468,8 +468,8 @@ void LKParameterContainer::Print(Option_t *option) const
             parValue = parRaw;
 
         bool addEmptyLine = false;
-        if (preGroup!="" && preGroup!=parGroup)
-            addEmptyLine = true;
+        //if (preGroup!="" && preGroup!=parGroup)
+            //addEmptyLine = true;
 
         bool isLineComment = false;
         bool isParameter = true;

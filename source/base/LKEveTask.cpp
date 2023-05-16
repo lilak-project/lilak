@@ -28,9 +28,18 @@
 
 ClassImp(LKEveTask)
 
+LKEveTask* LKEveTask::fInstance = nullptr;
+
+LKEveTask* LKEveTask::GetEve() {
+    if (fInstance != nullptr)
+        return fInstance;
+    return new LKEveTask();
+}
+
 LKEveTask::LKEveTask()
     :LKTask("LKEveTask","")
 {
+    fInstance = this;
 }
 
 bool LKEveTask::Init()
@@ -226,93 +235,17 @@ void LKEveTask::DrawDetectorPlanes()
         }
     }
 
-    TString hitBranchName = "Hit";
-    if (fPar -> CheckPar("LKEveTask/hitBranchName"))
-        hitBranchName = fPar -> GetParString("LKEveTask/hitBranchName");
-
-    TString padBranchName = "Pad";
-    if (fPar -> CheckPar("LKEveTask/padBranchName"))
-        padBranchName = fPar -> GetParString("LKEveTask/padBranchName");
-
-    auto hitArray = fRun -> GetBranchA(hitBranchName);
-    auto padArray = fRun -> GetBranchA(padBranchName);
-
-    auto ppHistZMin = 0.01;
-    if (fPar->CheckPar("LKEveTask/ppHistZMin"))
-        ppHistZMin = fPar -> GetParDouble("LKEveTask/ppHistZMin");
-
     auto numPlanes = fDetectorSystem -> GetNumPlanes();
     for (auto iPlane = 0; iPlane < numPlanes; ++iPlane)
     {
         auto plane = fDetectorSystem -> GetDetectorPlane(iPlane);
         lk_info << "Drawing " << plane -> GetName() << endl;
 
-        auto histPlane = plane -> GetHist();
-        histPlane -> SetMinimum(ppHistZMin);
-        histPlane -> Reset();
-
         auto cvs = (TCanvas *) fCvsDetectorPlaneArray -> At(iPlane);
-
-        if (plane -> InheritsFrom("LKPadPlane"))
-        {
-            auto padplane = (LKPadPlane *) plane;
-
-            bool exist_hit = false;
-            bool exist_pad = false;
-
-            if (hitArray != nullptr)
-                exist_hit = true;
-            else {
-                for (Int_t iBranch = 0; iBranch < fNumSelectedBranches; ++iBranch)
-                {
-                    TString branchName = fSelBranchNames.at(iBranch);
-                    if (branchName.Index("Hit")==0) {
-                        lk_info << branchName << " is to be filled to pad plane" << endl;
-                        hitArray = fRun -> GetBranchA(branchName);
-                        hitArray -> Print();
-                        exist_hit = true;
-                        break;
-                    }
-                }
-            }
-            if (padArray != nullptr)
-                exist_pad = true;
-
-            if (!exist_hit && !exist_pad) {
-                cvs -> cd();
-                histPlane -> Draw();
-                plane -> DrawFrame();
-                continue;
-            }
-
-            padplane -> Clear();
-            if (exist_hit) padplane -> SetHitArray(hitArray);
-            if (exist_pad) padplane -> SetPadArray(padArray);
-
-            if (fPar -> CheckPar("LKEveTask/ppFillOption"))
-            {
-                auto fillOption = fPar -> GetParString("LKEveTask/ppFillOption");
-                lk_info << "Filling " << fillOption << " to PadPlane" << endl;
-                padplane -> FillDataToHist(fillOption);
-            }
-            else if (exist_hit)
-            {
-                lk_info << "Filling Hits to PadPlane" << endl;
-                padplane -> FillDataToHist("hit");
-            }
-            else if (exist_pad)
-            {
-                lk_info << "Filling Pads to PadPlane" << endl;
-                padplane -> FillDataToHist("out");
-            }
-        }
 
         cvs -> Clear();
         cvs -> cd();
-        histPlane -> DrawClone("colz");
-        histPlane -> Reset();
-        histPlane -> Draw("same");
-        plane -> DrawFrame();
+        plane -> DrawEvent();
 
         auto axis1 = plane -> GetAxis1();
         auto axis2 = plane -> GetAxis2();
@@ -371,9 +304,129 @@ void LKEveTask::ConfigureDetectorPlanes()
     for (Int_t iPlane = 0; iPlane < numPlanes; iPlane++) {
         LKDetectorPlane *plane = fDetectorSystem -> GetDetectorPlane(iPlane);
         TCanvas *cvs = plane -> GetCanvas();
-        //cvs -> AddExec("ex", "LKRun::ClickSelectedPadPlane()");
+        cvs -> AddExec("ex", "LKEveTask::ClickSelectedPlane()");
         fCvsDetectorPlaneArray -> Add(cvs);
     }
+}
+
+void LKEveTask::ClickSelectedPlane()
+{
+    TObject* select = ((TCanvas*)gPad) -> GetClickSelected();
+    if (select == nullptr)
+        return;
+
+    bool isNotH2 = !(select -> InheritsFrom(TH2::Class()));
+    bool isNotGraph = !(select -> InheritsFrom(TGraph::Class()));
+    if (isNotH2 && isNotGraph)
+        return;
+
+    TH2D* hist = (TH2D*) select;
+
+    Int_t xEvent = gPad -> GetEventX();
+    Int_t yEvent = gPad -> GetEventY();
+
+    Float_t xAbs = gPad -> AbsPixeltoX(xEvent);
+    Float_t yAbs = gPad -> AbsPixeltoY(yEvent);
+    Double_t xOnClick = gPad -> PadtoX(xAbs);
+    Double_t yOnClick = gPad -> PadtoY(yAbs);
+
+    Int_t bin = hist -> FindBin(xOnClick, yOnClick);
+    gPad -> SetUniqueID(bin);
+    gPad -> GetCanvas() -> SetClickSelected(NULL);
+
+    LKEveTask::GetEve() -> DrawPadByPosition(xOnClick,yOnClick);
+}
+
+void LKEveTask::DrawPadByPosition(Double_t x, Double_t y)
+{
+/*
+    if (fCvsChannelBuffer == nullptr)
+        fCvsChannelBuffer = new TCanvas("channel_buffer","channel buffer",700,400);
+    fCvsChannelBuffer -> cd();
+
+    if (fHistChannelBuffer == nullptr) {
+        fHistChannelBuffer = new TH1D("channel_buffer","",512,0,512);
+        fHistChannelBuffer -> SetStats(0);
+    }
+
+    LKDetectorPlane *tpc = (LKDetectorPlane *) fDetectorSystem -> GetTpc();
+    if (tpc == nullptr)
+        return;
+
+    KBPadPlane *padplane = tpc -> GetPadPlane();
+    Int_t id = padplane -> FindPadID(x, y);
+    if (id < 0) {
+        kb_error << "Could not find pad at position: " << x << ", " << y << endl;
+        return;
+    }
+
+    KBPad *pad = padplane -> GetPad(id);
+    pad -> SetHist(fHistChannelBuffer,"pao");
+    pad -> Print();
+
+    if (fGraphChannelBoundary == nullptr) {
+        fGraphChannelBoundary = new TGraph();
+        fGraphChannelBoundary -> SetLineColor(kRed);
+        fGraphChannelBoundary -> SetLineWidth(2);
+    }
+    fGraphChannelBoundary -> Set(0);
+
+    auto corners = pad -> GetPadCorners();
+    for (UInt_t iCorner = 0; iCorner < corners -> size(); ++iCorner) {
+        TVector2 corner = corners -> at(iCorner);
+        fGraphChannelBoundary -> SetPoint(fGraphChannelBoundary -> GetN(), corner.X(), corner.Y());
+    }
+    TVector2 corner = corners -> at(0);
+    fGraphChannelBoundary -> SetPoint(fGraphChannelBoundary -> GetN(), corner.X(), corner.Y());
+
+    auto nbs = pad -> GetNeighborPadArray();
+    Int_t numNbs = nbs -> size();
+
+    for (Int_t iBLine = 0; iBLine < numNbs; ++iBLine)
+        fGraphChannelBoundaryNb[iBLine] -> Set(0);
+
+    for (Int_t iBLine = numNbs; iBLine < 20; ++iBLine)
+        fGraphChannelBoundaryNb[iBLine] -> Set(1);
+
+    for (auto iNb = 0; iNb < numNbs; ++iNb)
+    {
+        auto padNb = (KBPad *) nbs -> at(iNb);
+        auto cornersNb = padNb -> GetPadCorners();
+        for (UInt_t iCorner = 0; iCorner < cornersNb -> size(); ++iCorner) {
+            TVector2 cornerNb = cornersNb -> at(iCorner);
+            fGraphChannelBoundaryNb[iNb] -> SetPoint(fGraphChannelBoundaryNb[iNb] -> GetN(), cornerNb.X(), cornerNb.Y());
+        }
+        TVector2 cornerNb = cornersNb -> at(0);
+        fGraphChannelBoundaryNb[iNb] -> SetPoint(fGraphChannelBoundaryNb[iNb] -> GetN(), cornerNb.X(), cornerNb.Y());
+    }
+
+    fHistChannelBuffer -> Draw("hist");
+
+    KBPulseGenerator::GetPulseGenerator(fPar);
+
+    for (auto iHit = 0; iHit < pad -> GetNumHits(); ++iHit) {
+        auto hit = pad -> GetHit(iHit);
+        hit -> Print();
+        auto f1 = hit -> GetPulseFunction();
+        f1 -> SetNpx(500);
+        f1 -> Draw("samel");
+    }
+
+    pad -> DrawMCID("mc");
+
+    fCvsChannelBuffer -> Modified();
+    fCvsChannelBuffer -> Update();
+
+    auto cvsDetectorPlane = (TCanvas *) fCvsDetectorPlaneArray -> At(0);
+    cvsDetectorPlane -> cd();
+    fGraphChannelBoundary -> Draw("samel");
+    for (auto iNb = 0; iNb < numNbs; ++iNb) {
+        if (fGraphChannelBoundaryNb[iNb] -> GetN() > 0)
+            fGraphChannelBoundaryNb[iNb] -> Draw("samel");
+    }
+    cvsDetectorPlane -> Modified();
+    cvsDetectorPlane -> Update();
+    */
 }
 
 bool LKEveTask::SelectTrack(LKTracklet *tracklet)

@@ -15,6 +15,8 @@
 class LKEveTask : public LKTask
 { 
     public:
+        static LKEveTask* GetEve(); ///< Get KBRun static pointer.
+
         LKEveTask();
         virtual ~LKEveTask() {}
 
@@ -24,6 +26,8 @@ class LKEveTask : public LKTask
         void DrawEve3D();
         void DrawDetectorPlanes();
         void ConfigureDetectorPlanes();
+        void ClickSelectedPlane();
+        void DrawPadByPosition(Double_t x, Double_t y);
 
         bool SelectTrack(LKTracklet *track);
 
@@ -70,6 +74,9 @@ class LKEveTask : public LKTask
 #endif
 
         Double_t fEveScale = 1;
+
+    private:
+        static LKEveTask *fInstance;
 
     ClassDef(LKEveTask, 1)
 };
