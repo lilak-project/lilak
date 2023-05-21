@@ -1,4 +1,4 @@
-#include "LKPadPlane.hpp"
+#include "LKPadPlane.h"
 
 #include "TVector2.h"
 

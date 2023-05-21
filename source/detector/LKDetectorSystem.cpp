@@ -1,4 +1,4 @@
-#include "LKDetectorSystem.hpp"
+#include "LKDetectorSystem.h"
 #include "TBrowser.h"
 
 #include <iostream>

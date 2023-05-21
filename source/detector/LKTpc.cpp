@@ -1,4 +1,4 @@
-#include "LKTpc.hpp"
+#include "LKTpc.h"
 
 #include <iostream>
 using namespace std;

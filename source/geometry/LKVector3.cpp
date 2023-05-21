@@ -1,6 +1,6 @@
-#include "LKLogger.hpp"
-#include "LKVector3.hpp"
-#include "LKGeoLine.hpp"
+#include "LKLogger.h"
+#include "LKVector3.h"
+#include "LKGeoLine.h"
 #include <iostream>
 
 using namespace std;

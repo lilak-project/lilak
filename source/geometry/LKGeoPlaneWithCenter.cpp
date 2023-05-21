@@ -1,4 +1,4 @@
-#include "LKGeoPlaneWithCenter.hpp"
+#include "LKGeoPlaneWithCenter.h"
 #include <cmath>
 
 ClassImp(LKGeoPlaneWithCenter)

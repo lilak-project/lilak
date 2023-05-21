@@ -1,4 +1,4 @@
-#include "LKGeoRotated.hpp"
+#include "LKGeoRotated.h"
 
 ClassImp(LKGeoRotated)
 

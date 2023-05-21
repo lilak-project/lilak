@@ -1,4 +1,4 @@
-#include "LKMCTagged.hpp"
+#include "LKMCTagged.h"
 
 LKMCTagged::LKMCTagged()
 {

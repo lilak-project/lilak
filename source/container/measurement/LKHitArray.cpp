@@ -1,12 +1,12 @@
 #include "TH2D.h"
 #include "TMarker.h"
 
-#include "LKLogger.hpp"
-#include "LKHitArray.hpp"
-#include "LKHit.hpp"
-#include "LKTpcHit.hpp"
-#include "LKGeoSphere.hpp"
-#include "LKGeoLine.hpp"
+#include "LKLogger.h"
+#include "LKHitArray.h"
+#include "LKHit.h"
+#include "LKTpcHit.h"
+#include "LKGeoSphere.h"
+#include "LKGeoLine.h"
 
 ClassImp(LKHitArray);
 

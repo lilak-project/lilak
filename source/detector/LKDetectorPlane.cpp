@@ -1,4 +1,4 @@
-#include "LKDetectorPlane.hpp"
+#include "LKDetectorPlane.h"
 
 #include <iostream>
 using namespace std;

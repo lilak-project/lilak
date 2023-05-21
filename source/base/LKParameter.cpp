@@ -3,8 +3,8 @@
 #include "TFormula.h"
 #include "TApplication.h"
 
-#include "LKLogger.hpp"
-#include "LKParameter.hpp"
+#include "LKLogger.h"
+#include "LKParameter.h"
 
 LKParameter::LKParameter()
 {

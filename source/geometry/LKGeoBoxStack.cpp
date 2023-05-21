@@ -1,5 +1,5 @@
-#include "LKLogger.hpp"
-#include "LKGeoBoxStack.hpp"
+#include "LKLogger.h"
+#include "LKGeoBoxStack.h"
 #include <cmath>
 
 ClassImp(LKGeoBoxStack)

@@ -1,4 +1,4 @@
-#include "LKChannel.hpp"
+#include "LKChannel.h"
 
 ClassImp(LKChannel)
 

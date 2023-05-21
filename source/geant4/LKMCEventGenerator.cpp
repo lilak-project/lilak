@@ -1,6 +1,6 @@
-#include "LKMCEventGenerator.hpp"
-#include "LKG4RunManager.hpp"
-#include "LKMCTrack.hpp"
+#include "LKMCEventGenerator.h"
+#include "LKG4RunManager.h"
+#include "LKMCTrack.h"
 #include "TSystem.h"
 
 LKMCEventGenerator::LKMCEventGenerator()

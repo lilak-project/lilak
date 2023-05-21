@@ -1,4 +1,4 @@
-#include "LKGeoLine.hpp"
+#include "LKGeoLine.h"
 #include <cmath>
 
 ClassImp(LKGeoLine)

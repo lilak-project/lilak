@@ -1,4 +1,4 @@
-#include "GETChannel.hpp"
+#include "GETChannel.h"
 
 ClassImp(GETChannel)
 

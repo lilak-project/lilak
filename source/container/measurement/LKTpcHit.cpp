@@ -1,6 +1,6 @@
-#include "LKLogger.hpp"
-#include "LKTpcHit.hpp"
-#include "LKPulseGenerator.hpp"
+#include "LKLogger.h"
+#include "LKTpcHit.h"
+#include "LKPulseGenerator.h"
 #ifdef ACTIVATE_EVE
 #include "TEvePointSet.h"
 #endif

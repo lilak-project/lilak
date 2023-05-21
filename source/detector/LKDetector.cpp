@@ -1,5 +1,5 @@
-#include "LKDetectorSystem.hpp"
-#include "LKDetector.hpp"
+#include "LKDetectorSystem.h"
+#include "LKDetector.h"
 
 #include <iostream>
 using namespace std;

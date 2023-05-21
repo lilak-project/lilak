@@ -1,7 +1,7 @@
 #include "TMath.h"
 #include "TRandom.h"
 
-#include "LKGeoHelix.hpp"
+#include "LKGeoHelix.h"
 
 ClassImp(LKGeoHelix)
 

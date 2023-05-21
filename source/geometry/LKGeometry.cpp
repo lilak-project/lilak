@@ -1,3 +1,3 @@
-#include "LKGeometry.hpp"
+#include "LKGeometry.h"
 
 ClassImp(LKGeometry)

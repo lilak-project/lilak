@@ -1,4 +1,4 @@
-#include "LKVertex.hpp"
+#include "LKVertex.h"
 #ifdef ACTIVATE_EVE
 #include "TEvePointSet.h"
 #endif

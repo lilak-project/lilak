@@ -1,4 +1,4 @@
-#include "LKEventAction.hpp"
+#include "LKEventAction.h"
 
 #include "G4Event.hh"
 #include "G4RunManager.hh"

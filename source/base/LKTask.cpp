@@ -1,7 +1,7 @@
 #include <iostream>
 using namespace std;
 
-#include "LKTask.hpp"
+#include "LKTask.h"
 
 LKTask::LKTask()
 :TTask()

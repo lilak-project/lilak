@@ -5,7 +5,7 @@
 #include "G4ThreeVector.hh"
 #include "G4ProcessTable.hh"
 
-#include "LKTrackingAction.hpp"
+#include "LKTrackingAction.h"
 
 LKTrackingAction::LKTrackingAction()
 : G4UserTrackingAction()

@@ -1,4 +1,4 @@
-#include "LKGeoPlane.hpp"
+#include "LKGeoPlane.h"
 #include <cmath>
 
 ClassImp(LKGeoPlane)

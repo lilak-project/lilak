@@ -1,4 +1,4 @@
-#include "LKSamplePoint.hpp"
+#include "LKSamplePoint.h"
 
 #include <iostream>
 

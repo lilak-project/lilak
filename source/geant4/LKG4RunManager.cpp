@@ -9,13 +9,13 @@
 #include "TSystem.h"
 #include "TObjString.h"
 
-#include "LKEventAction.hpp"
-#include "LKG4RunManager.hpp"
-#include "LKG4RunMessenger.hpp"
-#include "LKTrackingAction.hpp"
-#include "LKSteppingAction.hpp"
-#include "LKPrimaryGeneratorAction.hpp"
-#include "LKPrimaryGeneratorAction.hpp"
+#include "LKEventAction.h"
+#include "LKG4RunManager.h"
+#include "LKG4RunMessenger.h"
+#include "LKTrackingAction.h"
+#include "LKSteppingAction.h"
+#include "LKPrimaryGeneratorAction.h"
+#include "LKPrimaryGeneratorAction.h"
 
 LKG4RunManager::LKG4RunManager()
 :G4RunManager()

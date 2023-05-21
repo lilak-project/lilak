@@ -1,5 +1,5 @@
-#include "LKHit.hpp"
-#include "LKTracklet.hpp"
+#include "LKHit.h"
+#include "LKTracklet.h"
 #ifdef ACTIVATE_EVE
 #include "TEvePointSet.h"
 #endif

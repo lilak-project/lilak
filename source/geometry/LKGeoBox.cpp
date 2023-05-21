@@ -1,5 +1,5 @@
-#include "LKLogger.hpp"
-#include "LKGeoBox.hpp"
+#include "LKLogger.h"
+#include "LKGeoBox.h"
 #include <iomanip>
 #include <cmath>
 

@@ -11,7 +11,7 @@
 #include "TObjString.h"
 #include "TApplication.h"
 
-#include "LKRun.hpp"
+#include "LKRun.h"
 
 ClassImp(LKRun)
 

@@ -22,9 +22,9 @@
 #include "TEveArrow.h"
 #endif
 
-#include "LKLogger.hpp"
-#include "LKRun.hpp"
-#include "LKEveTask.hpp"
+#include "LKLogger.h"
+#include "LKRun.h"
+#include "LKEveTask.h"
 
 ClassImp(LKEveTask)
 

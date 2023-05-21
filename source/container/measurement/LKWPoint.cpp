@@ -1,5 +1,5 @@
-#include "LKLogger.hpp"
-#include "LKWPoint.hpp"
+#include "LKLogger.h"
+#include "LKWPoint.h"
 #include <iostream>
 #include <iomanip>
 using namespace std;

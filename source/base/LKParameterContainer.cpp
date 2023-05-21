@@ -13,8 +13,8 @@
 #include "TSystemDirectory.h"
 #include "TList.h"
 
-#include "LKParameter.hpp"
-#include "LKParameterContainer.hpp"
+#include "LKParameter.h"
+#include "LKParameterContainer.h"
 
 using namespace std;
 

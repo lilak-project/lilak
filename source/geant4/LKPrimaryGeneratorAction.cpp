@@ -4,8 +4,8 @@
 #include "G4SystemOfUnits.hh"
 #include <G4strstreambuf.hh>
 
-#include "LKPrimaryGeneratorAction.hpp"
-#include "LKG4RunManager.hpp"
+#include "LKPrimaryGeneratorAction.h"
+#include "LKG4RunManager.h"
 
 LKPrimaryGeneratorAction::LKPrimaryGeneratorAction()
 {

@@ -2,8 +2,8 @@
 #include "TText.h"
 #include "TF1.h"
 
-#include "LKLogger.hpp"
-#include "LKPad.hpp"
+#include "LKLogger.h"
+#include "LKPad.h"
 
 #include <iomanip>
 #include <iostream>

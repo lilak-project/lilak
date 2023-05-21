@@ -1,4 +1,4 @@
-#include "LKGeoSphere.hpp"
+#include "LKGeoSphere.h"
 #include <cmath>
 #include <iostream>
 

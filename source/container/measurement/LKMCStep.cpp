@@ -1,5 +1,5 @@
-#include "LKLogger.hpp"
-#include "LKMCStep.hpp"
+#include "LKLogger.h"
+#include "LKMCStep.h"
 
 #ifdef ACTIVATE_EVE
 #include "TEvePointSet.h"

@@ -1,6 +1,6 @@
-#include "LKLogger.hpp"
-#include "LKRun.hpp"
-#include "LKPulseGenerator.hpp"
+#include "LKLogger.h"
+#include "LKRun.h"
+#include "LKPulseGenerator.h"
 #include "TSystem.h"
 #include <fstream>
 #include <iostream>

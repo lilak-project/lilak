@@ -1,5 +1,5 @@
-#include "LKGeoCircle.hpp"
-#include "LKLogger.hpp"
+#include "LKGeoCircle.h"
+#include "LKLogger.h"
 
 #include "TMath.h"
 #include "TRandom.h"
