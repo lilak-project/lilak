@@ -19,13 +19,25 @@ print("   LILAK_PATH is", lilak_path)
 build_option_file_name = os.path.join(log_path, "build_options.cmake")
 
 main_project = "lilak"
-options = {
+options0 = {
     "ACTIVATE_EVE": False,
-    "CREATE_GIT_LOG": True,
-    "BUILD_GEANT4_SIM": True,
-    "BUILD_DOXYGEN_DOC": False,
+    "BUILD_GEANT4_SIM": False,
+    "BUILD_MFM_CONVERTER": False,
+    "BUILD_JSONCPP": False,
+    #"BUILD_DOXYGEN_DOC": False,
+    #"CREATE_GIT_LOG": True,
+}
+options = options0.copy()
+questions = {
+    "ACTIVATE_EVE":         "1) Activate ROOT EVE?            <1/0>: ",
+    "BUILD_GEANT4_SIM":     "2) Build Geant4 Simulation?      <1/0>: ",
+    "BUILD_MFM_CONVERTER":  "3) Build MFM Converter?          <1/0>: ",
+    "BUILD_JSONCPP":        "4) Build JSONCPP?                <1/0>: ",
+    "CREATE_GIT_LOG":       "5) Create Git Log? [Recommanded] <1/0>: ",
+    "BUILD_DOXYGEN_DOC":    "6) Build Doxygen documentation?  <1/0>: ",
 }
 
+list_top_directories = ["build","data","log","macros","source"]
 list_prj_subdir_link = ["container","detector","tool","task"]
 list_prj_subdir_xlink = ["source"]
 
@@ -112,6 +124,7 @@ while True:
                 f.write('    CACHE INTERNAL ""\n)\n\n')
 
                 f.write("set(LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF ${LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF}\n")
+
                 for directory_name in ls_project:
                     if directory_name in list_prj_subdir_xlink:
                         f.write("    ${CMAKE_CURRENT_SOURCE_DIR}/"+directory_name+"\n")
@@ -125,6 +138,13 @@ while True:
                         break
                 f.write('    CACHE INTERNAL ""\n)\n\n')
 
+                f.write("set(LILAK_MFM_SOURCE_DIRECDTORY_LIST ${LILAK_MFM_SOURCE_DIRECDTORY_LIST}\n")
+                for directory_name in ls_project:
+                    if directory_name=="mfm":
+                        f.write("    ${CMAKE_CURRENT_SOURCE_DIR}/mfm\n")
+                        break
+                f.write('    CACHE INTERNAL ""\n)\n\n')
+
                 f.write("""file(GLOB MACROS_FOR_EXECUTABLE_PROCESS ${CMAKE_CURRENT_SOURCE_DIR}/macros/*.cc)
 
 set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
@@ -134,12 +154,10 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
         break
 
     bline()
-    print("## Setting options")
-    options["CREATE_GIT_LOG"]    = input01("1) Create Git Log? [Recommanded] <1/0>: ")
-    options["ACTIVATE_EVE"]      = input01("2) Activate ROOT EVE?            <1/0>: ")
-    options["BUILD_GEANT4_SIM"]  = input01("3) Build Geant4 Simulation?      <1/0>: ")
-    #options["BUILD_DOXYGEN_DOC"] = input01("4) Build Doxygen document? <1/0>: ")
-    options["BUILD_DOXYGEN_DOC"] = 0;
+    print("## Options")
+    options = options0.copy()
+    for key, value in options.items():
+        options[key] = input01(questions[key])
 
     print()
     user_input_project = "x"
@@ -177,7 +195,7 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
                     break
                 else:
                     print(f"Project must be one in the list!")
-    confirm = 0
+    confirm = 1
 
 bline()
 print( "## How to build lilak")

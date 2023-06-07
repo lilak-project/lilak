@@ -2,6 +2,7 @@ set(LILAK_PATH @LILAK_PATH@)
 set(CREATE_GIT_LOG @CREATE_GIT_LOG@)
 set(BUILD_DOXYGEN_DOC @BUILD_DOXYGEN_DOC@)
 set(LILAK_PROJECT_MAIN @LILAK_PROJECT_MAIN@)
+set(LILAK_ROOT_LINKED_CLASS_LIST @LILAK_ROOT_LINKED_CLASS_LIST@)
 
 find_package(Git)
 if(CREATE_GIT_LOG)
@@ -82,10 +83,13 @@ if(CREATE_GIT_LOG)
 
     set(LILAK_USERNAME $ENV{USER})
 
+    string(REPLACE ";" "\n" LILAK_ROOT_LINKED_CLASS_LIST "${LILAK_ROOT_LINKED_CLASS_LIST}")
+
     configure_file(${LILAK_PATH}/log/LKCompiled.h.in  ${LILAK_PATH}/log/LKCompiled.h @ONLY)
     configure_file(${LILAK_PATH}/log/LKCompiledStatus.log.in ${LILAK_PATH}/log/LKCompiledStatus.log @ONLY)
     configure_file(${LILAK_PATH}/log/LKCompiledDiff.log.in ${LILAK_PATH}/log/LKCompiledDiff.log @ONLY)
     configure_file(${LILAK_PATH}/log/LKBranchList.log.in ${LILAK_PATH}/log/LKBranchList.log @ONLY)
+    configure_file(${LILAK_PATH}/log/LKClassList.log.in ${LILAK_PATH}/log/LKClassList.log @ONLY)
 endif()
 
 configure_file(${LILAK_PATH}/log/doxy.conf.in ${LILAK_PATH}/log/doxy.conf @ONLY)

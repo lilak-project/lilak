@@ -184,8 +184,12 @@ Int_t LKParameterContainer::AddFile(TString fileName, bool addFilePar)
     Int_t countParameters = 0;
 
     if (fileNameFull.EndsWith(".json")) {
+#ifdef LILAK_BUILD_JSONCPP
         file >> fJsonValues;
         countParameters = AddJsonTree(fJsonValues);
+#else
+        lk_error << "jsoncpp is not built. Configure build with BUILD_JSONCPP ON" << endl;
+#endif
     }
     else {
         string line;
@@ -354,6 +358,7 @@ bool LKParameterContainer::SearchAndAddPar(TString dirName)
     return false;
 }
 
+#ifdef LILAK_BUILD_JSONCPP
 Int_t LKParameterContainer::AddJsonTree(const Json::Value &jsonTree, TString treeName)
 {
     Int_t count_par = 0;
@@ -403,6 +408,7 @@ Int_t LKParameterContainer::AddJsonTree(const Json::Value &jsonTree, TString tre
 
     return count_par;
 }
+#endif
 
 void LKParameterContainer::Print(Option_t *option) const
 {

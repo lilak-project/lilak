@@ -7,7 +7,9 @@
 #include <stdlib.h>
 #include <vector>
 
+#ifdef LILAK_BUILD_JSONCPP
 #include "json.h"
+#endif
 
 #include "TObjArray.h"
 #include "TNamed.h"
@@ -117,7 +119,9 @@ class LKParameterContainer : public TObjArray
         Int_t GetNumInputFiles() const { return fNumInputFiles; } ///< Get number of input parameter files
         bool SearchAndAddPar(TString dirName="");
 
+#ifdef LILAK_BUILD_JSONCPP
         Int_t  AddJsonTree(const Json::Value &value, TString treeName="");
+#endif
 
         Bool_t AddLine(std::string line); ///< Set parameter by line
         Bool_t AddPar(TString name, TString val, TString comment=""); ///< Set parameter TString
@@ -169,7 +173,9 @@ class LKParameterContainer : public TObjArray
         Int_t fNumInputFiles = 0;
         Int_t fRank = 0;
 
+#ifdef LILAK_BUILD_JSONCPP
         Json::Value fJsonValues;
+#endif
 
     ClassDef(LKParameterContainer, 1)
 };
