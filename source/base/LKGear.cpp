@@ -1,5 +1,7 @@
 #include "LKGear.h"
 
+ClassImp(LKGear)
+
 void LKGear::CreateParameterContainer() {
     if (fPar == nullptr)
         fPar = new LKParameterContainer();

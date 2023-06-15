@@ -26,27 +26,38 @@ typedef LKVector3::Axis axis_t;
 using namespace std;
 
 /**
- * # LKParameterContainer is a list of parameters([par-name] [par-value])
+ * # LKParameterContainer is a list of parameters([name] [value] [comment])
  *
- * ## Set parameter from the file
+ * ## [comment]
+ *  - Comments should start with "#". Lines starting with "#" are ignored.
  *
- * Comments should start with "#". Lines starting with "#" are ignored.
- * [par-name] should not contain empty spaces.
- * For adding file use "<<" for [par-name]
- * [par-value] comes after [par-name], before "#".
- * [par-value] can be a single value or a list of values.
- * If [par-value] is a list of values, the values should be separated by empty spaces.
- * [par-value] can reference other parameters using {}: {[par-name]}, {[par-name][1]}.
- * [par-value] can reference environment variable using e{}: e{ROOTSYS}
+ * ## [name] and group
+ *  - [name] should not contain empty spaces.
+ *  - [name] can set group using "/". ex) group/name
+ *  - When adding another parameter file, start [name] with "<<". ex) <<, <<par_file, <</par_file
+ *  - If user want to define parameter but do not want to transfer parameter from input file to output file through LKRun,
+ *    use "*" infront of [name]. ex) *name value
+ *  - When user wants to define parameter when group name is defined as parameter-name or parameter-value,
+ *    use "@" infront of [name]. ex) @group/name value
+ *
+ * ## [value]
+ *  - [value] can be a single value or a list of values.
+ *  - If [value] is a list of values, they should be separated by empty spaces.
+ *  - [value] can reference other parameters values using {...}. ex) {[name]}, {[name][1]}.
+ *  - [value] can reference environment variable using e{...}. ex) e{ROOTSYS}, e{HOME}, e{LILAK_PATH}
  *
  * ## exmpale parameter file
- *
- * <<         /file/to/add.par
- * size       100                       # this is comment
- * dimension  50 60 70
- * title      this is title 5
- * length     {dimension[2]}+10
- * color      kRed+1
+ *  <<           /file/to/add.par
+ *  size         100                       # this is comment
+ *  dimension    50 60 70
+ *  title        this is title 5
+ *  length       {dimension[2]}+10
+ *  color        kRed+1
+ *  using        group1
+ *  @group1/par  value1  # this parameter will be set because it was defined previously
+ *  @group2/par  value2  # this parameter will not be set
+ *  @group3/par  value3  # this parameter will not be set
+ *  *LKRun/Tag   test    # this parameter will last only within the first file that parameter was set.
  *
  * ## Get parameter
  *
@@ -66,14 +77,6 @@ using namespace std;
  *
  * GetParV3 use the first 3 values as the x, y, and z coordinates of the return value TVector3(x,y,z).
  * The root color keyword will be converted from kRed+1 to an integer value 633 when GetParColor is called.
- *
- * ## Keywords used internally
- *
- * - COMMENT_PAR_: COMMENT_PAR_[par-name] is used to save comment of [par-name]
- * - NUM_VALUES_ : NUM_VALUES_[par-name] is saved to keep the number of values for parameter
- * - INPUT_FILE_ : INPUT_FILE_[i] is saved to keep the input file name
- * - INPUT_PARC_ : INPUT_PARC_[i] is saved to keep the existance of input parameter container
- * - [i]         : [par-name][i] is saved to keep the individual components of parameters
  */
 
 class LKParameterContainer : public TObjArray
@@ -102,6 +105,7 @@ class LKParameterContainer : public TObjArray
          */
         virtual void Print(Option_t *option = "") const;
         void SaveAs(const char *filename, Option_t *option = "") const;
+        LKParameterContainer *CloneParameterContainer() const;
 
         bool IsEmpty() const; ///< Return true if empty
         void ReplaceEnvVariables(TString &val); ///< evaluate and replace all unraveled variables with ({par},+,-,...)
@@ -127,16 +131,6 @@ class LKParameterContainer : public TObjArray
         Bool_t AddPar(TString name, TString val, TString comment=""); ///< Set parameter TString
         Bool_t AddPar(TString name, Int_t val, TString comment="")    { return AddPar(name,Form("%d",val),comment); } ///< Set parameter Int_t
         Bool_t AddPar(TString name, Double_t val, TString comment="") { return AddPar(name,Form("%f",val),comment); } ///< Set parameter Double_t
-
-        LKParameter *SetPar      (TString name, TString  raw, TString val, TString comment);
-        LKParameter *SetPar      (TString name, TString  val, TString comment="");
-        LKParameter *SetPar      (TString name, Int_t    val, TString comment="") { return SetPar(name,Form("%d",val),comment); } ///< Set parameter Int_t
-        LKParameter *SetPar      (TString name, Double_t val, TString comment="") { return SetPar(name,Form("%f",val),comment); } ///< Set parameter Double_t
-        LKParameter *SetParCont  (TString name);
-        LKParameter *SetParFile  (TString name);
-        LKParameter *SetLineComment(TString comment);
-
-        LKParameter *FindPar(TString givenName, bool terminateIfNull=false) const;
 
         Bool_t CheckPar(TString name) const;
         Bool_t CheckValue(TString name) const;
@@ -164,6 +158,17 @@ class LKParameterContainer : public TObjArray
         std::vector<int>     GetParVWidth (TString name) const { return GetParVInt(name); }
         std::vector<int>     GetParVColor (TString name) const { return GetParVInt(name); }
         std::vector<double>  GetParVSize  (TString name) const { return GetParVDouble(name); }
+
+    protected:
+        LKParameter *SetPar      (TString name, TString  raw, TString val, TString comment, bool isTemporary);
+        LKParameter *SetPar      (TString name, TString  val, TString comment="");
+        LKParameter *SetPar      (TString name, Int_t    val, TString comment="") { return SetPar(name,Form("%d",val),comment); } ///< Set parameter Int_t
+        LKParameter *SetPar      (TString name, Double_t val, TString comment="") { return SetPar(name,Form("%f",val),comment); } ///< Set parameter Double_t
+        LKParameter *SetParCont  (TString name);
+        LKParameter *SetParFile  (TString name);
+        LKParameter *SetLineComment(TString comment);
+
+        LKParameter *FindPar(TString givenName, bool terminateIfNull=false) const;
 
     private:
         void ProcessTypeError(TString name, TString val, TString type) const;

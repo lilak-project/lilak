@@ -4,8 +4,8 @@
 #include <iostream>
 #include <fstream>
 #include "TString.h"
-#include "LKCompiled.h"
 #include "LKLogger.h"
+#include "LKCompiled.h"
 
 /// lilak logger shortcut macros
 #define lk_logger(logFileName) LKLogManager::RunLogger(logFileName, false)
@@ -34,6 +34,9 @@ class LKLogManager
 /// lilak debug logger
 #define lk_debug   LKLogger(__FILE__,__LINE__)
 #define lx_debug   LKLogger(__FILE__,__LINE__)
+
+#define lk_line   LKLogger("",__LINE__)
+#define lx_line   LKLogger("",__LINE__)
 
 /// lilak logger
 #define lk_cout    LKLogger(fName,__FUNCTION__,fRank,1)

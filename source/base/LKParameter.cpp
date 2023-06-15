@@ -3,16 +3,15 @@
 #include "TFormula.h"
 #include "TApplication.h"
 
-#include "LKLogger.h"
 #include "LKParameter.h"
 
 LKParameter::LKParameter()
 {
 }
 
-LKParameter::LKParameter(TString name, TString raw, TString value, TString comment)
+LKParameter::LKParameter(TString name, TString raw, TString value, TString comment, bool temporary)
 {
-    SetPar(name, raw, value, comment);
+    SetPar(name, raw, value, comment, temporary);
 }
 
 LKParameter::~LKParameter()
@@ -27,12 +26,13 @@ void LKParameter::SetLineComment(TString comment)
     fComment = comment;
 }
 
-void LKParameter::SetPar(TString name, TString raw, TString value, TString comment)
+void LKParameter::SetPar(TString name, TString raw, TString value, TString comment, bool temporary)
 {
     fName = name;
     fRaw = raw;
     fValue = value;
     fComment = comment;
+    fTemporary = temporary;
 
     if (fName.Index("/")>=0)
         fGroup = fName.Index(0,fName.Index("/"));
@@ -43,7 +43,7 @@ void LKParameter::SetPar(TString name, TString raw, TString value, TString comme
     if (!fRaw.IsNull() && fValue.IsNull()) fValue = fRaw;
 
     auto listOfTokens = value.Tokenize(" ");
-    Int_t fNumValues = listOfTokens -> GetEntries();
+    fNumValues = listOfTokens -> GetEntries();
     if (fNumValues>1) {
         for (auto iVal=0; iVal<fNumValues; ++iVal) {
             TString parValue(((TObjString *) listOfTokens->At(iVal))->GetString());
@@ -59,6 +59,12 @@ void LKParameter::Clear(Option_t *option)
     fComment = "";
     fNumValues = 0;
     fValueArray.clear();
+    fTemporary = false;
+}
+
+void LKParameter::Print(Option_t *option) const
+{
+    lx_info << fName << " " << fValue << " " << fNumValues << std::endl;
 }
 
 int LKParameter::GetInt(int idx) const

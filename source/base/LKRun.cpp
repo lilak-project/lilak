@@ -86,10 +86,11 @@ void LKRun::PrintLILAK()
     LKLogger("LKRun",__FUNCTION__,0,2) << "  LILAK Path          : " << LILAK_PATH << endl;
 }
 
-void LKRun::SetRunName(TString name, Int_t id) {
+void LKRun::SetRunName(TString name, Int_t id, TString tag) {
     fRunNameIsSet = true;
     fRunName = name;
     fRunID = id;
+    fTag = tag;
 }
 
 bool LKRun::ConfigureRunFromFileName(TString inputName)
@@ -185,7 +186,6 @@ bool LKRun::ConfigureRunFromFileName(TString inputName)
 
 TString LKRun::ConfigureFileName()
 {
-
     TString fileName = fRunName + Form("_%04d", fRunID);
 
     if (!fTag.IsNull())
@@ -449,6 +449,17 @@ bool LKRun::Init()
         //idxInput = 1;
     }
 
+    if (!fRunNameIsSet) {
+        if (fPar -> CheckPar("LKRun/RunName")) {
+            auto numRunNames = fPar -> GetParN("LKRun/RunName");
+            fRunName = fPar -> GetParString("LKRun/RunName",0);
+            fRunID = fPar -> GetParInt("LKRun/RunName",1);
+            if (numRunNames>2) fTag = fPar -> GetParString("LKRun/RunName",2);
+            if (numRunNames>3) fSplit = fPar -> GetParInt("LKRun/RunName",3);
+            fRunNameIsSet = true;
+        }
+    }
+
     if (!fInputFileName.IsNull()) {
         lx_cout << endl;
         if (!LKRun::CheckFileExistence(fInputFileName)) {
@@ -504,7 +515,7 @@ bool LKRun::Init()
 
         if (fInputFile -> Get("ParameterContainer") != nullptr) {
             auto par = (LKParameterContainer *) fInputFile -> Get("ParameterContainer");
-            AddParameterContainer(par);
+            AddParameterContainer(par->CloneParameterContainer());
             lk_info << "Parameter container found in " << fInputFileName << endl;
         }
         else {
@@ -522,7 +533,7 @@ bool LKRun::Init()
                 LKParameterContainer *runHeaderIn = (LKParameterContainer *) fInputFile -> Get("RunHeader");
                 fRunName = runHeaderIn -> GetParString("RunName");
                 fRunID = runHeaderIn -> GetParInt("RunID");
-                fTag = runHeaderIn -> GetParString("Tag");
+                //fTag = runHeaderIn -> GetParString("Tag");
                 fSplit = runHeaderIn -> GetParInt("Split");
             }
             else {
@@ -536,18 +547,18 @@ bool LKRun::Init()
 
     fRunHeader = new LKParameterContainer();
     fRunHeader -> SetName("RunHeader");
-    fRunHeader -> SetPar("MAIN_Project_Version",MAINPROJECT_VERSION);
-    fRunHeader -> SetPar("LILAK_Version",LILAK_VERSION);
-    fRunHeader -> SetPar("LILAK_HostName",LILAK_HOSTNAME);
-    fRunHeader -> SetPar("LILAK_UserName",LILAK_USERNAME);
-    fRunHeader -> SetPar("LILAK_Path",LILAK_PATH);
-    fRunHeader -> SetPar("InputFile",fInputFileName);
-    fRunHeader -> SetPar("OutputFile",fOutputFileName);
-    fRunHeader -> SetPar("RunName",fRunName);
-    fRunHeader -> SetPar("RunID",fRunID);
-    fRunHeader -> SetPar("Tag",fTag);
-    fRunHeader -> SetPar("Split",fSplit);
-    fRunHeader -> SetPar("NumEventsInSplit",int(fNumSplitEntries));
+    fRunHeader -> AddPar("Main_Project_Version",MAINPROJECT_VERSION);
+    fRunHeader -> AddPar("LILAK_Version",LILAK_VERSION);
+    fRunHeader -> AddPar("LILAK_HostName",LILAK_HOSTNAME);
+    fRunHeader -> AddPar("LILAK_UserName",LILAK_USERNAME);
+    fRunHeader -> AddPar("LILAK_Path",LILAK_PATH);
+    fRunHeader -> AddPar("InputFile",fInputFileName);
+    fRunHeader -> AddPar("OutputFile",fOutputFileName);
+    fRunHeader -> AddPar("RunName",fRunName);
+    fRunHeader -> AddPar("RunID",fRunID);
+    fRunHeader -> AddPar("Tag",fTag);
+    fRunHeader -> AddPar("Split",fSplit);
+    fRunHeader -> AddPar("NumEventsInSplit",int(fNumSplitEntries));
 
     if (fDetectorSystem -> GetEntries() != 0) {
         fDetectorSystem -> SetRun(this);

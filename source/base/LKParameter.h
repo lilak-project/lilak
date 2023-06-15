@@ -5,6 +5,7 @@
 #include "TNamed.h"
 #include "TVector3.h"
 #include "LKVector3.h"
+#include "LKLogger.h"
 
 typedef LKVector3::Axis axis_t;
 
@@ -12,13 +13,14 @@ class LKParameter : public TNamed
 {
     public:
         LKParameter();
-        LKParameter(TString name, TString raw, TString value="", TString comment="");
+        LKParameter(TString name, TString raw, TString value="", TString comment="", bool temporary=false);
         virtual ~LKParameter();
 
         virtual void Clear(Option_t *option = "");
+        virtual void Print(Option_t *option = "") const;
 
         void SetLineComment(TString comment);
-        void SetPar(TString name, TString raw, TString value, TString comment);
+        void SetPar(TString name, TString raw, TString value, TString comment, bool temporary);
 
         //const char *GetName()
         TString GetGroup()    const { return fGroup; }
@@ -26,6 +28,7 @@ class LKParameter : public TNamed
         TString GetRaw()      const { return fRaw; }
         TString GetValue()    const { return fValue; }
         int     GetN()        const { return fNumValues; }
+        bool    IsTemporary() const { return fTemporary; }
 
         int      GetInt   (int i=-1) const;  ///< Get parameter in int
         bool     GetBool  (int i=-1) const;  ///< Get parameter in bool
@@ -60,6 +63,7 @@ class LKParameter : public TNamed
         TString fComment;
         int fNumValues = 0;
         std::vector<TString> fValueArray;
+        bool fTemporary = false;
 
     ClassDef(LKParameter, 1)
 };

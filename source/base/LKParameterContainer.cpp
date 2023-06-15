@@ -235,7 +235,7 @@ Int_t LKParameterContainer::AddParameterContainer(LKParameterContainer *parc)
             continue;
         }
         else {
-            SetPar(parameter->GetName(),parameter->GetRaw(),parameter->GetValue(),parameter->GetComment());
+            SetPar(parameter->GetName(),parameter->GetRaw(),parameter->GetValue(),parameter->GetComment(),parameter->IsTemporary());
             ++countParameters;
         }
     }
@@ -469,6 +469,7 @@ void LKParameterContainer::Print(Option_t *option) const
         TString parRaw = parameter -> GetRaw();
         TString parValue = parameter -> GetValue();
         TString parComment = parameter -> GetComment();
+        bool parIsTemporary = parameter -> IsTemporary();
 
         if (!evaluatePar)
             parValue = parRaw;
@@ -494,6 +495,9 @@ void LKParameterContainer::Print(Option_t *option) const
             else if (!parComment.IsNull())
                 parComment = TString(" # ") + parComment;
         }
+
+        if (parIsTemporary)
+            parName = Form("%s%s","*",parName.Data());
 
         int nwidth = 20;
              if (parName.Sizeof()>60) nwidth = 70;
@@ -540,6 +544,21 @@ void LKParameterContainer::Print(Option_t *option) const
 
     if (printToFile)
         fileOut << endl;
+}
+
+LKParameterContainer *LKParameterContainer::CloneParameterContainer() const
+{
+    LKParameterContainer *new_collection = new LKParameterContainer();
+
+    TIter iterator(this);
+    LKParameter *parameter;
+    while ((parameter = dynamic_cast<LKParameter*>(iterator())))
+    {
+        if (!parameter -> IsTemporary())
+            new_collection -> Add(parameter);
+    }
+
+    return new_collection;
 }
 
 Bool_t LKParameterContainer::AddLine(std::string line)
@@ -602,7 +621,7 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
         bool allowSetPar = true;
         TString groupName;
 
-        if (name[0]=='*') {
+        if (name[0]=='@') {
             name = name(1, name.Sizeof()-2);
             groupName = name(0,name.Index("/"));
             if (name.Index("/")<0)
@@ -612,8 +631,14 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
                 allowSetPar = false; // @todo save as hidden parameter when they are not allowed to be set
         }
 
+        bool parameterIsTemporary = false;
+        if (name[0]=='*') {
+            name = name(1, name.Sizeof()-2);
+            parameterIsTemporary = true;
+        }
+
         if (allowSetPar) {
-            SetPar(name,value,comment);
+            SetPar(name,value,value,comment,parameterIsTemporary);
             return true;
         }
     }
@@ -621,8 +646,8 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
     return false;
 }
 
-LKParameter *LKParameterContainer::SetPar(TString name, TString raw, TString value, TString comment) {
-    auto named = new LKParameter(name, raw, value, comment);
+LKParameter *LKParameterContainer::SetPar(TString name, TString raw, TString value, TString comment, bool isTemporary) {
+    auto named = new LKParameter(name, raw, value, comment, isTemporary);
     Add(named);
     return named;
 }
@@ -630,7 +655,7 @@ LKParameter *LKParameterContainer::SetPar(TString name, TString raw, TString val
 LKParameter *LKParameterContainer::SetPar(TString name, TString raw, TString comment) {
     TString value = raw;
     ReplaceVariables(value);
-    return SetPar(name, raw, value, comment);
+    return SetPar(name, raw, value, comment, false);
 }
 
 LKParameter *LKParameterContainer::SetLineComment(TString comment) {

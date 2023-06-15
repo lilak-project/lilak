@@ -10,6 +10,7 @@ build
 data
 *.root
 *.graw
+test*/
 
 #mac
 .AppleDouble
@@ -44,4 +45,5 @@ trash
 #mac
 .DS_Store
 
-test*/
+#python
+__pycache__

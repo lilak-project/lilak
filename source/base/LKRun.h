@@ -55,7 +55,7 @@ class LKRun : public LKTask
         virtual void Add(TTask *task);
 
         /// Run name/id
-        void SetRunName(TString name, Int_t id=0); ///< Set Run name and id.
+        void SetRunName(TString name, Int_t id=0, TString tag=""); ///< Set Run name and id.
         TString GetRunName() const { return fRunName; }
         Int_t GetRunID() const { return fRunID; }
 
@@ -173,7 +173,7 @@ class LKRun : public LKTask
         void CheckOut();
 
     private:
-        bool fRunNameIsSet = "run";
+        bool fRunNameIsSet = false;
         TString fRunName = "run";
         Int_t   fRunID = 0;
 
