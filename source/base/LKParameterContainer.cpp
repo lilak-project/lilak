@@ -647,6 +647,7 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
 }
 
 LKParameter *LKParameterContainer::SetPar(TString name, TString raw, TString value, TString comment, bool isTemporary) {
+    ReplaceVariables(value);
     auto named = new LKParameter(name, raw, value, comment, isTemporary);
     Add(named);
     return named;
@@ -654,7 +655,6 @@ LKParameter *LKParameterContainer::SetPar(TString name, TString raw, TString val
 
 LKParameter *LKParameterContainer::SetPar(TString name, TString raw, TString comment) {
     TString value = raw;
-    ReplaceVariables(value);
     return SetPar(name, raw, value, comment, false);
 }
 
