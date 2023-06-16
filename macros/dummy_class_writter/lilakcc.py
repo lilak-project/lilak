@@ -480,7 +480,23 @@ class lilakcc:
             line_content = semicolon
         if len(method_type)!=0:
             method_type = method_type + " "
-        line_final = f"{method_type}{method_name}{line_arguments}{line_const}{line_content}"
+
+        method_type_ = method_type
+
+        method_name_arg_ = method_name + line_arguments
+
+        #if is_source==False:
+            #if   len(method_type_)<12: method_type_ = f'{method_type_:12}'
+            #elif len(method_type_)<16: method_type_ = f'{method_type_:16}'
+            #elif len(method_type_)<20: method_type_ = f'{method_type_:20}'
+            #if   len(method_name_arg_)<20: method_name_arg_ = f'{method_name_arg_:20}'
+            #elif len(method_name_arg_)<25: method_name_arg_ = f'{method_name_arg_:25}'
+            #elif len(method_name_arg_)<30: method_name_arg_ = f'{method_name_arg_:30}'
+            #elif len(method_name_arg_)<40: method_name_arg_ = f'{method_name_arg_:40}'
+            #elif len(method_name_arg_)<50: method_name_arg_ = f'{method_name_arg_:50}'
+            #elif len(method_name_arg_)<60: method_name_arg_ = f'{method_name_arg_:60}'
+
+        line_final = f"{method_type_}{method_name_arg_}{line_const}{line_content}"
         line_final = (" "*self.tab_size)*tab_no + line_final
         line_final = self.make_doxygen_comment(method_comments,line_final)
         return line_final
@@ -626,7 +642,8 @@ class lilakcc:
             else:
                 line_par_in_print = f'//lx_info << "{par_name} : " << {gname} << std::endl;'
         else:
-            line_par_in_print = self.make_method(par_print.replace("{gname}",gname), in_line=True)
+            #line_par_in_print = self.make_method(par_print.replace("{gname}",gname), in_line=True)
+            line_par_in_print = par_print.replace("{gname}",gname)
 
         ############ settter definition ############
         if len(par_setter)==0:
@@ -1134,7 +1151,6 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
         m_detector = 2
         m_detector_plane = 3
 
-        print(self.inherit_list)
         if len(self.inherit_list)==0:
             if mode==m_task: self.add_inherit_class('public LKTask')
             if mode==m_container: self.add_inherit_class('public LKContainer')
@@ -1275,15 +1291,15 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
         init_content = init_content + '\n'.join(self.data_init_list)
         init_content = init_content + '\n'*2 + 'return true;'
 
-        self.data_exec_list.append(f'lx_info << "{self.name} container" << std::endl;')
+        self.data_exec_list.append(f'lx_info << "{self.name}" << std::endl;')
         exec_content = '\n'.join(self.data_exec_list)
 
         self.par_clear_list.insert(0,f"{inherit_class0}::Clear(option);")
         clear_content = '\n'.join(self.par_clear_list)
 
         self.par_print_list.insert(0,"// You will probability need to modify here")
-        self.par_print_list.insert(1,f"{inherit_class0}::Print();")
-        self.par_print_list.insert(2,f'lx_info << "{self.name} container" << std::endl;')
+        #self.par_print_list.insert(1,f"{inherit_class0}::Print();")
+        self.par_print_list.insert(1,f'lx_info << "{self.name} container" << std::endl;')
         print_content = '\n'.join(self.par_print_list)
 
         dete2_content = """// example plane

@@ -27,6 +27,7 @@ log/*
 
 #documetation directory(doxygen)
 doc
+macros/dummy_class_writter/
 
 #temporary directories
 temp*/

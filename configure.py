@@ -14,6 +14,7 @@ print("## LILAK configuration macro")
 lilak_path = os.path.dirname(os.path.abspath(__file__))
 log_path = os.path.join(lilak_path,"log")
 os.environ["LILAK_PATH"] = lilak_path
+print()
 print("   LILAK_PATH is", lilak_path)
 
 build_option_file_name = os.path.join(log_path, "build_options.cmake")
@@ -28,18 +29,11 @@ options0 = {
     #"CREATE_GIT_LOG": True,
 }
 options = options0.copy()
-questions = {
-    "ACTIVATE_EVE":         "1) Activate ROOT EVE?            <1/0>: ",
-    "BUILD_GEANT4_SIM":     "2) Build Geant4 Simulation?      <1/0>: ",
-    "BUILD_MFM_CONVERTER":  "3) Build MFM Converter?          <1/0>: ",
-    "BUILD_JSONCPP":        "4) Build JSONCPP?                <1/0>: ",
-    "CREATE_GIT_LOG":       "5) Create Git Log? [Recommanded] <1/0>: ",
-    "BUILD_DOXYGEN_DOC":    "6) Build Doxygen documentation?  <1/0>: ",
-}
 
 list_top_directories = ["build","data","log","macros","source"]
 list_prj_subdir_link = ["container","detector","tool","task"]
 list_prj_subdir_xlink = ["source"]
+list_sub_packages = ["geant4", "get", "fftw"]
 
 project_list = []
 def print_project_list(numbering=False):
@@ -58,10 +52,12 @@ def print_project_list(numbering=False):
             if line==main_project:  print(f"   Project: {line} (main)")
             else:                   print(f"   Project: {line}")
 
-def input01(question="<1/0>",possible_options=['0','1']):
+def input01(question="<Enter/0>",possible_options=['0','']):
     while True:
         user_input = input(question)
-        if user_input in ['0', '1']:
+        if user_input in possible_options:
+            if user_input=='':
+                user_input = 1
             return int(user_input)
         else:
             print("Invalid input. Please try again.")
@@ -95,7 +91,7 @@ while True:
     print_project_list()
     print()
     if confirm==0:
-        confirm = input01("Use above options? <1/0>: ")
+        confirm = input01("Use above options? <Enter/0>: ")
     if confirm==1:
         print("saving options to", build_option_file_name)
         with open(build_option_file_name, "w") as f:
@@ -115,7 +111,7 @@ while True:
             projct_path = os.path.join(lilak_path,project_name)
             project_cmake_file_name = os.path.join(projct_path, "CMakeLists.txt")
             with open(project_cmake_file_name, "w") as f:
-                print("creating CMakeLists.txt for ", project_cmake_file_name)
+                print("creating CMakeLists.txt for", project_cmake_file_name)
                 ls_project = os.listdir(project_name)
                 f.write("set(LILAK_SOURCE_DIRECTORY_LIST ${LILAK_SOURCE_DIRECTORY_LIST}\n")
                 for directory_name in ls_project:
@@ -131,20 +127,13 @@ while True:
                         break
                 f.write('    CACHE INTERNAL ""\n)\n\n')
 
-                f.write("set(LILAK_GEANT4_SOURCE_DIRECDTORY_LIST ${LILAK_GEANT4_SOURCE_DIRECDTORY_LIST}\n")
                 for directory_name in ls_project:
-                    if directory_name=="geant4":
-                        f.write("    ${CMAKE_CURRENT_SOURCE_DIR}/geant4\n")
-                        break
-                f.write('    CACHE INTERNAL ""\n)\n\n')
+                    if directory_name in list_sub_packages:
+                        f.write("set(LILAK_"+directory_name.upper()+"_SOURCE_DIRECDTORY_LIST ${LILAK_"+directory_name.upper()+"_SOURCE_DIRECDTORY_LIST}\n")
+                        f.write("    ${CMAKE_CURRENT_SOURCE_DIR}/"+directory_name+"\n")
+                        f.write('    CACHE INTERNAL ""\n)\n\n')
 
-                f.write("set(LILAK_MFM_SOURCE_DIRECDTORY_LIST ${LILAK_MFM_SOURCE_DIRECDTORY_LIST}\n")
-                for directory_name in ls_project:
-                    if directory_name=="mfm":
-                        f.write("    ${CMAKE_CURRENT_SOURCE_DIR}/mfm\n")
-                        break
-                f.write('    CACHE INTERNAL ""\n)\n\n')
-
+                # executables
                 f.write("""file(GLOB MACROS_FOR_EXECUTABLE_PROCESS ${CMAKE_CURRENT_SOURCE_DIR}/macros/*.cc)
 
 set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
@@ -154,25 +143,73 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
         break
 
     bline()
-    print("## Options")
+    print("## Build options")
+    print()
     options = options0.copy()
-    for key, value in options.items():
-        options[key] = input01(questions[key])
 
+    for idx, key in enumerate(list(options)):
+        print(f"    {idx})", key)
+    print()
+
+    user_input_option = input("Type option numbers to set True. Type <Enter> if non: ")
+    if len(user_input_option)>0:
+        user_input_option2 = user_input_option.replace(' ','')
+        if user_input_option2.isdecimal():
+            list_number = user_input_option.split()
+            for iopts in list_number:
+                iopt = int(iopts)
+                if iopt < len(list(options)):
+                    chosen_key = list(options)[iopt]
+                    options[chosen_key] = True
+    else:
+        for key, value in options.items():
+            options[key] = False
+
+    bline()
+    print("## Project")
     print()
     user_input_project = "x"
     project_list = []
     while len(user_input_project)>0:
-        user_input_project = input("Type project name to add. Type <Enter> if non: ")
+        ls_top = os.listdir("./")
+        list_prj_directory = []
+        for directory_name in ls_top:
+            if directory_name in list_top_directories:
+                continue
+            if (os.path.isdir(directory_name)):
+                ls_directory = os.listdir(directory_name)
+                is_project_directory = False
+                for subdir in ls_directory:
+                    if subdir in list_prj_subdir_link:
+                        is_project_directory = True
+                        break
+                if is_project_directory:
+                   list_prj_directory.append(directory_name)
+
+        for ipj in range(len(list_prj_directory)):
+            print(f"    {ipj}) {list_prj_directory[ipj]}")
+        print()
+        user_input_project = input("Type project name or number to add. Type <Enter> if non: ")
+
         if len(user_input_project)>0:
-            if os.path.exists(user_input_project) and os.path.isdir(user_input_project):
-                print(f"Adding project {user_input_project}")
-                if user_input_project in project_list:
-                    print(f"Project {user_input_project} already added!")
-                else:
-                    project_list.append(user_input_project)
+            user_input_project2 = user_input_project.replace(' ','')
+            if user_input_project2.isdecimal():
+                list_number = user_input_project.split()
+                for ipjs in list_number:
+                    ipj = int(ipjs)
+                    if ipj < len(list_prj_directory):
+                        project_list.append(list_prj_directory[ipj])
             else:
-                print(f"Directory {user_input_project} do not exist in lilak home directory!")
+                if os.path.exists(user_input_project) and os.path.isdir(user_input_project):
+                    print(f"Adding project {user_input_project}")
+                    if user_input_project in project_list:
+                        print(f"Project {user_input_project} already added!")
+                    else:
+                        project_list.append(user_input_project)
+                else:
+                    print(f"Directory {user_input_project} do not exist in lilak home directory!")
+                continue
+            break
         else:
             bline()
             print("## List of projects")
