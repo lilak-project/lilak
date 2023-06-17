@@ -45,14 +45,18 @@ def print_project_list(numbering=False):
         print(f"   No Projects")
     elif numbering:
         for idx, line in enumerate(project_list):
-            if line==main_project:  print(f"   {idx}) Project: {line} (main)")
-            else:                   print(f"   {idx}) Project: {line}")
+            if idx+1<10:
+                idxalp = str(idx+1)
+            else:
+                idxalp = chr((idx-10) + 97)
+            if line==main_project:  print(f"   {idxalp}) Project: {line} (main)")
+            else:                   print(f"   {idxalp}) Project: {line}")
     else:
         for line in project_list:
             if line==main_project:  print(f"   Project: {line} (main)")
             else:                   print(f"   Project: {line}")
 
-def input01(question="<Enter/0>",possible_options=['0','']):
+def input_e0(question="<Enter/0>",possible_options=['0','']):
     while True:
         user_input = input(question)
         if user_input in possible_options:
@@ -62,6 +66,33 @@ def input01(question="<Enter/0>",possible_options=['0','']):
         else:
             print("Invalid input. Please try again.")
     return user_input
+
+
+def input_options(options,question="Type option number(s) to Add. Type <Enter> if non: "):
+    list(options)
+    idx_option = {}
+    for idx, key in enumerate(list(options)):
+        if idx+1<10:
+            idxalp = str(idx+1)
+        else:
+            idxalp = chr((idx-10) + 97)
+        print(f"    {idxalp}) {key}")
+        idx_option[idxalp] = key
+    print()
+    user_options = input(question)
+    print()
+
+    print("Selected option(s):")
+    print()
+    list_chosen_key = []
+    if len(user_options)==0:
+        print(f"    --")
+    else:
+        for idxalp in user_options:
+            key = idx_option[idxalp]
+            list_chosen_key.append(key)
+            print(f"    {idxalp}) {key}")
+    return list_chosen_key
 
 if os.path.exists(build_option_file_name):
     with open(build_option_file_name, "r") as f:
@@ -91,7 +122,7 @@ while True:
     print_project_list()
     print()
     if confirm==0:
-        confirm = input01("Use above options? <Enter/0>: ")
+        confirm = input_e0("Use above options? <Enter/0>: ")
     if confirm==1:
         print("saving options to", build_option_file_name)
         with open(build_option_file_name, "w") as f:
@@ -147,26 +178,12 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
     print()
     options = options0.copy()
 
-    for idx, key in enumerate(list(options)):
-        print(f"    {idx})", key)
-    print()
-
-    user_input_option = input("Type option numbers to set True. Type <Enter> if non: ")
-    if len(user_input_option)>0:
-        user_input_option2 = user_input_option.replace(' ','')
-        if user_input_option2.isdecimal():
-            list_number = user_input_option.split()
-            for iopts in list_number:
-                iopt = int(iopts)
-                if iopt < len(list(options)):
-                    chosen_key = list(options)[iopt]
-                    options[chosen_key] = True
-    else:
-        for key, value in options.items():
-            options[key] = False
+    list_chosen_key = input_options(options,question="Type option number(s) to Add. Type <Enter> if non: ")
+    for key in list_chosen_key:
+        options[key] = True
 
     bline()
-    print("## Project")
+    print("## Add Project")
     print()
     user_input_project = "x"
     project_list = []
@@ -186,66 +203,53 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
                 if is_project_directory:
                    list_prj_directory.append(directory_name)
 
-        for ipj in range(len(list_prj_directory)):
-            print(f"    {ipj}) {list_prj_directory[ipj]}")
-        print()
-        user_input_project = input("Type project name or number to add. Type <Enter> if non: ")
 
-        if len(user_input_project)>0:
-            user_input_project2 = user_input_project.replace(' ','')
-            if user_input_project2.isdecimal():
-                list_number = user_input_project.split()
-                for ipjs in list_number:
-                    ipj = int(ipjs)
-                    if ipj < len(list_prj_directory):
-                        project_list.append(list_prj_directory[ipj])
+        list_chosen_key = input_options(list_prj_directory,question="Type project directory number(s) to Add. Type <Enter> if non: ")
+        for key in list_chosen_key:
+            project_list.append(key)
+        break
+
+    if True:
+        bline()
+        print("## Select main project")
+        print()
+        main_project = "lilak"
+        if len(project_list)==1:
+            main_project = project_list[0]
+        print_project_list(True)
+        print()
+        while True:
+            if len(project_list)==0:
+                break
+            input_main_project = input(f"Select index (or name) to set as main project. Type <Enter> to set main as {main_project}: ")
+            if input_main_project in project_list:
+                print(f"Main project is {main_project}")
+                break
+            elif input_main_project.isdigit() and int(input_main_project) < len(project_list):
+                main_project = project_list[int(input_main_project)]
+                print(f"Main project is {main_project}")
+                break
+            elif len(input_main_project)==0:
+                #main_project = "lilak"
+                print(f"Main project is {main_project}")
+                break
             else:
-                if os.path.exists(user_input_project) and os.path.isdir(user_input_project):
-                    print(f"Adding project {user_input_project}")
-                    if user_input_project in project_list:
-                        print(f"Project {user_input_project} already added!")
-                    else:
-                        project_list.append(user_input_project)
-                else:
-                    print(f"Directory {user_input_project} do not exist in lilak home directory!")
-                continue
-            break
-        else:
-            bline()
-            print("## List of projects")
-            print_project_list(True)
-            main_project = "lilak"
-            while True:
-                if len(project_list)==0:
-                    break
-                main_project = input("Select index (or name) to set as main project. Type <Enter> to set main as lilak: ")
-                if main_project in project_list:
-                    print(f"Main project is {main_project}")
-                    break
-                elif main_project.isdigit() and int(main_project) < len(project_list):
-                    main_project = project_list[int(main_project)]
-                    print(f"Main project is {main_project}")
-                    break
-                elif len(main_project)==0:
-                    main_project = "lilak"
-                    print(f"Main project is {main_project}")
-                    break
-                else:
-                    print(f"Project must be one in the list!")
+                print(f"Project must be one in the list!")
     confirm = 1
 
 bline()
-print( "## How to build lilak")
-print()
-print(f"   1) Open login script and put:")
-print(f"      export LILAK_PATH=\"{lilak_path}\"")
-print()
-print(f"   2) Open ~/.rootrc and put:")
-print(f"      Rint.Logon: {lilak_path}/macros/rootlogon.C")
-print()
-print(f"   3) Build:")
-print(f"      cd {lilak_path}")
-print(f"      mkdir build")
-print(f"      cd build")
-print(f"      cmake ..")
-print(f"      make")
+print(f"""## How to build lilak
+
+   1) Open login script and put:
+      export LILAK_PATH=\"{lilak_path}\"
+
+   2) Open ~/.rootrc and put:
+      Rint.Logon: {lilak_path}/macros/rootlogon.C
+
+   3) Build:
+      cd {lilak_path}
+      mkdir build
+      cd build
+      cmake ..
+      make
+""")
