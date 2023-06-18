@@ -59,20 +59,20 @@ if(CREATE_GIT_LOG)
     string(REPLACE ";" "\n" LILAK_GIT_BRANCH_LOG_LIST "${LILAK_GIT_BRANCH_LOG_LIST}")
 
     execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
-        OUTPUT_VARIABLE MAINPROJECT_GIT_BRANCH
+        OUTPUT_VARIABLE LILAK_MAINPROJECT_GIT_BRANCH
         OUTPUT_STRIP_TRAILING_WHITESPACE
         WORKING_DIRECTORY ${LILAK_PATH}/${LILAK_PROJECT_MAIN})
-    execute_process(COMMAND ${GIT_EXECUTABLE} rev-list --count ${MAINPROJECT_GIT_BRANCH}
-        OUTPUT_VARIABLE MAINPROJECT_GIT_COMMIT_COUNT
+    execute_process(COMMAND ${GIT_EXECUTABLE} rev-list --count ${LILAK_MAINPROJECT_GIT_BRANCH}
+        OUTPUT_VARIABLE LILAK_MAINPROJECT_GIT_COMMIT_COUNT
         OUTPUT_STRIP_TRAILING_WHITESPACE
         WORKING_DIRECTORY ${LILAK_PATH}/${LILAK_PROJECT_MAIN})
-    execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse --short ${MAINPROJECT_GIT_BRANCH}
-        OUTPUT_VARIABLE MAINPROJECT_GIT_HASH_SHORT
+    execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse --short ${LILAK_MAINPROJECT_GIT_BRANCH}
+        OUTPUT_VARIABLE LILAK_MAINPROJECT_GIT_HASH_SHORT
         OUTPUT_STRIP_TRAILING_WHITESPACE
         WORKING_DIRECTORY ${LILAK_PATH}/${LILAK_PROJECT_MAIN})
-    set(MAINPROJECT_VERSION "${MAINPROJECT_GIT_BRANCH}.${MAINPROJECT_GIT_COMMIT_COUNT}.${MAINPROJECT_GIT_HASH_SHORT}")
-    set(MAINPROJECT_HASH "${MAINPROJECT_GIT_HASH_SHORT}")
-    message(STATUS "Main project version: " ${MAINPROJECT_VERSION})
+    set(LILAK_MAINPROJECT_VERSION "${LILAK_MAINPROJECT_GIT_BRANCH}.${LILAK_MAINPROJECT_GIT_COMMIT_COUNT}.${LILAK_MAINPROJECT_GIT_HASH_SHORT}")
+    set(LILAK_MAINPROJECT_HASH "${LILAK_MAINPROJECT_GIT_HASH_SHORT}")
+    message(STATUS "Main project version: " ${LILAK_MAINPROJECT_VERSION})
 
     execute_process(COMMAND ${GIT_EXECUTABLE} log --pretty=format:"%h %an %ar : %s" -1 OUTPUT_VARIABLE LILAK_GIT_LOG_TEMP)
     execute_process(COMMAND ${GIT_EXECUTABLE} status -s      OUTPUT_VARIABLE LILAK_GIT_STATUS OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -83,13 +83,16 @@ if(CREATE_GIT_LOG)
 
     set(LILAK_USERNAME $ENV{USER})
 
+    set(LILAK_HOSTUSER ${LILAK_HOSTNAME}.${LILAK_USERNAME})
+    message(${LILAK_HOSTUSER})
+
     string(REPLACE ";" "\n" LILAK_ROOT_LINKED_CLASS_LIST "${LILAK_ROOT_LINKED_CLASS_LIST}")
 
-    configure_file(${LILAK_PATH}/log/LKCompiled.h.in  ${LILAK_PATH}/log/LKCompiled.h @ONLY)
+    configure_file(${LILAK_PATH}/log/LKCompiled.h.in         ${LILAK_PATH}/log/LKCompiled.h @ONLY)
     configure_file(${LILAK_PATH}/log/LKCompiledStatus.log.in ${LILAK_PATH}/log/LKCompiledStatus.log @ONLY)
-    configure_file(${LILAK_PATH}/log/LKCompiledDiff.log.in ${LILAK_PATH}/log/LKCompiledDiff.log @ONLY)
-    configure_file(${LILAK_PATH}/log/LKBranchList.log.in ${LILAK_PATH}/log/LKBranchList.log @ONLY)
-    configure_file(${LILAK_PATH}/log/LKClassList.log.in ${LILAK_PATH}/log/LKClassList.log @ONLY)
+    configure_file(${LILAK_PATH}/log/LKCompiledDiff.log.in   ${LILAK_PATH}/log/LKCompiledDiff.log @ONLY)
+    configure_file(${LILAK_PATH}/log/LKBranchList.log.in     ${LILAK_PATH}/log/LKBranchList.log @ONLY)
+    configure_file(${LILAK_PATH}/log/LKClassList.log.in      ${LILAK_PATH}/log/LKClassList.log @ONLY)
 endif()
 
 configure_file(${LILAK_PATH}/log/doxy.conf.in ${LILAK_PATH}/log/doxy.conf @ONLY)
