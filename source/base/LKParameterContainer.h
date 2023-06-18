@@ -160,7 +160,7 @@ class LKParameterContainer : public TObjArray
         std::vector<double>  GetParVSize  (TString name) const { return GetParVDouble(name); }
 
     protected:
-        LKParameter *SetPar      (TString name, TString  raw, TString val, TString comment, bool isTemporary);
+        LKParameter *SetPar      (TString name, TString  raw, TString val, TString comment, bool isTemporary, bool isConditional);
         LKParameter *SetPar      (TString name, TString  val, TString comment="");
         LKParameter *SetPar      (TString name, Int_t    val, TString comment="") { return SetPar(name,Form("%d",val),comment); } ///< Set parameter Int_t
         LKParameter *SetPar      (TString name, Double_t val, TString comment="") { return SetPar(name,Form("%f",val),comment); } ///< Set parameter Double_t

@@ -13,22 +13,24 @@ class LKParameter : public TNamed
 {
     public:
         LKParameter();
-        LKParameter(TString name, TString raw, TString value="", TString comment="", bool temporary=false);
+        LKParameter(TString name, TString raw, TString value="", TString comment="", bool temporary=false, bool conditional=false);
         virtual ~LKParameter();
 
         virtual void Clear(Option_t *option = "");
         virtual void Print(Option_t *option = "") const;
 
         void SetLineComment(TString comment);
-        void SetPar(TString name, TString raw, TString value, TString comment, bool temporary);
+        void SetPar(TString name, TString raw, TString value, TString comment, bool temporary, bool conditional);
 
         //const char *GetName()
-        TString GetGroup()    const { return fGroup; }
-        TString GetComment()  const { return fComment; }
-        TString GetRaw()      const { return fRaw; }
-        TString GetValue()    const { return fValue; }
-        int     GetN()        const { return fNumValues; }
-        bool    IsTemporary() const { return fTemporary; }
+        TString GetGroup()      const { return fGroup; }
+        TString GetMainName()   const { return fMainName; }
+        TString GetComment()    const { return fComment; }
+        TString GetRaw()        const { return fTitle; }
+        TString GetValue()      const { return fValue; }
+        int     GetN()          const { return fNumValues; }
+        bool    IsTemporary()   const { return fTemporary; }
+        bool    IsConditional() const { return fConditional; }
 
         int      GetInt   (int i=-1) const;  ///< Get parameter in int
         bool     GetBool  (int i=-1) const;  ///< Get parameter in bool
@@ -57,13 +59,16 @@ class LKParameter : public TNamed
         void ProcessTypeError(TString type) const;
         bool CheckFormulaValidity(TString formula, bool isInt=false) const;
 
+        //TString fName; ///< parameter name defined from TNamed
         TString fGroup; ///< group of parameter
-        TString fRaw; ///< raw value with no replacements
+        TString fMainName; ///< group of parameter
+        //TString fTitle; ///< raw value with no replacements
         TString fValue; ///< configured value
         TString fComment;
         int fNumValues = 0;
         std::vector<TString> fValueArray;
         bool fTemporary = false;
+        bool fConditional = false;
 
     ClassDef(LKParameter, 1)
 };

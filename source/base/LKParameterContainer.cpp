@@ -13,6 +13,7 @@
 #include "TSystemDirectory.h"
 #include "TList.h"
 
+#include "LKCompiled.h"
 #include "LKParameter.h"
 #include "LKParameterContainer.h"
 
@@ -81,7 +82,24 @@ void LKParameterContainer::ReplaceEnvVariables(TString &valInput)
     int ienv = valInput.Index("e{");
     while (ienv>=0) {
         int fenv = valInput.Index("}",1,ienv,TString::kExact);
-        valInput.Replace(ienv,fenv-ienv+1,getenv(TString(valInput(ienv+2,fenv-ienv-2))));
+
+        TString replaceFrom = TString(valInput(ienv+2,fenv-ienv-2));
+        TString replaceFrom2 = replaceFrom;
+        replaceFrom2.ToLower();
+        TString replaceTo;
+             if (replaceFrom2=="lilak_version"            ) replaceTo = LILAK_VERSION;
+        else if (replaceFrom2=="lilak_hash"               ) replaceTo = LILAK_HASH;
+        else if (replaceFrom2=="lilak_mainproject_version") replaceTo = LILAK_MAINPROJECT_VERSION;
+        else if (replaceFrom2=="lilak_mainproject_hash"   ) replaceTo = LILAK_MAINPROJECT_HASH;
+        else if (replaceFrom2=="lilak_hostname"           ) replaceTo = LILAK_HOSTNAME;
+        else if (replaceFrom2=="lilak_username"           ) replaceTo = LILAK_USERNAME;
+        else if (replaceFrom2=="lilak_hostuser"           ) replaceTo = LILAK_HOSTUSER;
+        else if (replaceFrom2=="lilak_path"               ) replaceTo = LILAK_PATH;
+        else if (replaceFrom2=="lilak_version"            ) replaceTo = LILAK_VERSION;
+        else
+            replaceTo = getenv(replaceFrom);
+
+        valInput.Replace(ienv,fenv-ienv+1,replaceTo);
         ienv = valInput.Index("e{");
     }
 
@@ -235,7 +253,7 @@ Int_t LKParameterContainer::AddParameterContainer(LKParameterContainer *parc)
             continue;
         }
         else {
-            SetPar(parameter->GetName(),parameter->GetRaw(),parameter->GetValue(),parameter->GetComment(),parameter->IsTemporary());
+            SetPar(parameter->GetName(),parameter->GetRaw(),parameter->GetValue(),parameter->GetComment(),parameter->IsTemporary(),parameter->IsConditional());
             ++countParameters;
         }
     }
@@ -470,6 +488,7 @@ void LKParameterContainer::Print(Option_t *option) const
         TString parValue = parameter -> GetValue();
         TString parComment = parameter -> GetComment();
         bool parIsTemporary = parameter -> IsTemporary();
+        bool parIsConditional = parameter -> IsConditional();
 
         if (!evaluatePar)
             parValue = parRaw;
@@ -498,6 +517,9 @@ void LKParameterContainer::Print(Option_t *option) const
 
         if (parIsTemporary)
             parName = Form("%s%s","*",parName.Data());
+
+        if (parIsConditional)
+            parName = Form("%s%s","@",parName.Data());
 
         int nwidth = 20;
              if (parName.Sizeof()>60) nwidth = 70;
@@ -621,7 +643,9 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
         bool allowSetPar = true;
         TString groupName;
 
+        bool parameterIsConditional = false;
         if (name[0]=='@') {
+            parameterIsConditional = true;
             name = name(1, name.Sizeof()-2);
             groupName = name(0,name.Index("/"));
             if (name.Index("/")<0)
@@ -638,7 +662,7 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
         }
 
         if (allowSetPar) {
-            SetPar(name,value,value,comment,parameterIsTemporary);
+            SetPar(name,value,value,comment,parameterIsTemporary,parameterIsConditional);
             return true;
         }
     }
@@ -646,16 +670,16 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
     return false;
 }
 
-LKParameter *LKParameterContainer::SetPar(TString name, TString raw, TString value, TString comment, bool isTemporary) {
+LKParameter *LKParameterContainer::SetPar(TString name, TString raw, TString value, TString comment, bool isTemporary, bool isConditional) {
     ReplaceVariables(value);
-    auto named = new LKParameter(name, raw, value, comment, isTemporary);
+    auto named = new LKParameter(name, raw, value, comment, isTemporary, isConditional);
     Add(named);
     return named;
 }
 
 LKParameter *LKParameterContainer::SetPar(TString name, TString raw, TString comment) {
     TString value = raw;
-    return SetPar(name, raw, value, comment, false);
+    return SetPar(name, raw, value, comment, false, false);
 }
 
 LKParameter *LKParameterContainer::SetLineComment(TString comment) {
@@ -770,7 +794,8 @@ Bool_t LKParameterContainer::CheckValue(TString name) const
     LKParameter *parameter;
     while ((parameter = dynamic_cast<LKParameter*>(iterator())))
     {
-        TString parValue = parameter -> GetTitle();
+        //TString parValue = parameter -> GetTitle();
+        TString parValue = parameter -> GetValue();
         if (parValue==name)
             return true;
     }
@@ -789,6 +814,11 @@ LKParameter *LKParameterContainer::FindPar(TString givenName, bool terminateIfNu
             auto parName = parameter -> GetName();
             if (parName==givenName)
                 return parameter;
+            if (parameter -> IsConditional()) {
+                auto mainName = parameter -> GetMainName();
+                if (mainName==givenName)
+                    return parameter;
+            }
         }
     }
 

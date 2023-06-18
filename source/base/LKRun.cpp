@@ -80,7 +80,7 @@ void LKRun::PrintLILAK()
 {
     LKLogger("LKRun",__FUNCTION__,0,2) << "# LILAK Compiled Information" << endl;
     LKLogger("LKRun",__FUNCTION__,0,2) << "  LILAK Version       : " << LILAK_VERSION << endl;
-    LKLogger("LKRun",__FUNCTION__,0,2) << "  MAIN PROJ. Version  : " << MAINPROJECT_VERSION << endl;
+    LKLogger("LKRun",__FUNCTION__,0,2) << "  MAIN PROJ. Version  : " << LILAK_MAINPROJECT_VERSION << endl;
     LKLogger("LKRun",__FUNCTION__,0,2) << "  LILAK Host Name     : " << LILAK_HOSTNAME << endl;
     LKLogger("LKRun",__FUNCTION__,0,2) << "  LILAK User Name     : " << LILAK_USERNAME << endl;
     LKLogger("LKRun",__FUNCTION__,0,2) << "  LILAK Path          : " << LILAK_PATH << endl;
@@ -169,16 +169,6 @@ bool LKRun::ConfigureRunFromFileName(TString inputName)
         fRunID = runID;
         fTag = runTag;
         fSplit = runSplit;
-
-        /*
-        TString gitBranch = ((TObjString *) array->At(array->GetEntriesFast()-3)) -> GetString();
-        TString gitCount  = ((TObjString *) array->At(array->GetEntriesFast()-2)) -> GetString();
-        TString gitHash   = ((TObjString *) array->At(array->GetEntriesFast()-1)) -> GetString();
-        if (!git_c.IsDec() || git_hash.Sizeof()!=8)
-            nameIsInFormat = false;
-        else
-            runVersion = gitBrach + "." + gitCount + "." + gitHash;
-        */
     }
 
     return nameIsInFormat;
@@ -194,7 +184,7 @@ TString LKRun::ConfigureFileName()
     if (fSplit != -1)
         fileName = fileName + Form(".SPLIT_%d",fSplit);
 
-    fileName = fileName + Form(".%s",MAINPROJECT_VERSION);
+    fileName = fileName + Form(".%s",LILAK_MAINPROJECT_VERSION);
 
     fileName = LKRun::ConfigureDataPath(fileName,false,fDataPath);
 
@@ -308,7 +298,7 @@ TString LKRun::GetFileHash(TString name)
 TString LKRun::ConfigureDataPath(TString name, bool search, TString pathData, bool addVersion)
 {
     if (name == "last") {
-        name = TString(LILAK_PATH) + "/data/LAST_OUTPUT";
+        name = TString(LILAK_PATH) + "/data/lk_last_output.root";
         return name;
     }
 
@@ -411,7 +401,7 @@ TString LKRun::ConfigureDataPath(TString name, bool search, TString pathData, bo
             fullName = name;
 
         if (addVersion)
-            fullName.ReplaceAll(".root",TString(".")+MAINPROJECT_VERSION+".root");
+            fullName.ReplaceAll(".root",TString(".")+LILAK_MAINPROJECT_VERSION+".root");
 
         name = fullName;
         return name;
@@ -427,7 +417,8 @@ void LKRun::Add(TTask *task)
 }
 
 
-void LKRun::AddInputFile(TString fileName, TString treeName) {
+void LKRun::AddInputFile(TString fileName, TString treeName)
+{
     if (fInputFileName.IsNull()) fInputFileName = fileName;
     fileName = LKRun::ConfigureDataPath(fileName,true,fDataPath);
     fInputVersion = GetFileHash(fileName);
@@ -458,6 +449,9 @@ bool LKRun::Init()
             if (numRunNames>3) fSplit = fPar -> GetParInt("LKRun/RunName",3);
             fRunNameIsSet = true;
         }
+    }
+    if (fPar -> CheckPar("LKRun/DataPath")) {
+        fDataPath = fPar -> GetParString("LKRun/DataPath");
     }
 
     if (!fInputFileName.IsNull()) {
@@ -547,7 +541,7 @@ bool LKRun::Init()
 
     fRunHeader = new LKParameterContainer();
     fRunHeader -> SetName("RunHeader");
-    fRunHeader -> AddPar("Main_Project_Version",MAINPROJECT_VERSION);
+    fRunHeader -> AddPar("Main_Project_Version",LILAK_MAINPROJECT_VERSION);
     fRunHeader -> AddPar("LILAK_Version",LILAK_VERSION);
     fRunHeader -> AddPar("LILAK_HostName",LILAK_HOSTNAME);
     fRunHeader -> AddPar("LILAK_UserName",LILAK_USERNAME);
@@ -712,7 +706,7 @@ bool LKRun::WriteOutputFile()
     fRunHeader -> Write(fRunHeader->GetName(),TObject::kSingleKey);
     fOutputFile -> Close();
 
-    TString linkName = TString(LILAK_PATH) + "/data/lk_last_output";
+    TString linkName = TString(LILAK_PATH) + "/data/lk_last_output.root";
     unlink(linkName.Data());
     symlink(fOutputFileName.Data(), linkName.Data());
 

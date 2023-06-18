@@ -55,12 +55,17 @@ class LKRun : public LKTask
         virtual void Add(TTask *task);
 
         /// Run name/id
+        /// This is equivalent to setting parameter
+        /// LKRun/RunName [name] [id] [tag(optional)] [split(optional)].
         void SetRunName(TString name, Int_t id=0, TString tag=""); ///< Set Run name and id.
         TString GetRunName() const { return fRunName; }
         Int_t GetRunID() const { return fRunID; }
 
-        /// Data path
-        void SetDataPath(TString path) { fDataPath = path; } ///< Set data directory path. Default directory : path/to/LILAK/data
+        /// Set data directory path. Default directory : path/to/LILAK/data
+        /// Data path will not be used if full path of the input/ouput file is given.
+        /// This is equivalent to setting parameter LKRun/DataPath.
+        /// Hoever SetDataPath method has the higher priority over setting parameter
+        void SetDataPath(TString path) { fDataPath = path; }
         TString GetDataPath() { return fDataPath; }
 
         bool ConfigureRunFromFileName(TString inputName);
@@ -100,6 +105,7 @@ class LKRun : public LKTask
          * ex) dataArray = new TClonesArray("TDataClass",1000); // 1000, for example should be around expected maximum number of "data"
          * If persistent is true, branch will write it's data to output tree.
          * If persistent is false, branch will not be written. However the data is accessible during the run
+         * One can se persistency using the parameter [branchName]/persistency
          */
         bool RegisterBranch(TString name, TObject *obj, bool persistent=true);
 

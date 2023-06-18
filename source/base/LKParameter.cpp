@@ -9,9 +9,9 @@ LKParameter::LKParameter()
 {
 }
 
-LKParameter::LKParameter(TString name, TString raw, TString value, TString comment, bool temporary)
+LKParameter::LKParameter(TString name, TString raw, TString value, TString comment, bool temporary, bool conditional)
 {
-    SetPar(name, raw, value, comment, temporary);
+    SetPar(name, raw, value, comment, temporary, conditional);
 }
 
 LKParameter::~LKParameter()
@@ -20,27 +20,38 @@ LKParameter::~LKParameter()
 
 void LKParameter::SetLineComment(TString comment)
 {
-    fName = "";
-    fRaw = "";
+    fGroup = "";
+    fMainName = "";
+    fTitle = "";
     fValue = "";
     fComment = comment;
+    fNumValues = 0;
+    fValueArray.clear();
+    fTemporary = false;
+    fConditional = false;
 }
 
-void LKParameter::SetPar(TString name, TString raw, TString value, TString comment, bool temporary)
+void LKParameter::SetPar(TString name, TString raw, TString value, TString comment, bool temporary, bool conditional)
 {
     fName = name;
-    fRaw = raw;
+    fTitle = raw;
     fValue = value;
     fComment = comment;
     fTemporary = temporary;
+    fConditional = conditional;
 
-    if (fName.Index("/")>=0)
-        fGroup = fName.Index(0,fName.Index("/"));
-    else
+    int iSlash = fName.Index("/");
+    if (iSlash>=0) {
+        fGroup    = fName(0,iSlash);
+        fMainName = fName(iSlash,fName.Sizeof()-iSlash-1);
+    }
+    else {
         fGroup = "";
+        fMainName = fName;
+    }
 
-    if (fRaw.IsNull() && !fValue.IsNull()) fRaw = fValue;
-    if (!fRaw.IsNull() && fValue.IsNull()) fValue = fRaw;
+    if (fTitle.IsNull() && !fValue.IsNull()) fTitle = fValue;
+    if (!fTitle.IsNull() && fValue.IsNull()) fValue = fTitle;
 
     auto listOfTokens = value.Tokenize(" ");
     fNumValues = listOfTokens -> GetEntries();
@@ -54,17 +65,20 @@ void LKParameter::SetPar(TString name, TString raw, TString value, TString comme
 
 void LKParameter::Clear(Option_t *option)
 {
-    fName = "";
+    fGroup = "";
+    fMainName = "";
+    fTitle = "";
     fValue = "";
     fComment = "";
     fNumValues = 0;
     fValueArray.clear();
     fTemporary = false;
+    fConditional = false;
 }
 
 void LKParameter::Print(Option_t *option) const
 {
-    lx_info << fName << " " << fValue << " " << fNumValues << std::endl;
+    lx_info << fName << " " << fValue << " # " << fComment << std::endl;
 }
 
 int LKParameter::GetInt(int idx) const
