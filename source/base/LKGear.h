@@ -11,7 +11,6 @@
  */
 
 class LKRun;
-
 class LKGear
 {
     public:

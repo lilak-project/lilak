@@ -78,7 +78,7 @@ bool LKTask::EndOfRunTasks()
     LKTask* task;
 
     while ( (task = dynamic_cast<LKTask*>(iter())) ) {
-        lk_info << "EndOfRun " << task -> GetName() << "." << endl;
+        lk_info << "EndOfRun " << task -> GetName() << endl;
         if (task -> EndOfRun() == false) {
             lk_warning << "EndOfRun failed!" << endl;
             return false;

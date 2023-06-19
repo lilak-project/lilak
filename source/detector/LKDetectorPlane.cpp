@@ -63,16 +63,27 @@ void LKDetectorPlane::SetAxis(axis_t axis1, axis_t axis2) {
 axis_t LKDetectorPlane::GetAxis1() { return fAxis1; }
 axis_t LKDetectorPlane::GetAxis2() { return fAxis2; }
 
-bool LKDetectorPlane::DrawEvent(Option_t *)
+void LKDetectorPlane::Draw(Option_t *)
 {
-    if (!SetDataFromBranch())
-        return false;
+    SetDataFromBranch();
+    FillDataToHist();
 
-    DrawHist();
+    auto hist = GetHist();
+    if (hist==nullptr)
+        return;
 
+    if (fPar->CheckPar(fName+"/histZMin")) hist -> SetMinimum(fPar->GetParDouble(fName+"/histZMin"));
+    else hist -> SetMinimum(0.01);
+    if (fPar->CheckPar(fName+"/histZMax")) hist -> SetMaximum(fPar->GetParDouble(fName+"/histZMin"));
+
+    auto cvs = GetCanvas();
+    cvs -> Clear();
+    cvs -> cd();
+    hist -> Reset();
+    hist -> DrawClone("colz");
+    hist -> Reset();
+    hist -> Draw("same");
     DrawFrame();
-
-    return true;
 }
 
 void LKDetectorPlane::MouseClickEvent(int iPlane)

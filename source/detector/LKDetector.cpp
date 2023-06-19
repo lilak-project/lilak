@@ -36,8 +36,10 @@ void LKDetector::SetTransparency(Int_t transparency)
         ((TGeoVolume*) listVolume -> At(iVolume)) -> SetTransparency(transparency);
 }
 
-void LKDetector::AddPlane(LKDetectorPlane *plane)
+void LKDetector::AddPlane(LKDetectorPlane *plane, Int_t planeID)
 {
+    plane -> SetPlaneID(planeID);
+    plane -> Init();
     plane -> SetRank(fRank+1);
     plane -> SetDetector(this);
     if (fRun!=nullptr)
@@ -79,7 +81,6 @@ void LKDetector::FinishGeometry()
 
 void LKDetector::SetRun(LKRun *run) {
     fRun = run;
-    lk_debug << fRun << endl;
     for (auto iPlane = 0; iPlane < fNumPlanes; ++iPlane) {
         auto plane = (LKDetectorPlane *) fDetectorPlaneArray -> At(iPlane);
         lk_debug << fRun << endl;

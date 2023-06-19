@@ -65,20 +65,6 @@ LKPad *LKPadPlane::GetPad(Int_t section, Int_t row, Int_t layer)
     return pad;
 }
 
-/*
-   LKPad *LKPadPlane::GetPadByPadID(Int_t padID)
-   {
-   Int_t numPads = fChannelArray -> GetEntriesFast();
-   for (Int_t i = 0; i < numPads; ++i) {
-   auto pad = (LKPad *) fChannelArray -> At(i);
-   if (pad && padID==pad->GetPadID())
-   return pad;
-   }
-
-   return (LKPad *) nullptr;
-   }
- */
-
 void LKPadPlane::SetPadArray(TClonesArray *padArray)
 {
     fFilledPad = true;
@@ -239,9 +225,6 @@ void LKPadPlane::FillDataToHist()
 
 Int_t LKPadPlane::GetNumPads() { return GetNChannels(); }
 
-void LKPadPlane::SetPlaneK(Double_t k) { fPlaneK = k; }
-Double_t LKPadPlane::GetPlaneK() { return fPlaneK; }
-
 void LKPadPlane::Clear(Option_t *)
 {
     fFilledPad = false;
@@ -254,28 +237,12 @@ void LKPadPlane::Clear(Option_t *)
     }
 }
 
-Int_t LKPadPlane::FindChannelID(Double_t i, Double_t j) { return FindPadID(i,j); }
-
-/*
-bool LKDetectorPlane::DrawEvent(Option_t *)
-{
-    if (!SetDataFromBranch())
-        return false;
-
-    DrawHist();
-
-    DrawFrame();
-
-    return true;
-}
-*/
-
 bool LKPadPlane::SetDataFromBranch()
 {
     LKPadPlane::Clear();
 
-    TString hitBranchName = "Hit";
-    TString hitBranchParName = "LKPadPlane/hitBranchName";
+    TString hitBranchName;
+    TString hitBranchParName = fName+"/hitBranchName";
     lk_cout << "Looking for hit-branch name from ParameterContainer of " << hitBranchParName << endl;
     if (fPar -> CheckPar(hitBranchParName)) {
         lk_warning << "cannot find from ParameterContainer" << endl;
@@ -285,12 +252,14 @@ bool LKPadPlane::SetDataFromBranch()
     lk_debug << fRun << endl;
     auto hitArray = fRun -> GetBranchA(hitBranchName);
     if (hitArray==nullptr)
-        lk_warning << "hit array is nullptr!" << endl;
+        lk_warning << "hit array deosn't exist!" << endl;
+    else if (hitArray->GetClass()->InheritsFrom("LKHit")==false)
+        lk_warning << hitBranchName << " branch is not an array of class inheriting LKHit!" << endl;
     else
         SetHitArray(hitArray);
 
-    TString padBranchName = "Pad";
-    TString padBranchParName = "LKPadPlane/padBranchName";
+    TString padBranchName;
+    TString padBranchParName = fName+"/padBranchName";
     lk_cout << "Looking for pad-branch name from ParameterContainer of " << padBranchParName << endl;
     if (fPar -> CheckPar(padBranchParName)) {
         lk_warning << "cannot find from ParameterContainer" << endl;
@@ -299,7 +268,9 @@ bool LKPadPlane::SetDataFromBranch()
     lk_info << "pad-branch name is " << padBranchName << endl;
     auto padArray = fRun -> GetBranchA(padBranchName);
     if (padArray==nullptr)
-        lk_warning << "pad array is nullptr!" << endl;
+        lk_warning << "pad array deosn't exist!" << endl;
+    else if (padArray->GetClass()->InheritsFrom("LKPad")==false)
+        lk_warning << padBranchName << " branch is not an array of class inheriting LKPad!" << endl;
     else
         SetPadArray(padArray);
 
@@ -315,25 +286,27 @@ void LKPadPlane::DrawHist()
 {
     FillDataToHist();
 
-    if (fH2Plane == nullptr)
-        GetHist();
+    auto hist = GetHist();
+    if (hist==nullptr)
+        return;
 
-    if (fPar->CheckPar("LKPadPlane/histZMin"))
-        fH2Plane -> SetMinimum(fPar->GetParDouble("LKPadPlane/histZMin"));
+    if (fPar->CheckPar(fName+"/histZMin"))
+        hist -> SetMinimum(fPar->GetParDouble(fName+"/histZMin"));
     else
-        fH2Plane -> SetMinimum(0.01);
+        hist -> SetMinimum(0.01);
 
-    if (fPar->CheckPar("LKPadPlane/histZMax"))
-        fH2Plane -> SetMaximum(fPar->GetParDouble("LKPadPlane/histZMin"));
+    if (fPar->CheckPar(fName+"/histZMax"))
+        hist -> SetMaximum(fPar->GetParDouble(fName+"/histZMin"));
 
     fCanvas -> Clear();
     fCanvas -> cd();
-    fH2Plane -> Reset();
-    fH2Plane -> DrawClone("colz");
-    fH2Plane -> Reset();
-    fH2Plane -> Draw("same");
+    hist -> Reset();
+    hist -> DrawClone("colz");
+    hist -> Reset();
+    hist -> Draw("same");
     DrawFrame();
 }
+
 
 
 void LKPadPlane::ResetEvent()

@@ -33,15 +33,15 @@ class LKDetectorPlane : public TNamed, public LKGear
 
         virtual bool IsInBoundary(Double_t i, Double_t j) = 0;
 
-        virtual Int_t FindChannelID(Double_t i, Double_t j) = 0;
+        virtual Int_t FindChannelID(Double_t i, Double_t j) { return -1; }
+        virtual Int_t FindChannelID(Int_t section, Int_t row, Int_t layer) { return -1; }
 
         virtual TCanvas *GetCanvas(Option_t *option = "");
         virtual TH2* GetHist(Option_t *option = "-1") = 0;
-
-        virtual bool DrawEvent(Option_t *option = "");
         virtual bool SetDataFromBranch() { return false; }
-        virtual void DrawHist() {};
+        virtual void FillDataToHist() {};
         virtual void DrawFrame(Option_t *option = "") {}
+        virtual void Draw(Option_t *option = "");
 
         void SetAxis(axis_t axis1, axis_t axis2);
         axis_t GetAxis1();

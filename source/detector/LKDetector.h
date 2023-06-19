@@ -30,7 +30,9 @@ class LKDetector : public TNamed, public LKGear
         void SetGeoManager(TGeoManager *);
         void SetTransparency(Int_t transparency);
 
-        void AddPlane(LKDetectorPlane *plane);
+        virtual bool IsInBoundary(Double_t x, Double_t y, Double_t z) { return true; }
+
+        void AddPlane(LKDetectorPlane *plane, Int_t planeID=0);
         Int_t GetNumPlanes();
         LKDetectorPlane *GetDetectorPlane(Int_t idx = 0);
 

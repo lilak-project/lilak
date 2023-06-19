@@ -228,7 +228,7 @@ void LKEveTask::DrawDetectorPlanes()
 
         cvs -> Clear();
         cvs -> cd();
-        plane -> DrawEvent();
+        plane -> Draw();
 
         auto axis1 = plane -> GetAxis1();
         auto axis2 = plane -> GetAxis2();

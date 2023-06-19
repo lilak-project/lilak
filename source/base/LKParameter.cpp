@@ -43,7 +43,7 @@ void LKParameter::SetPar(TString name, TString raw, TString value, TString comme
     int iSlash = fName.Index("/");
     if (iSlash>=0) {
         fGroup    = fName(0,iSlash);
-        fMainName = fName(iSlash,fName.Sizeof()-iSlash-1);
+        fMainName = fName(iSlash+1,fName.Sizeof()-iSlash-2);
     }
     else {
         fGroup = "";

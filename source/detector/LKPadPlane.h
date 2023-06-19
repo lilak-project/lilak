@@ -42,14 +42,12 @@ class LKPadPlane : public LKDetectorPlane
         virtual void Print(Option_t *option = "") const;
         virtual void Clear(Option_t *option = "");
 
-        virtual Int_t FindPadID(Double_t i, Double_t j) = 0;
-        virtual Int_t FindPadID(Int_t section, Int_t row, Int_t layer) = 0;
+        virtual Int_t FindChannelID(Double_t i, Double_t j) { return -1; }
+        virtual Int_t FindChannelID(Int_t section, Int_t row, Int_t layer) { return -1; }
 
-        virtual Int_t FindChannelID(Double_t i, Double_t j);
+        virtual Int_t FindPadID(Double_t i, Double_t j) { return FindChannelID(i,j); }
+        virtual Int_t FindPadID(Int_t section, Int_t row, Int_t layer) { return FindChannelID(section,row,layer); }
 
-        virtual Double_t PadDisplacement() const = 0; ///< Rough (maximum) value of displacements between pads
-
-        //virtual bool DrawEvent(Option_t *option = ""); // options: hit, in, raw, out, section, row, layer, padid, nhit
         virtual bool SetDataFromBranch();
         virtual void DrawHist();
         void FillDataToHist();
@@ -61,16 +59,11 @@ class LKPadPlane : public LKDetectorPlane
         LKPad *GetPad(Double_t i, Double_t j);
         LKPad *GetPad(Int_t section, Int_t row, Int_t layer);
 
-        //LKPad *GetPadByPadID(Int_t padID);
-
         void SetPadArray(TClonesArray *padArray);
         void SetHitArray(TClonesArray *hitArray);
         Int_t GetNumPads();
 
         void FillBufferIn(Double_t i, Double_t j, Double_t tb, Double_t val, Int_t trackID = -1);
-
-        void SetPlaneK(Double_t k);
-        Double_t GetPlaneK();
 
         virtual void ResetHitMap();
         virtual void ResetEvent();
@@ -95,8 +88,6 @@ class LKPadPlane : public LKDetectorPlane
 
     protected:
         Int_t fEFieldAxis = -1;
-        Double_t fPlaneK = -999;
-
         Int_t fFreePadIdx = 0;
 
         bool fFilledPad = false;
