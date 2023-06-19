@@ -1,6 +1,19 @@
 from lilakcc import lilakcc
 
 ###################################################################################################
+lilakcc("+class TTMicromegas   ").print_pad_plane()
+lilakcc("+class TTForwardArray ").print_pad_plane()
+lilakcc("+class TTBackwardArray").print_pad_plane()
+lilakcc("+class TTBottomArray  ").print_pad_plane()
+lilakcc("+class TTLeftArray    ").print_pad_plane()
+lilakcc("+class TTRightArray   ").print_pad_plane()
+
+###################################################################################################
+lilakcc("+class TexAT2").print_detector()
+quit()
+
+
+###################################################################################################
 lilakcc(
 """
 /// Raw event data from GET
@@ -60,17 +73,6 @@ lilakcc(
 """
 ).print_task()
 
-
-###################################################################################################
-lilakcc("+class TTMicromegas   ").print_detector_plane()
-lilakcc("+class TTForwardArray ").print_detector_plane()
-lilakcc("+class TTBackwardArray").print_detector_plane()
-lilakcc("+class TTBottomArray  ").print_detector_plane()
-lilakcc("+class TTLeftArray    ").print_detector_plane()
-lilakcc("+class TTRightArray   ").print_detector_plane()
-
-###################################################################################################
-lilakcc("+class TexAT2").print_detector()
 
 ###################################################################################################
 lilakcc(

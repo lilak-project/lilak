@@ -13,23 +13,25 @@ class lilakcc:
                 [x] add_inherit_class(self, inherit_acc_class)
                 [x] set_tab_size(self, tab_size)
             [x] add_method(self,line, acc_spec, method_source)
-            [x] make_header_source(self, line, set_content=""):
-            [x] make_method(self, line, tab_no=0, comment="", is_source=False, in_line=False, omit_semicolon=False, set_content=""):
+            [x] make_header_source(self, line, set_content="")
+            [x] make_method(self, line, tab_no=0, comment="", is_source=False, in_line=False, omit_semicolon=False, set_content="")
             [x] add_par(self,line, lname, gname, acc_spec, par_setter, par_getter, par_init, par_clear, par_print, par_source)
                 [x] make_par(self, par_type, par_name, par_init, par_comments)
             [x] add_input_data_array(self, data_class, data_array_gname, data_array_bname, data_array_lname="", single_data_name="data", input_comment="")
-            [x] add_output_data_array(self, data_class, data_array_gname, data_array_bname, data_array_lname="", single_data_name="data", input_comment="", data_array_init_size=0, data_persistency=True):
+            [x] add_output_data_array(self, data_class, data_array_gname, data_array_bname, data_array_lname="", single_data_name="data", input_comment="", data_array_init_size=0, data_persistency=True)
 
-        [x] break_data_array(self,lines):
+        [x] break_data_array(self,lines)
         [x] break_line(self,lines)
-        [x] check_method_or_par(self,line):
+        [x] check_method_or_par(self,line)
         [x] make_doxygen_comment(self, comment, add_to="", always_mult_line=False, not_for_doxygen=False, is_persistence=True)
-        [x] include_headers(self,includes):
+        [x] include_headers(self,includes)
+        [x] simply_comment_out(self,lines,comment_notation="//")
+        [x] count_lspace(self,line)
 
-        [x] init_print(self):
-        [x] print_class(self, mode=0, to_screen=False, to_file=True, print_example_comments=True, includes='LKContainer.h', inheritance=''):
-        [x] print_container(self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance=''):
-        [x] print_task(self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance=''):
+        [x] init_print(self)
+        [x] print_class(self, mode=0, to_screen=False, to_file=True, print_example_comments=True, includes='LKContainer.h', inheritance='')
+        [x] print_container(self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance='')
+        [x] print_task(self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance='')
     """
 
     def __init__(self, input_lines=''):
@@ -425,15 +427,15 @@ class lilakcc:
         self.method_source_list[ias].append(method_source)
 
 ###########################################################################################################################################
-    def make_header_source(self, line, set_content=""):
+    def make_header_source(self, line, set_content="", predefined=False):
         if len(set_content)==0:
             set_content = ";"
-        header_content = self.make_method(line, tab_no=2, set_content="")
-        source_content = self.make_method(line, tab_no=0, is_source=True, set_content=set_content)
+        header_content = self.make_method(line, tab_no=2, set_content="", predefined=predefined)
+        source_content = self.make_method(line, tab_no=0, is_source=True, set_content=set_content, predefined=predefined)
         return header_content, source_content
 
 ###########################################################################################################################################
-    def make_method(self, line, tab_no=0, is_source=False, set_content="", comment="", in_line=False, omit_semicolon=False):
+    def make_method(self, line, tab_no=0, is_source=False, set_content="", comment="", in_line=False, omit_semicolon=False, predefined=False):
         is_method, method_type, method_name, method_arguments, method_const, method_init, method_contents, method_comments, comment_type = self.break_line(line)
         #if line.find("SetDecayNo")>0:
             #print(is_method, method_type, method_name, method_arguments, method_const, method_init, method_contents, method_comments, comment_type)
@@ -499,6 +501,14 @@ class lilakcc:
         line_final = f"{method_type_}{method_name_arg_}{line_const}{line_content}"
         line_final = (" "*self.tab_size)*tab_no + line_final
         line_final = self.make_doxygen_comment(method_comments,line_final)
+
+        if predefined:
+            if is_source:
+                #line_final = '//'+'\n//'.join(line_final.splitlines())
+                line_final = '/*\n' + line_final + '\n*/'
+            else:
+                line_final = self.simply_comment_out(line_final,'//')
+
         return line_final
 
 ###########################################################################################################################################
@@ -1110,6 +1120,23 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
         print('   num_data         :', num_data)
 
 ###########################################################################################################################################
+    def simply_comment_out(self,lines,comment_notation="//"):
+        list_new_lines = []
+        for line in lines.splitlines():
+            list_new_lines.append(" "*self.count_lspace(line)+comment_notation+line.lstrip())
+        return '\n'.join(list_new_lines)
+
+###########################################################################################################################################
+    def count_lspace(self,line):
+        count_space = 0
+        for char in line:
+            if char==' ':
+                count_space = count_space + 1
+            else:
+                break
+        return count_space
+
+###########################################################################################################################################
     def init_print(self):
         if os.path.exists(self.path)==False:
             os.mkdir(self.path)
@@ -1150,12 +1177,14 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
         m_container = 1
         m_detector = 2
         m_detector_plane = 3
+        m_pad_plane = 4
 
         if len(self.inherit_list)==0:
             if mode==m_task: self.add_inherit_class('public LKTask')
             if mode==m_container: self.add_inherit_class('public LKContainer')
             if mode==m_detector: self.add_inherit_class('public LKDetector')
             if mode==m_detector_plane: self.add_inherit_class('public LKDetectorPlane')
+            if mode==m_pad_plane: self.add_inherit_class('public LKPadPlane')
 
         inheritance = ', '.join(self.inherit_list)
 
@@ -1180,6 +1209,9 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
         if mode==m_detector_plane:
             self.include_headers('LKDetectorPlane.h')
 
+        if mode==m_pad_plane:
+            self.include_headers('LKPadPlane.h')
+
         if len(includes)!=0:
             self.include_headers(includes)
 
@@ -1202,7 +1234,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
         header_detail = ""
         if mode==m_task:
             header_detail = """Remove this comment block after reading it through
-    Or use print_example_comments=False option to omit printing
+or use print_example_comments=False option to omit printing
 
 # Example LILAK task class
 
@@ -1210,7 +1242,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
     - Write Exec() or/and EndOfRun() method."""
         elif mode==m_container:
             header_detail="""Remove this comment block after reading it through
-    Or use print_example_comments=False option to omit printing
+or use print_example_comments=False option to omit printing
 
 # Example LILAK container class
 
@@ -1233,14 +1265,14 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
     - Write Copy() for copying object"""
         elif mode==m_detector:
             header_detail="""Remove this comment block after reading it through
-    Or use print_example_comments=False option to omit printing
+or use print_example_comments=False option to omit printing
 
 # Example LILAK detector class
 """
 
         elif mode==m_detector_plane:
             header_detail="""Remove this comment block after reading it through
-    Or use print_example_comments=False option to omit printing
+or use print_example_comments=False option to omit printing
 
 # Example LILAK detector plane class
 
@@ -1266,6 +1298,54 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
     - LKVector3::Axis fAxis1 = LKVector3::kX;
     - LKVector3::Axis fAxis2 = LKVector3::kY;
     - LKDetector *fDetector = nullptr;
+"""
+
+        elif mode==m_pad_plane:
+            header_detail="""Remove this comment block after reading it through
+or use print_example_comments=False option to omit printing
+
+# Example LILAK pad plane class
+
+# Given members in LKDetectorPlane class
+
+## public:
+    virtual void Print(Option_t *option = "") const;
+    virtual void Clear(Option_t *option = "");
+    virtual Int_t FindPadID(Double_t i, Double_t j) { return (LKPad *) FindChannelID(i,j); }
+    virtual Int_t FindPadID(Int_t section, Int_t row, Int_t layer) { return (LKPad *) FindChannelID(section,row,layer); }
+    LKPad *GetPadFast(Int_t padID);
+    LKPad *GetPad(Int_t padID);
+    LKPad *GetPad(Double_t i, Double_t j);
+    LKPad *GetPad(Int_t section, Int_t row, Int_t layer);
+    void SetPadArray(TClonesArray *padArray);
+    void SetHitArray(TClonesArray *hitArray);
+    Int_t GetNumPads();
+    void FillBufferIn(Double_t i, Double_t j, Double_t tb, Double_t val, Int_t trackID = -1);
+    void SetPlaneK(Double_t k);
+    Double_t GetPlaneK();
+    virtual void ResetHitMap();
+    virtual void ResetEvent();
+    void AddHit(LKTpcHit *hit);
+    virtual LKTpcHit *PullOutNextFreeHit();
+    void PullOutNeighborHits(vector<LKTpcHit*> *hits, vector<LKTpcHit*> *neighborHits);
+    void PullOutNeighborHits(TVector2 p, Int_t range, vector<LKTpcHit*> *neighborHits);
+    void PullOutNeighborHits(Double_t x, Double_t y, Int_t range, vector<LKTpcHit*> *neighborHits);
+    void PullOutNeighborHits(LKHitArray *hits, LKHitArray *neighborHits);
+    void PullOutNeighborHits(Double_t x, Double_t y, Int_t range, LKHitArray *neighborHits);
+    void GrabNeighborPads(vector<LKPad*> *pads, vector<LKPad*> *neighborPads);
+    TObjArray *GetPadArray();
+    bool PadPositionChecker(bool checkCorners = true);
+    bool PadNeighborChecker();
+
+## private:
+    virtual void ClickedAtPosition(Double_t x, Double_t y);
+    Int_t fEFieldAxis = -1;
+    Int_t fFreePadIdx = 0;
+    bool fFilledPad = false;
+    bool fFilledHit = false;
+    TCanvas *fCvsChannelBuffer = nullptr;
+    TGraph *fGraphChannelBoundary = nullptr;
+    TGraph *fGraphChannelBoundaryNb[20] = {0};
 """
 
         if print_example_comments==True:
@@ -1299,18 +1379,32 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
 
         self.par_print_list.insert(0,"// You will probability need to modify here")
         #self.par_print_list.insert(1,f"{inherit_class0}::Print();")
-        self.par_print_list.insert(1,f'lx_info << "{self.name} container" << std::endl;')
+        self.par_print_list.insert(1,f'lx_info << "{self.name}" << std::endl;')
         print_content = '\n'.join(self.par_print_list)
 
         dete2_content = """// example plane
-// auto plane = new LKDetectorPlane();
-// plane -> SetPlaneID(0);
-// plane -> SetDetector(this);
-// plane -> Init();
+// AddPlane(new MyPlane);
 return true;
 """
+        isind_content = f"""// example (x,y,z) is inside the plane boundary
+//if (x>-10 and x<10)
+//    return true;
+//return false;
+return true;"""
+
+        isinp_content = f"""// example (x,y) is inside the plane boundary
+//if (x>-10 and x<10)
+//    return true;
+//return false;
+return true;"""
+
         findch_content = f"""// example find id
-// int id = 100*i + j;
+// int id = 100*x + y;
+// return id;
+return -1;"""
+
+        findch_content2 = f"""// example find id
+// int id = 10000*section + 100*row + layer;
 // return id;
 return -1;"""
 
@@ -1326,6 +1420,23 @@ return (TCanvas *) nullptr;"""
 // return fHist;
 return (TH2D *) nullptr;"""
 
+        draw_content = f"""SetDataFromBranch();
+FillDataToHist();
+auto hist = GetHist();
+if (hist==nullptr)
+    return;
+if (fPar->CheckPar(fName+"/histZMin")) hist -> SetMinimum(fPar->GetParDouble(fName+"/histZMin"));
+else hist -> SetMinimum(0.01);
+if (fPar->CheckPar(fName+"/histZMax")) hist -> SetMaximum(fPar->GetParDouble(fName+"/histZMin"));
+auto cvs = GetCanvas();
+cvs -> Clear();
+cvs -> cd();
+hist -> Reset();
+hist -> DrawClone("colz");
+hist -> Reset();
+hist -> Draw("same");
+DrawFrame();"""
+
         self.par_copy_list.insert(0,"// You should copy data from this container to objCopy")
         self.par_copy_list.insert(1,f"{inherit_class0}::Copy(object);")
         self.par_copy_list.insert(2,f"auto objCopy = ({self.name} &) object;")
@@ -1334,6 +1445,16 @@ return (TH2D *) nullptr;"""
         header_class_public = ' '*self.tab_size + "public:"
         constructor_content = ""
         if mode==m_container: constructor_content = "Clear();"
+        if mode==m_task: constructor_content = f"""fName = "{self.name}";"""
+        if mode==m_detector: constructor_content = f"""fName = "{self.name}";
+if (fDetectorPlaneArray==nullptr)
+    fDetectorPlaneArray = new TObjArray();"""
+        if mode==m_detector_plane: constructor_content = f"""fName = "{self.name}";
+if (fChannelArray==nullptr)
+    fChannelArray = new TObjArray();"""
+        if mode==m_pad_plane: constructor_content = f"""fName = "{self.name}";
+if (fChannelArray==nullptr)
+    fChannelArray = new TObjArray();"""
 
         header_enum = '\n'+'\n'.join(self.enum_list) if len(self.enum_list)>0 else ""
 
@@ -1352,17 +1473,21 @@ return (TH2D *) nullptr;"""
 
         header_dete1, source_dete1 = self.make_header_source('bool BuildGeometry()', "return true;")
         header_dete2, source_dete2 = self.make_header_source('bool BuildDetectorPlane()', dete2_content)
+        header_dete3, source_dete3 = self.make_header_source('bool  IsInBoundary(Double_t x, Double_t y, Double_t z)', isind_content)
 
-        header_detp0, source_detp0 = self.make_header_source('bool IsInBoundary(Double_t i, Double_t j)', "return true;")
-        header_detp1, source_detp1 = self.make_header_source('Int_t FindChannelID(Double_t i, Double_t j)', findch_content)
-        header_detp2, source_detp2 = self.make_header_source('TCanvas *GetCanvas(Option_t *option="");', getcvs_content)
-        header_detp3, source_detp3 = self.make_header_source('TH2* GetHist(Option_t *option="")', gethist_content)
-        header_detp4, source_detp4 = self.make_header_source('bool DrawEvent(Option_t *option="");', "return true;")
-        header_detp5, source_detp5 = self.make_header_source('bool SetDataFromBranch()', 'return false;')
-        header_detp6, source_detp6 = self.make_header_source('void DrawHist();')
-        header_detp7, source_detp7 = self.make_header_source('void DrawFrame(Option_t *option="")')
-        header_detp9, source_detp9 = self.make_header_source('void MouseClickEvent(int iPlane);')
-        header_detpa, source_detpa = self.make_header_source('void ClickedAtPosition(Double_t x, Double_t y)')
+        header_detp0, source_detp0 = self.make_header_source('bool  IsInBoundary(Double_t x, Double_t y)', isinp_content)
+        header_detp1, source_detp1 = self.make_header_source('Int_t FindChannelID(Double_t x, Double_t y)', findch_content)
+        header_detp2, source_detp2 = self.make_header_source('Int_t FindChannelID(Int_t section, Int_t row, Int_t layer)', findch_content2)
+
+        header_detp3, source_detp3 = self.make_header_source('TCanvas* GetCanvas(Option_t *option="");', getcvs_content, predefined=True)
+        header_detp4, source_detp4 = self.make_header_source('TH2*     GetHist(Option_t *option="")', gethist_content)
+        header_detp5, source_detp5 = self.make_header_source('bool     SetDataFromBranch()', 'return false;', predefined=True)
+        header_detp6, source_detp6 = self.make_header_source('void     FillDataToHist()', gethist_content, predefined=True)
+        header_detp7, source_detp7 = self.make_header_source('void     DrawFrame(Option_t *option="")')
+        header_detp8, source_detp8 = self.make_header_source('void     Draw(Option_t *option="");', draw_content, predefined=True)
+
+        header_detpa, source_detpa = self.make_header_source('void MouseClickEvent(int iPlane);', predefined=True)
+        header_detpb, source_detpb = self.make_header_source('void ClickedAtPosition(Double_t x, Double_t y)', predefined=True)
 
         ############## get set ##############
         if len(self.get_full_list[0])>0: self.get_full_list[0].insert(0,"")
@@ -1374,7 +1499,6 @@ return (TH2D *) nullptr;"""
         header_public_par = tab2 + etab2.join(self.par_def_list[0])
 
         ############## protected ##############
-        header_class_protected = ' '*self.tab_size + "protected:"
         header_protected_par = tab2 + etab2.join(self.par_def_list[1])
 
         ############## private ##############
@@ -1412,16 +1536,25 @@ return (TH2D *) nullptr;"""
                 "", header_detail, header_description, header_class,
                 header_class_public, header_constructor, header_destructor, header_enum,
                 "", header_print, header_init,
-                header_dete1, header_dete2,
+                header_dete1, header_dete2, header_dete3,
                 header_getter, header_setter]
         elif mode==m_detector_plane:
             header_list = [
                 header_define, header_include_root, header_include_lilak, header_include_other,
                 "", header_detail, header_description, header_class,
                 header_class_public, header_constructor, header_destructor, header_enum,
-                "", header_print, header_init,
-                header_detp0, header_detp1, header_detp2, header_detp3, header_detp4,
-                header_detp5, header_detp6, header_detp7, "", header_detp9, header_detpa,
+                "", header_init, header_clear, header_print,
+                "", header_detp0, header_detp1, header_detp2, "", header_detp3, header_detp4,
+                "", header_detp5, header_detp7, header_detp8, "", header_detpa, header_detpb,
+                header_getter, header_setter]
+        elif mode==m_pad_plane:
+            header_list = [
+                header_define, header_include_root, header_include_lilak, header_include_other,
+                "", header_detail, header_description, header_class,
+                header_class_public, header_constructor, header_destructor, header_enum,
+                "", header_init, header_clear, header_print,
+                "", header_detp0, header_detp1, header_detp2, "", header_detp3, header_detp4,
+                "", header_detp5, header_detp7, header_detp8, "", header_detpa, header_detpb,
                 header_getter, header_setter]
 
         if len(header_public_par.strip())>0:    header_list.extend(["",header_public_par])
@@ -1457,7 +1590,8 @@ return (TH2D *) nullptr;"""
                 "",source_init,
                 "",source_print,
                 "",source_dete1,
-                "",source_dete2
+                "",source_dete2,
+                "",source_dete3
                 ]
         elif mode==m_detector_plane:
             source_list = [
@@ -1465,6 +1599,7 @@ return (TH2D *) nullptr;"""
                 "",source_classimp,
                 "",source_constructor,
                 "",source_init,
+                "",source_clear,
                 "",source_print,
                 "",source_detp0,
                 "",source_detp1,
@@ -1474,7 +1609,26 @@ return (TH2D *) nullptr;"""
                 "",source_detp5,
                 "",source_detp6,
                 "",source_detp7,
-                "",source_detp9,
+                "",source_detp8,
+                "",source_detpa
+                ]
+        elif mode==m_pad_plane:
+            source_list = [
+                source_include,
+                "",source_classimp,
+                "",source_constructor,
+                "",source_init,
+                "",source_clear,
+                "",source_print,
+                "",source_detp0,
+                "",source_detp1,
+                "",source_detp2,
+                "",source_detp3,
+                "",source_detp4,
+                "",source_detp5,
+                "",source_detp6,
+                "",source_detp7,
+                "",source_detp8,
                 "",source_detpa
                 ]
         source_all = '\n'.join(source_list)
@@ -1566,6 +1720,10 @@ return (TH2D *) nullptr;"""
 ###########################################################################################################################################
     def print_detector_plane(self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance=''):
         self.print_class(mode=3, to_screen=to_screen, to_file=to_file, print_example_comments=print_example_comments, includes=includes, inheritance=inheritance)
+
+###########################################################################################################################################
+    def print_pad_plane(self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance=''):
+        self.print_class(mode=4, to_screen=to_screen, to_file=to_file, print_example_comments=print_example_comments, includes=includes, inheritance=inheritance)
 
 if __name__ == "__main__":
     help(lilakcc)
