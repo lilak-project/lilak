@@ -562,6 +562,10 @@ bool LKRun::Init()
         fDetectorSystem -> Print();
     }
 
+    if (fPar -> CheckPar("LKRun/DataPath")) {
+        fDataPath = fPar -> GetParString("LKRun/DataPath");
+    }
+
     if (fOutputFileName.IsNull())
     {
         if (fRunName.IsNull()) {
@@ -570,7 +574,9 @@ bool LKRun::Init()
             Terminate(this);
         }
 
+        lk_debug << fDataPath << endl;
         fOutputFileName = ConfigureFileName();
+        lk_debug << fOutputFileName << endl;
         lk_info << "Setting output file name to " << fOutputFileName << endl;
     }
     else {
@@ -605,6 +611,8 @@ bool LKRun::Init()
 
     fCurrentEventID = 0;
 
+    Print();
+
     return fInitialized;
 }
 
@@ -635,7 +643,8 @@ bool LKRun::RegisterBranch(TString name, TObject *obj, bool persistent)
 
     if (persistent) {
         if (fOutputTree != nullptr)
-            fOutputTree -> Branch(name, &obj);
+            //fOutputTree -> Branch(name, &obj);
+            fOutputTree -> Branch(name, obj);
         fPersistentBranchArray -> Add(obj);
     } else {
         fTemporaryBranchArray -> Add(obj);
@@ -733,6 +742,8 @@ void LKRun::Run(Long64_t numEvents)
     }
 
     LKRun::EndOfRun();
+
+    Print();
 }
 
 
@@ -833,7 +844,10 @@ void LKRun::ClearArrays() {
         Int_t numBranches = branchArray -> GetEntries();
         for (Int_t iBranch = 0; iBranch < numBranches; iBranch++) {
             auto branch = (TClonesArray *) branchArray -> At(iBranch);
-            branch -> Clear("C");
+            if (branch -> InheritsFrom(TClonesArray::Class()))
+                ((TClonesArray *) branch) -> Clear("C");
+            else
+                branch -> Clear();
         }
     }
 }
