@@ -39,6 +39,16 @@ void LKGeoLine::SetLine(TVector3 pos1, TVector3 pos2)
     fZ2 = pos2.Z();
 }
 
+void LKGeoLine::SetLine(LKGeoLine *line)
+{
+    fX1 = line -> GetX1();
+    fY1 = line -> GetY1();
+    fZ1 = line -> GetZ1();
+    fX2 = line -> GetX2();
+    fY2 = line -> GetY2();
+    fZ2 = line -> GetZ2();
+}
+
 Double_t LKGeoLine::GetX1() const { return fX1; }
 Double_t LKGeoLine::GetY1() const { return fY1; }
 Double_t LKGeoLine::GetZ1() const { return fZ1; }

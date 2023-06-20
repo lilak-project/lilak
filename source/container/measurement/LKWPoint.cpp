@@ -47,7 +47,7 @@ void LKWPoint::Clear(Option_t *option)
     fX = 0;
     fY = 0;
     fZ = 0;
-    fW = 0;
+    fW = 1;
 }
 
 void LKWPoint::Copy(TObject &obj) const

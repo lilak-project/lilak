@@ -574,9 +574,7 @@ bool LKRun::Init()
             Terminate(this);
         }
 
-        lk_debug << fDataPath << endl;
         fOutputFileName = ConfigureFileName();
-        lk_debug << fOutputFileName << endl;
         lk_info << "Setting output file name to " << fOutputFileName << endl;
     }
     else {
@@ -643,8 +641,7 @@ bool LKRun::RegisterBranch(TString name, TObject *obj, bool persistent)
 
     if (persistent) {
         if (fOutputTree != nullptr)
-            //fOutputTree -> Branch(name, &obj);
-            fOutputTree -> Branch(name, obj);
+            fOutputTree -> Branch(name, obj, 32000, 0);
         fPersistentBranchArray -> Add(obj);
     } else {
         fTemporaryBranchArray -> Add(obj);
@@ -652,6 +649,12 @@ bool LKRun::RegisterBranch(TString name, TObject *obj, bool persistent)
     lk_info << "Output branch " << name << " " << persistencyMessage << endl;
 
     return true;
+}
+
+TClonesArray* LKRun::RegisterBranchA(TString name, const char* className, Int_t size, bool persistent) {
+    TClonesArray *array = new TClonesArray(className, size);
+    RegisterBranch(name, array, persistent);
+    return array;
 }
 
 TString LKRun::GetBranchName(int idx) const
@@ -666,26 +669,45 @@ TObject *LKRun::GetBranch(int idx)
     return dataContainer;
 }
 
-TClonesArray *LKRun::GetBranchA(int idx)
-{
-    TObject *dataContainer = fBranchPtr[idx];
-    if (dataContainer!=nullptr && dataContainer -> InheritsFrom("TClonesArray"))
-        return (TClonesArray *) dataContainer;
-    return (TClonesArray *) nullptr;
-}
-
 TObject *LKRun::GetBranch(TString name)
 {
     TObject *dataContainer = fBranchPtrMap[name];
     return dataContainer;
 }
 
+TObject *LKRun::KeepBranch(TString name) {
+    TObject *dataContainer = GetBranch(name);
+    if (fOutputTree!=nullptr)
+        fOutputTree -> Branch(name, dataContainer);
+    return dataContainer;
+}
+
+TClonesArray *LKRun::GetBranchA(int idx)
+{
+    TObject *dataContainer = fBranchPtr[idx];
+    if (dataContainer!=nullptr && dataContainer -> InheritsFrom("TClonesArray")) {
+        return (TClonesArray *) dataContainer;
+    }
+    return (TClonesArray *) nullptr;
+}
+
 TClonesArray *LKRun::GetBranchA(TString name)
 {
     TObject *dataContainer = fBranchPtrMap[name];
-    if (dataContainer!=nullptr && dataContainer -> InheritsFrom("TClonesArray"))
+    if (dataContainer==nullptr)
+        lk_error << "Branch " << name << " does not exist!" << endl;
+    else if (dataContainer->InheritsFrom("TClonesArray")==false)
+        lk_error << "Branch " << name << " is not TClonesArray object!" << endl;
+    else
         return (TClonesArray *) dataContainer;
     return (TClonesArray *) nullptr;
+}
+
+TClonesArray *LKRun::KeepBranchA(TString name) {
+    TClonesArray* dataContainer = GetBranchA(name);
+    if (fOutputTree!=nullptr)
+        fOutputTree -> Branch(name, dataContainer);
+    return dataContainer;
 }
 
 Int_t LKRun::GetEntry(Long64_t entry, Int_t getall)

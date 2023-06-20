@@ -37,7 +37,7 @@ class LKRun : public LKTask
     public:
         static LKRun* GetRun(); ///< Get LKRun static pointer.
 
-        LKRun(); ///< Do not use this constructor. Use GetRun() only.
+        LKRun();
         virtual ~LKRun() {};
 
         static void PrintLILAK();              ///< Print compiled LILAK information
@@ -53,6 +53,9 @@ class LKRun : public LKTask
          */
         virtual void Print(Option_t *option="all") const;
         virtual void Add(TTask *task);
+
+        virtual void PrintEvent(Option_t *option="all") const;
+        Int_t PrintEvent(Long64_t entry) { return GetEntry(entry); } ///< Equavalent to GetEntry
 
         /// Run name/id
         /// This is equivalent to setting parameter
@@ -109,11 +112,18 @@ class LKRun : public LKTask
          */
         bool RegisterBranch(TString name, TObject *obj, bool persistent=true);
 
+        /**
+         * Create, register and return TClonesArray object.
+         */
+        TClonesArray* RegisterBranchA(TString name, const char* className, Int_t size=100, bool persistent=true);
+
         TString GetBranchName(int idx) const;
         TObject *GetBranch(TString name); ///< Get branch in TObject by name.
-        TClonesArray *GetBranchA(TString name); ///< Get branch in TClonesArray by name. Return nullptr if branch is not inherited from TClonesArray
         TObject *GetBranch(int idx);
+        TObject *KeepBranch(TString name);
+        TClonesArray *GetBranchA(TString name); ///< Get branch in TClonesArray by name. Return nullptr if branch is not inherited from TClonesArray
         TClonesArray *GetBranchA(int idx);
+        TClonesArray *KeepBranchA(TString name);
         int GetNumBranches() const { return fNumBranches; }
 
         void AddDetector(LKDetector *detector); ///< Set detector

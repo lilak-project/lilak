@@ -90,6 +90,11 @@ void LKLinearTrack::SetTrack(TVector3 pos1, TVector3 pos2)
     LKGeoLine::SetLine(pos1, pos2);
 }
 
+void LKLinearTrack::SetLine(LKGeoLine *line)
+{
+    LKGeoLine::SetLine(line);
+}
+
 void LKLinearTrack::Clear(Option_t *option)
 {
     LKTracklet::Clear(option);
@@ -111,8 +116,8 @@ void LKLinearTrack::Print(Option_t *option) const
 {
     TString opts = TString(option);
 
-    lx_info << " from >" << setw(12) << fX1 << "," << setw(12) << fY1 << "," << setw(12) << fZ1 << endl;
-    lx_info << "   to >" << setw(12) << fX2 << "," << setw(12) << fY2 << "," << setw(12) << fZ2 << endl;
+    lx_info << "(" << setw(12) << fX1 << "," << setw(12) << fY1 << "," << setw(12) << fZ1 << ") -> " 
+                   << setw(12) << fX2 << "," << setw(12) << fY2 << "," << setw(12) << fZ2 << ")" << endl;
 }
 
 bool LKLinearTrack::Fit()

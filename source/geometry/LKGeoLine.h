@@ -17,8 +17,9 @@ class LKGeoLine : public LKGeometry
 
         virtual TVector3 GetCenter() const;
 
-        void SetLine(Double_t x1, Double_t y1, Double_t z1, Double_t x2, Double_t y2, Double_t z2);
-        void SetLine(TVector3 pos1, TVector3 pos2);
+        virtual void SetLine(Double_t x1, Double_t y1, Double_t z1, Double_t x2, Double_t y2, Double_t z2);
+        virtual void SetLine(TVector3 pos1, TVector3 pos2);
+        virtual void SetLine(LKGeoLine *line);
 
         Double_t GetX1() const;
         Double_t GetY1() const;
