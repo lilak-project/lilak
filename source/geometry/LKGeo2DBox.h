@@ -47,7 +47,7 @@ class LKGeo2DBox : public LKGeoRotated
         Double_t fX[4];
         Double_t fY[4];
 
-    ClassDef(LKGeo2DBox, 0)
+    ClassDef(LKGeo2DBox, 1)
 };
 
 #endif

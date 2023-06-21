@@ -24,7 +24,7 @@ void LKTpcHit::Clear(Option_t *option)
 
 void LKTpcHit::Print(Option_t *option) const
 {
-    lx_info
+    e_info
         //<< "HTMP-ID: " << fHitID << ", " << fTrackID << ", " << fMCID << ", " << fPadID
         << "HTP-ID: " << fHitID << ", " << fTrackID << ", " << fPadID
         << "| XYZ: " << fX << ", " << fY << ", " << fZ << " |, Q: " << fW
@@ -33,7 +33,7 @@ void LKTpcHit::Print(Option_t *option) const
 
 void LKTpcHit::PrintTpcHit() const
 {
-    lx_info
+    e_info
         //<< "HTMP-ID: "
         << "HTP-ID: "
         << setw(4)  << fHitID

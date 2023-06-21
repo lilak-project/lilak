@@ -17,17 +17,17 @@ void LKVector3::Print(Option_t *option) const
 
   if (opts.Index("s")>=0) {
     if (fReferenceAxis != LKVector3::kNon)
-      lx_info << "ref:" << fReferenceAxis
+      e_info << "ref:" << fReferenceAxis
         << ", (x,y,z)=("<<X()<<","<<Y()<<","<<Z()<<")"
         << ", (i,j,k)=("<<I()<<","<<J()<<","<<K()<<")" << endl;
     else
-      lx_info << "ref:" << fReferenceAxis << ", (x,y,z)=("<<X()<<","<<Y()<<","<<Z()<<")" << endl;
+      e_info << "ref:" << fReferenceAxis << ", (x,y,z)=("<<X()<<","<<Y()<<","<<Z()<<")" << endl;
   }
   else {
-    lx_info << "Reference axis : " << fReferenceAxis << endl;
-    lx_info << "(x,y,z) = ("<<X()<<","<<Y()<<","<<Z()<<")" << endl;
+    e_info << "Reference axis : " << fReferenceAxis << endl;
+    e_info << "(x,y,z) = ("<<X()<<","<<Y()<<","<<Z()<<")" << endl;
     if (fReferenceAxis != LKVector3::kNon)
-      lx_info << "(i,j,k) = ("<<I()<<","<<J()<<","<<K()<<")" << endl;
+      e_info << "(i,j,k) = ("<<I()<<","<<J()<<","<<K()<<")" << endl;
   }
 }
 
@@ -42,7 +42,7 @@ void LKVector3::Clear(Option_t *)
 void LKVector3::SetReferenceAxis(LKVector3::Axis referenceAxis)
 {
   if (!IsGlobalAxis(referenceAxis)) {
-    lx_error << "Reference axis should be one of: kX(1), kY(2), kZ(3), kMX(4), kMY(5), kMZ(6)" << endl;
+    e_error << "Reference axis should be one of: kX(1), kY(2), kZ(3), kMX(4), kMY(5), kMZ(6)" << endl;
     return;
   }
   fReferenceAxis = referenceAxis;
@@ -94,7 +94,7 @@ Double_t LKVector3::At(LKVector3::Axis ka) const
   else if (ka == LKVector3::kMJ) return -J();
   else if (ka == LKVector3::kMK) return -K();
   else
-    lx_error << "Cannot use method At() for axis kNon" << endl;
+    e_error << "Cannot use method At() for axis kNon" << endl;
 
   return -999;
 }
@@ -114,7 +114,7 @@ void LKVector3::AddAt(Double_t value, Axis ka, bool ignoreNegative)
   else if (ka == LKVector3::kMJ) { if (ignoreNegative) SetJ(J()+value); else SetJ(J()-value); }
   else if (ka == LKVector3::kMK) { if (ignoreNegative) SetK(K()+value); else SetK(K()-value); }
   else
-    lx_error << "Cannot use method AddAt() for axis kNon" << endl;
+    e_error << "Cannot use method AddAt() for axis kNon" << endl;
 }
 
 void LKVector3::SetAt(Double_t value, Axis ka, bool ignoreNegative)
@@ -132,13 +132,13 @@ void LKVector3::SetAt(Double_t value, Axis ka, bool ignoreNegative)
   else if (ka == LKVector3::kMJ) { if (ignoreNegative) SetJ(value); else SetJ(-value); }
   else if (ka == LKVector3::kMK) { if (ignoreNegative) SetK(value); else SetK(-value); }
   else
-    lx_error << "Cannot use method AddAt() for axis kNon" << endl;
+    e_error << "Cannot use method AddAt() for axis kNon" << endl;
 }
 
 void LKVector3::SetIJKR(Double_t i, Double_t j, Double_t k, LKVector3::Axis referenceAxis)
 {
   if (!IsGlobalAxis(referenceAxis)) {
-    lx_error << "Reference axis should be one of; kX(1), kMX(2), kY(3), kMY(4), kZ(5), kMZ(6)" << endl;
+    e_error << "Reference axis should be one of; kX(1), kMX(2), kY(3), kMY(4), kZ(5), kMZ(6)" << endl;
     return;
   }
 

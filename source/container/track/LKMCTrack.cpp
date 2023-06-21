@@ -37,17 +37,17 @@ void LKMCTrack::Print(Option_t *option) const
     TString opts = TString(option);
 
     if (TString(option).Index("all")>=0) {
-        lx_info << "MC-" << setw(3) << fTrackID << "(" << setw(3) << fParentID << ") " << setw(11) << fPDG << "[" << setw(2) << fCreatorProcessID << "]" << endl;
+        e_info << "MC-" << setw(3) << fTrackID << "(" << setw(3) << fParentID << ") " << setw(11) << fPDG << "[" << setw(2) << fCreatorProcessID << "]" << endl;
         Int_t n = fPX.size();
         for (auto i=0; i<n; ++i) {
-            lx_info << "  " << i
+            e_info << "  " << i
                 <<  "> mom=(" << setw(12) << fPX[i] << "," << setw(12) << fPY[i] << "," << setw(12) << fPZ[i] << "),"
                 <<   " det="  << setw(12) << fDetectorID[i] << ","
                 <<   " pos=(" << setw(12) << fVX[i] << "," << setw(12) << fVY[i] << "," << setw(12) << fVZ[i] << ")" << endl;
         }
     }
     else {
-        lx_info << "MC-" << setw(3) << fTrackID << "(" << setw(3) << fParentID << ") " << setw(11) << fPDG
+        e_info << "MC-" << setw(3) << fTrackID << "(" << setw(3) << fParentID << ") " << setw(11) << fPDG
             << "[" << setw(2) << fCreatorProcessID << "]"
             << " mom=(" << setw(12) << fPX[0] << "," << setw(12) << fPY[0] << "," << setw(12) << fPZ[0] << "),"
             << " det="  << setw(12) << fDetectorID[0] << ","

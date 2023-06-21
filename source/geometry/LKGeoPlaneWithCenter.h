@@ -28,7 +28,7 @@ class LKGeoPlaneWithCenter : public LKGeoPlane
         Double_t fY = 0;
         Double_t fZ = 0;
 
-        ClassDef(LKGeoPlaneWithCenter, 0)
+        ClassDef(LKGeoPlaneWithCenter, 1)
 };
 
 #endif

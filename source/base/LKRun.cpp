@@ -29,6 +29,7 @@ LKRun::LKRun()
     fInstance = this;
     fPersistentBranchArray = new TObjArray();
     fTemporaryBranchArray = new TObjArray();
+    fInputTreeBranchArray = new TObjArray();
     fBranchPtr = new TObject*[100];
     for (Int_t iBranch = 0; iBranch < 100; ++iBranch)
         fBranchPtr[iBranch] = nullptr;
@@ -184,7 +185,7 @@ TString LKRun::ConfigureFileName()
     if (fSplit != -1)
         fileName = fileName + Form(".SPLIT_%d",fSplit);
 
-    fileName = fileName + Form(".%s",LILAK_MAINPROJECT_VERSION);
+    //fileName = fileName + Form(".%s",LILAK_MAINPROJECT_VERSION);
 
     fileName = LKRun::ConfigureDataPath(fileName,false,fDataPath);
 
@@ -218,18 +219,18 @@ void LKRun::Print(Option_t *option) const
     if (printOptions.Index("in" )>=0) { printInputs = true;     printOptions.ReplaceAll("in", ""); }
     if (printOptions.Index("det")>=0) { printDetectors = true;  printOptions.ReplaceAll("det",""); }
 
-    lx_cout << endl;
+    e_cout << endl;
 
     if (printGeneral) LKRun::PrintLILAK();
 
     if (printParameters) {
-        lx_cout << endl;
+        e_cout << endl;
         lk_info << "# Parameters" << endl;
         fPar -> Print();
     }
 
     if (printDetectors) {
-        lx_cout << endl;
+        e_cout << endl;
         lk_info << "# Detectors" << endl;
         fDetectorSystem -> Print();
     }
@@ -240,22 +241,22 @@ void LKRun::Print(Option_t *option) const
         if (io==0) {
             if (!printInputs) continue;
             else if (fInputTree == nullptr)  {
-                lx_cout << endl;
+                e_cout << endl;
                 lk_info << "Input tree do not exist" << endl;
                 continue;
             }
-            lx_cout << endl;
+            e_cout << endl;
             lk_info << "Input: " << fInputFileName << endl;
             tree = (TTree *) fInputTree;
         }
         else if (io==1) {
             if (!printOutputs) continue;
             else if (fOutputTree == nullptr)  {
-                lx_cout << endl;
+                e_cout << endl;
                 lk_info << "Output tree do not exist" << endl;
                 continue;
             }
-            lx_cout << endl;
+            e_cout << endl;
             lk_info << "Output: " << fOutputFileName << endl;
             tree = fOutputTree;
         }
@@ -273,15 +274,41 @@ void LKRun::Print(Option_t *option) const
                 auto b = (TBranch *) branchList -> At(ib);
                 lk_info << b -> GetName() << " ";
                 if (++count == 10) {
-                    lx_cout << endl;
+                    e_cout << endl;
                     count = 0;
                 }
             }
-            lx_cout << endl;
+            e_cout << endl;
         }
     }
 
-    lx_cout << endl;
+    e_cout << endl;
+}
+
+void LKRun::PrintEvent(Long64_t entry)
+{
+    LKRun::GetEntry(entry);
+    for (auto branchArray : {fPersistentBranchArray, fInputTreeBranchArray}) {
+        Int_t numBranches = branchArray -> GetEntries();
+        for (Int_t iBranch = 0; iBranch < numBranches; iBranch++) {
+            auto branch = (TClonesArray *) branchArray -> At(iBranch);
+            if (branch -> InheritsFrom(TClonesArray::Class())) {
+                auto array = (TClonesArray *) branch;
+                auto numObj = array -> GetEntries();
+                if (numObj==0)
+                    continue;
+                for (auto iObj :{0})
+                //for (auto iObj=0; iObj<numObj; ++iObj)
+                {
+                    auto object = array -> At(iObj);
+                    object -> Print();
+                }
+            }
+            else if (branch -> InheritsFrom(TObject::Class())) {
+                branch -> Print();
+            }
+        }
+    }
 }
 
 TString LKRun::GetFileHash(TString name)
@@ -455,7 +482,7 @@ bool LKRun::Init()
     }
 
     if (!fInputFileName.IsNull()) {
-        lx_cout << endl;
+        e_cout << endl;
         if (!LKRun::CheckFileExistence(fInputFileName)) {
             lk_info << "given input file deos not exist!" << endl;
             return false;
@@ -488,10 +515,11 @@ bool LKRun::Init()
             if (branchName.Index("EdepSum")==0) // TODO
                 continue;
             fInputTree -> SetBranchStatus(branch -> GetName(), 1);
-            fInputTree -> SetBranchAddress(branch -> GetName(), &fBranchPtr[fNumBranches]);
-            fBranchPtrMap[branch -> GetName()] = fBranchPtr[fNumBranches];
+            fInputTree -> SetBranchAddress(branch -> GetName(), &fBranchPtr[fCountBranches]);
+            fBranchPtrMap[branch -> GetName()] = fBranchPtr[fCountBranches];
+            fInputTreeBranchArray -> Add(fBranchPtr[fCountBranches]);
             fBranchNames.push_back(branch -> GetName());
-            fNumBranches++;
+            fCountBranches++;
             if (branchName.Index("MCStep")==0) {
                 arrMCStepIDs.push_back(branchName.ReplaceAll("MCStep","").Data());
                 ++numMCStepIDs;
@@ -528,7 +556,7 @@ bool LKRun::Init()
                 fRunName = runHeaderIn -> GetParString("RunName");
                 fRunID = runHeaderIn -> GetParInt("RunID");
                 //fTag = runHeaderIn -> GetParString("Tag");
-                fSplit = runHeaderIn -> GetParInt("Split");
+                //fSplit = runHeaderIn -> GetParInt("Split");
             }
             else {
                 ConfigureRunFromFileName(fInputFileName);
@@ -538,21 +566,6 @@ bool LKRun::Init()
     else {
         lk_warning << "Input file is not set!" << endl;
     }
-
-    fRunHeader = new LKParameterContainer();
-    fRunHeader -> SetName("RunHeader");
-    fRunHeader -> AddPar("Main_Project_Version",LILAK_MAINPROJECT_VERSION);
-    fRunHeader -> AddPar("LILAK_Version",LILAK_VERSION);
-    fRunHeader -> AddPar("LILAK_HostName",LILAK_HOSTNAME);
-    fRunHeader -> AddPar("LILAK_UserName",LILAK_USERNAME);
-    fRunHeader -> AddPar("LILAK_Path",LILAK_PATH);
-    fRunHeader -> AddPar("InputFile",fInputFileName);
-    fRunHeader -> AddPar("OutputFile",fOutputFileName);
-    fRunHeader -> AddPar("RunName",fRunName);
-    fRunHeader -> AddPar("RunID",fRunID);
-    fRunHeader -> AddPar("Tag",fTag);
-    fRunHeader -> AddPar("Split",fSplit);
-    fRunHeader -> AddPar("NumEventsInSplit",int(fNumSplitEntries));
 
     if (fDetectorSystem -> GetEntries() != 0) {
         fDetectorSystem -> SetRun(this);
@@ -598,6 +611,23 @@ bool LKRun::Init()
         }
     }
 
+    fRunHeader = new LKParameterContainer();
+    fRunHeader -> SetName("RunHeader");
+    fRunHeader -> AddPar("MainP_Version",LILAK_MAINPROJECT_VERSION);
+    fRunHeader -> AddPar("LILAK_Version",LILAK_VERSION);
+    fRunHeader -> AddPar("LILAK_HostName",LILAK_HOSTNAME);
+    fRunHeader -> AddPar("LILAK_UserName",LILAK_USERNAME);
+    fRunHeader -> AddPar("LILAK_Path",LILAK_PATH);
+    fRunHeader -> AddPar("InputFile",fInputFileName);
+    fRunHeader -> AddPar("OutputFile",fOutputFileName);
+    fRunHeader -> AddPar("RunName",fRunName);
+    fRunHeader -> AddPar("RunID",fRunID);
+    fRunHeader -> AddPar("RunTag",fTag);
+    if (fSplit>=0)
+        fRunHeader -> AddPar("Split",fSplit);
+    if (fNumSplitEntries>=0)
+        fRunHeader -> AddPar("NumEventsInSplit",int(fNumSplitEntries));
+
     fInitialized = InitTasks();
 
     if (fInitialized) {
@@ -634,10 +664,10 @@ bool LKRun::RegisterBranch(TString name, TObject *obj, bool persistent)
             persistencyMessage = "(temporary)";
     }
 
-    fBranchPtr[fNumBranches] = obj;
-    fBranchPtrMap[name] = fBranchPtr[fNumBranches];
+    fBranchPtr[fCountBranches] = obj;
+    fBranchPtrMap[name] = fBranchPtr[fCountBranches];
     fBranchNames.push_back(name);
-    fNumBranches++;
+    fCountBranches++;
 
     if (persistent) {
         if (fOutputTree != nullptr)
@@ -715,7 +745,11 @@ Int_t LKRun::GetEntry(Long64_t entry, Int_t getall)
     if (fInputTree == nullptr)
         return -1;
 
-    return fInputTree -> GetEntry(entry, getall);
+    auto nByte = fInputTree -> GetEntry(entry, getall);
+    if (fOutputTree!=nullptr)
+        fOutputTree -> GetEntry(entry, getall);
+
+    return nByte;
 }
 
 bool LKRun::GetNextEvent() { return GetEntry(fCurrentEventID+1) != 0 ? true : false; }
@@ -732,9 +766,9 @@ bool LKRun::WriteOutputFile()
     }
 
     fOutputFile -> cd();
-    fOutputTree -> Write();
-    fPar -> Write(fPar->GetName(),TObject::kSingleKey);
     fRunHeader -> Write(fRunHeader->GetName(),TObject::kSingleKey);
+    fPar -> Write(fPar->GetName(),TObject::kSingleKey);
+    fOutputTree -> Write();
     fOutputFile -> Close();
 
     TString linkName = TString(LILAK_PATH) + "/data/lk_last_output.root";
@@ -746,12 +780,14 @@ bool LKRun::WriteOutputFile()
 
 void LKRun::Run(Long64_t numEvents)
 {
-    lx_cout << endl;
+    e_cout << endl;
 
     if (!StartOfRun(numEvents))
         return;
 
     fEventCount = 1;
+
+    //fEventMessage.clear();
 
     for (fIdxEntry = fStartEventID; fIdxEntry <= fEndEventID; ++fIdxEntry) {
         fCurrentEventID = fIdxEntry;
@@ -807,10 +843,16 @@ bool LKRun::RunEvent(Long64_t eventID)
 
     GetEntry(fCurrentEventID);
 
-    lx_cout << endl;
+    if (fEventCount%fNumSkipEventsForMessage!=0) {
+        lk_set_message(false);
+    }
+
+    e_cout << endl;
     lk_info << "Execute Event " << fCurrentEventID << " (" << fEventCount << "/" << fNumRunEntries << ")" << endl;
     ClearArrays();
     ExecuteTask("");
+
+    lk_set_message(true);
 
     if (fSignalEndOfRun)
         return false;
@@ -855,6 +897,12 @@ bool LKRun::StartOfRun(Long64_t numEvents)
 
     fNumRunEntries = fEndEventID - fStartEventID + 1;
 
+    if (fNumRunEntries<fNumPrintMessage)
+        fNumSkipEventsForMessage = 1;
+    fNumSkipEventsForMessage = fNumRunEntries/fNumPrintMessage;
+    if (fNumSkipEventsForMessage==0)
+        fNumSkipEventsForMessage = 1;
+
     return true;
 }
 
@@ -876,11 +924,11 @@ void LKRun::ClearArrays() {
 
 bool LKRun::EndOfRun()
 {
-    lx_cout << endl;
+    e_cout << endl;
     lk_info << "Executing of EndOfRunTask" << endl;
     EndOfRunTasks();
 
-    lx_cout << endl;
+    e_cout << endl;
     lk_info << "End of Run " << fStartEventID << " -> " << fEndEventID << " (" << fEndEventID - fStartEventID + 1 << ")" << endl;
     if (fSignalEndOfRun)
         lk_info << "Run stoped at event " << fIdxEntry << " (" << fIdxEntry - fStartEventID << ") because EndOfRun signal was sent" << endl;
@@ -894,6 +942,11 @@ bool LKRun::EndOfRun()
 
     return true;
 }
+
+//void LKRun::EventMessage(const char *message) {
+    //fEventMessage.push_back(message);
+//}
+
 
 void LKRun::Terminate(TObject *obj, TString message)
 {

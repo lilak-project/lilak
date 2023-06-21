@@ -23,7 +23,7 @@ class LKGeoRotated : public LKGeometry
         void SetRotation(TRotation rot) { fRotation = rot; }
         TRotation GetRotation() const { return fRotation; }
 
-        ClassDef(LKGeoRotated, 0)
+        ClassDef(LKGeoRotated, 1)
 };
 
 #endif

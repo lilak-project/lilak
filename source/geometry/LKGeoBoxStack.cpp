@@ -17,11 +17,11 @@ LKGeoBoxStack::LKGeoBoxStack(Double_t x,  Double_t y,  Double_t z,
 
 void LKGeoBoxStack::Print(Option_t *) const
 {
-    lx_cout << "[LKGeoBoxStack]" << std::endl;
-    lx_cout << "  Center      : " << fX << " " << fY << " " << fZ << std::endl;
-    lx_cout << "  Displacement: " << fdX << " " << fdY << " " << fdZ << std::endl;
-    lx_cout << "  Stack Axis  : " << fStackAxis << std::endl;
-    lx_cout << "  Face Axis   : " << fFaceAxis << std::endl;
+    e_cout << "[LKGeoBoxStack]" << std::endl;
+    e_cout << "  Center      : " << fX << " " << fY << " " << fZ << std::endl;
+    e_cout << "  Displacement: " << fdX << " " << fdY << " " << fdZ << std::endl;
+    e_cout << "  Stack Axis  : " << fStackAxis << std::endl;
+    e_cout << "  Face Axis   : " << fFaceAxis << std::endl;
 }
 
 TVector3 LKGeoBoxStack::GetCenter() const { return TVector3(fX, fY, fZ); }

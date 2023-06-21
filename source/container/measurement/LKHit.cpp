@@ -27,7 +27,7 @@ void LKHit::Clear(Option_t *option)
 
 void LKHit::Print(Option_t *option) const
 {
-    lx_info << "HID,TID,X,Y,Z,W: "
+    e_info << "HID,TID,X,Y,Z,W: "
         << setw(4)  << fHitID
         << setw(4)  << fTrackID << " |"
         << setw(12) << fX

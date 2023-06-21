@@ -313,14 +313,14 @@ bool LKParameterContainer::SearchAndAddPar(TString dirName)
         int countFile = 0;
 
         TIter next2(listFiles);
-        lx_info << "* Select index from the below list: " << endl;
-        lx_info << "  " << "0) Exit" << endl;
+        e_info << "* Select index from the below list: " << endl;
+        e_info << "  " << "0) Exit" << endl;
         while ((sysFile=(TSystemFile*)next2()))
         {
             countAll++;
             countFile++;
             fileName = sysFile -> GetName();
-            lx_info << "  " << countAll << ") " << fileName << endl;
+            e_info << "  " << countAll << ") " << fileName << endl;
         }
 
         int numDir = listDir.size();
@@ -328,23 +328,23 @@ bool LKParameterContainer::SearchAndAddPar(TString dirName)
             countAll++;
             countDir++;
             TString dirName2 = dirName + "/" + listDir[iDir];
-            lx_info << "  " << countAll << ") " << dirName2 << endl;
+            e_info << "  " << countAll << ") " << dirName2 << endl;
         }
 
         TString strSelected;
-        lx_info << "Enter index: ";
+        e_info << "Enter index: ";
         cin >> strSelected;
 
         if (strSelected.IsDigit()) {
             int idxSelected = strSelected.Atoi();
             if (idxSelected==0) {
-                lx_info << "Exit" << endl;
+                e_info << "Exit" << endl;
                 return false;
             }
             else if (idxSelected>0 && idxSelected <= countAll) {
                 if (idxSelected <= countFile) {
                     TString nameSelected = listFiles -> At(idxSelected-1) -> GetName();
-                    lx_info << nameSelected << " selected!" << endl;
+                    e_info << nameSelected << " selected!" << endl;
                     LKParameterContainer::AddFile(nameSelected);
                     return true;
                 }
@@ -355,16 +355,16 @@ bool LKParameterContainer::SearchAndAddPar(TString dirName)
                 }
             }
             else {
-                lx_error << "Invalid index selected." << endl;
+                e_error << "Invalid index selected." << endl;
                 return false;
             }
         }
         else {
-            lx_error << "Invalid input." << endl;
+            e_error << "Invalid input." << endl;
             return false;
         }
     }
-    lx_warning << "No parameter files found in current directory" << endl;
+    e_warning << "No parameter files found in current directory" << endl;
 
     int numDir = listDir.size();
     for (auto iDir=0; iDir<numDir; ++iDir) {
@@ -463,7 +463,7 @@ void LKParameterContainer::Print(Option_t *option) const
     }
 
     if (printToScreen) {
-        lx_cout << endl;
+        e_cout << endl;
         lk_info << "Parameter Container " << fName << endl;
     }
 
@@ -540,18 +540,18 @@ void LKParameterContainer::Print(Option_t *option) const
         else                           vwidth = 5;
 
         if (addEmptyLine) {
-            if (printToScreen) lx_cout << endl;
+            if (printToScreen) e_cout << endl;
             if (printToFile)   fileOut << endl;
         }
 
         if (isLineComment && showLineComment) {
             if (showLineComment) {
-                if (printToScreen) lx_cout << "# " << parComment << endl;
+                if (printToScreen) e_cout << "# " << parComment << endl;
                 if (printToFile)   fileOut << "# " << parComment << endl;
             }
         }
         else if (isParameter) {
-            if (printToScreen) lx_list(parNumber) << left << setw(nwidth) << parName << " " << setw(vwidth) << parValue << " " << parComment << endl;
+            if (printToScreen) e_list(parNumber) << left << setw(nwidth) << parName << " " << setw(vwidth) << parValue << " " << parComment << endl;
             if (printToFile) fileOut << parNumber << ". " << left << setw(nwidth) << parName << " " << setw(vwidth) << parValue << " " << parComment << endl;
         }
 
@@ -562,7 +562,7 @@ void LKParameterContainer::Print(Option_t *option) const
 
     if (printToScreen)
         lk_info << "End of Parameter Container " << fName << endl;
-        lx_cout << endl;
+        e_cout << endl;
 
     if (printToFile)
         fileOut << endl;

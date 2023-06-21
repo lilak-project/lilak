@@ -22,7 +22,7 @@ LKMCStep::~LKMCStep()
 
 void LKMCStep::Print(Option_t *option) const
 {
-    lx_info << "ID|XYZ|TE: "
+    e_info << "ID|XYZ|TE: "
         << setw(4)  << fTrackID
         << setw(12) << fX
         << setw(12) << fY

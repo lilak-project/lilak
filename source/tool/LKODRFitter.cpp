@@ -51,27 +51,27 @@ void LKODRFitter::Reset()
 
 void LKODRFitter::Print()
 {
-    lx_info << "Number of points:       " << fNumPoints << endl;
-    lx_info << "Sum of weight:          " << fWeightSum << endl;
-    lx_info << "Sum of sqrt[(x-<x>)^2]: " << fSumOfPC2 << endl;
-    lx_info << "<x> = " << fXCentroid << endl;
-    lx_info << "<y> = " << fYCentroid << endl;
-    lx_info << "<z> = " << fZCentroid << endl;
+    e_info << "Number of points:       " << fNumPoints << endl;
+    e_info << "Sum of weight:          " << fWeightSum << endl;
+    e_info << "Sum of sqrt[(x-<x>)^2]: " << fSumOfPC2 << endl;
+    e_info << "<x> = " << fXCentroid << endl;
+    e_info << "<y> = " << fYCentroid << endl;
+    e_info << "<z> = " << fZCentroid << endl;
 
     if (fRMSLine!=-1 && fRMSPlane!=-1) {
-        lx_info << "Mat. A=|" << setw(15) << (*fMatrixA)[0][0] << setw(15) << (*fMatrixA)[0][1] << setw(15) << (*fMatrixA)[0][2] << "|" << endl;
-        lx_info << "       |" << setw(15) << (*fMatrixA)[1][0] << setw(15) << (*fMatrixA)[1][1] << setw(15) << (*fMatrixA)[1][2] << "|" << endl;
-        lx_info << "       |" << setw(15) << (*fMatrixA)[2][0] << setw(15) << (*fMatrixA)[2][1] << setw(15) << (*fMatrixA)[2][2] << "|" << endl;
+        e_info << "Mat. A=|" << setw(15) << (*fMatrixA)[0][0] << setw(15) << (*fMatrixA)[0][1] << setw(15) << (*fMatrixA)[0][2] << "|" << endl;
+        e_info << "       |" << setw(15) << (*fMatrixA)[1][0] << setw(15) << (*fMatrixA)[1][1] << setw(15) << (*fMatrixA)[1][2] << "|" << endl;
+        e_info << "       |" << setw(15) << (*fMatrixA)[2][0] << setw(15) << (*fMatrixA)[2][1] << setw(15) << (*fMatrixA)[2][2] << "|" << endl;
 
         auto vec0 = TMatrixDColumn((*fEigenVectors), 0);
         auto vec1 = TMatrixDColumn((*fEigenVectors), 1);
         auto vec2 = TMatrixDColumn((*fEigenVectors), 2);
-        lx_info << "Eigen val./vec. 0: " << (*fEigenValues)[0] << " / (" << vec0[0] << "," << vec0[1] << "," << vec0[2] << ")" << endl;
-        lx_info << "Eigen val./vec. 1: " << (*fEigenValues)[1] << " / (" << vec1[0] << "," << vec1[1] << "," << vec1[2] << ")" << endl;
-        lx_info << "Eigen val./vec. 2: " << (*fEigenValues)[2] << " / (" << vec2[0] << "," << vec2[1] << "," << vec2[2] << ")" << endl;
+        e_info << "Eigen val./vec. 0: " << (*fEigenValues)[0] << " / (" << vec0[0] << "," << vec0[1] << "," << vec0[2] << ")" << endl;
+        e_info << "Eigen val./vec. 1: " << (*fEigenValues)[1] << " / (" << vec1[0] << "," << vec1[1] << "," << vec1[2] << ")" << endl;
+        e_info << "Eigen val./vec. 2: " << (*fEigenValues)[2] << " / (" << vec2[0] << "," << vec2[1] << "," << vec2[2] << ")" << endl;
 
-        lx_info << "RMS(line)  = " << fRMSLine << endl;
-        lx_info << "RMS(plane) = " << fRMSPlane << endl;
+        e_info << "RMS(line)  = " << fRMSLine << endl;
+        e_info << "RMS(plane) = " << fRMSPlane << endl;
     }
 }
 
@@ -152,20 +152,9 @@ bool LKODRFitter::Solve()
     (*fMatrixA)[2][1] = (*fMatrixA)[1][2];
 
     if ((*fMatrixA)[0][0] == 0 && (*fMatrixA)[1][1] == 0 && (*fMatrixA)[2][2] == 0) {
-        lx_warning << "All diagonal components of fMatrixA are 0!" << endl;
+        e_warning << "All diagonal components of fMatrixA are 0!" << endl;
         return false;
     }
-
-    //lk_debug << (*fMatrixA)[0][0]  << endl;
-    //lk_debug << (*fMatrixA)[0][1]  << endl;
-    //lk_debug << (*fMatrixA)[0][2]  << endl;
-    //lk_debug << (*fMatrixA)[1][0]  << endl;
-    //lk_debug << (*fMatrixA)[1][1]  << endl;
-    //lk_debug << (*fMatrixA)[1][2]  << endl;
-    //lk_debug << (*fMatrixA)[2][0]  << endl;
-    //lk_debug << (*fMatrixA)[2][1]  << endl;
-    //lk_debug << (*fMatrixA)[2][2]  << endl;
-    //fMatrixA -> Print();
 
     (*fEigenVectors) = fMatrixA -> EigenVectors(*fEigenValues);
     return true;

@@ -54,8 +54,7 @@ class LKRun : public LKTask
         virtual void Print(Option_t *option="all") const;
         virtual void Add(TTask *task);
 
-        virtual void PrintEvent(Option_t *option="all") const;
-        Int_t PrintEvent(Long64_t entry) { return GetEntry(entry); } ///< Equavalent to GetEntry
+        void PrintEvent(Long64_t entry);
 
         /// Run name/id
         /// This is equivalent to setting parameter
@@ -88,6 +87,8 @@ class LKRun : public LKTask
         TTree* GetOutputTree() { return fOutputTree; }
         void SetTag(TString tag) { fTag = tag; }
         void SetSplit(Int_t split, Long64_t numSplitEntries) { fSplit = split; fNumSplitEntries = numSplitEntries; }
+
+        void SetNumPrintMessage(int num) { fNumPrintMessage = num; }
 
         /**
          * Initailize LKRun.
@@ -124,7 +125,7 @@ class LKRun : public LKTask
         TClonesArray *GetBranchA(TString name); ///< Get branch in TClonesArray by name. Return nullptr if branch is not inherited from TClonesArray
         TClonesArray *GetBranchA(int idx);
         TClonesArray *KeepBranchA(TString name);
-        int GetNumBranches() const { return fNumBranches; }
+        int GetNumBranches() const { return fCountBranches; }
 
         void AddDetector(LKDetector *detector); ///< Set detector
         LKDetector *GetDetector(Int_t idx=0) const;
@@ -138,7 +139,8 @@ class LKRun : public LKTask
 
         void SetNumEvents(Long64_t num) { SetEntries(num); } ///< Equavalent to SetEntries
         Long64_t GetNumEvents() const { return fNumEntries; } ///< Equavalent to GetNumEvents
-        Int_t GetEvent(Long64_t entry) { return GetEntry(entry); } ///< Equavalent to GetEntry
+        Long64_t GetNumRunEntries() const { return fNumRunEntries; } ///< Number of events used in the run
+        Int_t GetEvent(Long64_t entry) { return GetEntry(entry); } ///< Equavalent to GetEntry of input tree
         bool GetNextEvent();
 
         Long64_t GetStartEventID()   const { return fStartEventID; }   ///< Get starting eventID
@@ -173,6 +175,8 @@ class LKRun : public LKTask
         bool StartOfRun(Long64_t numEvents = -1);
         void ClearArrays();
         bool EndOfRun();
+
+        //void EventMessage(const char *message);
 
         void SignalEndOfRun() { fSignalEndOfRun = true; }
         void SetAutoEndOfRun(Bool_t val) { fAutoEndOfRun = val; }
@@ -215,14 +219,16 @@ class LKRun : public LKTask
 
         TObjArray *fPersistentBranchArray = nullptr;
         TObjArray *fTemporaryBranchArray = nullptr;
+        TObjArray *fInputTreeBranchArray = nullptr;
 
-        Int_t fNumBranches = 0;
+        Int_t fCountBranches = 0;
         TObject **fBranchPtr;
         std::vector<TString> fBranchNames;
         std::map<TString, TObject*> fBranchPtrMap;
 
         Long64_t fNumEntries = 0;
 
+        //std::vector<const char *> fEventMessage;
 
         Long64_t fIdxEntry = 0;
         Long64_t fStartEventID = -1;
@@ -230,6 +236,8 @@ class LKRun : public LKTask
         Long64_t fCurrentEventID = 0;
         Long64_t fEventCount = 0;
         Long64_t fNumRunEntries = 0;
+        Long64_t fNumSkipEventsForMessage = 0;
+        Int_t fNumPrintMessage = 50;
         bool fSignalEndOfRun = false;
         bool fCheckIn = false;
 

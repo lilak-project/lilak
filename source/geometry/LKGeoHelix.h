@@ -95,7 +95,7 @@ class LKGeoHelix : public LKGeometry
         TGraph   *DrawKJ();
          */
 
-    ClassDef(LKGeoHelix, 0)
+    ClassDef(LKGeoHelix, 1)
 };
 
 #endif

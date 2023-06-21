@@ -70,7 +70,7 @@ class LKGeoBoxStack : public LKGeometry
         axis_t fStackAxis;
         axis_t fFaceAxis;
 
-    ClassDef(LKGeoBoxStack, 0)
+    ClassDef(LKGeoBoxStack, 1)
 };
 
 #endif

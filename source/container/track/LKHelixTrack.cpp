@@ -61,7 +61,7 @@ void LKHelixTrack::Print(Option_t *option) const
         if (fTrackID < 0) trackID = "x";
         if (fParentID < 0) parentID = "x";
 
-        lx_info << GetFitStatusString() << "-" << trackID << "(" << parentID << ")"
+        e_info << GetFitStatusString() << "-" << trackID << "(" << parentID << ")"
             << " | p=" << Momentum().Mag() << "[MeV]" << endl;
     }
     else {
@@ -71,39 +71,39 @@ void LKHelixTrack::Print(Option_t *option) const
         else if (fA == LKVector3::kY) center = TString("(z,x): ")+center;
         else if (fA == LKVector3::kZ) center = TString("(x,y): ")+center;
 
-        lx_cout << left;
-        lx_info << setw(13) << "Track ID"     << " : " << fTrackID << endl;
-        lx_info << setw(13) << "Parent ID"    << " : " << fParentID << endl;
-        lx_info << setw(13) << "Fit Status"   << " : " << GetFitStatusString() << endl;
-        lx_info << setw(13) << "# of Hits"    << " : " << fHitArray.GetNumHits() << endl;
+        e_cout << left;
+        e_info << setw(13) << "Track ID"     << " : " << fTrackID << endl;
+        e_info << setw(13) << "Parent ID"    << " : " << fParentID << endl;
+        e_info << setw(13) << "Fit Status"   << " : " << GetFitStatusString() << endl;
+        e_info << setw(13) << "# of Hits"    << " : " << fHitArray.GetNumHits() << endl;
 
         if (fFitStatus == LKHelixTrack::kHelix || fFitStatus == LKHelixTrack::kGenfitTrack)
         {
-            lx_info << setw(13) << "Center Axis"  << " : " << fA << endl;
-            lx_info << setw(13) << "Helix Center" << " : " << center << " [mm]" << endl;
-            lx_info << setw(13) << "Helix Radius" << " : " << fR << " [mm]" << endl;
-            lx_info << setw(13) << "Dip Angle"    << " : " << DipAngle() << endl;
-            lx_info << setw(13) << "Fit RMS-w/h"  << " : " << fRMSR << " / " << fRMST << " [mm]" << endl;
-            lx_info << setw(13) << "Charge"       << " : " << fHitArray.GetW() << " [ADC]" << endl;;
-            lx_info << setw(13) << "Track Length" << " : " << TrackLength() << " [mm]" << endl;;
-            lx_info << setw(13) << "Momentum"     << " : " << Momentum().Mag() << " [MeV]" << endl;;
+            e_info << setw(13) << "Center Axis"  << " : " << fA << endl;
+            e_info << setw(13) << "Helix Center" << " : " << center << " [mm]" << endl;
+            e_info << setw(13) << "Helix Radius" << " : " << fR << " [mm]" << endl;
+            e_info << setw(13) << "Dip Angle"    << " : " << DipAngle() << endl;
+            e_info << setw(13) << "Fit RMS-w/h"  << " : " << fRMSR << " / " << fRMST << " [mm]" << endl;
+            e_info << setw(13) << "Charge"       << " : " << fHitArray.GetW() << " [ADC]" << endl;;
+            e_info << setw(13) << "Track Length" << " : " << TrackLength() << " [mm]" << endl;;
+            e_info << setw(13) << "Momentum"     << " : " << Momentum().Mag() << " [MeV]" << endl;;
 
             if (fFitStatus == LKHelixTrack::kGenfitTrack) {
-                lx_info << setw(13) << "GF-Momentum"  << " : " << fGenfitMomentum << " [MeV]" << endl;;
-                lx_info << setw(13) << "dEdx (70 %)"  << " : " << GetdEdxWithCut(0, 0.7) << " [ADC/mm]" << endl;;
+                e_info << setw(13) << "GF-Momentum"  << " : " << fGenfitMomentum << " [MeV]" << endl;;
+                e_info << setw(13) << "dEdx (70 %)"  << " : " << GetdEdxWithCut(0, 0.7) << " [ADC/mm]" << endl;;
             }
         }
         else if (fFitStatus == LKHelixTrack::kPlane) {
             LKVector3 normal = GetPlaneNormal();
-            lx_info << "normal: (" << normal.X() << ", " << normal.Y() << ", " << normal.Z() << ")" << endl;
+            e_info << "normal: (" << normal.X() << ", " << normal.Y() << ", " << normal.Z() << ")" << endl;
             LKVector3 mean = fHitArray.GetMean(fA);
-            lx_info << "mean: (" << mean.X() << ", " << mean.Y() << ", " << mean.Z() << ")" << endl;
+            e_info << "mean: (" << mean.X() << ", " << mean.Y() << ", " << mean.Z() << ")" << endl;
         }
         if (fFitStatus == LKHelixTrack::kLine) {
             LKVector3 direction = GetLineDirection();
-            lx_info << "direction: (" << direction.X() << ", " << direction.Y() << ", " << direction.Z() << ")" << endl;
+            e_info << "direction: (" << direction.X() << ", " << direction.Y() << ", " << direction.Z() << ")" << endl;
             LKVector3 mean = fHitArray.GetMean(fA);
-            lx_info << "mean: (" << mean.X() << ", " << mean.Y() << ", " << mean.Z() << ")" << endl;
+            e_info << "mean: (" << mean.X() << ", " << mean.Y() << ", " << mean.Z() << ")" << endl;
         }
     }
 

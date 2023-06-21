@@ -31,7 +31,7 @@ TVector3 LKGeoCircle::GetRandomPoint()
 
 void LKGeoCircle::Print(Option_t *) const
 {
-    lx_info << "Center=(" << fX << "," << fY << "), R=" << fR << std::endl;
+    e_info << "Center=(" << fX << "," << fY << "), R=" << fR << std::endl;
 }
 
 TVector3 LKGeoCircle::GetCenter() const { return TVector3(fX, fY, 0); }

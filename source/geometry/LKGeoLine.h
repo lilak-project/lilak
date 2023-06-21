@@ -60,7 +60,7 @@ class LKGeoLine : public LKGeometry
         Double_t fZ2 = 0;
 
 
-        ClassDef(LKGeoLine, 0)
+        ClassDef(LKGeoLine, 1)
 };
 
 #endif

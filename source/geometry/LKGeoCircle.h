@@ -41,7 +41,7 @@ class LKGeoCircle : public LKGeometry
         Double_t fZ = 0; // if exist
         Double_t fR = 0;
 
-    ClassDef(LKGeoCircle, 0)
+    ClassDef(LKGeoCircle, 1)
 };
 
 #endif

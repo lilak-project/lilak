@@ -78,7 +78,7 @@ void LKParameter::Clear(Option_t *option)
 
 void LKParameter::Print(Option_t *option) const
 {
-    lx_info << fName << " " << fValue << " # " << fComment << std::endl;
+    e_info << fName << " " << fValue << " # " << fComment << std::endl;
 }
 
 int LKParameter::GetInt(int idx) const
@@ -230,7 +230,7 @@ std::vector<TString> LKParameter::GetVString() const
 
 void LKParameter::ProcessTypeError(TString type) const
 {
-    lx_error << "Parameter " << fName << " = " << fValue << " is not convertable to " << type << std::endl;
+    e_error << "Parameter " << fName << " = " << fValue << " is not convertable to " << type << std::endl;
     gApplication -> Terminate();
 }
 

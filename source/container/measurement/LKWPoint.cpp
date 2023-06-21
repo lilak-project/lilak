@@ -32,9 +32,9 @@ void LKWPoint::Print(Option_t *option) const
     if (opts.Index("t")>=0) title += "XYZ|W: ";
 
     if (opts.Index("s")>=0)
-        lx_info << title << fX << "," << fY << "," << fZ << " | " << fW << endl;
+        e_info << title << fX << "," << fY << "," << fZ << " | " << fW << endl;
     else //if (opts.Index("a")>=0)
-        lx_info << title
+        e_info << title
             << setw(12) << fX
             << setw(12) << fY
             << setw(12) << fZ << " |"

@@ -42,7 +42,7 @@ class LKGeoPlane : public LKGeometry
         Double_t fC = 0;
         Double_t fD = 0;
 
-        ClassDef(LKGeoPlane, 0)
+        ClassDef(LKGeoPlane, 1)
 };
 
 #endif

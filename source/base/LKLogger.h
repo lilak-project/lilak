@@ -12,6 +12,37 @@
 #define lk_logger_new(logFileName,forceNewLogger) LKLogManager::RunLogger(logFileName, true)
 #define lk_logger_name() LKLogManager::GetLogFileName()
 
+/// lilak debug logger
+#define lk_debug   LKLogger(__FILE__,__LINE__)
+#define lk_line    LKLogger("",__LINE__)
+
+/// lilak logger
+#define lk_cout    LKLogger(fName,__FUNCTION__,fRank,1)
+#define lk_info    LKLogger(fName,__FUNCTION__,fRank,2)
+#define lk_warning LKLogger(fName,__FUNCTION__,fRank,3)
+#define lk_error   LKLogger(fName,__FUNCTION__,fRank,4)
+#define lk_list(i) LKLogger(fName,__FUNCTION__,i,5)
+
+/// set
+#define lk_set_message(val) LKLogManager::SetPrintMessage(val)
+
+#define lk_set_plane(val)   LKLogManager::SetPrintPlane(val)
+#define lk_set_cout(val)    LKLogManager::SetPrintCout(val)
+#define lk_set_info(val)    LKLogManager::SetPrintInfo(val)
+#define lk_set_warn(val)    LKLogManager::SetPrintWarn(val)
+#define lk_set_list(val)    LKLogManager::SetPrintList(val)
+#define lk_set_test(val)    LKLogManager::SetPrintTest(val)
+#define lk_set_error(val)   LKLogManager::SetPrintError(val)
+#define lk_set_debug(val)   LKLogManager::SetPrintDebug(val)
+
+/// lilak logger for non-LKGear classes and macros. These will not create line-header
+#define e_cout     LKLogger("","",0,1)
+#define e_info     LKLogger("","",0,2)
+#define e_warning  LKLogger("","",0,3)
+#define e_error    LKLogger("","",0,4)
+#define e_list(i)  LKLogger("","",i,5)
+#define e_debug    LKLogger(__FILE__,__LINE__)
+
 /// lilak logger manager
 class LKLogManager
 {
@@ -22,6 +53,17 @@ class LKLogManager
         static bool fLogToConsol;
         static bool fLogToFile;
 
+        static bool fPrintPlane;
+        static bool fPrintDebug;
+        static bool fPrintCout;
+        static bool fPrintInfo;
+        static bool fPrintWarn;
+        static bool fPrintError;
+        static bool fPrintList;
+        static bool fPrintTest;
+        static bool fPrintCurrent;
+        static bool fPrintMessage;
+
     public:
         LKLogManager(TString fileName);
         static LKLogManager* RunLogger(TString fileName="", bool forceNewLogger=false);
@@ -29,28 +71,31 @@ class LKLogManager
         static std::ofstream& GetLogFile();
         static bool LogToConsol();
         static bool LogToFile();
+        static void SetLogToConsol(bool val);
+        static void SetLogToFile(bool val);
+        static void SetPrintPlane(bool val);
+
+        static void SetPrintDebug(bool val);
+        static void SetPrintCout(bool val);
+        static void SetPrintInfo(bool val);
+        static void SetPrintWarn(bool val);
+        static void SetPrintError(bool val);
+        static void SetPrintList(bool val);
+        static void SetPrintTest(bool val);
+        static void SetPrintCurrent(bool val); 
+        static void SetPrintMessage(bool val); 
+
+        static bool PrintPlane();
+        static bool PrintDebug();
+        static bool PrintCout();
+        static bool PrintInfo();
+        static bool PrintWarn();
+        static bool PrintError();
+        static bool PrintList();
+        static bool PrintTest();
+        static bool PrintCurrent();
+        static bool PrintMessage();
 };
-
-/// lilak debug logger
-#define lk_debug   LKLogger(__FILE__,__LINE__)
-#define lx_debug   LKLogger(__FILE__,__LINE__)
-
-#define lk_line   LKLogger("",__LINE__)
-#define lx_line   LKLogger("",__LINE__)
-
-/// lilak logger
-#define lk_cout    LKLogger(fName,__FUNCTION__,fRank,1)
-#define lk_info    LKLogger(fName,__FUNCTION__,fRank,2)
-#define lk_warning LKLogger(fName,__FUNCTION__,fRank,3)
-#define lk_error   LKLogger(fName,__FUNCTION__,fRank,4)
-#define lk_list(i) LKLogger(fName,__FUNCTION__,i,5)
-
-/// lilak logger for non-LKGear classes and macros. These will not create line-header
-#define lx_cout     LKLogger("","",0,1)
-#define lx_info     LKLogger("","",0,2)
-#define lx_warning  LKLogger("","",0,3)
-#define lx_error    LKLogger("","",0,4)
-#define lx_list(i)  LKLogger("","",i,5)
 
 /// lilak logger
 class LKLogger
@@ -61,6 +106,9 @@ class LKLogger
 
         template <class T> LKLogger &operator<<(const T &v)
         {
+            if (LKLogManager::PrintMessage()==false)
+                return *this;
+
             if (LKLogManager::LogToConsol()) std::cout << v;
             if (LKLogManager::LogToFile()) LKLogManager::GetLogFile() << v;
             return *this;
@@ -68,6 +116,9 @@ class LKLogger
 
         LKLogger &operator<<(std::ostream&(*f)(std::ostream&))
         {
+            if (LKLogManager::PrintMessage()==false)
+                return *this;
+
             if (LKLogManager::LogToConsol()) std::cout << *f;
             if (LKLogManager::LogToFile()) LKLogManager::GetLogFile() << *f;
             return *this;

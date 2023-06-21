@@ -110,20 +110,20 @@ void LKHitArray::Print(Option_t *option) const
 {
     TString opts = TString(option);
 
-    lx_info << "Number of hits: " << fN << endl;
-    lx_info << "Charge sum: " << fW << endl;
-    lx_info << "<x>=" << fEX << ", <y>=" << fEY << ", <z>=" << fEZ << endl;
-    lx_info << "s_x=" << GetVarianceX() << ", s_y=" << GetVarianceY() << ", s_z=" << GetVarianceZ() << endl;
-    lx_info << "Mat. A=|" << setw(15) << fEXX << setw(15) << fEXY << setw(15) << fEZX << "|" << endl;
-    lx_info << "       |" << setw(15) << fEXY << setw(15) << fEYY << setw(15) << fEYZ << "|" << endl;
-    lx_info << "       |" << setw(15) << fEZX << setw(15) << fEYZ << setw(15) << fEZZ << "|" << endl;
+    e_info << "Number of hits: " << fN << endl;
+    e_info << "Charge sum: " << fW << endl;
+    e_info << "<x>=" << fEX << ", <y>=" << fEY << ", <z>=" << fEZ << endl;
+    e_info << "s_x=" << GetVarianceX() << ", s_y=" << GetVarianceY() << ", s_z=" << GetVarianceZ() << endl;
+    e_info << "Mat. A=|" << setw(15) << fEXX << setw(15) << fEXY << setw(15) << fEZX << "|" << endl;
+    e_info << "       |" << setw(15) << fEXY << setw(15) << fEYY << setw(15) << fEYZ << "|" << endl;
+    e_info << "       |" << setw(15) << fEZX << setw(15) << fEYZ << setw(15) << fEZZ << "|" << endl;
 
     if (opts.Index(">")>=0) {
         TIter next(this);
         LKHit *hit;
         while ((hit = (LKHit *) next()))
-            lx_info << hit -> GetHitID() << " ";
-        lx_cout << endl;
+            e_info << hit -> GetHitID() << " ";
+        e_cout << endl;
     }
 }
 
@@ -156,8 +156,8 @@ void LKHitArray::PrintHitIDs(Int_t rank) const
     TIter next(this);
     LKHit *hit;
     while ((hit = (LKHit *) next()))
-        lx_info << hit -> GetHitID() << " ";
-    lx_cout << endl;
+        e_info << hit -> GetHitID() << " ";
+    e_cout << endl;
 }
 
 void LKHitArray::PrintHits(Int_t rank) const

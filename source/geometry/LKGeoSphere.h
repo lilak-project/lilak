@@ -41,7 +41,7 @@ class LKGeoSphere : public LKGeometry
 
         LKGeoCircle *circle = nullptr;
 
-    ClassDef(LKGeoSphere, 0)
+    ClassDef(LKGeoSphere, 1)
 };
 
 #endif

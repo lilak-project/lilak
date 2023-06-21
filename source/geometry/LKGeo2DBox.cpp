@@ -19,17 +19,17 @@ LKGeo2DBox::LKGeo2DBox(Double_t xc, Double_t yc, Double_t dx, Double_t dy, Doubl
 
 void LKGeo2DBox::Print(Option_t *) const
 {
-    lx_cout << std::endl;
-    lx_cout << "  (3)-----(e2)-----(2) y2=" << GetY(2) << std::endl;
-    lx_cout << "   |                |" << std::endl;
-    lx_cout << "   |                |" << std::endl;
-    lx_cout << " (e3) [LKGeo2DBox] (e1)" << std::endl;
-    lx_cout << "   |                |" << std::endl;
-    lx_cout << "   |                |" << std::endl;
-    lx_cout << "  (0)-----(e0)-----(1) y1=" << GetY(1) << std::endl;
-    lx_cout << std::left;
-    lx_cout << "   x1=" << std::setw(13) << GetX(1) << " x2=" << GetX(2) << std::endl;
-    lx_cout << std::right;
+    e_cout << std::endl;
+    e_cout << "  (3)-----(e2)-----(2) y2=" << GetY(2) << std::endl;
+    e_cout << "   |                |" << std::endl;
+    e_cout << "   |                |" << std::endl;
+    e_cout << " (e3) [LKGeo2DBox] (e1)" << std::endl;
+    e_cout << "   |                |" << std::endl;
+    e_cout << "   |                |" << std::endl;
+    e_cout << "  (0)-----(e0)-----(1) y1=" << GetY(1) << std::endl;
+    e_cout << std::left;
+    e_cout << "   x1=" << std::setw(13) << GetX(1) << " x2=" << GetX(2) << std::endl;
+    e_cout << std::right;
 }
 
 TVector3 LKGeo2DBox::GetCenter() const { return TVector3(GetXCenter(),GetYCenter(),0); }

@@ -43,7 +43,7 @@ bool LKPulseGenerator::Initialize(TString pulserFile)
     if (pulserFile.IsNull())
         pulserFile = "input/pulser_464ns.dat";
 
-    lx_info << "Using pulser file: " << pulserFile << endl;
+    e_info << "Using pulser file: " << pulserFile << endl;
     ifstream file(pulserFile);
     string line;
 
@@ -52,8 +52,8 @@ bool LKPulseGenerator::Initialize(TString pulserFile)
     ss >> fShapingTime >> fNumDataPoints >> fStepSize >> fNumAscending >> fNDFTbs;
 
     if (fNumDataPoints < 20 || fStepSize > 1) {
-        lx_error << "Number of data points (" << fNumDataPoints << ") should be >= 20, fStepSize (" << fStepSize << " should be < 1." << endl;
-        lx_error << "Check file: " << pulserFile << endl;
+        e_error << "Number of data points (" << fNumDataPoints << ") should be >= 20, fStepSize (" << fStepSize << " should be < 1." << endl;
+        e_error << "Check file: " << pulserFile << endl;
         return false;
     }
 
@@ -206,20 +206,20 @@ LKSamplePoint **LKPulseGenerator::GetPulseData()  { return &fPulseData; }
 void LKPulseGenerator::Print()
 {
     if (fIsDeltaFunction) {
-        lx_info << "[LKPulseGenerator INFO] DeltaFunction" << endl;
+        e_info << "[LKPulseGenerator INFO] DeltaFunction" << endl;
         return;
     }
 
-    lx_info << "[LKPulseGenerator INFO]" << endl;
-    lx_info << " == Shaping time : " << fShapingTime << " ns" << endl;
-    lx_info << " == Number of data points : " << fNumDataPoints << endl;
-    lx_info << " == Step size between data points : " << fStepSize << endl;
-    lx_info << " == Threshold for one timebucket step : " << fThresholdTbStep << endl; 
-    lx_info << " == Number of timebucket while rising : " << fNumAscending << endl;
-    lx_info << " == Timebucket at threshold (" << setw(3) << fThresholdRatio << " of peak) : " << fTbAtThreshold << endl; 
-    lx_info << " == Timebucket at peak : " << fTbAtMax << endl; 
-    lx_info << " == Timebucket difference from threshold to peak : " << fTbAtMax - fTbAtThreshold << endl; 
-    lx_info << " == Number of degree of freedom : " << fNDFTbs << endl;
+    e_info << "[LKPulseGenerator INFO]" << endl;
+    e_info << " == Shaping time : " << fShapingTime << " ns" << endl;
+    e_info << " == Number of data points : " << fNumDataPoints << endl;
+    e_info << " == Step size between data points : " << fStepSize << endl;
+    e_info << " == Threshold for one timebucket step : " << fThresholdTbStep << endl; 
+    e_info << " == Number of timebucket while rising : " << fNumAscending << endl;
+    e_info << " == Timebucket at threshold (" << setw(3) << fThresholdRatio << " of peak) : " << fTbAtThreshold << endl; 
+    e_info << " == Timebucket at peak : " << fTbAtMax << endl; 
+    e_info << " == Timebucket difference from threshold to peak : " << fTbAtMax - fTbAtThreshold << endl; 
+    e_info << " == Number of degree of freedom : " << fNDFTbs << endl;
 }
 
 void LKPulseGenerator::SavePulseData(TString name, Bool_t smoothTail)

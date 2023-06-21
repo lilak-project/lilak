@@ -35,34 +35,34 @@ void LKPad::Print(Option_t *option) const
     TString opts = TString(option);
 
     if (opts.Index("s")>=0) {
-        lx_info << "id:" << fID << " s:" << fSection << " r:" << fRow << " l:" << fLayer << endl;
+        e_info << "id:" << fID << " s:" << fSection << " r:" << fRow << " l:" << fLayer << endl;
         return;
     }
 
-    lx_info << "==" << endl;
-    lx_info << "Pad-ID(Plane-ID)      : " << fID << "(" << fPlaneID << ")";
-    if (fActive) lx_cout << " is Active!" << endl;
-    else lx_cout << " is NOT Active." << endl;
+    e_info << "==" << endl;
+    e_info << "Pad-ID(Plane-ID)      : " << fID << "(" << fPlaneID << ")";
+    if (fActive) e_cout << " is Active!" << endl;
+    else e_cout << " is NOT Active." << endl;
 
-    lx_info << "AsAd(1)AGET(1)CH(2)   : " << Form("%d%d%02d",fAsAdID,fAGETID,fChannelID) << endl;
-    lx_info << "(Section, Row, Layer) : (" << fSection << ", " << fRow << ", " << fLayer << ")" << endl;
-    lx_info << "Noise-Amp | BaseLine  : " << fNoiseAmp << " | " << fBaseLine << endl;
-    lx_info << "Position              : (" << fPosition.X() << ", " << fPosition.Y() << ", " << fPosition.Z() << ") ; " << fPosition.GetReferenceAxis() << endl;
+    e_info << "AsAd(1)AGET(1)CH(2)   : " << Form("%d%d%02d",fAsAdID,fAGETID,fChannelID) << endl;
+    e_info << "(Section, Row, Layer) : (" << fSection << ", " << fRow << ", " << fLayer << ")" << endl;
+    e_info << "Noise-Amp | BaseLine  : " << fNoiseAmp << " | " << fBaseLine << endl;
+    e_info << "Position              : (" << fPosition.X() << ", " << fPosition.Y() << ", " << fPosition.Z() << ") ; " << fPosition.GetReferenceAxis() << endl;
     TString nbids; for (auto ii=0; ii<int(fNeighborPadArray.size()); ++ii) nbids += Form(" %d",fNeighborPadArray.at(ii)->GetPadID());
-    lx_info << "Neighbors             : " << nbids << "(" << fNeighborPadArray.size() << ")" << endl;
+    e_info << "Neighbors             : " << nbids << "(" << fNeighborPadArray.size() << ")" << endl;
 
     if (opts.Index(">")>=0) {
         Int_t numMCID = fMCIDArray.size();
-        lx_info << "List of MC-IDs (co. Tb [mm]),  : ";
+        e_info << "List of MC-IDs (co. Tb [mm]),  : ";
         for (auto iMC = 0; iMC < numMCID; ++iMC)
-            lx_cout << fMCIDArray.at(iMC) << "(" << fMCTbArray.at(iMC) << "), ";
-        lx_cout << endl;
+            e_cout << fMCIDArray.at(iMC) << "(" << fMCTbArray.at(iMC) << "), ";
+        e_cout << endl;
     }
 }
 
 void LKPad::Draw(Option_t *option)
 {
-    lx_info << "GetHist(o)->Draw(); DrawMCID(o); DrawHit(o);" << endl;
+    e_info << "GetHist(o)->Draw(); DrawMCID(o); DrawHit(o);" << endl;
 
     GetHist(option) -> Draw();
     DrawMCID(option);
@@ -105,7 +105,7 @@ void LKPad::DrawHit(Option_t *option)
     Int_t numHits = fHitArray.size();
     if (opts.Index("h") >= 0) {
         if (numHits == 0)
-            lx_warning << "No hit exist in pad." << endl;
+            e_warning << "No hit exist in pad." << endl;
         else {
             for (auto hit : fHitArray) {
                 auto pulse = hit -> GetPulseFunction();
@@ -359,7 +359,7 @@ TH1D *LKPad::GetHist(Option_t *option)
 
 void LKPad::SetHist(TH1D *hist, Option_t *option)
 {
-    //lx_info << "option: p(ID) && a(ID2) && mc(MC) && [o(out) || r(raw) || i(input)] && h(hit)" << endl;
+    //e_info << "option: p(ID) && a(ID2) && mc(MC) && [o(out) || r(raw) || i(input)] && h(hit)" << endl;
     hist -> Reset();
 
     TString opts(option);

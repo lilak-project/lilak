@@ -24,7 +24,7 @@ void LKExtrapolatedTrack::Clear(Option_t *)
 
 void LKExtrapolatedTrack::Print(Option_t *) const
 {
-    lx_info << "LKExtrapolatedTrack " << fTrackID << "(" << fParentID << ") with " << fPoints.size() << " points" << endl;
+    e_info << "LKExtrapolatedTrack " << fTrackID << "(" << fParentID << ") with " << fPoints.size() << " points" << endl;
 }
 
 TVector3 LKExtrapolatedTrack::Momentum(Double_t) const { return TVector3(); }
