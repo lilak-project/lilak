@@ -81,6 +81,9 @@ class LKRun : public LKTask
         TTree  *GetInputTree() const { return (TTree *) fInputTree; }
         TChain *GetInputChain() const { return fInputTree; }
 
+        void AddFriend(TString fileName); ///< Add file to input file
+        TChain *GetFriendChain(Int_t iFriend) const;
+
         /// Output file
         void SetOutputFile(TString name, bool addVersion=false) { fOutputFileName = name; fAddVersion = addVersion; }
         TFile* GetOutputFile() { return fOutputFile; }
@@ -205,8 +208,11 @@ class LKRun : public LKTask
         TString fInputTreeName = "";
         TFile *fInputFile = nullptr;
         TChain *fInputTree = nullptr;
-
         std::vector<TString> fInputFileNameArray;
+
+        Int_t fNumFriends = 0;
+        TObjArray *fFriendTrees = nullptr;
+        vector<TString> fFriendFileNameArray;
 
         TString fOutputFileName = "";
         bool fAddVersion = false;

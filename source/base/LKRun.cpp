@@ -27,6 +27,7 @@ LKRun::LKRun()
     :LKTask("LKRun", "LKRun")
 {
     fInstance = this;
+    fFriendTrees = new TObjArray();
     fPersistentBranchArray = new TObjArray();
     fTemporaryBranchArray = new TObjArray();
     fInputTreeBranchArray = new TObjArray();
@@ -260,6 +261,13 @@ void LKRun::Print(Option_t *option) const
             lk_info << "Output: " << fOutputFileName << endl;
             tree = fOutputTree;
         }
+        //else if (io==1) {
+        //    for (Int_t iFriend = 0; iFriend < fNumFriends; iFriend++) {
+        //        e_cout << endl;
+        //        lk_info << "Friend: " << fFriendFileNameArray[iFriend] << endl;
+        //        tree = GetFriendChain(iFriend);
+        //    }
+        //}
 
         lk_info << "  Entries " << tree -> GetEntries() << endl;
         auto branchList = tree -> GetListOfBranches();
@@ -453,6 +461,13 @@ void LKRun::AddInputFile(TString fileName, TString treeName)
     fInputTreeName = treeName;
 }
 
+void LKRun::AddFriend(TString fileName)
+{
+  fileName = LKRun::ConfigureDataPath(fileName,true,fDataPath);
+  fFriendFileNameArray.push_back(fileName);
+}
+
+TChain *LKRun::GetFriendChain(Int_t iFriend) const { return ((TChain *) fFriendTrees -> At(iFriend)); }
 
 bool LKRun::Init()
 {
@@ -498,8 +513,17 @@ bool LKRun::Init()
 
         Int_t nInputs = fInputFileNameArray.size();
         for (Int_t iInput = idxInput; iInput < nInputs; iInput++) {
-            fInputTree -> AddFile(fInputFileNameArray[iInput]);
             lk_info << "Input file : " << fInputFileNameArray[iInput] << endl;
+            fInputTree -> AddFile(fInputFileNameArray[iInput]);
+        }
+
+        fNumFriends = fFriendFileNameArray.size();
+        for (Int_t iFriend = 0; iFriend < fNumFriends; iFriend++) {
+            lk_info << "Friend file : " << fFriendFileNameArray[iFriend] << endl;
+            TChain *friendTree = new TChain(fInputTreeName);
+            friendTree -> AddFile(fFriendFileNameArray[iFriend]);
+            fInputTree -> AddFriend(friendTree);
+            fFriendTrees -> Add(friendTree);
         }
 
         fNumEntries = fInputTree -> GetEntries();
@@ -533,6 +557,23 @@ bool LKRun::Init()
                 lk_cout << id << ", ";
             }
             lk_cout << arrMCStepIDs.back() << "] found" << endl;
+        }
+
+        for (Int_t iFriend = 0; iFriend < fNumFriends; iFriend++) {
+            auto friendTree = GetFriendChain(iFriend);
+            branchArray = friendTree -> GetListOfBranches();
+            numBranches = branchArray -> GetEntries();
+            for (Int_t iBranch = 0; iBranch < numBranches; iBranch++)
+            {
+                TBranch *branch = (TBranch *) branchArray -> At(iBranch);
+                friendTree -> SetBranchStatus(branch -> GetName(), 1);
+                friendTree -> SetBranchAddress(branch -> GetName(), &fBranchPtr[fCountBranches]);
+                if (fBranchPtrMap[branch->GetName()]==nullptr)
+                    fBranchPtrMap[branch -> GetName()] = fBranchPtr[fCountBranches];
+                fBranchNames.push_back(branch -> GetName());
+                fCountBranches++;
+                lk_info << "Input friend branch " << branch -> GetName() << " found" << endl;
+            }
         }
 
         if (fInputFile -> Get("ParameterContainer") != nullptr) {
@@ -752,6 +793,9 @@ Int_t LKRun::GetEntry(Long64_t entry, Int_t getall)
     auto nByte = fInputTree -> GetEntry(entry, getall);
     if (fOutputTree!=nullptr)
         fOutputTree -> GetEntry(entry, getall);
+
+    for (Int_t iFriend = 0; iFriend < fNumFriends; iFriend++)
+        GetFriendChain(iFriend) -> GetEntry(entry, getall);
 
     return nByte;
 }
