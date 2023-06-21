@@ -418,9 +418,11 @@ class lilakcc:
 
 ###########################################################################################################################################
     def add_method(self, line, comment="", acc_spec="public", method_source=""):
+        print('++ method :',  line)
+        print('   source :',  method_source)
+
         if len(method_source)==0: method_source = line
-        method_header = self.make_method(line,         comment=comment)
-        method_source = self.make_method(method_source,comment=comment,is_source=True)
+        method_header, method_source = self.make_header_source(line,set_content=method_source)
 
         ias = {"public" : 0, "protected": 1, "private" : 2}.get(acc_spec, -1)
         self.method_header_list[ias].append(method_header)
@@ -437,16 +439,10 @@ class lilakcc:
 ###########################################################################################################################################
     def make_method(self, line, tab_no=0, is_source=False, set_content="", comment="", in_line=False, omit_semicolon=False, predefined=False):
         is_method, method_type, method_name, method_arguments, method_const, method_init, method_contents, method_comments, comment_type = self.break_line(line)
-        #if line.find("SetDecayNo")>0:
-            #print(is_method, method_type, method_name, method_arguments, method_const, method_init, method_contents, method_comments, comment_type)
-            #print("??????",method_contents)
-            #print("??????",line)
         if is_source:
             method_name = f"{self.name}::{method_name}"
             method_init = ""
-            #if line.find("option")>0: print("4>>>>>",method_arguments)
             method_arguments = method_arguments.replace('=""','')
-            #if line.find("option")>0: print("5>>>>>",method_arguments)
 
         if len(set_content)>0:
             method_contents = set_content
@@ -578,19 +574,13 @@ class lilakcc:
         ############ parameter task init ############
 
         line_par_comment_in_init = ""
-        if   par_type=="bool":        par_type_getpar = "Bool"
-        elif par_type=="int":         par_type_getpar = "Int"
-        elif par_type=="double":      par_type_getpar = "Double"
-        elif par_type=="float":       par_type_getpar = "Double"
-        elif par_type=="Bool_t":      par_type_getpar = "Bool"
-        elif par_type=="Int_t":       par_type_getpar = "Int"
-        elif par_type=="Double_t":    par_type_getpar = "Double"
-        elif par_type=="Float_t":     par_type_getpar = "Double"
-        elif par_type=="TString":     par_type_getpar = "String"
-        elif par_type=="const char*": par_type_getpar = "String"
-        elif par_type=="Color_t":     par_type_getpar = "Color"
-        elif par_type=="Width_t":     par_type_getpar = "Width"
-        elif par_type=="Size_t":      par_type_getpar = "Size"
+        if   par_type in ["bool","Bool_t"]: par_type_getpar = "Bool"
+        elif par_type in ["int", "Int_t", "unsigned int", "UInt_t"]:  par_type_getpar = "Int"
+        elif par_type in ["double", "float", "Double_t", "Float_t"]: par_type_getpar = "Double"
+        elif par_type in ["TString", "const char*"]: par_type_getpar = "String"
+        elif par_type=="Color_t":       par_type_getpar = "Color"
+        elif par_type=="Width_t":       par_type_getpar = "Width"
+        elif par_type=="Size_t":        par_type_getpar = "Size"
         elif par_type=="TVector3":
             par_type_getpar = "V3"
             par_file_val = par_file_val[par_file_val.find('(')+1:par_file_val.find(')')]
@@ -647,10 +637,10 @@ class lilakcc:
 
         ############ parameter print ############
         if len(par_print)==0:
-            if par_type in ["bool", "int", "double", "float", "Bool_t", "Int_t", "Double_t", "Float_t", "TString", "const char*"]:
-                line_par_in_print = f'lx_info << "{par_name} : " << {gname} << std::endl;'
+            if par_type in ["bool", "int", "double", "float", "Bool_t", "Int_t", "UInt_t", "Double_t", "Float_t", "TString", "const char*"]:
+                line_par_in_print = f'lk_info << "{par_name} : " << {gname} << std::endl;'
             else:
-                line_par_in_print = f'//lx_info << "{par_name} : " << {gname} << std::endl;'
+                line_par_in_print = f'//lk_info << "{par_name} : " << {gname} << std::endl;'
         else:
             #line_par_in_print = self.make_method(par_print.replace("{gname}",gname), in_line=True)
             line_par_in_print = par_print.replace("{gname}",gname)
@@ -1178,6 +1168,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
         m_detector = 2
         m_detector_plane = 3
         m_pad_plane = 4
+        m_tool = 5
 
         if len(self.inherit_list)==0:
             if mode==m_task: self.add_inherit_class('public LKTask')
@@ -1185,6 +1176,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
             if mode==m_detector: self.add_inherit_class('public LKDetector')
             if mode==m_detector_plane: self.add_inherit_class('public LKDetectorPlane')
             if mode==m_pad_plane: self.add_inherit_class('public LKPadPlane')
+            if mode==m_tool: self.add_inherit_class('public TObject')
 
         inheritance = ', '.join(self.inherit_list)
 
@@ -1211,6 +1203,9 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
 
         if mode==m_pad_plane:
             self.include_headers('LKPadPlane.h')
+
+        if mode==m_tool:
+            self.include_headers('TObject.h')
 
         if len(includes)!=0:
             self.include_headers(includes)
@@ -1363,7 +1358,7 @@ or use print_example_comments=False option to omit printing
 
         ############## public ##############
         self.par_init_list.insert(0,"// Put intialization todos here which are not iterative job though event")
-        self.par_init_list.insert(1,f'lx_info << "Initializing {self.name}" << std::endl;')
+        self.par_init_list.insert(1,f'lk_info << "Initializing {self.name}" << std::endl;')
         self.par_init_list.insert(2,"")
         init_content = '\n'.join(self.par_init_list)
 
@@ -1371,7 +1366,7 @@ or use print_example_comments=False option to omit printing
         init_content = init_content + '\n'.join(self.data_init_list)
         init_content = init_content + '\n'*2 + 'return true;'
 
-        self.data_exec_list.append(f'lx_info << "{self.name}" << std::endl;')
+        self.data_exec_list.append(f'lk_info << "{self.name}" << std::endl;')
         exec_content = '\n'.join(self.data_exec_list)
 
         self.par_clear_list.insert(0,f"{inherit_class0}::Clear(option);")
@@ -1379,7 +1374,7 @@ or use print_example_comments=False option to omit printing
 
         self.par_print_list.insert(0,"// You will probability need to modify here")
         #self.par_print_list.insert(1,f"{inherit_class0}::Print();")
-        self.par_print_list.insert(1,f'lx_info << "{self.name}" << std::endl;')
+        self.par_print_list.insert(1,f'lk_info << "{self.name}" << std::endl;')
         print_content = '\n'.join(self.par_print_list)
 
         dete2_content = """// example plane
@@ -1497,9 +1492,14 @@ if (fChannelArray==nullptr)
 
         ############## public ##############
         header_public_par = tab2 + etab2.join(self.par_def_list[0])
+        header_public_method = tab2 + etab2.join(self.method_header_list[0])
+        source_public_method = tab2 + etab2.join(self.method_source_list[0])
 
         ############## protected ##############
+        header_class_protected = ' '*self.tab_size + "protected:"
         header_protected_par = tab2 + etab2.join(self.par_def_list[1])
+        header_protected_method = tab2 + etab2.join(self.method_header_list[1])
+        source_protected_method = tab2 + etab2.join(self.method_source_list[1])
 
         ############## private ##############
         header_class_private = ' '*self.tab_size + "private:"
@@ -1507,6 +1507,8 @@ if (fChannelArray==nullptr)
         if mode==m_task:
             header_private_par = tab2 + etab2.join(self.data_array_def_list)
         header_private_par = header_private_par + 2*etab2 + etab2.join(self.par_def_list[2])
+        header_private_method = tab2 + etab2.join(self.method_header_list[2])
+        source_private_method = tab2 + etab2.join(self.method_source_list[2])
 
         ############## other ##############
         header_class_end = "};"
@@ -1556,10 +1558,29 @@ if (fChannelArray==nullptr)
                 "", header_detp0, header_detp1, header_detp2, "", header_detp3, header_detp4,
                 "", header_detp5, header_detp7, header_detp8, "", header_detpa, header_detpb,
                 header_getter, header_setter]
+        elif mode==m_tool:
+            header_list = [
+                header_define, header_include_root, header_include_lilak, header_include_other,
+                "", header_detail, header_description, header_class,
+                header_class_public, header_constructor, header_destructor, header_enum,
+                "", header_init, header_clear, header_print,
+                header_getter, header_setter]
 
+        if len(header_public_method.strip())>0: header_list.extend(["",header_public_method])
         if len(header_public_par.strip())>0:    header_list.extend(["",header_public_par])
-        if len(header_protected_par.strip())>0: header_list.extend(["",header_class_protected, header_protected_par])
-        if len(header_private_par.strip())>0:   header_list.extend(["",header_class_private, header_private_par])
+
+        print(">>>>>>",header_public_method)
+        print(">>>>>>",source_public_method)
+        if len(header_protected_par.strip())>0 or len(header_protected_method.strip())>0:
+            header_list.extend(["",header_class_protected])
+            if len(header_protected_method.strip())>0: header_list.extend(["",header_protected_method])
+            if len(header_protected_par.strip())>0:    header_list.extend(["",header_protected_par])
+
+        if len(header_private_par.strip())>0 or len(header_private_method.strip())>0:
+            header_list.extend(["",header_class_private])
+            if len(header_private_method.strip())>0: header_list.extend(["",header_private_method])
+            if len(header_private_par.strip())>0:    header_list.extend(["",header_private_par])
+
         header_list.extend(["",header_classdef,header_class_end,header_end])
         header_all = '\n'.join(header_list)
 
@@ -1572,6 +1593,9 @@ if (fChannelArray==nullptr)
                 "",source_init,
                 "",source_exec,
                 "",source_erun,
+                "",source_public_method,
+                "",source_protected_method,
+                "",source_private_method,
                 ]
         elif mode==m_container:
             source_list = [
@@ -1580,7 +1604,10 @@ if (fChannelArray==nullptr)
                 "",source_constructor,
                 "",source_clear,
                 "",source_print,
-                "",source_copy
+                "",source_copy,
+                "",source_public_method,
+                "",source_protected_method,
+                "",source_private_method,
                 ]
         elif mode==m_detector:
             source_list = [
@@ -1591,7 +1618,10 @@ if (fChannelArray==nullptr)
                 "",source_print,
                 "",source_dete1,
                 "",source_dete2,
-                "",source_dete3
+                "",source_dete3,
+                "",source_public_method,
+                "",source_protected_method,
+                "",source_private_method,
                 ]
         elif mode==m_detector_plane:
             source_list = [
@@ -1610,7 +1640,10 @@ if (fChannelArray==nullptr)
                 "",source_detp6,
                 "",source_detp7,
                 "",source_detp8,
-                "",source_detpa
+                "",source_detpa,
+                "",source_public_method,
+                "",source_protected_method,
+                "",source_private_method,
                 ]
         elif mode==m_pad_plane:
             source_list = [
@@ -1629,7 +1662,22 @@ if (fChannelArray==nullptr)
                 "",source_detp6,
                 "",source_detp7,
                 "",source_detp8,
-                "",source_detpa
+                "",source_detpa,
+                "",source_public_method,
+                "",source_protected_method,
+                "",source_private_method,
+                ]
+        elif mode==m_tool:
+            source_list = [
+                source_include,
+                "",source_classimp,
+                "",source_constructor,
+                "",source_init,
+                "",source_clear,
+                "",source_print,
+                "",source_public_method,
+                "",source_protected_method,
+                "",source_private_method,
                 ]
         source_all = '\n'.join(source_list)
 
@@ -1724,6 +1772,10 @@ if (fChannelArray==nullptr)
 ###########################################################################################################################################
     def print_pad_plane(self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance=''):
         self.print_class(mode=4, to_screen=to_screen, to_file=to_file, print_example_comments=print_example_comments, includes=includes, inheritance=inheritance)
+
+###########################################################################################################################################
+    def print_tool(self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance=''):
+        self.print_class(mode=5, to_screen=to_screen, to_file=to_file, print_example_comments=print_example_comments, includes=includes, inheritance=inheritance)
 
 if __name__ == "__main__":
     help(lilakcc)
