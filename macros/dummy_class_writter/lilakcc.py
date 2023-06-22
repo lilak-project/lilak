@@ -1715,6 +1715,28 @@ if (fChannelArray==nullptr)
             if mode==m_task:
                 print(f'Creating {name_full}.mac')
                 with open(f'{name_full}.mac', 'w') as f1: print(par_all,file=f1)
+            if mode==m_task:
+                name_run = os.path.join(self.path,"run_"+self.name)
+                print(f'Creating {name_run}.C')
+                with open(f'{name_run}.C', 'w') as f1:
+                    print(f"""/// This macro is macro for running {self.name} without compiling {self.name}
+/// {self.name}.cpp, {self.name}.h and {self.name}.mac files should be placed in the same directory
+#include "{self.name}.cpp"
+#include "{self.name}.h"
+
+void run_{self.name}()
+{br1}
+    auto run = new LKRun();
+    run -> AddDetector(new TexAT2());
+
+    run -> AddInputFile(please_put_input_data);
+    run -> AddPar("{self.name}.mac");
+    run -> SetTag("{self.name.lower()}");
+    run -> Add(new {self.name}());
+
+    run -> Init();
+    run -> Run(0,10);
+{br2}""",file=f1)
 
         if to_screen:
             print(f"{name_full}.h >>>>>")
