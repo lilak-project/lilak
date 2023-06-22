@@ -401,10 +401,10 @@ class lilakcc:
         #print('++ method :',  line)
         #print('   source :',  method_source)
 
-        if len(method_source)==0: method_source = line
+        if len(method_source)==0: method_source = ";"
         method_header, method_source = self.make_header_source(line,set_content=method_source)
-        print(">>>>>>>",method_header)
-        print(">>>>>>>",method_source)
+        #print(">>>>>>>",method_header)
+        #print(">>>>>>>",method_source)
 
         ias = {"public" : 0, "protected": 1, "private" : 2}.get(acc_spec, -1)
         self.method_header_list[ias].append(method_header)
@@ -620,9 +620,9 @@ class lilakcc:
         ############ parameter print ############
         if len(par_print)==0:
             if par_type in ["bool", "int", "double", "float", "Bool_t", "Int_t", "UInt_t", "Double_t", "Float_t", "TString", "const char*"]:
-                line_par_in_print = f'lk_info << "{par_name} : " << {gname} << std::endl;'
+                line_par_in_print = f'e_info << "{par_name} : " << {gname} << std::endl;'
             else:
-                line_par_in_print = f'//lk_info << "{par_name} : " << {gname} << std::endl;'
+                line_par_in_print = f'//e_info << "{par_name} : " << {gname} << std::endl;'
         else:
             #line_par_in_print = self.make_method(par_print.replace("{gname}",gname), in_line=True)
             line_par_in_print = par_print.replace("{gname}",gname)
@@ -1039,7 +1039,7 @@ class lilakcc:
         if is_array:
             self.data_array_def_list.append(f"TClonesArray *{data_gname} = nullptr;")
             if data_type=="idata": self.data_init_list.append(f'{data_gname} = fRun -> GetBranchA("{data_bname}");')
-            if data_type=="odata": self.data_init_list.append(f'{data_gname} = fRun -> RegisterBranchA("{data_bname}", {data_gname}, {data_init_size});')
+            if data_type=="odata": self.data_init_list.append(f'{data_gname} = fRun -> RegisterBranchA("{data_bname}", "{data_bclass}", {data_init_size});')
             if data_type=="kdata": self.data_init_list.append(f'{data_gname} = fRun -> KeepBranchA("{data_bname}");')
         else:
             self.data_array_def_list.append(f"{data_bclass}* {data_gname} = nullptr;")
@@ -1053,14 +1053,17 @@ class lilakcc:
             line_par_in_par_container = f'{data_bname}/persistency true'
             self.parfile_lines.append(line_par_in_par_container)
 
-        num_data = "num" + data_bname[0].title()+data_bname[1:]
-        i_data = "i" + data_bname[0].title()+data_bname[1:]
+        #num_data = "num" + data_bname[0].title()+data_bname[1:]
+        #i_data = "i" + data_bname[0].title()+data_bname[1:]
+        num_data = "num" + single_data_name[0].title()+single_data_name[1:]
+        i_data = "i" + single_data_name[0].title()+single_data_name[1:]
         tab1 = ' '*(self.tab_size*1)
 
         if is_array:
             if data_type in ["idata","kdata"]:
                 data_exec = f"""
 // Construct (new) {single_data_name} from {data_gname} and set data value
+int {num_data} = {data_gname} -> GetEntriesFast();
 for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
                 data_exec = data_exec + "\n{"
                 data_exec = data_exec + f"""
@@ -1073,7 +1076,7 @@ int {num_data} = {data_gname} -> GetEntriesFast();
 for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
                 data_exec = data_exec + "\n{"
                 data_exec = data_exec + f"""
-{tab1}auto *{single_data_name} = ({data_bclass} *) {data_gname} -> At({i_data});
+{tab1}auto {single_data_name} = ({data_bclass} *) {data_gname} -> At({i_data});
 {tab1}//auto value = {single_data_name} -> GetDataValue(); ..."""
                 data_exec = data_exec + "\n}"
         else:
@@ -1086,8 +1089,8 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
                 data_exec = f"//auto data = {data_gname} -> GetData(value);"
         self.data_exec_list.append(data_exec)
 
-        print(f'++ {data_type}')
-        print(data_exec)
+        #print(f'++ {data_type}')
+        #print(data_exec)
 
 ###########################################################################################################################################
     def simply_comment_out(self,lines,comment_notation="//"):
@@ -1338,7 +1341,7 @@ or use print_example_comments=False option to omit printing
 
         ############## public ##############
         self.par_init_list.insert(0,"// Put intialization todos here which are not iterative job though event")
-        self.par_init_list.insert(1,f'lk_info << "Initializing {self.name}" << std::endl;')
+        self.par_init_list.insert(1,f'e_info << "Initializing {self.name}" << std::endl;')
         self.par_init_list.insert(2,"")
         init_content = '\n'.join(self.par_init_list)
 
@@ -1346,7 +1349,7 @@ or use print_example_comments=False option to omit printing
         init_content = init_content + '\n'.join(self.data_init_list)
         init_content = init_content + '\n'*2 + 'return true;'
 
-        self.data_exec_list.append(f'lk_info << "{self.name}" << std::endl;')
+        self.data_exec_list.append(f'e_info << "{self.name}" << std::endl;')
         exec_content = '\n'.join(self.data_exec_list)
 
         self.par_clear_list.insert(0,f"{inherit_class0}::Clear(option);")
@@ -1354,7 +1357,7 @@ or use print_example_comments=False option to omit printing
 
         self.par_print_list.insert(0,"// You will probability need to modify here")
         #self.par_print_list.insert(1,f"{inherit_class0}::Print();")
-        self.par_print_list.insert(1,f'lk_info << "{self.name}" << std::endl;')
+        self.par_print_list.insert(1,f'e_info << "{self.name}" << std::endl;')
         print_content = '\n'.join(self.par_print_list)
 
         dete2_content = """// example plane
@@ -1474,16 +1477,16 @@ if (fChannelArray==nullptr)
         header_public_par = tab2 + etab2.join(self.par_def_list[0])
         #header_public_method = tab2 + etab2.join(self.method_header_list[0])
         #source_public_method = tab2 + etab2.join(self.method_source_list[0])
-        header_public_method = etab2.join(self.method_header_list[0])
-        source_public_method = etab2.join(self.method_source_list[0])
+        header_public_method = '\n'.join(self.method_header_list[0])
+        source_public_method = '\n\n'.join(self.method_source_list[0])
 
         ############## protected ##############
         header_class_protected = ' '*self.tab_size + "protected:"
         header_protected_par = tab2 + etab2.join(self.par_def_list[1])
         #header_protected_method = tab2 + etab2.join(self.method_header_list[1])
         #source_protected_method = tab2 + etab2.join(self.method_source_list[1])
-        header_protected_method = etab2.join(self.method_header_list[1])
-        source_protected_method = etab2.join(self.method_source_list[1])
+        header_protected_method = '\n'.join(self.method_header_list[1])
+        source_protected_method = '\n\n'.join(self.method_source_list[1])
 
         ############## private ##############
         header_class_private = ' '*self.tab_size + "private:"
@@ -1493,8 +1496,8 @@ if (fChannelArray==nullptr)
         header_private_par = header_private_par + 2*etab2 + etab2.join(self.par_def_list[2])
         #header_private_method = tab2 + etab2.join(self.method_header_list[2])
         #source_private_method = tab2 + etab2.join(self.method_source_list[2])
-        header_private_method = etab2.join(self.method_header_list[2])
-        source_private_method = etab2.join(self.method_source_list[2])
+        header_private_method = '\n'.join(self.method_header_list[2])
+        source_private_method = '\n\n'.join(self.method_source_list[2])
 
         ############## other ##############
         header_class_end = "};"
