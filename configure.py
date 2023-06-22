@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import sys
 
 count_block = 0
 def bline():
@@ -13,6 +14,7 @@ print("## LILAK configuration macro")
 
 lilak_path = os.path.dirname(os.path.abspath(__file__))
 log_path = os.path.join(lilak_path,"log")
+lilak_path_is_set = (os.getenv('LILAK_PATH')==lilak_path)
 os.environ["LILAK_PATH"] = lilak_path
 print()
 print("   LILAK_PATH is", lilak_path)
@@ -142,7 +144,7 @@ while True:
             projct_path = os.path.join(lilak_path,project_name)
             project_cmake_file_name = os.path.join(projct_path, "CMakeLists.txt")
             with open(project_cmake_file_name, "w") as f:
-                print("creating CMakeLists.txt for", project_cmake_file_name)
+                print("creating", project_cmake_file_name)
                 ls_project = os.listdir(project_name)
                 f.write("set(LILAK_SOURCE_DIRECTORY_LIST ${LILAK_SOURCE_DIRECTORY_LIST}\n")
                 for directory_name in ls_project:
@@ -238,18 +240,33 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
     confirm = 1
 
 bline()
-print(f"""## How to build lilak
-
-   1) Open login script and put:
-      export LILAK_PATH=\"{lilak_path}\"
-
-   2) Open ~/.rootrc and put:
+if lilak_path_is_set:
+    print("## Building lilak")
+    os.system('mkdir -p build')
+    os.chdir('build')
+    os.system('cmake ..')
+    os.system('make -j4')
+    bline()
+    print(f"""## How to run lilak
+    1) Open ~/.rootrc and put:
       Rint.Logon: {lilak_path}/macros/rootlogon.C
 
-   3) Build:
-      cd {lilak_path}
-      mkdir build
-      cd build
-      cmake ..
-      make
+    Now run root!
+""")
+
+else:
+    print(f"""## How to build lilak
+
+    1) Open login script and put:
+       export LILAK_PATH=\"{lilak_path}\"
+
+    2) Open ~/.rootrc and put:
+       Rint.Logon: {lilak_path}/macros/rootlogon.C
+
+    3) Build:
+       cd {lilak_path}
+       mkdir build
+       cd build
+       cmake ..
+       make
 """)
