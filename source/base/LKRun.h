@@ -117,6 +117,11 @@ class LKRun : public LKTask
         bool RegisterBranch(TString name, TObject *obj, bool persistent=true);
 
         /**
+         * Register obj and write directly to ouput file
+         */
+        bool RegisterObject(TString name, TObject *obj);
+
+        /**
          * Create, register and return TClonesArray object.
          */
         TClonesArray* RegisterBranchA(TString name, const char* className, Int_t size=100, bool persistent=true);
@@ -232,6 +237,11 @@ class LKRun : public LKTask
         std::vector<TString> fBranchNames;
         std::map<TString, TObject*> fBranchPtrMap;
 
+        Int_t fCountRunObjects = 0;
+        TObject **fRunObjectPtr;
+        TString fRunObjectName[20];
+        std::map<TString, TObject*> fRunObjectPtrMap;
+
         Long64_t fNumEntries = 0;
 
         //std::vector<const char *> fEventMessage;
@@ -243,7 +253,7 @@ class LKRun : public LKTask
         Long64_t fEventCount = 0;
         Long64_t fNumRunEntries = 0;
         Long64_t fNumSkipEventsForMessage = 0;
-        Int_t fNumPrintMessage = 50;
+        Int_t fNumPrintMessage = 20;
         bool fSignalEndOfRun = false;
         bool fCheckIn = false;
 

@@ -35,6 +35,10 @@ LKRun::LKRun()
     for (Int_t iBranch = 0; iBranch < 100; ++iBranch)
         fBranchPtr[iBranch] = nullptr;
 
+    fRunObjectPtr = new TObject*[10];
+    for (Int_t iObject = 0; iObject < 10; ++iObject)
+        fRunObjectPtr[iObject] = nullptr;
+
     fDetectorSystem = new LKDetectorSystem();
 
     ifstream log_branch_list(TString(LILAK_PATH)+"/log/LKBranchList.log");
@@ -722,6 +726,17 @@ bool LKRun::RegisterBranch(TString name, TObject *obj, bool persistent)
     return true;
 }
 
+bool LKRun::RegisterObject(TString name, TObject *obj)
+{
+    if (fCountRunObjects>=20)
+        lk_error << "Too many objects!!" << endl;
+    fRunObjectPtr[fCountRunObjects] = obj;
+    fRunObjectPtrMap[name] = obj;
+    fRunObjectName[fCountRunObjects] = name;
+    fCountRunObjects++;
+    return true;
+}
+
 TClonesArray* LKRun::RegisterBranchA(TString name, const char* className, Int_t size, bool persistent) {
     TClonesArray *array = new TClonesArray(className, size);
     RegisterBranch(name, array, persistent);
@@ -817,6 +832,8 @@ bool LKRun::WriteOutputFile()
     fRunHeader -> Write(fRunHeader->GetName(),TObject::kSingleKey);
     fPar -> Write(fPar->GetName(),TObject::kSingleKey);
     fOutputTree -> Write();
+    for (auto iObject=0; iObject<fCountRunObjects; ++iObject)
+        fRunObjectPtr[iObject] -> Write(fRunObjectName[iObject],TObject::kSingleKey);
     fOutputFile -> Close();
 
     TString linkName = TString(LILAK_PATH) + "/data/lk_last_output.root";
@@ -897,7 +914,7 @@ bool LKRun::RunEvent(Long64_t eventID)
 
     e_cout << endl;
     lk_info << "Execute Event " << fCurrentEventID << " (" << fEventCount << "/" << fNumRunEntries << ")" << endl;
-    ClearArrays();
+    //ClearArrays();
     ExecuteTask("");
 
     lk_set_message(true);
