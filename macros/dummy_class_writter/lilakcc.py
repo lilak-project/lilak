@@ -55,6 +55,7 @@ class lilakcc:
         self.method_source_list = [[],[],[]]
         self.include_root_list = []
         self.include_lilak_list = []
+        self.include_texat_list = []
         self.include_other_list = []
         self.parfile_lines = []
         if len(input_lines)!=0: self.add(input_lines)
@@ -987,7 +988,7 @@ class lilakcc:
                 return add_to + comment
 
 ###########################################################################################################################################
-    def include_headers(self,includes):
+    def include_headers(self,includes, add_as_comment=False):
         """Include header files assuming that includes are separated by spaces or line-break"""
         if len(includes)==0:
             return
@@ -1002,16 +1003,23 @@ class lilakcc:
             else:
                 header_full = header
 
-            print("++ {:20}: {}".format("include header",header_full))
-            if header[0]=="T":
+            header_final = header_full
+            if add_as_comment:
+                header_final = f"//{header_full}"
+
+            print("++ {:20}: {}".format("include header",header_final))
+            if header[:2] in ["TT","MM"]:
+                if header_full not in self.include_texat_list:
+                    self.include_texat_list.append(header_final)
+            elif header[0]=="T":
                 if header_full not in self.include_root_list:
-                    self.include_root_list.append(header_full)
+                    self.include_root_list.append(header_final)
             elif header[:2]=="LK":
                 if header_full not in self.include_lilak_list:
-                    self.include_lilak_list.append(header_full)
+                    self.include_lilak_list.append(header_final)
             else:
                 if header_full not in self.include_other_list:
-                    self.include_other_list.append(header_full)
+                    self.include_other_list.append(header_final)
 
 ###########################################################################################################################################
     def add_data_branch(self, data_type, data_bclass, data_gname, data_bname, data_lname,
@@ -1026,6 +1034,8 @@ class lilakcc:
             is_array = True
             data_init_size = data_bclass[data_bclass.find(' ')+1:]
             data_bclass = data_bclass[:data_bclass.find(' ')]
+
+        self.include_headers(data_bclass+".h", add_as_comment=True)
 
         if len(single_data_name)==0:
             if is_array:
@@ -1067,16 +1077,17 @@ int {num_data} = {data_gname} -> GetEntriesFast();
 for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
                 data_exec = data_exec + "\n{"
                 data_exec = data_exec + f"""
-{tab1}auto {single_data_name} = ({data_bclass} *) {data_gname} -> ConstructedAt({i_data});
+{tab1}auto {single_data_name} = ({data_bclass} *) {data_gname} -> At({i_data});
 {tab1}// {single_data_name} -> SetData(value);"""
                 data_exec = data_exec + "\n}"
             if data_type=="odata":
                 data_exec = f"""// Call {single_data_name} from {data_gname} and get data value
+{data_gname} -> Clear("C");
 int {num_data} = {data_gname} -> GetEntriesFast();
 for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
                 data_exec = data_exec + "\n{"
                 data_exec = data_exec + f"""
-{tab1}auto {single_data_name} = ({data_bclass} *) {data_gname} -> At({i_data});
+{tab1}auto {single_data_name} = ({data_bclass} *) {data_gname} -> ConstructedAt({i_data});
 {tab1}//auto value = {single_data_name} -> GetDataValue(); ..."""
                 data_exec = data_exec + "\n}"
         else:
@@ -1160,6 +1171,14 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
             if mode==m_detector_plane: self.add_inherit_class('public LKDetectorPlane')
             if mode==m_pad_plane: self.add_inherit_class('public LKPadPlane')
             if mode==m_tool: self.add_inherit_class('public TObject')
+
+        cout_info = "e_info"
+        if mode==m_task: cout_info = "lk_info"
+        #if mode==m_container: cout_info = "e_info"
+        if mode==m_detector: cout_info = "lk_info"
+        if mode==m_detector_plane: cout_info = "lk_info"
+        if mode==m_pad_plane: cout_info = "lk_info"
+        #if mode==m_tool: cout_info = "e_info"
 
         inheritance = ', '.join(self.inherit_list)
 
@@ -1331,8 +1350,9 @@ or use print_example_comments=False option to omit printing
             header_detail = header_detail + "\n"
         else:
             header_detail = ""
-        header_include_lilak = '\n'.join(sorted(set(self.include_lilak_list)))
         header_include_root = '\n'.join(sorted(set(self.include_root_list)))
+        header_include_lilak = '\n'.join(sorted(set(self.include_lilak_list)))
+        header_include_texat = '\n'.join(sorted(set(self.include_texat_list)))
         header_include_other = '\n'.join(sorted(set(self.include_other_list)))
         header_description = self.make_doxygen_comment(self.comment,always_mult_line=True)
         header_class = f"class {self.name} : {inheritance}" + "\n{"
@@ -1341,7 +1361,7 @@ or use print_example_comments=False option to omit printing
 
         ############## public ##############
         self.par_init_list.insert(0,"// Put intialization todos here which are not iterative job though event")
-        self.par_init_list.insert(1,f'e_info << "Initializing {self.name}" << std::endl;')
+        self.par_init_list.insert(1,f'{cout_info} << "Initializing {self.name}" << std::endl;')
         self.par_init_list.insert(2,"")
         init_content = '\n'.join(self.par_init_list)
 
@@ -1349,7 +1369,7 @@ or use print_example_comments=False option to omit printing
         init_content = init_content + '\n'.join(self.data_init_list)
         init_content = init_content + '\n'*2 + 'return true;'
 
-        self.data_exec_list.append(f'e_info << "{self.name}" << std::endl;')
+        self.data_exec_list.append(f'{cout_info} << "{self.name}" << std::endl;')
         exec_content = '\n'.join(self.data_exec_list)
 
         self.par_clear_list.insert(0,f"{inherit_class0}::Clear(option);")
@@ -1357,7 +1377,7 @@ or use print_example_comments=False option to omit printing
 
         self.par_print_list.insert(0,"// You will probability need to modify here")
         #self.par_print_list.insert(1,f"{inherit_class0}::Print();")
-        self.par_print_list.insert(1,f'e_info << "{self.name}" << std::endl;')
+        self.par_print_list.insert(1,f'{cout_info} << "{self.name}" << std::endl;')
         print_content = '\n'.join(self.par_print_list)
 
         dete2_content = """// example plane
@@ -1509,21 +1529,21 @@ if (fChannelArray==nullptr)
         ############## join header ##############
         if mode==m_task:
             header_list = [
-                header_define, header_include_root, header_include_lilak, header_include_other,
+                header_define, header_include_root, header_include_lilak, header_include_texat, header_include_other,
                 "", header_detail, header_description, header_class,
                 header_class_public, header_constructor, header_destructor, header_enum,
                 "", header_init, header_exec, header_erun,
                 header_getter, header_setter]
         elif mode==m_container:
             header_list = [
-                header_define, header_include_root, header_include_lilak, header_include_other,
+                header_define, header_include_root, header_include_lilak, header_include_texat, header_include_other,
                 "", header_detail, header_description, header_class,
                 header_class_public, header_constructor, header_destructor, header_enum,
                 "", header_clear, header_print, header_copy,
                 header_getter, header_setter]
         elif mode==m_detector:
             header_list = [
-                header_define, header_include_root, header_include_lilak, header_include_other,
+                header_define, header_include_root, header_include_lilak, header_include_texat, header_include_other,
                 "", header_detail, header_description, header_class,
                 header_class_public, header_constructor, header_destructor, header_enum,
                 "", header_print, header_init,
@@ -1531,7 +1551,7 @@ if (fChannelArray==nullptr)
                 header_getter, header_setter]
         elif mode==m_detector_plane:
             header_list = [
-                header_define, header_include_root, header_include_lilak, header_include_other,
+                header_define, header_include_root, header_include_lilak, header_include_texat, header_include_other,
                 "", header_detail, header_description, header_class,
                 header_class_public, header_constructor, header_destructor, header_enum,
                 "", header_init, header_clear, header_print,
@@ -1540,7 +1560,7 @@ if (fChannelArray==nullptr)
                 header_getter, header_setter]
         elif mode==m_pad_plane:
             header_list = [
-                header_define, header_include_root, header_include_lilak, header_include_other,
+                header_define, header_include_root, header_include_lilak, header_include_texat, header_include_other,
                 "", header_detail, header_description, header_class,
                 header_class_public, header_constructor, header_destructor, header_enum,
                 "", header_init, header_clear, header_print,
@@ -1549,7 +1569,7 @@ if (fChannelArray==nullptr)
                 header_getter, header_setter]
         elif mode==m_tool:
             header_list = [
-                header_define, header_include_root, header_include_lilak, header_include_other,
+                header_define, header_include_root, header_include_lilak, header_include_texat, header_include_other,
                 "", header_detail, header_description, header_class,
                 header_class_public, header_constructor, header_destructor, header_enum,
                 "", header_init, header_clear, header_print,
