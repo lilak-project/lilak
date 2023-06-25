@@ -708,7 +708,7 @@ TObject *LKRun::GetBranch(TString name)
 TObject *LKRun::KeepBranch(TString name) {
     TObject *dataContainer = GetBranch(name);
     if (fOutputTree!=nullptr) {
-        if (fOuputTree -> GetBranch(name)==nullptr)
+        if (fOutputTree -> GetBranch(name)==nullptr)
             fOutputTree -> Branch(name, dataContainer);
     }
     return dataContainer;
@@ -738,7 +738,7 @@ TClonesArray *LKRun::GetBranchA(TString name)
 TClonesArray *LKRun::KeepBranchA(TString name) {
     TClonesArray* dataContainer = GetBranchA(name);
     if (fOutputTree!=nullptr) {
-        if (fOuputTree -> GetBranch(name)==nullptr)
+        if (fOutputTree -> GetBranch(name)==nullptr)
             fOutputTree -> Branch(name, dataContainer);
     }
     return dataContainer;
