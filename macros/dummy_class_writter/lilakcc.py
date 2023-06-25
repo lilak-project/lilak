@@ -17,8 +17,8 @@ class lilakcc:
             [x] make_method(self, line, tab_no=0, comment="", is_source=False, in_line=False, omit_semicolon=False, set_content="")
             [x] add_par(self,line, lname, gname, acc_spec, par_setter, par_getter, par_init, par_clear, par_print, par_source)
                 [x] make_par(self, par_type, par_name, par_init, par_comments)
-            [x] add_input_data_array(self, data_class, data_array_gname, data_array_bname, data_array_lname="", single_data_name="data", input_comment="")
-            [x] add_output_data_array(self, data_class, data_array_gname, data_array_bname, data_array_lname="", single_data_name="data", input_comment="", data_array_init_size=0, data_persistency=True)
+            [x] add_data_branch(self, data_type, data_bclass, data_gname, data_bname, data_lname,
+                                single_data_name, input_comment, data_persistency):
 
         [x] break_data_array(self,lines)
         [x] break_line(self,lines)
@@ -36,7 +36,7 @@ class lilakcc:
 
     def __init__(self, input_lines=''):
         self.name = ""
-        self.path = "./"
+        self.path = "./output"
         self.comment = ""
         self.tab_size = 4
         self.inherit_list = []
@@ -106,6 +106,9 @@ class lilakcc:
             +inherit -- inheritance of class ex: public TNamed
 
         ### input/output data container sub-keywords for 
+            +bclass -- class of the branch ex) [class_name] [size].
+                       If [size] is given, branch is created as TClonesArray
+                       If [size] is not given, branch is created with [class_name]
             +gname  -- set global data container array name
             +lname  -- set local  data container array name
             +bname  -- set parameter name to be registered or registered as branch name
@@ -114,10 +117,11 @@ class lilakcc:
             +persis -- set persistency of branch (True or False). Default is True
 
         ex:
-            +odata auto fMyDataArray = TClonesArray("TMyData",100)
-            +lname myDataArray
-            +bname firstData
-            +pname myData
+            +odata  fMyDataArray
+            +bclass TMyData 100
+            +lname  myDataArray
+            +bname  firstData
+            +pname  myData
 
         ### parameter sub-keywords:
             +gname  -- set global parameter name
@@ -153,8 +157,8 @@ class lilakcc:
         group = []
         group_list = []
         list_line = input_lines.splitlines()
-        list_complete = ["path", "class", "idata", "odata", "include", "private", "protected", "public", "enum"]
-        list_components = ["comment", "inherit", "gname", "lname", "pname", "bname", "persis", "setter", "getter", "init", "clear", "source", "print", "copy"]
+        list_complete = ["path", "class", "idata", "odata", "kdata", "include", "private", "protected", "public", "enum"]
+        list_components = ["comment", "inherit", "gname", "lname", "pname", "bname", "persis", "setter", "getter", "init", "clear", "source", "print", "copy", "bclass"]
 
         is_method = True
         head_is_found = False
@@ -166,7 +170,7 @@ class lilakcc:
                     group.clear()
             elif line[:2] == '//' or line[:2] == '/*' or line[:2] == ' *' or line[0] == '*' or line.find('+comment')==0:
                 group.append(["+","comment",line])
-            elif line[0] in ['+','-']:
+            elif line[0] in ['+','-','@']:
                 ispace = line.find(' ')
                 if ispace < 0: ispace = len(line)
                 ltype = line[1:ispace] # line type
@@ -227,66 +231,40 @@ class lilakcc:
                     if ltype=='inherit': list_inherit.append(line)
                 self.set_class(line0,class_comment=class_comment, list_inherit=list_inherit)
 
+
             elif ltype0=='enum':
                 #print("@@ enum")
                 self.set_enum(line0)
 
-            elif ltype0=='idata':
-                #print("@@ idata")
-                idata_gname = ""
-                idata_lname = ""
-                idata_pname = ""
-                idata_bname = ""
-                idata_comment = ""
+            elif ltype0 in ['idata','odata','kdata']:
+                #print("@@ xdata")
+                xdata_gname = line0
+                xdata_lname = ""
+                xdata_pname = ""
+                xdata_bname = ""
+                xdata_comment = ""
+                xdata_bclass = ""
+                xdata_persis = True
                 for pm, ltype, line in group_new:
-                    method_source = ""
-                    if ltype=='gname':   idata_gname = line
-                    if ltype=='lname':   idata_lname = line
-                    if ltype=='pname':   idata_pname = line
-                    if ltype=='bname':   idata_bname = line
-                    if ltype=='comment': idata_comment = line
-                da_name, da_class, da_size = self.break_data_array(line0)
-                if len(idata_gname)==0: idata_gname = da_name
-                if len(idata_bname)==0:
-                    print(f'-------- WARNING4! "bname" must be set for "idata"')
+                    if ltype=='bclass':  xdata_bclass = line
+                    if ltype=='lname':   xdata_lname = line
+                    if ltype=='pname':   xdata_pname = line
+                    if ltype=='bname':   xdata_bname = line
+                    if ltype=='comment': xdata_comment = line
+                    if ltype=='persis':  xdata_persis = (True if (line.strip().lower())=="true" else False)
+                if len(xdata_bname)==0:
+                    print(f'-------- WARNING6! "bname" must be set for "xdata"')
                     return
-                self.add_input_data_array(
-                    data_class=da_class,
-                    data_array_gname=idata_gname,
-                    data_array_bname=idata_bname,
-                    data_array_lname=idata_lname,
-                    single_data_name=idata_pname,
-                    input_comment=idata_comment)
-
-            elif ltype0=='odata':
-                #print("@@ odata")
-                odata_gname = ""
-                odata_lname = ""
-                odata_pname = ""
-                odata_bname = ""
-                odata_comment = ""
-                odata_persis = True
-                for pm, ltype, line in group_new:
-                    if ltype=='gname':  odata_gname = line
-                    if ltype=='lname':  odata_lname = line
-                    if ltype=='pname':  odata_pname = line
-                    if ltype=='bname':  odata_bname = line
-                    if ltype=='comment': odata_comment = line
-                    if ltype=='persis': odata_persis = (True if (line.strip().lower())=="true" else False)
-                da_name, da_class, da_size = self.break_data_array(line0)
-                if len(odata_gname)==0: odata_gname = da_name
-                if len(odata_bname)==0:
-                    print(f'-------- WARNING5! "bname" must be set for "odata"')
-                    return
-                self.add_output_data_array(
-                    data_class=da_class,
-                    data_array_gname=odata_gname,
-                    data_array_bname=odata_bname,
-                    data_array_lname=odata_lname,
-                    single_data_name=odata_pname,
-                    data_array_init_size=da_size,
-                    input_comment=odata_comment,
-                    data_persistency=odata_persis)
+                #print(">>>>>>>>",xdata_bclass)
+                self.add_data_branch(
+                    ltype0,
+                    data_bclass=xdata_bclass,
+                    data_gname=xdata_gname,
+                    data_bname=xdata_bname,
+                    data_lname=xdata_lname,
+                    single_data_name=xdata_pname,
+                    input_comment=xdata_comment,
+                    data_persistency=xdata_persis)
 
             elif ltype0=='include':
                 #print("@@ include")
@@ -418,11 +396,15 @@ class lilakcc:
 
 ###########################################################################################################################################
     def add_method(self, line, comment="", acc_spec="public", method_source=""):
-        print('++ method :',  line)
-        print('   source :',  method_source)
+        method_source = method_source.strip()
+        line = line.strip()
+        #print('++ method :',  line)
+        #print('   source :',  method_source)
 
         if len(method_source)==0: method_source = line
         method_header, method_source = self.make_header_source(line,set_content=method_source)
+        print(">>>>>>>",method_header)
+        print(">>>>>>>",method_source)
 
         ias = {"public" : 0, "protected": 1, "private" : 2}.get(acc_spec, -1)
         self.method_header_list[ias].append(method_header)
@@ -734,6 +716,7 @@ class lilakcc:
         """
 
         lname = given_name
+        mname = ""
         if given_name[0]=="f":
             lname = given_name[1:]
             lname = lname[0].lower()+lname[1:]
@@ -1031,83 +1014,80 @@ class lilakcc:
                     self.include_other_list.append(header_full)
 
 ###########################################################################################################################################
-    def add_input_data_array(self, data_class, data_array_gname, data_array_bname, data_array_lname="", single_data_name="data", input_comment=""):
-        data_array_gname, data_array_lname, dummy, dummy, dummy = self.configure_names(data_array_gname, data_array_lname, data_array_lname, "")
+    def add_data_branch(self, data_type, data_bclass, data_gname, data_bname, data_lname,
+                              single_data_name, input_comment, data_persistency):
+
+        data_gname, data_lname, data_pname, data_dname, data_mname = self.configure_names(data_gname, data_gname, data_lname, "")
+
+        is_array = False
+        data_init_size = 0
+        data_bclass = data_bclass.strip()
+        if data_bclass.find(' ')>0:
+            is_array = True
+            data_init_size = data_bclass[data_bclass.find(' ')+1:]
+            data_bclass = data_bclass[:data_bclass.find(' ')]
 
         if len(single_data_name)==0:
-            if data_array_lname.endswith("Array"):
-                single_data_name = data_array_lname[:len(data_array_lname)-5]
+            if is_array:
+                if data_lname.endswith("Array"):
+                    single_data_name = data_lname[:len(data_lname)-5]
+                else:
+                    single_data_name = data_lname + "_single"
             else:
-                single_data_name = data_array_lname + "_single"
+                single_data_name = data_lname
 
-        self.data_array_def_list.append(f"TClonesArray *{data_array_gname} = nullptr;")
-        self.data_init_list.append(f'fTrackArray = fRun -> GetBranchA("{data_array_bname}");')
+        if is_array:
+            self.data_array_def_list.append(f"TClonesArray *{data_gname} = nullptr;")
+            if data_type=="idata": self.data_init_list.append(f'{data_gname} = fRun -> GetBranchA("{data_bname}");')
+            if data_type=="odata": self.data_init_list.append(f'{data_gname} = fRun -> RegisterBranchA("{data_bname}", {data_gname}, {data_init_size});')
+            if data_type=="kdata": self.data_init_list.append(f'{data_gname} = fRun -> KeepBranchA("{data_bname}");')
+        else:
+            self.data_array_def_list.append(f"{data_bclass}* {data_gname} = nullptr;")
+            if data_type=="idata": self.data_init_list.append(f'{data_gname} = ({data_bclass}*) fRun -> GetBranch("{data_bname}");')
+            if data_type=="odata":
+                self.data_init_list.append(f'{data_gname} = new {data_bclass}();')
+                self.data_init_list.append(f'fRun -> RegisterBranch("{data_bname}", {data_gname});')
+            if data_type=="kdata": self.data_init_list.append(f'{data_gname} = ({data_bclass}*) fRun -> KeepBranch("{data_bname}");')
 
-        num_data = "num" + data_array_bname[0].title()+data_array_bname[1:]
-        i_data = "i" + data_array_bname[0].title()+data_array_bname[1:]
+        if data_type=="odata":
+            line_par_in_par_container = f'{data_bname}/persistency true'
+            self.parfile_lines.append(line_par_in_par_container)
+
+        num_data = "num" + data_bname[0].title()+data_bname[1:]
+        i_data = "i" + data_bname[0].title()+data_bname[1:]
         tab1 = ' '*(self.tab_size*1)
-        data_exec = f"""// Call {single_data_name} from {data_array_gname} and get data value
-int {num_data} = {data_array_gname} -> GetEntriesFast();
+
+        if is_array:
+            if data_type in ["idata","kdata"]:
+                data_exec = f"""
+// Construct (new) {single_data_name} from {data_gname} and set data value
 for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
-        data_exec = data_exec + "\n{"
-        data_exec = data_exec + f"""
-{tab1}auto *{single_data_name} = ({data_class} *) {data_array_gname} -> At({i_data});
+                data_exec = data_exec + "\n{"
+                data_exec = data_exec + f"""
+{tab1}auto {single_data_name} = ({data_bclass} *) {data_gname} -> ConstructedAt({i_data});
+{tab1}// {single_data_name} -> SetData(value);"""
+                data_exec = data_exec + "\n}"
+            if data_type=="odata":
+                data_exec = f"""// Call {single_data_name} from {data_gname} and get data value
+int {num_data} = {data_gname} -> GetEntriesFast();
+for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
+                data_exec = data_exec + "\n{"
+                data_exec = data_exec + f"""
+{tab1}auto *{single_data_name} = ({data_bclass} *) {data_gname} -> At({i_data});
 {tab1}//auto value = {single_data_name} -> GetDataValue(); ..."""
-        data_exec = data_exec + "\n}"
+                data_exec = data_exec + "\n}"
+        else:
+            if data_type=="idata":
+                data_exec = f"//{data_gname} -> SetData(value);"
+            if data_type=="kdata":
+                data_exec = f"""//{data_gname} -> SetData(value);
+//auto data = {data_gname} -> GetData(value);"""
+            if data_type=="odata":
+                data_exec = f"//auto data = {data_gname} -> GetData(value);"
         self.data_exec_list.append(data_exec)
 
-        print('++ idata')
-        print('   data_class       :', data_class)
-        print('   data_array_gname :', data_array_gname)
-        print('   data_array_bname :', data_array_bname)
-        print('   data_array_lname :', data_array_lname)
-        print('   single_data_name :', single_data_name)
-        print('   num_data         :', num_data)
-
-
-
-###########################################################################################################################################
-    def add_output_data_array(self, data_class, data_array_gname, data_array_bname, data_array_lname="", single_data_name="data",
-                              data_array_init_size=0, input_comment="", data_persistency=True):
-        data_array_gname, data_array_lname, dummy, dummy, dummy = self.configure_names(data_array_gname, data_array_lname, data_array_lname, "")
-
-        if len(single_data_name)==0:
-            if data_array_lname.endswith("Array"):
-                single_data_name = data_array_lname[:len(data_array_lname)-5]
-            else:
-                single_data_name = data_array_lname + "_single"
-
-        self.data_array_def_list.append(f"TClonesArray *{data_array_gname} = nullptr;")
-
-        if data_array_init_size>0: self.data_init_list.append(f'{data_array_gname} = new TClonesArray("{data_class}",{data_array_init_size});')
-        else:                      self.data_init_list.append(f'{data_array_gname} = new TClonesArray("{data_class}");')
-        self.data_init_list.append(f'fRun -> RegisterBranch("{data_array_bname}", {data_array_gname});')
-
-        line_par_in_par_container = f'{data_array_bname}/persistency true'
-        self.parfile_lines.append(line_par_in_par_container)
-
-
-        num_data = "num" + data_array_bname[0].title()+data_array_bname[1:]
-        i_data = "i" + data_array_bname[0].title()+data_array_bname[1:]
-        tab1 = ' '*(self.tab_size*1)
-        data_exec = f"""
-// Construct (new) {single_data_name} from {data_array_gname} and set data value
-for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
-        data_exec = data_exec + "\n{"
-        data_exec = data_exec + f"""
-{tab1}auto {single_data_name} = ({data_class} *) {data_array_gname} -> ConstructedAt({i_data});
-"""
-#{tab1}// {single_data_name} -> SetData(value); ...
-        data_exec = data_exec + "}"
-        self.data_exec_list.append(data_exec)
-
-        print('++ idata')
-        print('   data_class       :', data_class)
-        print('   data_array_gname :', data_array_gname)
-        print('   data_array_bname :', data_array_bname)
-        print('   data_array_lname :', data_array_lname)
-        print('   single_data_name :', single_data_name)
-        print('   num_data         :', num_data)
+        print(f'++ {data_type}')
+        print(data_exec)
 
 ###########################################################################################################################################
     def simply_comment_out(self,lines,comment_notation="//"):
@@ -1492,14 +1472,18 @@ if (fChannelArray==nullptr)
 
         ############## public ##############
         header_public_par = tab2 + etab2.join(self.par_def_list[0])
-        header_public_method = tab2 + etab2.join(self.method_header_list[0])
-        source_public_method = tab2 + etab2.join(self.method_source_list[0])
+        #header_public_method = tab2 + etab2.join(self.method_header_list[0])
+        #source_public_method = tab2 + etab2.join(self.method_source_list[0])
+        header_public_method = etab2.join(self.method_header_list[0])
+        source_public_method = etab2.join(self.method_source_list[0])
 
         ############## protected ##############
         header_class_protected = ' '*self.tab_size + "protected:"
         header_protected_par = tab2 + etab2.join(self.par_def_list[1])
-        header_protected_method = tab2 + etab2.join(self.method_header_list[1])
-        source_protected_method = tab2 + etab2.join(self.method_source_list[1])
+        #header_protected_method = tab2 + etab2.join(self.method_header_list[1])
+        #source_protected_method = tab2 + etab2.join(self.method_source_list[1])
+        header_protected_method = etab2.join(self.method_header_list[1])
+        source_protected_method = etab2.join(self.method_source_list[1])
 
         ############## private ##############
         header_class_private = ' '*self.tab_size + "private:"
@@ -1507,8 +1491,10 @@ if (fChannelArray==nullptr)
         if mode==m_task:
             header_private_par = tab2 + etab2.join(self.data_array_def_list)
         header_private_par = header_private_par + 2*etab2 + etab2.join(self.par_def_list[2])
-        header_private_method = tab2 + etab2.join(self.method_header_list[2])
-        source_private_method = tab2 + etab2.join(self.method_source_list[2])
+        #header_private_method = tab2 + etab2.join(self.method_header_list[2])
+        #source_private_method = tab2 + etab2.join(self.method_source_list[2])
+        header_private_method = etab2.join(self.method_header_list[2])
+        source_private_method = etab2.join(self.method_source_list[2])
 
         ############## other ##############
         header_class_end = "};"
@@ -1569,8 +1555,6 @@ if (fChannelArray==nullptr)
         if len(header_public_method.strip())>0: header_list.extend(["",header_public_method])
         if len(header_public_par.strip())>0:    header_list.extend(["",header_public_par])
 
-        print(">>>>>>",header_public_method)
-        print(">>>>>>",source_public_method)
         if len(header_protected_par.strip())>0 or len(header_protected_method.strip())>0:
             header_list.extend(["",header_class_protected])
             if len(header_protected_method.strip())>0: header_list.extend(["",header_protected_method])
