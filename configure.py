@@ -3,19 +3,31 @@
 import os
 import sys
 
+def print_c(message):
+    print_head = '\033[94m'
+    print_end = '\033[0m'
+    print(print_head+message+print_end)
+
 count_block = 0
 def bline():
     global count_block
     count_block = count_block + 1
-    print(f"\n== {count_block} ===============================================================================")
+    print_c(f"\n== {count_block} ===============================================================================")
 
-bline()
-print("## LILAK configuration macro")
+def print_h(*messages):
+    print_head = '\033[94m'
+    print_end = '\033[0m'
+    full_message = ""
+    for message in messages:
+        full_message = full_message + " " + message
+    bline()
+    print(print_head+"##"+print_end+full_message)
+
+print_h("LILAK configuration macro")
 
 lilak_path = os.path.dirname(os.path.abspath(__file__))
 log_path = os.path.join(lilak_path,"log")
 lilak_path_is_set = (os.getenv('LILAK_PATH')==lilak_path)
-os.environ["LILAK_PATH"] = lilak_path
 print()
 print("   LILAK_PATH is", lilak_path)
 
@@ -115,8 +127,7 @@ if os.path.exists(build_option_file_name):
 
 confirm = 0
 while True:
-    bline()
-    print("## Loading configuration from", build_option_file_name)
+    print_h("Loading configuration from", build_option_file_name)
     print()
     for key, value in options.items():
         print(f"   {key} = {value}")
@@ -126,6 +137,7 @@ while True:
     if confirm==0:
         confirm = input_e0("Use above options? <Enter/0>: ")
     if confirm==1:
+        print()
         print("saving options to", build_option_file_name)
         with open(build_option_file_name, "w") as f:
             for key, value in options.items():
@@ -175,8 +187,7 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
 )""")
         break
 
-    bline()
-    print("## Build options")
+    print_h("Build options")
     print()
     options = options0.copy()
 
@@ -184,8 +195,7 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
     for key in list_chosen_key:
         options[key] = True
 
-    bline()
-    print("## Add Project")
+    print_h("Add Project")
     print()
     user_input_project = "x"
     project_list = []
@@ -212,8 +222,7 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
         break
 
     if True:
-        bline()
-        print("## Select main project")
+        print_h("Select main project")
         print()
         main_project = "lilak"
         if len(project_list)==1:
@@ -239,34 +248,29 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
                 print(f"Project must be one in the list!")
     confirm = 1
 
-bline()
-if lilak_path_is_set:
-    print("## Building lilak")
-    os.system('mkdir -p build')
-    os.chdir('build')
-    os.system('cmake ..')
-    os.system('make -j4')
-    bline()
-    print(f"""## How to run lilak
-    1) Open ~/.rootrc and put:
+
+print_h("Building lilak")
+
+if lilak_path_is_set==False:
+    print()
+    print("   LILAK_PATH is not set. I will set it for you just this time!")
+    print()
+    os.environ["LILAK_PATH"] = lilak_path
+
+os.system('mkdir -p build')
+os.chdir('build')
+os.system('cmake ..')
+os.system('make -j4')
+
+print_h("How to run lilak")
+print(f"""
+   1) Copy and paste the line below into the login shell script and source the script!
+
+      export LILAK_PATH=\"{lilak_path}\"
+
+   2) Copy and paste the line below into ~/.rootrc:
+
       Rint.Logon: {lilak_path}/macros/rootlogon.C
 
-    Now run root!
-""")
-
-else:
-    print(f"""## How to build lilak
-
-    1) Open login script and put:
-       export LILAK_PATH=\"{lilak_path}\"
-
-    2) Open ~/.rootrc and put:
-       Rint.Logon: {lilak_path}/macros/rootlogon.C
-
-    3) Build:
-       cd {lilak_path}
-       mkdir build
-       cd build
-       cmake ..
-       make
+   3) Now Run root!
 """)
