@@ -410,13 +410,13 @@ void LKEveTask::SetEveMarkerAtt(TEveElement *el, TString branchName)
         auto style = fPar -> GetParStyle(branchName+"/markerAtt",0);
         auto size  = fPar -> GetParSize (branchName+"/markerAtt",1);
         auto color = fPar -> GetParColor(branchName+"/markerAtt",2);
-        ((TEvePointSet *) el) -> SetLineStyle(style);
-        ((TEvePointSet *) el) -> SetLineSize(size);
-        ((TEvePointSet *) el) -> SetLineColor(color);
+        ((TEvePointSet *) el) -> SetMarkerStyle(style);
+        ((TEvePointSet *) el) -> SetMarkerSize(size);
+        ((TEvePointSet *) el) -> SetMarkerColor(color);
     }
-    else if (fPar->CheckPar(branchName+"/markerStyle")) ((TEvePointSet *) el) -> SetLineStyle(fPar -> GetParStyle(branchName+"/markerStyle")); 
-    else if (fPar->CheckPar(branchName+"/markerSize"))  ((TEvePointSet *) el) -> SetLineSize (fPar -> GetParSize (branchName+"/markerSize" ));
-    else if (fPar->CheckPar(branchName+"/markerColor")) ((TEvePointSet *) el) -> SetLineColor(fPar -> GetParColor(branchName+"/markerColor"));
+    else if (fPar->CheckPar(branchName+"/markerStyle")) ((TEvePointSet *) el) -> SetMarkerStyle(fPar -> GetParStyle(branchName+"/markerStyle"));
+    else if (fPar->CheckPar(branchName+"/markerSize"))  ((TEvePointSet *) el) -> SetMarkerSize (fPar -> GetParSize (branchName+"/markerSize" ));
+    else if (fPar->CheckPar(branchName+"/markerColor")) ((TEvePointSet *) el) -> SetMarkerColor(fPar -> GetParColor(branchName+"/markerColor"));
 }
 
 bool LKEveTask::SelectHit(LKHit *hit)

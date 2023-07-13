@@ -253,7 +253,7 @@ Int_t LKParameterContainer::AddParameterContainer(LKParameterContainer *parc)
             continue;
         }
         else {
-            SetPar(parameter->GetName(),parameter->GetRaw(),parameter->GetValue(),parameter->GetComment(),parameter->IsTemporary(),parameter->IsConditional());
+            SetPar(parameter->GetName(),parameter->GetRaw(),parameter->GetValue(),parameter->GetComment(),parameter->GetType());
             ++countParameters;
         }
     }
@@ -489,6 +489,7 @@ void LKParameterContainer::Print(Option_t *option) const
         TString parComment = parameter -> GetComment();
         bool parIsTemporary = parameter -> IsTemporary();
         bool parIsConditional = parameter -> IsConditional();
+        bool parIsMultiple = parameter -> IsMultiple();
 
         if (!evaluatePar)
             parValue = parRaw;
@@ -515,11 +516,9 @@ void LKParameterContainer::Print(Option_t *option) const
                 parComment = TString(" # ") + parComment;
         }
 
-        if (parIsTemporary)
-            parName = Form("%s%s","*",parName.Data());
-
-        if (parIsConditional)
-            parName = Form("%s%s","@",parName.Data());
+             if (parIsTemporary)   parName = Form("%s%s","*",parName.Data());
+        else if (parIsConditional) parName = Form("%s%s","@",parName.Data());
+        else if (parIsMultiple)    parName = Form("%s%s","&",parName.Data());
 
         int nwidth = 20;
              if (parName.Sizeof()>60) nwidth = 70;
@@ -631,21 +630,31 @@ Bool_t LKParameterContainer::AddLine(std::string line)
 
 Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment)
 {
-    if (FindPar(name) != nullptr) {
-        lk_error << "Parameter " << name << " already exist!" << endl;
-        return false;
-    }
+    bool alreadyExist = false;
+    if (FindPar(name) != nullptr)
+        alreadyExist = true;
 
-    if (name.IsNull()&&value.IsNull()&&!comment.IsNull())
+    if (name.IsNull()&&value.IsNull()&&!comment.IsNull()) {
         SetLineComment(comment);
+        return true;
+    }
     else
     {
         bool allowSetPar = true;
         TString groupName;
 
-        bool parameterIsConditional = false;
-        if (name[0]=='@') {
-            parameterIsConditional = true;
+        const int parameterIsStandard = 0;
+        const int parameterIsTemporary = 1;
+        const int parameterIsConditional = 2;
+        const int parameterIsMultiple = 3;
+        int parameterType = parameterIsStandard;
+
+        if (name[0]=='*') {
+            name = name(1, name.Sizeof()-2);
+            parameterType = parameterIsTemporary;
+        }
+        else if (name[0]=='@') {
+            parameterType = parameterIsConditional;
             name = name(1, name.Sizeof()-2);
             groupName = name(0,name.Index("/"));
             if (name.Index("/")<0)
@@ -654,32 +663,33 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
             if (CheckPar(groupName)==false&&CheckValue(groupName)==false)
                 allowSetPar = false; // @todo save as hidden parameter when they are not allowed to be set
         }
-
-        bool parameterIsTemporary = false;
-        if (name[0]=='*') {
+        else if (name[0]=='&') {
             name = name(1, name.Sizeof()-2);
-            parameterIsTemporary = true;
+            parameterType = parameterIsMultiple;
         }
 
         if (allowSetPar) {
-            SetPar(name,value,value,comment,parameterIsTemporary,parameterIsConditional);
-            return true;
+            if (alreadyExist && parameterType!=parameterIsMultiple) {
+                lk_error << "Parameter " << name << " already exist!" << endl;
+                return false;
+            }
+            else {
+                SetPar(name,value,value,comment,parameterType);
+                return true;
+            }
         }
+        else
+            return false;
     }
 
     return false;
 }
 
-LKParameter *LKParameterContainer::SetPar(TString name, TString raw, TString value, TString comment, bool isTemporary, bool isConditional) {
+LKParameter *LKParameterContainer::SetPar(TString name, TString raw, TString value, TString comment, int parameterType) {
     ReplaceVariables(value);
-    auto named = new LKParameter(name, raw, value, comment, isTemporary, isConditional);
+    auto named = new LKParameter(name, raw, value, comment, parameterType);
     Add(named);
     return named;
-}
-
-LKParameter *LKParameterContainer::SetPar(TString name, TString raw, TString comment) {
-    TString value = raw;
-    return SetPar(name, raw, value, comment, false, false);
 }
 
 LKParameter *LKParameterContainer::SetLineComment(TString comment) {

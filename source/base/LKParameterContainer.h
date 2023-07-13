@@ -160,12 +160,12 @@ class LKParameterContainer : public TObjArray
         std::vector<double>  GetParVSize  (TString name) const { return GetParVDouble(name); }
 
     protected:
-        LKParameter *SetPar      (TString name, TString  raw, TString val, TString comment, bool isTemporary, bool isConditional);
-        LKParameter *SetPar      (TString name, TString  val, TString comment="");
-        LKParameter *SetPar      (TString name, Int_t    val, TString comment="") { return SetPar(name,Form("%d",val),comment); } ///< Set parameter Int_t
-        LKParameter *SetPar      (TString name, Double_t val, TString comment="") { return SetPar(name,Form("%f",val),comment); } ///< Set parameter Double_t
-        LKParameter *SetParCont  (TString name);
-        LKParameter *SetParFile  (TString name);
+        LKParameter *SetPar    (TString name, TString  raw, TString val, TString comment, int parameterType);
+        LKParameter *SetPar    (TString name, TString  val, TString comment="") { return SetPar(name,val,val,comment,0); } ///< Set parameter string
+        LKParameter *SetPar    (TString name, Int_t    val, TString comment="") { return SetPar(name,Form("%d",val),Form("%d",val),comment,0); } ///< Set parameter Int_t
+        LKParameter *SetPar    (TString name, Double_t val, TString comment="") { return SetPar(name,Form("%f",val),Form("%f",val),comment,0); } ///< Set parameter Double_t
+        LKParameter *SetParCont(TString name);
+        LKParameter *SetParFile(TString name);
         LKParameter *SetLineComment(TString comment);
 
         LKParameter *FindPar(TString givenName, bool terminateIfNull=false) const;

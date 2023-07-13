@@ -13,14 +13,15 @@ class LKParameter : public TNamed
 {
     public:
         LKParameter();
-        LKParameter(TString name, TString raw, TString value="", TString comment="", bool temporary=false, bool conditional=false);
+        //LKParameter(TString name, TString raw, TString value="", TString comment="", bool temporary=false, bool conditional=false);
+        LKParameter(TString name, TString raw, TString value="", TString comment="", int parameterType=0);
         virtual ~LKParameter();
 
         virtual void Clear(Option_t *option = "");
         virtual void Print(Option_t *option = "") const;
 
         void SetLineComment(TString comment);
-        void SetPar(TString name, TString raw, TString value, TString comment, bool temporary, bool conditional);
+        void SetPar(TString name, TString raw, TString value, TString comment, int parameterType);
 
         //const char *GetName()
         TString GetGroup()      const { return fGroup; }
@@ -31,6 +32,14 @@ class LKParameter : public TNamed
         int     GetN()          const { return fNumValues; }
         bool    IsTemporary()   const { return fTemporary; }
         bool    IsConditional() const { return fConditional; }
+        bool    IsMultiple()    const { return fMultiple; }
+
+        int GetType() const {
+                 if (IsTemporary())   return 1;
+            else if (IsConditional()) return 2;
+            else if (IsMultiple())    return 3;
+            else                      return 0;
+        }
 
         int      GetInt   (int i=-1) const;  ///< Get parameter in int
         bool     GetBool  (int i=-1) const;  ///< Get parameter in bool
@@ -69,6 +78,7 @@ class LKParameter : public TNamed
         std::vector<TString> fValueArray;
         bool fTemporary = false;
         bool fConditional = false;
+        bool fMultiple = false;
 
     ClassDef(LKParameter, 1)
 };

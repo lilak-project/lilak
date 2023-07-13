@@ -9,9 +9,9 @@ LKParameter::LKParameter()
 {
 }
 
-LKParameter::LKParameter(TString name, TString raw, TString value, TString comment, bool temporary, bool conditional)
+LKParameter::LKParameter(TString name, TString raw, TString value, TString comment, int parameterType)
 {
-    SetPar(name, raw, value, comment, temporary, conditional);
+    SetPar(name, raw, value, comment, parameterType);
 }
 
 LKParameter::~LKParameter()
@@ -20,25 +20,20 @@ LKParameter::~LKParameter()
 
 void LKParameter::SetLineComment(TString comment)
 {
-    fGroup = "";
-    fMainName = "";
-    fTitle = "";
-    fValue = "";
+    Clear();
     fComment = comment;
-    fNumValues = 0;
-    fValueArray.clear();
-    fTemporary = false;
-    fConditional = false;
 }
 
-void LKParameter::SetPar(TString name, TString raw, TString value, TString comment, bool temporary, bool conditional)
+void LKParameter::SetPar(TString name, TString raw, TString value, TString comment, int parameterType)
 {
+    Clear();
     fName = name;
     fTitle = raw;
     fValue = value;
     fComment = comment;
-    fTemporary = temporary;
-    fConditional = conditional;
+         if (parameterType==1) fTemporary = true;
+    else if (parameterType==2) fConditional = true;
+    else if (parameterType==3) fMultiple = true;
 
     int iSlash = fName.Index("/");
     if (iSlash>=0) {
@@ -74,6 +69,7 @@ void LKParameter::Clear(Option_t *option)
     fValueArray.clear();
     fTemporary = false;
     fConditional = false;
+    fMultiple = false;
 }
 
 void LKParameter::Print(Option_t *option) const
