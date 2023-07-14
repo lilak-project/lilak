@@ -29,7 +29,8 @@ lilak_path = os.path.dirname(os.path.abspath(__file__))
 log_path = os.path.join(lilak_path,"log")
 lilak_path_is_set = (os.getenv('LILAK_PATH')==lilak_path)
 print()
-print("   LILAK_PATH is", lilak_path)
+print("   LILAK_PATH is")
+print("  ",lilak_path)
 
 build_option_file_name = os.path.join(log_path, "build_options.cmake")
 
@@ -197,11 +198,12 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
 
     print_h("Add Project")
     print()
+
     user_input_project = "x"
     project_list = []
     while len(user_input_project)>0:
         ls_top = os.listdir("./")
-        list_prj_directory = []
+        list_prj_directories = []
         for directory_name in ls_top:
             if directory_name in list_top_directories:
                 continue
@@ -213,10 +215,11 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
                         is_project_directory = True
                         break
                 if is_project_directory:
-                   list_prj_directory.append(directory_name)
+                   list_prj_directories.append(directory_name)
 
-
-        list_chosen_key = input_options(list_prj_directory,question="Type project directory number(s) to Add. Type <Enter> if non: ")
+        #if len(list_chosen_key)==0:
+        #    ist_chosen_key = list_prj_directories
+        list_chosen_key = input_options(list_prj_directories,question="Type project directory number(s) to Add. Type <Enter> if non: ")
         for key in list_chosen_key:
             project_list.append(key)
         break
@@ -250,6 +253,7 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
 
 
 print_h("Building lilak")
+print()
 
 if lilak_path_is_set==False:
     print()

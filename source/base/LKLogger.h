@@ -17,7 +17,7 @@
 #define lk_set_plane(val)   LKLogManager::SetPrintPlane(val)
 #define lk_set_cout(val)    LKLogManager::SetPrintCout(val)
 #define lk_set_info(val)    LKLogManager::SetPrintInfo(val)
-#define lk_set_warn(val)    LKLogManager::SetPrintWarn(val)
+#define lk_set_warning(val) LKLogManager::SetPrintWarn(val)
 #define lk_set_error(val)   LKLogManager::SetPrintError(val)
 #define lk_set_test(val)    LKLogManager::SetPrintTest(val)
 #define lk_set_list(val)    LKLogManager::SetPrintList(val)
@@ -104,7 +104,7 @@ class LKLogger
 
         template <class T> LKLogger &operator<<(const T &v)
         {
-            if (LKLogManager::PrintMessage()==false)
+            if (LKLogManager::PrintMessage()==false||LKLogManager::PrintCurrent()==false)
                 return *this;
 
             if (LKLogManager::LogToConsol()) std::cout << v;
@@ -114,7 +114,7 @@ class LKLogger
 
         LKLogger &operator<<(std::ostream&(*f)(std::ostream&))
         {
-            if (LKLogManager::PrintMessage()==false)
+            if (LKLogManager::PrintMessage()==false||LKLogManager::PrintCurrent()==false)
                 return *this;
 
             if (LKLogManager::LogToConsol()) std::cout << *f;

@@ -8,12 +8,11 @@ build
 
 #simulation/analysis data
 data
+input
+output
 *.root
 *.graw
 test*/
-
-#mac
-.AppleDouble
 
 #geant4 executable
 *.g4sim
@@ -24,10 +23,6 @@ log/*
 
 #cmake configuration log files
 !log/*.in
-
-#documetation directory(doxygen)
-doc
-macros/dummy_class_writter/
 
 #temporary directories
 temp*/
@@ -43,8 +38,12 @@ figures/
 #trash
 trash
 
-#mac
-.DS_Store
-
 #python
 __pycache__
+
+#mac
+.AppleDouble
+.DS_Store
+
+#documetation directory(doxygen)
+doc

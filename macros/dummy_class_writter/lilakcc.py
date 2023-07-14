@@ -58,6 +58,7 @@ class lilakcc:
         self.include_texat_list = []
         self.include_other_list = []
         self.parfile_lines = []
+        self.parfile_data_lines = [[],[],[]]
         if len(input_lines)!=0: self.add(input_lines)
 
 ###########################################################################################################################################
@@ -350,29 +351,29 @@ class lilakcc:
     def set_tab_size(self, tab_size):
         """Set tab size"""
         self.tab_size = tab_size
-        print("++ {:20}: {}".format("Set tab size",tab_size))
+        #print("++ {:20}: {}".format("Set tab size",tab_size))
 
     def set_file_name(self,name):
         """Set name of the class"""
         self.name = name
-        print("++ {:20}: {}".format("Set class",name))
+        #print("++ {:20}: {}".format("Set class",name))
   
     def set_file_path(self,file_path):
         """Set path where files are created"""
         self.path = file_path
-        print("++ {:20}: {}".format("Set file path",file_path))
+        #print("++ {:20}: {}".format("Set file path",file_path))
 
     def set_class_comment(self, comment):
         """Description of the class"""
         self.comment = comment 
-        print("++ {:20}: {}".format("Set class comment",comment))
+        #print("++ {:20}: {}".format("Set class comment",comment))
 
     def add_inherit_class(self, inherit_acc_class):
         """Description of the class"""
         inherit_acc_class = inherit_acc_class.strip();
         if inherit_acc_class not in self.inherit_list:
             self.inherit_list.append(inherit_acc_class)
-            print("++ {:20}: {}".format("Add inherit class",inherit_acc_class))
+            #print("++ {:20}: {}".format("Add inherit class",inherit_acc_class))
 
 ###########################################################################################################################################
     def set_enum(self, line):
@@ -1007,7 +1008,7 @@ class lilakcc:
             if add_as_comment:
                 header_final = f"//{header_full}"
 
-            print("++ {:20}: {}".format("include header",header_final))
+            #print("++ {:20}: {}".format("include header",header_final))
             if header[:2] in ["TT","MM"]:
                 if header_full not in self.include_texat_list:
                     self.include_texat_list.append(header_final)
@@ -1059,7 +1060,15 @@ class lilakcc:
                 self.data_init_list.append(f'fRun -> RegisterBranch("{data_bname}", {data_gname});')
             if data_type=="kdata": self.data_init_list.append(f'{data_gname} = ({data_bclass}*) fRun -> KeepBranch("{data_bname}");')
 
-        if data_type=="odata":
+        if data_type=="idata":
+            line_data_in_par_container = f'&{self.name}/data/input  {data_bclass} {data_bname}'
+            self.parfile_data_lines[0].append(line_data_in_par_container)
+        elif data_type=="kdata":
+            line_data_in_par_container = f'&{self.name}/data/keep   {data_bclass} {data_bname}'
+            self.parfile_data_lines[1].append(line_data_in_par_container)
+        elif data_type=="odata":
+            line_data_in_par_container = f'&{self.name}/data/output {data_bclass} {data_bname}'
+            self.parfile_data_lines[2].append(line_data_in_par_container)
             line_par_in_par_container = f'{data_bname}/persistency true'
             self.parfile_lines.append(line_par_in_par_container)
 
@@ -1163,6 +1172,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
         m_detector_plane = 3
         m_pad_plane = 4
         m_tool = 5
+        m_geant4 = 6
 
         if len(self.inherit_list)==0:
             if mode==m_task: self.add_inherit_class('public LKTask')
@@ -1171,6 +1181,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
             if mode==m_detector_plane: self.add_inherit_class('public LKDetectorPlane')
             if mode==m_pad_plane: self.add_inherit_class('public LKPadPlane')
             if mode==m_tool: self.add_inherit_class('public TObject')
+            if mode==m_geant4: self.add_inherit_class('public G4VUserDetectorConstruction')
 
         cout_info = "e_info"
         if mode==m_task: cout_info = "lk_info"
@@ -1179,6 +1190,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
         if mode==m_detector_plane: cout_info = "lk_info"
         if mode==m_pad_plane: cout_info = "lk_info"
         #if mode==m_tool: cout_info = "e_info"
+        #if mode==m_geant4: cout_info = "e_info"
 
         inheritance = ', '.join(self.inherit_list)
 
@@ -1208,6 +1220,33 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
 
         if mode==m_tool:
             self.include_headers('TObject.h')
+
+        if mode==m_geant4:
+            self.include_headers('G4VUserDetectorConstruction.hh')
+            self.include_headers('globals.hh')
+
+            self.include_headers('LKParameterContainer.h')
+            self.include_headers('LKG4RunManager.h')
+            #self.include_headers('LKGeoBoxStack.h')
+
+            self.include_headers('G4RunManager.hh')
+            self.include_headers('G4NistManager.hh')
+            self.include_headers('G4Box.hh')
+            self.include_headers('G4Tubs.hh')
+            self.include_headers('G4PVPlacement.hh')
+
+            self.include_headers('G4FieldManager.hh')
+            self.include_headers('G4TransportationManager.hh')
+            self.include_headers('G4UniformMagField.hh')
+            self.include_headers('G4GlobalMagFieldMessenger.hh')
+
+            self.include_headers('G4UserLimits.hh')
+            self.include_headers('G4SystemOfUnits.hh')
+
+            self.include_headers('G4VisAttributes.hh')
+            self.include_headers('G4Colour.hh')
+            self.include_headers('G4LogicalVolume.hh')
+
 
         if len(includes)!=0:
             self.include_headers(includes)
@@ -1344,6 +1383,18 @@ or use print_example_comments=False option to omit printing
     TGraph *fGraphChannelBoundary = nullptr;
     TGraph *fGraphChannelBoundaryNb[20] = {0};
 """
+        if mode==m_geant4:
+            header_detail = """Remove this comment block after reading it through
+or use print_example_comments=False option to omit printing
+
+# Example Geatn4 detector construction class
+
+    This is normal geant4 detector construction class.
+    One additional thing from creating normal geant4 class is that
+    you should add your detector to the run manager using LKG4RunManager::SetSensitiveDetector(G4PVPlacement) method
+
+    - Write Construct() method.
+    - In Construct(), you should add detector to LKG4RunManager using LKG4RunManager::SetSensitiveDetector(G4PVPlacement) method."""
 
         if print_example_comments==True:
             header_detail = self.make_doxygen_comment(header_detail,not_for_doxygen=True) + "\n"
@@ -1435,6 +1486,55 @@ hist -> Reset();
 hist -> Draw("same");
 DrawFrame();"""
 
+        construct_content = """auto runManager = (LKG4RunManager *) G4RunManager::GetRunManager();
+auto par = runManager -> GetParameterContainer();
+
+G4double STPTemperature = 273.15;
+G4double labTemperature = STPTemperature + 20.*kelvin;
+
+G4Element *elementH = new G4Element("elementH", "H", 1., 1.00794*g/mole);
+G4Element *elementC = new G4Element("elementC", "C", 6., 12.011*g/mole);
+
+G4double densityArGas = 1.782e-3*g/cm3*STPTemperature/labTemperature;
+G4Material *matArGas = new G4Material("ArgonGas", 18, 39.948*g/mole, densityArGas, kStateGas, labTemperature);
+
+G4double densityMethane = 0.717e-3*g/cm3*STPTemperature/labTemperature;
+G4Material *matMethaneGas = new G4Material("matMethaneGas ", densityMethane, 2, kStateGas, labTemperature);
+matMethaneGas -> AddElement(elementH, 4);
+matMethaneGas -> AddElement(elementC, 1);
+
+G4double densityGas = .9*densityArGas + .1*densityMethane;
+matGas = new G4Material("matP10", densityGas, 2, kStateGas, labTemperature);
+matGas -> AddMaterial(matArGas, 0.9*densityArGas/densityGas);
+matGas -> AddMaterial(matMethaneGas, 0.1*densityMethane/densityGas);
+
+// nist manager is for predefined materials from
+// https://geant4-userdoc.web.cern.ch/UsersGuides/ForApplicationDeveloper/html/Appendix/materialNames.html
+G4NistManager *nist = G4NistManager::Instance();
+G4Material *matAir = nist -> FindOrBuildMaterial("G4_AIR");
+
+G4Box *solidWorld = new G4Box("World", worlddX, worlddY, worlddZ);
+G4LogicalVolume *logicWorld = new G4LogicalVolume(solidWorld, matAir, "World");
+G4PVPlacement *physWorld = new G4PVPlacement(0, G4ThreeVector(), logicWorld, "World", 0, false, -1, true);
+
+G4Tubs *solidDetector = new G4Tubs("Detector", tpcInnerRadius, tpcOuterRadius, .5*tpcLength, 0., 360*deg);
+G4LogicalVolume *logicDetector = new G4LogicalVolume(solidDetector, matGas, "Detector");
+G4VisAttributes * attDetector = new G4VisAttributes(G4Colour(G4Colour::Gray()));
+attDetector -> SetForceWireframe(true);
+logicDetector -> SetVisAttributes(attDetector);
+logicDetector -> SetUserLimits(new G4UserLimits(1.*mm));
+auto pvp = new G4PVPlacement(0, G4ThreeVector(0,0,tpcZOffset), logicDetector, "Detector", logicWorld, false, 0, true);
+
+// Register to LKG4RunManager
+runManager -> SetSensitiveDetector(pvp);
+
+// example field
+new G4GlobalMagFieldMessenger(G4ThreeVector(0., 0., 0.1*tesla));
+
+return physWorld;
+"""
+
+
         self.par_copy_list.insert(0,"// You should copy data from this container to objCopy")
         self.par_copy_list.insert(1,f"{inherit_class0}::Copy(object);")
         self.par_copy_list.insert(2,f"auto objCopy = ({self.name} &) object;")
@@ -1486,6 +1586,8 @@ if (fChannelArray==nullptr)
 
         header_detpa, source_detpa = self.make_header_source('void MouseClickEvent(int iPlane);', predefined=True)
         header_detpb, source_detpb = self.make_header_source('void ClickedAtPosition(Double_t x, Double_t y)', predefined=True)
+
+        header_g4construct, source_g4construct = self.make_header_source('virtual G4VPhysicalVolume* Construct()', construct_content)
 
         ############## get set ##############
         if len(self.get_full_list[0])>0: self.get_full_list[0].insert(0,"")
@@ -1574,6 +1676,12 @@ if (fChannelArray==nullptr)
                 header_class_public, header_constructor, header_destructor, header_enum,
                 "", header_init, header_clear, header_print,
                 header_getter, header_setter]
+        elif mode==m_geant4:
+            header_list = [
+                header_define, header_include_root, header_include_lilak, header_include_texat, header_include_other,
+                "", header_detail, header_description, header_class,
+                header_class_public, header_constructor, header_destructor, header_enum,
+                "", header_g4construct]
 
         if len(header_public_method.strip())>0: header_list.extend(["",header_public_method])
         if len(header_public_par.strip())>0:    header_list.extend(["",header_public_par])
@@ -1588,7 +1696,10 @@ if (fChannelArray==nullptr)
             if len(header_private_method.strip())>0: header_list.extend(["",header_private_method])
             if len(header_private_par.strip())>0:    header_list.extend(["",header_private_par])
 
-        header_list.extend(["",header_classdef,header_class_end,header_end])
+        if mode==m_geant4:
+            header_list.extend(["",header_class_end,header_end])
+        else:
+            header_list.extend(["",header_classdef,header_class_end,header_end])
         header_all = '\n'.join(header_list)
 
         ############## join source ##############
@@ -1686,6 +1797,15 @@ if (fChannelArray==nullptr)
                 "",source_protected_method,
                 "",source_private_method,
                 ]
+        elif mode==m_geant4:
+            source_list = [
+                source_include,
+                "",source_constructor,
+                "",source_g4construct,
+                "",source_public_method,
+                "",source_protected_method,
+                "",source_private_method,
+                ]
         source_all = '\n'.join(source_list)
 
         # removing multiple enters
@@ -1722,22 +1842,25 @@ if (fChannelArray==nullptr)
         source_all = '\n'.join(source_new_list)
 
         ############## Par ##############
+        for line in self.parfile_data_lines[2]: self.parfile_lines.insert(0,line)
+        for line in self.parfile_data_lines[0]: self.parfile_lines.insert(0,line)
+        for line in self.parfile_data_lines[1]: self.parfile_lines.insert(0,line)
         par_all = '\n'.join(self.parfile_lines)
 
         ############## Print ##############
         name_full = os.path.join(self.path,self.name)
         
         if to_file:
-            print(f'Creating {name_full}.h')
-            print(f'Creating {name_full}.cpp')
+            print(f'{name_full}.h')
+            print(f'{name_full}.cpp')
             with open(f'{name_full}.h', 'w') as f1: print(header_all,file=f1)
             with open(f'{name_full}.cpp', 'w') as f1: print(source_all,file=f1)
             if mode==m_task:
-                print(f'Creating {name_full}.mac')
+                print(f'{name_full}.mac')
                 with open(f'{name_full}.mac', 'w') as f1: print(par_all,file=f1)
             if mode==m_task:
                 name_run = os.path.join(self.path,"run_"+self.name)
-                print(f'Creating {name_run}.C')
+                print(f'{name_run}.C')
                 with open(f'{name_run}.C', 'w') as f1:
                     print(f"""/// This macro is macro for running {self.name} without compiling {self.name}
 /// {self.name}.cpp, {self.name}.h and {self.name}.mac files should be placed in the same directory
@@ -1805,6 +1928,10 @@ void run_{self.name}()
 ###########################################################################################################################################
     def print_tool(self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance=''):
         self.print_class(mode=5, to_screen=to_screen, to_file=to_file, print_example_comments=print_example_comments, includes=includes, inheritance=inheritance)
+
+###########################################################################################################################################
+    def print_geant4(self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance=''):
+        self.print_class(mode=6, to_screen=to_screen, to_file=to_file, print_example_comments=print_example_comments, includes=includes, inheritance=inheritance)
 
 if __name__ == "__main__":
     help(lilakcc)
