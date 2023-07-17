@@ -21,6 +21,7 @@ LKParameter::~LKParameter()
 void LKParameter::SetLineComment(TString comment)
 {
     Clear();
+    fType = 1;
     fComment = comment;
 }
 
@@ -31,9 +32,7 @@ void LKParameter::SetPar(TString name, TString raw, TString value, TString comme
     fTitle = raw;
     fValue = value;
     fComment = comment;
-         if (parameterType==1) fTemporary = true;
-    else if (parameterType==2) fConditional = true;
-    else if (parameterType==3) fMultiple = true;
+    fType = parameterType;
 
     int iSlash = fName.Index("/");
     if (iSlash>=0) {
@@ -67,14 +66,16 @@ void LKParameter::Clear(Option_t *option)
     fComment = "";
     fNumValues = 0;
     fValueArray.clear();
-    fTemporary = false;
-    fConditional = false;
-    fMultiple = false;
+    fType = 0;
 }
 
 void LKParameter::Print(Option_t *option) const
 {
-    e_info << fName << " " << fValue << " # " << fComment << std::endl;
+     if (fType==0) e_info << fName << " " << fValue << " # " << fComment << std::endl;
+     if (fType==1) e_info << "# " << fComment << std::endl;
+     if (fType==2) e_info << "(T) " << fName << " " << fValue << " # " << fComment << std::endl;
+     if (fType==3) e_info << "(C) " << fName << " " << fValue << " # " << fComment << std::endl;
+     if (fType==4) e_info << "(M) " << fName << " " << fValue << " # " << fComment << std::endl;
 }
 
 int LKParameter::GetInt(int idx) const

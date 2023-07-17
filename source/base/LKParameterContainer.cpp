@@ -151,7 +151,7 @@ void LKParameterContainer::ReplaceVariables(TString &valInput)
     }
 }
 
-Int_t LKParameterContainer::AddFile(TString fileName, bool addFilePar)
+Int_t LKParameterContainer::AddFile(TString parName, TString fileName)
 {
     ReplaceEnvVariables(fileName);
 
@@ -186,16 +186,16 @@ Int_t LKParameterContainer::AddFile(TString fileName, bool addFilePar)
 
     lk_info << "Adding parameter file " << fileNameFull << endl;
 
-    TString parName = Form("%d", fNumInputFiles);
-    TString parName2 = Form("<<%d", fNumInputFiles);
+    if (parName.IsNull())
+        parName = Form("%d", fNumInputFiles);
 
     fNumInputFiles++;
     LKParameter *parFile;
-    if (addFilePar)
-        parFile = SetParFile(fileNameFull);
-    else {
-        SetLineComment(parName2 + " " + fileNameFull);
-    }
+    //if (addFilePar)
+    //    parFile = SetParFile(fileNameFull);
+    //else {
+        SetLineComment(parName + " " + fileNameFull);
+    //}
 
     ifstream file(fileNameFull);
 
@@ -218,12 +218,12 @@ Int_t LKParameterContainer::AddFile(TString fileName, bool addFilePar)
         }
 
         if (countParameters == 0) {
-            if (addFilePar)
-                this -> Remove(parFile);
+            //if (addFilePar)
+            //    this -> Remove(parFile);
             fNumInputFiles--;
         }
 
-        parName.Replace(0,11,"<<");
+        //parName.Replace(0,11,"<<");
         SetLineComment(Form("%s %d parameters were added",parName.Data(),countParameters));
     }
 
@@ -245,11 +245,14 @@ Int_t LKParameterContainer::AddParameterContainer(LKParameterContainer *parc)
     LKParameter *parameter;
     while ((parameter = dynamic_cast<LKParameter*>(iterator())))
     {
+        if (parameter -> IsLineComment()) {
+            SetLineComment(parameter->GetComment());
+            continue;
+        }
         TString name = parameter -> GetName();
         LKParameter *found = FindPar(name);
         if (found != nullptr) {
             lk_error << "Parameter " << name << " already exist!" << endl;
-            ++countSameParameters ;
             continue;
         }
         else {
@@ -500,7 +503,7 @@ void LKParameterContainer::Print(Option_t *option) const
 
         bool isLineComment = false;
         bool isParameter = true;
-        if (parName.IsNull() && parValue.IsNull()) {
+        if (parameter -> IsLineComment()) {
             isLineComment = true;
             isParameter = false;
         }
@@ -618,21 +621,22 @@ Bool_t LKParameterContainer::AddLine(std::string line)
             parValues.Remove(parValues.Sizeof()-2,1);
     }
 
-    if (parName.Index("<<")==0) {
-        AddFile(parValues);
-    }
-    else {
-        return AddPar(parName, parValues, parComment);
-    }
+    return AddPar(parName, parValues, parComment);
+    //if (parName.Index("<<")==0) {
+    //    AddFile(parValues);
+    //}
+    //else {
+    //    return AddPar(parName, parValues, parComment);
+    //}
 
     return false;
 }
 
 Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment)
 {
-    bool alreadyExist = false;
+    bool errorAlreadyExist = false;
     if (FindPar(name) != nullptr)
-        alreadyExist = true;
+        errorAlreadyExist = true;
 
     if (name.IsNull()&&value.IsNull()&&!comment.IsNull()) {
         SetLineComment(comment);
@@ -644,12 +648,19 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
         TString groupName;
 
         const int parameterIsStandard = 0;
-        const int parameterIsTemporary = 1;
-        const int parameterIsConditional = 2;
-        const int parameterIsMultiple = 3;
+        const int parameterIsLineComment = 1;
+        const int parameterIsTemporary = 2;
+        const int parameterIsConditional = 3;
+        const int parameterIsMultiple = 4;
+        const int rewriteParameter = 5;
         int parameterType = parameterIsStandard;
 
-        if (name[0]=='*') {
+        if (name[0]=='<') {
+            name = name(1, name.Sizeof()-2);
+            AddFile(name, value);
+            return true;
+        }
+        else if (name[0]=='*') {
             name = name(1, name.Sizeof()-2);
             parameterType = parameterIsTemporary;
         }
@@ -666,10 +677,17 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
         else if (name[0]=='&') {
             name = name(1, name.Sizeof()-2);
             parameterType = parameterIsMultiple;
+            errorAlreadyExist = false;
+        }
+        else if (name[0]=='!') {
+            name = name(1, name.Sizeof()-2);
+            parameterType = rewriteParameter;
+            errorAlreadyExist = false;
         }
 
-        if (allowSetPar) {
-            if (alreadyExist && parameterType!=parameterIsMultiple) {
+        if (allowSetPar)
+        {
+            if (errorAlreadyExist) {
                 lk_error << "Parameter " << name << " already exist!" << endl;
                 return false;
             }

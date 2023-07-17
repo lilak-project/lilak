@@ -30,16 +30,13 @@ class LKParameter : public TNamed
         TString GetRaw()        const { return fTitle; }
         TString GetValue()      const { return fValue; }
         int     GetN()          const { return fNumValues; }
-        bool    IsTemporary()   const { return fTemporary; }
-        bool    IsConditional() const { return fConditional; }
-        bool    IsMultiple()    const { return fMultiple; }
+        int     GetType()       const { return fType; }
 
-        int GetType() const {
-                 if (IsTemporary())   return 1;
-            else if (IsConditional()) return 2;
-            else if (IsMultiple())    return 3;
-            else                      return 0;
-        }
+        bool    IsStandard()    const { return (fType==0); }
+        bool    IsLineComment() const { return (fType==1); }
+        bool    IsTemporary()   const { return (fType==2); }
+        bool    IsConditional() const { return (fType==3); }
+        bool    IsMultiple()    const { return (fType==4); }
 
         int      GetInt   (int i=-1) const;  ///< Get parameter in int
         bool     GetBool  (int i=-1) const;  ///< Get parameter in bool
@@ -76,9 +73,14 @@ class LKParameter : public TNamed
         TString fComment;
         int fNumValues = 0;
         std::vector<TString> fValueArray;
-        bool fTemporary = false;
-        bool fConditional = false;
-        bool fMultiple = false;
+        /**
+         * 0 : standard
+         * 1 : comment
+         * 2 : temporary
+         * 3 : conditional
+         * 4 : multiple
+         */
+        int fType = 0;
 
     ClassDef(LKParameter, 1)
 };

@@ -60,7 +60,7 @@ class LKRun : public LKTask
         /// This is equivalent to setting parameter
         /// LKRun/RunName [name] [id] [tag(optional)] [split(optional)].
         void SetRunName(TString name, Int_t id=0, TString tag=""); ///< Set Run name and id.
-        TString GetRunName() const { return fRunName; }
+        const char* GetRunName() const { return fRunName.Data(); }
         Int_t GetRunID() const { return fRunID; }
 
         /// Set data directory path. Default directory : path/to/LILAK/data
