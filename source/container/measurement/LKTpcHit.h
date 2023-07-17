@@ -34,7 +34,8 @@ class LKTpcHit : public LKHit
         virtual void PrintTpcHit() const;
         void CopyFrom(LKTpcHit const *hit);
 
-        void AddHit(LKTpcHit *hit); // @todo
+        void AddHit(LKHit *hit); // @todo
+        void AddTpcHit(LKTpcHit *hit); // @todo
 
         virtual TF1 *GetPulseFunction(Option_t *option = "");
 

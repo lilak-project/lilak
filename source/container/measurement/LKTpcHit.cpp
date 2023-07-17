@@ -97,7 +97,12 @@ void LKTpcHit::Copy(TObject &obj) const
     tpchit.fTb        = fTb       ;
 }
 
-void LKTpcHit::AddHit(LKTpcHit *hit)
+void LKTpcHit::AddHit(LKHit *hit)
+{
+    AddTpcHit((LKTpcHit *)hit);
+}
+
+void LKTpcHit::AddTpcHit(LKTpcHit *hit)
 {
     auto w0 = fW;
     LKHit::AddHit((LKHit *) hit);
