@@ -23,6 +23,9 @@ LKDetectorSystem::LKDetectorSystem()
 LKDetectorSystem::LKDetectorSystem(const char *name)
 {
     fName = name;
+    fGeoManager = new TGeoManager();
+    fGeoManager -> SetVerboseLevel(0);
+    fGeoManager -> SetName(fName);
 }
 
 void LKDetectorSystem::Print(Option_t *) const
@@ -132,7 +135,6 @@ LKDetectorPlane *LKDetectorSystem::GetDetectorPlane(Int_t idx) const
 void LKDetectorSystem::SetDetector(LKDetector *detector)
 {
     if (fGeoManager == nullptr) {
-        lk_info << "Closing Geometry" << endl;
         fGeoManager = new TGeoManager();
         fGeoManager -> SetVerboseLevel(0);
         fGeoManager -> SetName(fName);
