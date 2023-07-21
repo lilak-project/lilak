@@ -160,6 +160,8 @@ class LKParameterContainer : public TObjArray
         std::vector<int>     GetParVColor (TString name) const { return GetParVInt(name); }
         std::vector<double>  GetParVSize  (TString name) const { return GetParVDouble(name); }
 
+        LKParameterContainer* CreateGroupContainer(TString nameGroup);
+
     protected:
         LKParameter *SetPar    (TString name, TString  raw, TString val, TString comment, int parameterType);
         LKParameter *SetPar    (TString name, TString  val, TString comment="") { return SetPar(name,val,val,comment,0); } ///< Set parameter string

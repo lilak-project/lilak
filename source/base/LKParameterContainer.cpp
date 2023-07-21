@@ -809,6 +809,29 @@ std::vector<TString> LKParameterContainer::GetParVString(TString name) const
     return array;
 }
 
+LKParameterContainer* LKParameterContainer::CreateGroupContainer(TString nameGroup)
+{
+    R__COLLECTION_READ_LOCKGUARD(ROOT::gCoreMutex);
+
+    auto groupContainer = LKParameterContainer();
+    groupContainer.SetName(nameGroup);
+
+    TIter iterator(this);
+    LKParameter *parameter;
+    while ((parameter = dynamic_cast<LKParameter*>(iterator())))
+    {
+        if (parameter) {
+            if (nameGroup==parameter->GetGroup()) {
+                TString mainName = parameter -> GetMainName();
+                TString value = parameter -> GetValue();
+                groupContainer.AddPar(mainName,value);
+            }
+        }
+    }
+
+    return &groupContainer;
+}
+
 Bool_t LKParameterContainer::CheckPar(TString name) const
 {
     if (FindPar(name) == nullptr)

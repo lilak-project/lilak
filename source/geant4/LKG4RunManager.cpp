@@ -123,26 +123,40 @@ void LKG4RunManager::InitializePhysics()
 void LKG4RunManager::Run(G4int argc, char **argv, const G4String &type)
 {
     G4UImanager* uiManager = G4UImanager::GetUIpointer();
-    TString command("/control/execute ");
 
-    if (fPar->CheckPar("LKG4Manager/G4VisFile")) {
-        auto fileName = fPar -> GetParString("LKG4Manager/G4VisFile");
+    bool useVisMode = false;
+    if (fPar->CheckPar("LKG4Manager/VisMode")) {
+        if (fPar -> GetParBool("LKG4Manager/VisMode")==true)
+            useVisMode = true;
+    }
 
+    auto g4CommandContainer = fPar -> CreateGroupContainer("G4");
+    g4CommandContainer -> Print();
+
+    TIter next(g4CommandContainer);
+
+    LKParameter *parameter = nullptr;
+
+    if (useVisMode) {
         G4VisManager* visManager = new G4VisExecutive;
         visManager -> Initialize();
 
         G4UIExecutive* uiExecutive = new G4UIExecutive(argc,argv,type);
-        g4man_info << "Initializing Geant4 run with viewer macro " << fileName << endl;
-        uiManager -> ApplyCommand(command+fileName);
+        while ((parameter = (LKParameter*) next())) {
+            command = TString("/") + parameter -> GetName() + " " + parameter -> GetValue();
+            g4man_info << command << endl;
+            uiManager -> ApplyCommand(command);
+        }
         uiExecutive -> SessionStart();
 
         delete uiExecutive;
         delete visManager;
     }
-    else if (fPar->CheckPar("LKG4Manager/G4MacroFile")) {
-        auto fileName = fPar -> GetParString("LKG4Manager/G4MacroFile");
-        g4man_info << "Initializing Geant4 run with macro " << fileName << endl;
-        uiManager -> ApplyCommand(command+fileName);
+    else {
+        while ((parameter = (LKParameter*) next())) {
+            command = parameter -> GetName() + " " + parameter -> GetValue();
+            uiManager -> ApplyCommand(command);
+        }
     }
 
     WriteToFile(fProcessTable);
@@ -196,9 +210,9 @@ void LKG4RunManager::SetOutputFile(TString name)
 {
     //fPar -> ReplaceEnvironmentVariable(name);
 
-    fSetEdepSumTree         = fPar -> GetParBool("MCSetEdepSum/persistency");;
-    fStepPersistency        = fPar -> GetParBool("MCStep/persistency");;
-    fSecondaryPersistency   = fPar -> GetParBool("MCSecondary/persistency");
+    fSetEdepSumTree         = fPar -> GetParBool("MCSetEdepSum/persistency");
+    fStepPersistency        = fPar -> GetParBool("MCStep/persistency");
+    fSecondaryPersistency   = fPar -> GetParBool("MCSecondary/persistency")
     fTrackVertexPersistency = fPar -> GetParBool("MCTrackVertex/persistency");
 
     g4man_info << "Setting output file " << name << endl;
