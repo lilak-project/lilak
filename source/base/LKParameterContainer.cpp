@@ -813,8 +813,8 @@ LKParameterContainer* LKParameterContainer::CreateGroupContainer(TString nameGro
 {
     R__COLLECTION_READ_LOCKGUARD(ROOT::gCoreMutex);
 
-    auto groupContainer = LKParameterContainer();
-    groupContainer.SetName(nameGroup);
+    auto groupContainer = new LKParameterContainer();
+    groupContainer -> SetName(nameGroup);
 
     TIter iterator(this);
     LKParameter *parameter;
@@ -824,12 +824,12 @@ LKParameterContainer* LKParameterContainer::CreateGroupContainer(TString nameGro
             if (nameGroup==parameter->GetGroup()) {
                 TString mainName = parameter -> GetMainName();
                 TString value = parameter -> GetValue();
-                groupContainer.AddPar(mainName,value);
+                groupContainer -> AddPar(mainName,value);
             }
         }
     }
 
-    return &groupContainer;
+    return groupContainer;
 }
 
 Bool_t LKParameterContainer::CheckPar(TString name) const

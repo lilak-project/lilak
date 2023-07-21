@@ -32,6 +32,11 @@ class LKParameter : public TNamed
         int     GetN()          const { return fNumValues; }
         int     GetType()       const { return fType; }
 
+        const char* GetLine() {
+            const char *line = Form("%s %s",fName.Data(),fValue.Data());
+            return line;
+        }
+
         bool    IsStandard()    const { return (fType==0); }
         bool    IsLineComment() const { return (fType==1); }
         bool    IsTemporary()   const { return (fType==2); }

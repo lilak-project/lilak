@@ -64,10 +64,10 @@ void LKG4RunManager::Initialize()
 
     auto procNames = G4ProcessTable::GetProcessTable() -> GetNameList();
     Int_t idx = 0;
-    fProcessTable -> SetPar("Primary", idx++);
+    fProcessTable -> AddPar("Primary", idx++);
     for (auto name : *procNames)
         if (fProcessTable -> CheckPar(name) == false)
-            fProcessTable -> SetPar(name, idx++);
+            fProcessTable -> AddPar(name, idx++);
     fProcessTable -> Print();
 
     /*
@@ -143,8 +143,7 @@ void LKG4RunManager::Run(G4int argc, char **argv, const G4String &type)
 
         G4UIExecutive* uiExecutive = new G4UIExecutive(argc,argv,type);
         while ((parameter = (LKParameter*) next())) {
-            command = TString("/") + parameter -> GetName() + " " + parameter -> GetValue();
-            g4man_info << command << endl;
+            auto command = Form("/%s",parameter -> GetLine());
             uiManager -> ApplyCommand(command);
         }
         uiExecutive -> SessionStart();
@@ -154,7 +153,7 @@ void LKG4RunManager::Run(G4int argc, char **argv, const G4String &type)
     }
     else {
         while ((parameter = (LKParameter*) next())) {
-            command = parameter -> GetName() + " " + parameter -> GetValue();
+            auto command = Form("/%s",parameter -> GetLine());
             uiManager -> ApplyCommand(command);
         }
     }
@@ -212,7 +211,7 @@ void LKG4RunManager::SetOutputFile(TString name)
 
     fSetEdepSumTree         = fPar -> GetParBool("MCSetEdepSum/persistency");
     fStepPersistency        = fPar -> GetParBool("MCStep/persistency");
-    fSecondaryPersistency   = fPar -> GetParBool("MCSecondary/persistency")
+    fSecondaryPersistency   = fPar -> GetParBool("MCSecondary/persistency");
     fTrackVertexPersistency = fPar -> GetParBool("MCTrackVertex/persistency");
 
     g4man_info << "Setting output file " << name << endl;
@@ -314,7 +313,7 @@ void LKG4RunManager::SetVolume(G4VPhysicalVolume *physicalVolume)
 
     Int_t copyNo = physicalVolume -> GetCopyNo();
 
-    fVolumes -> SetPar(name, copyNo);
+    fVolumes -> AddPar(name, copyNo);
 }
 
 void LKG4RunManager::SetSensitiveDetector(G4VPhysicalVolume *physicalVolume, TString assemblyName)
@@ -324,7 +323,7 @@ void LKG4RunManager::SetSensitiveDetector(G4VPhysicalVolume *physicalVolume, TSt
 
     if (assemblyName.IsNull()) {
         g4man_info << "New sensitive detector " << name << " (" << copyNo << ")" << endl;
-        fSensitiveDetectors -> SetPar(name, copyNo);
+        fSensitiveDetectors -> AddPar(name, copyNo);
     }
     else {
         Int_t assemblyID;
@@ -333,12 +332,12 @@ void LKG4RunManager::SetSensitiveDetector(G4VPhysicalVolume *physicalVolume, TSt
         }
         else {
             assemblyID = fNumSDAssemblyInTree;
-            fSensitiveDetectors -> SetPar(assemblyName+"_ASSEMBLY",assemblyID);
+            fSensitiveDetectors -> AddPar(assemblyName+"_ASSEMBLY",assemblyID);
             g4man_info << "New sensitive assembly " << assemblyName+"_ASSEMBLY" << " (" << assemblyID << ")" << endl;
             ++fNumSDAssemblyInTree;
         }
         fMapSDToAssembly[copyNo] = assemblyID;
-        fSensitiveDetectors -> SetPar(name+"_PARTOFASSEMBLY",assemblyID);
+        fSensitiveDetectors -> AddPar(name+"_PARTOFASSEMBLY",assemblyID);
         g4man_info << "New sensitive assembly part " << name+"_PARTOFASSEMBLY" << " (" << assemblyID << ")" << endl;
     }
 }
