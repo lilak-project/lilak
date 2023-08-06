@@ -63,7 +63,15 @@ TVector3 LKGeoPlane::ClosestPointOnPlane(TVector3 pos) const
     return point;
 }
 
-//Double_t LKGeoPlane::DistanceToPlane(Double_t x, Double_t y, Double_t z) const
-//{
-//  return DistanceToPlane(TVector3(x,y,z));
-//}
+Double_t LKGeoPlane::DistanceToPlane(Double_t x, Double_t y, Double_t z) const
+{
+  return DistanceToPlane(TVector3(x,y,z));
+}
+
+Double_t LKGeoPlane::DistanceToPlane(TVector3 pos) const
+{
+    auto point = ClosestPointOnPlane(pos);
+    auto dist = (pos - point).Mag();
+    return dist;
+}
+

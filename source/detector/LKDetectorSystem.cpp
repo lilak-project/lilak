@@ -154,3 +154,38 @@ void LKDetectorSystem::SetDetectorPar()
     while ((detector = (LKDetector *) next()))
         detector -> AddPar(fPar);
 }
+
+LKDetector *LKDetectorSystem::FindDetector(const char *name)
+{
+    TIter iterator(this);
+    LKDetector *detector;
+    while ((detector = dynamic_cast<LKDetector*>(iterator())))
+    {
+        if (detector) {
+            auto detectorName = detector -> GetName();
+            if (parName==givenName)
+                return detector;
+        }
+    }
+    return (LKDetector *) nullptr;
+}
+
+LKDetectorPlane *LKDetectorSystem::FindDetectorPlane(const char *name) const
+{
+    TIter iterator(this);
+    LKDetector *detector;
+    while ((detector = dynamic_cast<LKDetector*>(iterator())))
+    {
+        if (detector) {
+            Int_t numPlanes = detector -> GetNumPlanes();
+            for (auto iPlane=0; iPlane<numPlanes; ++iPlane)
+            {
+                auto plane = detector -> GetDetectorPlane(iPlane);
+                TString dpName = plane -> GetName();
+                if (dpName==name)
+                    return plane;
+            }
+        }
+    }
+    return (LKDetectorPlane *) nullptr;
+}

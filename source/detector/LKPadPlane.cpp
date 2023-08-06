@@ -701,3 +701,10 @@ void LKPadPlane::ClickedAtPosition(Double_t x, Double_t y)
     cvs -> Modified();
     cvs -> Update();
 }
+
+TVector3 LKPadPlane::DriftElectron(TVector3 xGlobal) const
+{
+    auto xLocal = GlobalToLocalAxis(xGlobal);
+    TVector3 xyl(xLocal.X(), xLocal.Z(), xLocal.Y());
+    return xyl;
+}

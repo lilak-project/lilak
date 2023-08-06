@@ -83,6 +83,9 @@ class LKPadPlane : public LKDetectorPlane
         bool PadPositionChecker(bool checkCorners = true);
         bool PadNeighborChecker();
 
+        /// return (x,y,l). l : electron-drift-length
+        TVector3 DriftElectron(TVector3 xGlobal) const;
+
     private:
         virtual void ClickedAtPosition(Double_t x, Double_t y);
 

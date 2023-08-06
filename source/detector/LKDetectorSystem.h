@@ -38,6 +38,9 @@ class LKDetectorSystem : public TObjArray, public LKGear
         Int_t GetNumPlanes() const;
         LKDetectorPlane *GetDetectorPlane(Int_t idx = 0) const;
 
+        LKDetector *FindDetector(const char *name) const;
+        LKDetectorPlane *FindDetectorPlane(const char *name) const;
+
     protected:
         TGeoManager *fGeoManager = nullptr;
 

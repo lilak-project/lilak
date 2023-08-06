@@ -32,9 +32,8 @@ class LKGeoPlane : public LKGeometry
 
         virtual TVector3 ClosestPointOnPlane(TVector3 pos) const;
 
-        //virtual TVector3 ClosestPointOnPlane(TVector3 pos) const;
-        //virtual Double_t DistanceToPlane(Double_t x, Double_t y, Double_t z) const;
-        //virtual Double_t DistanceToPlane(TVector3 pos) const;
+        virtual Double_t DistanceToPlane(Double_t x, Double_t y, Double_t z) const;
+        virtual Double_t DistanceToPlane(TVector3 pos) const;
 
     protected:
         Double_t fA = 0;
