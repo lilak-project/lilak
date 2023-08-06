@@ -48,6 +48,8 @@ class LKPadPlane : public LKDetectorPlane
         virtual Int_t FindPadID(Double_t i, Double_t j) { return FindChannelID(i,j); }
         virtual Int_t FindPadID(Int_t section, Int_t row, Int_t layer) { return FindChannelID(section,row,layer); }
 
+        Double_t PadDisplacement() const { return 0; }
+
         virtual bool SetDataFromBranch();
         virtual void DrawHist();
         void FillDataToHist();

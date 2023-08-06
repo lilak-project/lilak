@@ -138,6 +138,7 @@ class LKRun : public LKTask
         void AddDetector(LKDetector *detector); ///< Set detector
         LKDetector *GetDetector(Int_t idx=0) const;
         LKDetectorSystem *GetDetectorSystem() const;
+        LKDetectorPlane *GetDetectorPlane(Int_t iDetector=0, Int_t iPlane=0);
 
         LKDetector *FindDetector(const char *name);
         LKDetectorPlane *FindDetectorPlane(const char *name);
