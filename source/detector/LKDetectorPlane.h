@@ -43,8 +43,8 @@ class LKDetectorPlane : public TNamed, public LKGear
         virtual void DrawFrame(Option_t *option = "") {}
         virtual void Draw(Option_t *option = "");
 
-        TVector3 GlobalToLocalAxis(TVector3 xGlobal) { return xGlobal; }
-        TVector3 LocalToGlobalAxis(TVector3 xLocal) { return xLocal; }
+        TVector3 GlobalToLocalAxis(TVector3 xGlobal) const { return xGlobal; }
+        TVector3 LocalToGlobalAxis(TVector3 xLocal) const { return xLocal; }
 
         void SetAxis(axis_t axis1, axis_t axis2);
         axis_t GetAxis1();

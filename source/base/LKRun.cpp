@@ -1058,3 +1058,5 @@ void LKRun::AddDetector(LKDetector *detector) {
 }
 LKDetector *LKRun::GetDetector(Int_t i) const { return (LKDetector *) fDetectorSystem -> At(i); }
 LKDetectorSystem *LKRun::GetDetectorSystem() const { return fDetectorSystem; }
+LKDetector *LKRun::FindDetector(const char *name) { return fDetectorSystem -> FindDetector(name); }
+LKDetectorPlane *LKRun::FindDetectorPlane(const char *name) { return fDetectorSystem -> FindDetectorPlane(name); }

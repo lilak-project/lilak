@@ -139,8 +139,8 @@ class LKRun : public LKTask
         LKDetector *GetDetector(Int_t idx=0) const;
         LKDetectorSystem *GetDetectorSystem() const;
 
-        LKDetector *FindDetector(const char *name) const { return fDetectorSystem -> FindDetector(name); }
-        LKDetectorPlane *FindDetectorPlane(const char *name) const { return fDetectorSystem -> FindDetectorPlane(name); }
+        LKDetector *FindDetector(const char *name);
+        LKDetectorPlane *FindDetectorPlane(const char *name);
 
         void SetEntries(Long64_t num) { fNumEntries = num; } ///< Set total number of entries. Use only input do not exist.
         Long64_t GetEntries() const { return fNumEntries; } ///< Get total number of entries

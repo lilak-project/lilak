@@ -163,14 +163,14 @@ LKDetector *LKDetectorSystem::FindDetector(const char *name)
     {
         if (detector) {
             auto detectorName = detector -> GetName();
-            if (parName==givenName)
+            if (detectorName==name)
                 return detector;
         }
     }
     return (LKDetector *) nullptr;
 }
 
-LKDetectorPlane *LKDetectorSystem::FindDetectorPlane(const char *name) const
+LKDetectorPlane *LKDetectorSystem::FindDetectorPlane(const char *name)
 {
     TIter iterator(this);
     LKDetector *detector;
