@@ -28,10 +28,16 @@ class lilakcc:
         [x] simply_comment_out(self,lines,comment_notation="//")
         [x] count_lspace(self,line)
 
-        [x] init_print(self)
+        [x] print_container     (self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance='')
+        [x] print_task          (self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance='')
+        [x] print_detector      (self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance='')
+        [x] print_detector_plane(self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance='')
+        [x] print_pad_plane     (self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance='')
+        [x] print_tool          (self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance='')
+        [x] print_geant4dc      (self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance='')
+
         [x] print_class(self, mode=0, to_screen=False, to_file=True, print_example_comments=True, includes='LKContainer.h', inheritance='')
-        [x] print_container(self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance='')
-        [x] print_task(self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance='')
+        [x] make_geant4dc_macros(self)
     """
 
     def __init__(self, input_lines=''):
@@ -1129,10 +1135,6 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
                 break
         return count_space
 
-###########################################################################################################################################
-    def init_print(self):
-        if os.path.exists(self.path)==False:
-            os.mkdir(self.path)
 
 ###########################################################################################################################################
     def print_class(self, mode=0, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance=''):
@@ -1164,7 +1166,8 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
         mode -- 2 : print detector
 
         """
-        self.init_print()
+        if os.path.exists(self.path)==False:
+            os.mkdir(self.path)
 
         m_task = 0
         m_container = 1
@@ -1172,7 +1175,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
         m_detector_plane = 3
         m_pad_plane = 4
         m_tool = 5
-        m_geant4 = 6
+        m_geant4dc = 6
 
         if len(self.inherit_list)==0:
             if mode==m_task: self.add_inherit_class('public LKTask')
@@ -1181,7 +1184,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
             if mode==m_detector_plane: self.add_inherit_class('public LKDetectorPlane')
             if mode==m_pad_plane: self.add_inherit_class('public LKPadPlane')
             if mode==m_tool: self.add_inherit_class('public TObject')
-            if mode==m_geant4: self.add_inherit_class('public G4VUserDetectorConstruction')
+            if mode==m_geant4dc: self.add_inherit_class('public G4VUserDetectorConstruction')
 
         cout_info = "e_info"
         if mode==m_task: cout_info = "lk_info"
@@ -1190,7 +1193,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
         if mode==m_detector_plane: cout_info = "lk_info"
         if mode==m_pad_plane: cout_info = "lk_info"
         #if mode==m_tool: cout_info = "e_info"
-        #if mode==m_geant4: cout_info = "e_info"
+        #if mode==m_geant4dc: cout_info = "e_info"
 
         inheritance = ', '.join(self.inherit_list)
 
@@ -1221,7 +1224,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
         if mode==m_tool:
             self.include_headers('TObject.h')
 
-        if mode==m_geant4:
+        if mode==m_geant4dc:
             self.include_headers('G4VUserDetectorConstruction.hh')
             self.include_headers('globals.hh')
 
@@ -1238,7 +1241,6 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
             self.include_headers('G4FieldManager.hh')
             self.include_headers('G4TransportationManager.hh')
             self.include_headers('G4UniformMagField.hh')
-            self.include_headers('G4GlobalMagFieldMessenger.hh')
 
             self.include_headers('G4UserLimits.hh')
             self.include_headers('G4SystemOfUnits.hh')
@@ -1383,7 +1385,7 @@ or use print_example_comments=False option to omit printing
     TGraph *fGraphChannelBoundary = nullptr;
     TGraph *fGraphChannelBoundaryNb[20] = {0};
 """
-        if mode==m_geant4:
+        if mode==m_geant4dc:
             header_detail = """Remove this comment block after reading it through
 or use print_example_comments=False option to omit printing
 
@@ -1517,22 +1519,15 @@ G4Box *solidWorld = new G4Box("World", worlddX, worlddY, worlddZ);
 G4LogicalVolume *logicWorld = new G4LogicalVolume(solidWorld, matAir, "World");
 G4PVPlacement *physWorld = new G4PVPlacement(0, G4ThreeVector(), logicWorld, "World", 0, false, -1, true);
 
-G4Tubs *solidDetector = new G4Tubs("Detector", tpcInnerRadius, tpcOuterRadius, .5*tpcLength, 0., 360*deg);
-G4LogicalVolume *logicDetector = new G4LogicalVolume(solidDetector, matGas, "Detector");
-G4VisAttributes * attDetector = new G4VisAttributes(G4Colour(G4Colour::Gray()));
-attDetector -> SetForceWireframe(true);
-logicDetector -> SetVisAttributes(attDetector);
+G4Tubs *solidDetector = new G4Tubs("ExTPC", tpcInnerRadius, tpcOuterRadius, .5*tpcLength, 0., 360*deg);
+G4LogicalVolume *logicDetector = new G4LogicalVolume(solidDetector, matGas, "ExTPC");
 logicDetector -> SetUserLimits(new G4UserLimits(1.*mm));
-auto pvp = new G4PVPlacement(0, G4ThreeVector(0,0,tpcZOffset), logicDetector, "Detector", logicWorld, false, 0, true);
+auto pvp = new G4PVPlacement(0, G4ThreeVector(0,0,tpcZOffset), logicDetector, "ExTPC", logicWorld, false, 0, true);
 
 // Register to LKG4RunManager
 runManager -> SetSensitiveDetector(pvp);
 
-// example field
-new G4GlobalMagFieldMessenger(G4ThreeVector(0., 0., 0.1*tesla));
-
-return physWorld;
-"""
+return physWorld;"""
 
 
         self.par_copy_list.insert(0,"// You should copy data from this container to objCopy")
@@ -1586,6 +1581,21 @@ if (fChannelArray==nullptr)
 
         header_detpa, source_detpa = self.make_header_source('void MouseClickEvent(int iPlane);', predefined=True)
         header_detpb, source_detpb = self.make_header_source('void ClickedAtPosition(Double_t x, Double_t y)', predefined=True)
+
+        header_detpc, source_detpc = self.make_header_source('TVector3 GlobalToLocalAxis(TVector3 xGlobal)', '{ return xGlobal; }',predefined=True)
+        header_detpd, source_detpd = self.make_header_source('TVector3 LocalToGlobalAxis(TVector3 xLocal)' , '{ return xLocal; }' ,predefined=True)
+
+        pp_content="""
+auto xLocal = GlobalToLocalAxis(xGlobal);
+TVector3 xyl(xLocal.X(), xLocal.Z(), xLocal.Y());
+return xyl;
+"""
+        header_pp, source_pp = self.make_header_source('TVector3 DriftElectron(TVector3 xGlobal) const' , pp_content, predefined=True)
+
+
+
+
+
 
         header_g4construct, source_g4construct = self.make_header_source('virtual G4VPhysicalVolume* Construct()', construct_content)
 
@@ -1658,7 +1668,7 @@ if (fChannelArray==nullptr)
                 header_class_public, header_constructor, header_destructor, header_enum,
                 "", header_init, header_clear, header_print,
                 "", header_detp0, header_detp1, header_detp2, "", header_detp3, header_detp4,
-                "", header_detp5, header_detp7, header_detp8, "", header_detpa, header_detpb,
+                "", header_detp5, header_detp7, header_detp8, "", header_detpa, header_detpb, header_detpc, header_detpd,
                 header_getter, header_setter]
         elif mode==m_pad_plane:
             header_list = [
@@ -1667,7 +1677,7 @@ if (fChannelArray==nullptr)
                 header_class_public, header_constructor, header_destructor, header_enum,
                 "", header_init, header_clear, header_print,
                 "", header_detp0, header_detp1, header_detp2, "", header_detp3, header_detp4,
-                "", header_detp5, header_detp7, header_detp8, "", header_detpa, header_detpb,
+                "", header_detp5, header_detp7, header_detp8, "", header_detpa, header_detpb, header_detpc, header_detpd, header_pp,
                 header_getter, header_setter]
         elif mode==m_tool:
             header_list = [
@@ -1676,7 +1686,7 @@ if (fChannelArray==nullptr)
                 header_class_public, header_constructor, header_destructor, header_enum,
                 "", header_init, header_clear, header_print,
                 header_getter, header_setter]
-        elif mode==m_geant4:
+        elif mode==m_geant4dc:
             header_list = [
                 header_define, header_include_root, header_include_lilak, header_include_texat, header_include_other,
                 "", header_detail, header_description, header_class,
@@ -1696,7 +1706,7 @@ if (fChannelArray==nullptr)
             if len(header_private_method.strip())>0: header_list.extend(["",header_private_method])
             if len(header_private_par.strip())>0:    header_list.extend(["",header_private_par])
 
-        if mode==m_geant4:
+        if mode==m_geant4dc:
             header_list.extend(["",header_class_end,header_end])
         else:
             header_list.extend(["",header_classdef,header_class_end,header_end])
@@ -1781,6 +1791,7 @@ if (fChannelArray==nullptr)
                 "",source_detp7,
                 "",source_detp8,
                 "",source_detpa,
+                "",source_pp,
                 "",source_public_method,
                 "",source_protected_method,
                 "",source_private_method,
@@ -1797,7 +1808,7 @@ if (fChannelArray==nullptr)
                 "",source_protected_method,
                 "",source_private_method,
                 ]
-        elif mode==m_geant4:
+        elif mode==m_geant4dc:
             source_list = [
                 source_include,
                 "",source_constructor,
@@ -1862,7 +1873,7 @@ if (fChannelArray==nullptr)
                 name_run = os.path.join(self.path,"run_"+self.name)
                 print(f'{name_run}.C')
                 with open(f'{name_run}.C', 'w') as f1:
-                    print(f"""/// This macro is macro for running {self.name} without compiling {self.name}
+                    print(f"""/// This macro run {self.name} without compiling {self.name}
 /// {self.name}.cpp, {self.name}.h and {self.name}.mac files should be placed in the same directory
 #include "{self.name}.cpp"
 #include "{self.name}.h"
@@ -1880,6 +1891,8 @@ void run_{self.name}()
     run -> Init();
     run -> Run(0,10);
 {br2}""",file=f1)
+            if mode==m_geant4dc:
+                self.make_geant4dc_macros()
 
         if to_screen:
             print(f"{name_full}.h >>>>>")
@@ -1889,6 +1902,109 @@ void run_{self.name}()
             if mode==m_task:
                 print(f"\n\n{name_full}.mac >>>>>")
                 print(par_all)
+
+###########################################################################################################################################
+    def make_geant4dc_macros(self):
+        br1 = "{"
+        br2 = "}"
+        name_run = os.path.join(self.path,"run_sim_"+self.name)
+        print(f'{name_run}.cc')
+        with open(f'{name_run}.cc', 'w') as f1:
+            print(f"""/// This macro create geant4 simulation with {self.name}
+#include "LKLogger.h"
+#include "LKG4RunManager.h"
+#include "LKParameterContainer.h"
+#include "LKPrimaryGeneratorAction.h"
+#include "LKEventAction.h"
+#include "LKTrackingAction.h"
+#include "LKSteppingAction.h"
+
+#include "QGSP_BERT.hh"
+#include "G4StepLimiterPhysics.hh"
+#include "{self.name}.h"
+
+int main(int argc, char** argv)
+{br1}
+    lk_logger("data/log");
+
+    auto runManager = new LKG4RunManager();
+
+    G4VModularPhysicsList* physicsList = new QGSP_BERT;
+    physicsList -> RegisterPhysics(new G4StepLimiterPhysics());
+    runManager -> SetUserInitialization(physicsList);
+    runManager -> AddParameterContainer(argv[1]);
+    runManager -> GetPar() -> Print();
+    runManager -> SetUserInitialization(new {self.name}());
+    runManager -> Initialize();
+    runManager -> Run(argc, argv);
+
+    delete runManager;
+
+    return 0;
+{br2}""",file=f1)
+
+        name_run = os.path.join(self.path,"run_geant4_sim.mac")
+        print(f'{name_run}')
+        with open(f'{name_run}', 'w') as f1:
+            print(f"""# (lilak) geant4 run macro
+
+LKG4Manager/VisMode false
+LKG4Manager/G4OutputFile data/tpc_sim.root
+LKG4Manager/G4InputFile single_proton_100MeV.gen
+#LKG4Manager/G4VisFile
+#LKG4Manager/G4MacroFile
+
+MCSetEdepSum/persistency true
+MCStep/persistency true
+MCSecondary/persistency true
+MCTrackVertex/persistency true
+
+G4/run/setCutForAGivenParticle e- 100. mm
+G4/run/suppressPP true
+G4/run/beamOnAll""",file=f1)
+
+        name_run = os.path.join(self.path,"run_geant4_vis.mac")
+        print(f'{name_run}')
+        with open(f'{name_run}', 'w') as f1:
+            print(f"""# (lilak) geant4 visualization macro
+
+LKG4Manager/VisMode true
+LKG4Manager/G4OutputFile data/tpc_sim.root
+LKG4Manager/G4InputFile single_proton_100MeV.gen
+#LKG4Manager/G4VisFile
+#LKG4Manager/G4MacroFile
+
+MCSetEdepSum/persistency true
+MCStep/persistency true
+MCSecondary/persistency true
+MCTrackVertex/persistency true
+
+G4/vis/open OGL 600x600-0+0
+G4/vis/drawVolume
+G4/run/setCutForAGivenParticle e- 100. mm
+G4/vis/scene/add/axes 0 0 0 500 mm
+G4/vis/viewer/flush
+G4/vis/viewer/set/lightsVector -1 0 0
+G4/vis/viewer/set/style wireframe
+G4/vis/viewer/set/auxiliaryEdge true
+G4/vis/modeling/trajectories/create/drawByCharge
+G4/vis/scene/endOfEventAction accumulate
+G4/vis/geometry/set/visibility World 0 false
+G4/vis/viewer/set/viewpointThetaPhi 100 160
+#G4/vis/viewer/set/autoRefresh true
+#G4/tracking/verbose 1
+#G4/vis/verbose warnings
+#G4/run/beamOn 1""",file=f1)
+
+        name_run = os.path.join(self.path,"single_proton_100MeV.gen")
+        print(f'{name_run}')
+        with open(f'{name_run}', 'w') as f1:
+            num_events = 20
+            content = f"p\n{num_events}"
+            for i_event in range(0,num_events):
+                content = content + f"\n{i_event} 1 0 0 0"
+                content = content + f"\n2212 0 0 100"
+            print(content, file=f1)
 
 ###########################################################################################################################################
     def print_container(self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance=''):
@@ -1930,7 +2046,7 @@ void run_{self.name}()
         self.print_class(mode=5, to_screen=to_screen, to_file=to_file, print_example_comments=print_example_comments, includes=includes, inheritance=inheritance)
 
 ###########################################################################################################################################
-    def print_geant4(self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance=''):
+    def print_geant4dc(self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance=''):
         self.print_class(mode=6, to_screen=to_screen, to_file=to_file, print_example_comments=print_example_comments, includes=includes, inheritance=inheritance)
 
 if __name__ == "__main__":
