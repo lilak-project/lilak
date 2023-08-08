@@ -496,9 +496,10 @@ bool LKRun::Init()
             fRunNameIsSet = true;
         }
     }
-    if (fPar -> CheckPar("LKRun/DataPath")) {
-        fDataPath = fPar -> GetParString("LKRun/DataPath");
-    }
+    if (fDataPath.IsNull())
+        if (fPar -> CheckPar("LKRun/DataPath")) {
+            fDataPath = fPar -> GetParString("LKRun/DataPath");
+        }
 
     if (!fInputFileName.IsNull()) {
         e_cout << endl;
@@ -620,9 +621,10 @@ bool LKRun::Init()
         fDetectorSystem -> Print();
     }
 
-    if (fPar -> CheckPar("LKRun/DataPath")) {
-        fDataPath = fPar -> GetParString("LKRun/DataPath");
-    }
+    if (fDataPath.IsNull())
+        if (fPar -> CheckPar("LKRun/DataPath")) {
+            fDataPath = fPar -> GetParString("LKRun/DataPath");
+        }
 
     if (fOutputFileName.IsNull())
     {
