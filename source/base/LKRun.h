@@ -74,6 +74,7 @@ class LKRun : public LKTask
         TString ConfigureFileName();
 
         /// Input file
+        void AddInputList(TString listName, TString treeName = "event"); ///< Add file to input file
         void AddInputFile(TString fileName, TString treeName = "event"); ///< Add file to input file
         void SetInputFile(TString fileName, TString treeName = "event") { return AddInputFile(fileName, treeName); } ///< Add file to input file
         void SetInputTreeName(TString treeName) { fInputTreeName = treeName; } ///< Set input tree name

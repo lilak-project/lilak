@@ -456,6 +456,14 @@ void LKRun::Add(TTask *task)
 }
 
 
+void LKRun::AddInputList(TString listName, TString treeName)
+{
+    ifstream fileList(listName);
+    TString fileName;
+    while (fileList >> fileName)
+        AddInputFile(fileName, treeName);
+}
+
 void LKRun::AddInputFile(TString fileName, TString treeName)
 {
     if (fInputFileName.IsNull()) fInputFileName = fileName;
