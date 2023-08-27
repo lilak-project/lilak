@@ -458,13 +458,11 @@ void LKRun::Add(TTask *task)
     task0 -> SetRun(this);
 }
 
-
 void LKRun::AddInputList(TString listFileName, TString treeName)
 {
     ifstream listFiles(listFileName);
     TString fileName;
     while (listFiles >> fileName)
-        AddInputFile(fileName, treeName);
 }
 
 void LKRun::AddInputFile(TString fileName, TString treeName)
