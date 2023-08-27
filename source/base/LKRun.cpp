@@ -23,10 +23,13 @@ LKRun* LKRun::GetRun() {
     return new LKRun();
 }
 
-LKRun::LKRun()
+LKRun::LKRun(TString runName, int id, TString tag)
     :LKTask("LKRun", "LKRun")
 {
     fInstance = this;
+    fRunName = runName;
+    fRunID = id;
+    fTag = tag;
     fFriendTrees = new TObjArray();
     fPersistentBranchArray = new TObjArray();
     fTemporaryBranchArray = new TObjArray();
@@ -456,6 +459,14 @@ void LKRun::Add(TTask *task)
 }
 
 
+void LKRun::AddInputList(TString listFileName, TString treeName)
+{
+    ifstream listFiles(listFileName);
+    TString fileName;
+    while (listFiles >> fileName)
+        AddInputFile(fileName, treeName);
+}
+
 void LKRun::AddInputFile(TString fileName, TString treeName)
 {
     if (fInputFileName.IsNull()) fInputFileName = fileName;
@@ -489,10 +500,10 @@ bool LKRun::Init()
     if (!fRunNameIsSet) {
         if (fPar -> CheckPar("LKRun/RunName")) {
             auto numRunNames = fPar -> GetParN("LKRun/RunName");
-            fRunName = fPar -> GetParString("LKRun/RunName",0);
-            fRunID = fPar -> GetParInt("LKRun/RunName",1);
-            if (numRunNames>2) fTag = fPar -> GetParString("LKRun/RunName",2);
-            if (numRunNames>3) fSplit = fPar -> GetParInt("LKRun/RunName",3);
+            if (fRunName.IsNull()) fRunName = fPar -> GetParString("LKRun/RunName",0);
+            if (fRunID==-1) fRunID = fPar -> GetParInt("LKRun/RunName",1);
+            if (fTag.IsNull()&&numRunNames>2) fTag = fPar -> GetParString("LKRun/RunName",2);
+            if (fSplit==-1&&numRunNames>3) fSplit = fPar -> GetParInt("LKRun/RunName",3);
             fRunNameIsSet = true;
         }
     }
@@ -646,6 +657,7 @@ bool LKRun::Init()
     {
         if (LKRun::CheckFileExistence(fOutputFileName)) {}
 
+        fOutputFileName.ReplaceAll("//","/");
         lk_info << "Output file : " << fOutputFileName << endl;
         fOutputFile = new TFile(fOutputFileName, "recreate");
         fOutputTree = new TTree("event", "");
@@ -665,6 +677,7 @@ bool LKRun::Init()
     fRunHeader -> AddPar("LILAK_HostName",LILAK_HOSTNAME);
     fRunHeader -> AddPar("LILAK_UserName",LILAK_USERNAME);
     fRunHeader -> AddPar("LILAK_Path",LILAK_PATH);
+    fRunHeader -> AddPar("NumInputFiles",int(fInputFileNameArray.size()));
     fRunHeader -> AddPar("InputFile",fInputFileName);
     fRunHeader -> AddPar("OutputFile",fOutputFileName);
     fRunHeader -> AddPar("RunName",fRunName);

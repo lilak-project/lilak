@@ -37,7 +37,8 @@ class LKRun : public LKTask
     public:
         static LKRun* GetRun(); ///< Get LKRun static pointer.
 
-        LKRun();
+        LKRun(TString runName, int id, TString tag);
+        LKRun() : LKRun("run",0,"") {}
         virtual ~LKRun() {};
 
         static void PrintLILAK();              ///< Print compiled LILAK information
@@ -74,12 +75,15 @@ class LKRun : public LKTask
         TString ConfigureFileName();
 
         /// Input file
+        void AddInputList(TString fileName, TString treeName = "event"); ///< Add file to input file
         void AddInputFile(TString fileName, TString treeName = "event"); ///< Add file to input file
         void SetInputFile(TString fileName, TString treeName = "event") { return AddInputFile(fileName, treeName); } ///< Add file to input file
         void SetInputTreeName(TString treeName) { fInputTreeName = treeName; } ///< Set input tree name
         TFile  *GetInputFile() { return fInputFile; }
         TTree  *GetInputTree() const { return (TTree *) fInputTree; }
         TChain *GetInputChain() const { return fInputTree; }
+
+        LKParameterContainer* GetRunHeader() { return fRunHeader; }
 
         void AddFriend(TString fileName); ///< Add file to input file
         TChain *GetFriendChain(Int_t iFriend) const;
@@ -207,7 +211,7 @@ class LKRun : public LKTask
     private:
         bool fRunNameIsSet = false;
         TString fRunName = "run";
-        Int_t   fRunID = 0;
+        Int_t   fRunID = -1;
 
         bool fInitialized = false;
 
