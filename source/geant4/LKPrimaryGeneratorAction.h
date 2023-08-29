@@ -26,6 +26,7 @@ class LKPrimaryGeneratorAction : public G4VUserPrimaryGeneratorAction
         G4ParticleGun* fParticleGun;
         LKMCEventGenerator *fEventGenerator;
         bool fReadMomentumOrEnergy;
+        bool fPrintExampleEvent = true;
 };
 
 #endif

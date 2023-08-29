@@ -250,3 +250,26 @@ bool LKParameter::CheckFormulaValidity(TString formula, bool isInt) const
 
     return true;
 }
+
+TString LKParameter::GetGroup(int ith)
+{
+    TString name = fName;
+    TString group;
+    int iBreak = 0;
+    int countBreak = 0;
+    while (iBreak>=0) {
+        iBreak = name.Index("/",1,0,TString::kExact);
+        if (iBreak<0)
+            break;
+        group = TString(name(0,iBreak));
+        name = name(iBreak+1,name.Sizeof()-iBreak-2);
+        if (countBreak==ith)
+            break;
+        countBreak++;
+    }
+
+    if (countBreak!=ith)
+        return TString();
+
+    return group;
+}

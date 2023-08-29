@@ -463,6 +463,7 @@ void LKRun::AddInputList(TString listFileName, TString treeName)
     ifstream listFiles(listFileName);
     TString fileName;
     while (listFiles >> fileName)
+        AddInputFile(fileName);
 }
 
 void LKRun::AddInputFile(TString fileName, TString treeName)

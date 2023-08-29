@@ -1,6 +1,8 @@
 #ifndef LKSTEPPINGACTION_HH
 #define LKSTEPPINGACTION_HH
 
+//#define LKG4_DEBUG_STEPPINGACTION
+
 #include "LKG4RunManager.h"
 #include "G4UserSteppingAction.hh"
 #include "G4Step.hh"

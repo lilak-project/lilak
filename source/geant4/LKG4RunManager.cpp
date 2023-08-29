@@ -136,13 +136,14 @@ void LKG4RunManager::Run(G4int argc, char **argv, const G4String &type)
     TIter next(g4CommandContainer);
 
     LKParameter *parameter = nullptr;
-
     if (useVisMode) {
         G4VisManager* visManager = new G4VisExecutive;
         visManager -> Initialize();
 
         G4UIExecutive* uiExecutive = new G4UIExecutive(argc,argv,type);
         while ((parameter = (LKParameter*) next())) {
+            if (parameter->GetName()=="exit")
+                continue;
             auto command = Form("/%s",parameter -> GetLine());
             uiManager -> ApplyCommand(command);
         }
@@ -153,6 +154,8 @@ void LKG4RunManager::Run(G4int argc, char **argv, const G4String &type)
     }
     else {
         while ((parameter = (LKParameter*) next())) {
+            if (parameter->GetGroup(1)=="vis")
+                continue;
             auto command = Form("/%s",parameter -> GetLine());
             uiManager -> ApplyCommand(command);
         }
@@ -209,8 +212,8 @@ void LKG4RunManager::SetOutputFile(TString name)
 {
     //fPar -> ReplaceEnvironmentVariable(name);
 
-    fSetEdepSumTree         = fPar -> GetParBool("MCSetEdepSum/persistency");
     fStepPersistency        = fPar -> GetParBool("MCStep/persistency");
+    fEdepSumPersistency     = fPar -> GetParBool("MCEdepSum/persistency");
     fSecondaryPersistency   = fPar -> GetParBool("MCSecondary/persistency");
     fTrackVertexPersistency = fPar -> GetParBool("MCTrackVertex/persistency");
 
@@ -236,26 +239,29 @@ void LKG4RunManager::SetOutputFile(TString name)
             TString detName = parameter -> GetName();
             Int_t copyNo = parameter -> GetInt();
 
+            bool detectorPersistency = true;
+            if (fPar -> CheckPar(Form("%s/persistency",detName.Data())))
+                detectorPersistency = fPar -> GetParBool(Form("%s/persistency",detName.Data()));
+            if (detectorPersistency==false)
+                continue;
+
             if (detName.Index("_PARTOFASSEMBLY")>0) {
                 g4man_info << "Detector " << detName << " is part of assembly" << endl;
                 continue;
             }
 
-            TString branchHeader = "MCStep";
-            if (detName.Index("_ASSEMBLY")>0)
-                branchHeader = "MCStepAssembly";
+            TString stepName = TString("MCStep") + detName;
+            TString esumName = TString("MCESum") + detName;
 
-            g4man_info << "Adding new step branch " << branchHeader+Form("%d", copyNo) << " for detector " << detName << endl;
+            g4man_info << "Adding new step branch " << stepName << " for detector " << detName << endl;
+            g4man_info << "Adding new esum branch " << esumName << " for detector " << detName << endl;
 
             auto stepArray = new TClonesArray("LKMCStep", 10000);
-            stepArray -> SetName(branchHeader+Form("%d", copyNo));
-
-            fTree -> Branch(stepArray -> GetName(), &stepArray);
+            fTree -> Branch(stepName, &stepArray);
             fStepArrayList -> Add(stepArray);
 
-            TString edepSumName = Form("EdepSum%d", copyNo);
             fIdxOfCopyNo[copyNo] = fNumActiveVolumes;
-            fTree -> Branch(edepSumName, &fEdepSumArray[fNumActiveVolumes]);
+            fTree -> Branch(esumName, &fEdepSumArray[fNumActiveVolumes]);
             ++fNumActiveVolumes;
         }
     }
@@ -324,6 +330,7 @@ void LKG4RunManager::SetSensitiveDetector(G4VPhysicalVolume *physicalVolume, TSt
     if (assemblyName.IsNull()) {
         g4man_info << "New sensitive detector " << name << " (" << copyNo << ")" << endl;
         fSensitiveDetectors -> AddPar(name, copyNo);
+        //fSensitiveDetectors -> AddPar(name, name);
     }
     else {
         Int_t assemblyID;
@@ -372,7 +379,7 @@ void LKG4RunManager::AddMCStep(Int_t detectorID, Double_t x, Double_t y, Double_
 {
     auto idx = fIdxOfCopyNo[detectorID];
 
-    if (fSetEdepSumTree)
+    if (fEdepSumPersistency)
         fEdepSumArray[idx] = fEdepSumArray[idx] + e;
 
     if (fStepPersistency)

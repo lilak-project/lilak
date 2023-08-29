@@ -17,5 +17,4 @@ void LKG4RunMessenger::SetNewValue(G4UIcommand *command, G4String newValue)
         fRunManager -> BeamOnAll();
     else if (command==fSuppressMessage)
         fRunManager -> SetSuppressInitMessage(fSuppressMessage->GetNewBoolValue(newValue));
-
 }

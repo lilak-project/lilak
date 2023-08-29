@@ -78,8 +78,8 @@ class LKG4RunManager : public G4RunManager, public LKGear
         std::map<Int_t, Int_t> fIdxOfCopyNo;
         Int_t fNumActiveVolumes = 0;
 
-        bool fSetEdepSumTree = false;
         bool fStepPersistency = false;
+        bool fEdepSumPersistency = false;
         bool fSecondaryPersistency = false;
         bool fTrackVertexPersistency = false;
 

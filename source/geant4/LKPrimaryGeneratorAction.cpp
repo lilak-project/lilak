@@ -33,6 +33,9 @@ void LKPrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
 
     fParticleGun -> SetParticlePosition(G4ThreeVector(vx,vy,vz));
 
+    if (fPrintExampleEvent)
+        g4man_info << "Printing first event v(" << vx <<","<< vy <<","<< vz <<")"<< endl;
+
     while (fEventGenerator -> ReadNextTrack(pdg, px, py, pz))
     {
         G4ParticleDefinition* particle = G4ParticleTable::GetParticleTable() -> FindParticle(pdg);
@@ -48,8 +51,13 @@ void LKPrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
         // <------------- to here
         G4cout.rdbuf(oldBuffer);
 
+        if (fPrintExampleEvent)
+            g4man_info << "== " << pdg << "(" << px <<","<< py <<","<< pz <<")"<< endl;
+
         fParticleGun -> GeneratePrimaryVertex(anEvent);
     }
+
+    fPrintExampleEvent = false;
 }
 
 void LKPrimaryGeneratorAction::SetEventGenerator(const char *fileName)

@@ -1,6 +1,8 @@
 #ifndef LKTRACKINGACTION_HH
 #define LKTRACKINGACTION_HH
 
+//#define LKG4_DEBUG_TRACKINGACTION
+
 #include "LKParameterContainer.h"
 #include "LKG4RunManager.h"
 #include "G4UserTrackingAction.hh"
@@ -15,6 +17,9 @@ class LKTrackingAction : public G4UserTrackingAction
         virtual ~LKTrackingAction() {}
 
         virtual void PreUserTrackingAction(const G4Track* track);
+#ifdef LKG4_DEBUG_TRACKINGACTION
+        virtual void PostUserTrackingAction(const G4Track* track);
+#endif
 
     private:
         LKParameterContainer *fProcessTable;
