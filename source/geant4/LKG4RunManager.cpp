@@ -142,8 +142,7 @@ void LKG4RunManager::Run(G4int argc, char **argv, const G4String &type)
 
         G4UIExecutive* uiExecutive = new G4UIExecutive(argc,argv,type);
         while ((parameter = (LKParameter*) next())) {
-            if (parameter->GetName()=="exit")
-                continue;
+            //if (parameter->GetName()=="exit") continue;
             auto command = Form("/%s",parameter -> GetLine());
             uiManager -> ApplyCommand(command);
         }
@@ -154,8 +153,7 @@ void LKG4RunManager::Run(G4int argc, char **argv, const G4String &type)
     }
     else {
         while ((parameter = (LKParameter*) next())) {
-            if (parameter->GetGroup(1)=="vis")
-                continue;
+            //if (parameter->GetGroup(1)=="vis") continue;
             auto command = Form("/%s",parameter -> GetLine());
             uiManager -> ApplyCommand(command);
         }
