@@ -25,7 +25,7 @@ class LKWPoint : public LKContainer
         virtual void Copy (TObject &object) const;
 
         void Set(Double_t x, Double_t y, Double_t z, Double_t w = 1);
-        void SetW(Double_t w);
+        void SetWeight(Double_t w);
         void SetPosition(Double_t x, Double_t y, Double_t z);
         void SetPosition(TVector3 pos);
 

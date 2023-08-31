@@ -27,6 +27,7 @@ class LKHit : public LKWPoint
         Double_t fDX = -999;
         Double_t fDY = -999;
         Double_t fDZ = -999;
+        Double_t fChi2NDF = -999;
         Double_t fSortValue = 0; //! sort earlier if smaller, latter if larger
 
         LKHitArray fHitArray; //!
@@ -57,14 +58,16 @@ class LKHit : public LKWPoint
         void SetHitID(Int_t id);
         void SetTrackID(Int_t id);
         void SetAlpha(Double_t a);
-        void SetDPosition(TVector3 dpos);
-        void SetDX(Double_t dx);
-        void SetDY(Double_t dy);
-        void SetDZ(Double_t dz);
+        void SetPositionError(TVector3 dpos);
+        void SetPositionError(Double_t dx, Double_t dy, Double_t dz);
+        void SetXError(Double_t dx);
+        void SetYError(Double_t dy);
+        void SetZError(Double_t dz);
         void SetX(Double_t x);
         void SetY(Double_t y);
         void SetZ(Double_t z);
         void SetCharge(Double_t charge);
+        void SetChi2NDF(Double_t chi2NDF);
 
         virtual void AddHit(LKHit *hit);
         virtual void RemoveHit(LKHit *hit);

@@ -202,14 +202,16 @@ void LKHit::PropagateMC()
 void LKHit::SetHitID(Int_t id) { fHitID = id; }
 void LKHit::SetTrackID(Int_t id) { fTrackID = id; }
 void LKHit::SetAlpha(Double_t a) { fAlpha = a; }
-void LKHit::SetDPosition(TVector3 dpos) { fDX = dpos.X(); fDY = dpos.Y(); fDZ = dpos.Z(); }
-void LKHit::SetDX(Double_t dx) { fDX = dx; }
-void LKHit::SetDY(Double_t dy) { fDY = dy; }
-void LKHit::SetDZ(Double_t dz) { fDZ = dz; }
+void LKHit::SetPositionError(TVector3 dpos) { fDX = dpos.X(); fDY = dpos.Y(); fDZ = dpos.Z(); }
+void LKHit::SetPositionError(Double_t dx, Double_t dy, Double_t dz) { fDX = dx; fDY = dy; fDZ = dz; }
+void LKHit::SetXError(Double_t dx) { fDX = dx; }
+void LKHit::SetYError(Double_t dy) { fDY = dy; }
+void LKHit::SetZError(Double_t dz) { fDZ = dz; }
 void LKHit::SetX(Double_t x) { fX = x; }
 void LKHit::SetY(Double_t y) { fY = y; }
 void LKHit::SetZ(Double_t z) { fZ = z; }
 void LKHit::SetCharge(Double_t charge) { fW = charge; }
+void LKHit::SetChi2NDF(Double_t chi2NDF) { fChi2NDF = chi2NDF; }
 
 void LKHit::AddHit(LKHit *hit)
 {

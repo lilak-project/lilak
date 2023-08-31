@@ -58,7 +58,7 @@ void LKWPoint::Copy(TObject &obj) const
     wp.Set(fX, fY, fZ, fW);
 }
 
-void LKWPoint::SetW(Double_t w) { fW = w; }
+void LKWPoint::SetWeight(Double_t w) { fW = w; }
 
 void LKWPoint::SetPosition(Double_t x, Double_t y, Double_t z)
 {
