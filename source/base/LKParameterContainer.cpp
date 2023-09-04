@@ -42,6 +42,12 @@ bool LKParameterContainer::CheckFormulaValidity(TString formula, bool isInt) con
     if (isInt && formula.Index(".")>=0)
         return false;
 
+    if (formula.Index("+")<0
+      &&formula.Index("-")<0
+      &&formula.Index("/")<0
+      &&formula.Index("*")<0)
+        return false;
+
     TString formula2 = formula;
     formula2.ReplaceAll("+"," ");
     formula2.ReplaceAll("-"," ");

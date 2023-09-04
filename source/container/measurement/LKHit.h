@@ -27,7 +27,6 @@ class LKHit : public LKWPoint
         Double_t fDX = -999;
         Double_t fDY = -999;
         Double_t fDZ = -999;
-        Double_t fChi2NDF = -999;
         Double_t fSortValue = 0; //! sort earlier if smaller, latter if larger
 
         LKHitArray fHitArray; //!
@@ -67,7 +66,6 @@ class LKHit : public LKWPoint
         void SetY(Double_t y);
         void SetZ(Double_t z);
         void SetCharge(Double_t charge);
-        void SetChi2NDF(Double_t chi2NDF);
 
         virtual void AddHit(LKHit *hit);
         virtual void RemoveHit(LKHit *hit);

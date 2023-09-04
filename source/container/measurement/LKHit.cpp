@@ -43,6 +43,10 @@ void LKHit::Copy(TObject &obj) const
 
     hit.SetHitID(fHitID);
     hit.SetTrackID(fTrackID);
+    hit.SetPosition(fX,fY,fZ);
+    hit.SetPositionError(fDX,fDY,fDZ);
+    hit.SetCharge(fW);
+    hit.SetAlpha(fAlpha);
 
     /* TODO
        auto numHits = fHitArray.GetNumHits();
@@ -211,7 +215,6 @@ void LKHit::SetX(Double_t x) { fX = x; }
 void LKHit::SetY(Double_t y) { fY = y; }
 void LKHit::SetZ(Double_t z) { fZ = z; }
 void LKHit::SetCharge(Double_t charge) { fW = charge; }
-void LKHit::SetChi2NDF(Double_t chi2NDF) { fChi2NDF = chi2NDF; }
 
 void LKHit::AddHit(LKHit *hit)
 {
