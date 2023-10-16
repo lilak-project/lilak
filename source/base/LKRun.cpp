@@ -185,6 +185,8 @@ bool LKRun::ConfigureRunFromFileName(TString inputName)
 
 TString LKRun::ConfigureFileName()
 {
+    if (fRunID<0) fRunID = 0;
+
     TString fileName = fRunName + Form("_%04d", fRunID);
 
     if (!fTag.IsNull())
@@ -499,7 +501,7 @@ bool LKRun::Init()
     if (!fRunNameIsSet) {
         if (fPar -> CheckPar("LKRun/RunName")) {
             auto numRunNames = fPar -> GetParN("LKRun/RunName");
-            if (fRunName.IsNull()) fRunName = fPar -> GetParString("LKRun/RunName",0);
+            if (fRunName=="run") fRunName = fPar -> GetParString("LKRun/RunName",0);
             if (fRunID==-1) fRunID = fPar -> GetParInt("LKRun/RunName",1);
             if (fTag.IsNull()&&numRunNames>2) fTag = fPar -> GetParString("LKRun/RunName",2);
             if (fSplit==-1&&numRunNames>3) fSplit = fPar -> GetParInt("LKRun/RunName",3);
@@ -922,7 +924,7 @@ bool LKRun::RunEvent(Long64_t eventID)
 
     GetEntry(fCurrentEventID);
 
-    if (fEventCount%fNumSkipEventsForMessage!=0) {
+    if (fEventCount==0||fEventCount%fNumSkipEventsForMessage!=0) {
         lk_set_message(false);
     }
 

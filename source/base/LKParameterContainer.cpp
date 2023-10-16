@@ -258,7 +258,7 @@ Int_t LKParameterContainer::AddParameterContainer(LKParameterContainer *parc)
         TString name = parameter -> GetName();
         LKParameter *found = FindPar(name);
         if (found != nullptr) {
-            lk_error << "Parameter " << name << " already exist!" << endl;
+            lk_warning << "Parameter " << name << " already exist!" << endl;
             continue;
         }
         else {

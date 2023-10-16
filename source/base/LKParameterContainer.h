@@ -26,19 +26,22 @@ typedef LKVector3::Axis axis_t;
 using namespace std;
 
 /**
- * # LKParameterContainer is a list of parameters([name] [value] [comment])
+ * # LKParameterContainer is a list of parameters([header][name] [value] [comment])
  *
  * ## [comment]
  *  - Comments should start with "#". Lines starting with "#" are ignored.
+ *
+ * ## [header]
+ *  - < : Input parameter file. The parameter-value will be given as anohter input parameter file.
+ *  - * : Temporary parameter. May be used when user want to define parameter but do not want to transfer parameter from input file to output file through LKRun. ex) *name value
+ *  - @ : Conditional parameter. May be used when user wants to define parameter, only when group name is defined as parameter-name or parameter-value, ex) @group/name value
+ *  - & : Multiple parameter. May be defined many times. Can be grouped later using CreateGroupContainer() method.
+ *  - ! : Overwrite parameter. Overwrite parameter if this header is used
  *
  * ## [name] and group
  *  - [name] should not contain empty spaces.
  *  - [name] can set group using "/". ex) group/name
  *  - When adding another parameter file, start [name] with "<<". ex) <<, <<par_file, <</par_file
- *  - If user want to define parameter but do not want to transfer parameter from input file to output file through LKRun,
- *    use "*" infront of [name]. ex) *name value
- *  - When user wants to define parameter when group name is defined as parameter-name or parameter-value,
- *    use "@" infront of [name]. ex) @group/name value
  *
  * ## [value]
  *  - [value] can be a single value or a list of values.

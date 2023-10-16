@@ -38,7 +38,7 @@ class LKRun : public LKTask
         static LKRun* GetRun(); ///< Get LKRun static pointer.
 
         LKRun(TString runName, int id, TString tag);
-        LKRun() : LKRun("run",0,"") {}
+        LKRun() : LKRun("run",-1,"") {}
         virtual ~LKRun() {};
 
         static void PrintLILAK();              ///< Print compiled LILAK information
@@ -134,6 +134,7 @@ class LKRun : public LKTask
         TObject *GetBranch(TString name); ///< Get branch in TObject by name.
         TObject *GetBranch(int idx);
         TObject *KeepBranch(TString name);
+
         TClonesArray *GetBranchA(TString name); ///< Get branch in TClonesArray by name. Return nullptr if branch is not inherited from TClonesArray
         TClonesArray *GetBranchA(int idx);
         TClonesArray *KeepBranchA(TString name);
