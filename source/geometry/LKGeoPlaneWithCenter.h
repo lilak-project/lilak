@@ -2,6 +2,9 @@
 #define LKGEOPLANEWITHCENTER_HH
 
 #include "LKGeoPlane.h"
+#include "LKGeoLine.h"
+
+class LKGeoLine;
 
 class LKGeoPlaneWithCenter : public LKGeoPlane
 {
@@ -22,6 +25,8 @@ class LKGeoPlaneWithCenter : public LKGeoPlane
 
         TVector3 GetVectorU() const;
         TVector3 GetVectorV() const;
+
+        LKGeoLine GetCrossSectionLine(LKGeoPlaneWithCenter plane2);
 
     protected:
         Double_t fX = 0;

@@ -58,3 +58,38 @@ TVector3 LKGeoPlaneWithCenter::GetVectorV() const
 {
     return GetNormal().Cross(GetVectorU());
 }
+
+LKGeoLine LKGeoPlaneWithCenter::GetCrossSectionLine(LKGeoPlaneWithCenter plane2)
+{
+    double x, y, z;
+    auto aa = this->GetA();
+    auto bb = this->GetB();
+    auto cc = this->GetC();
+    auto dd = this->GetD();
+    auto ee = plane2.GetA();
+    auto ff = plane2.GetB();
+    auto gg = plane2.GetC();
+    auto hh = plane2.GetD();
+    if (hh!=0 && cc!=0) {
+        auto goc = gg/cc;
+        x = this->GetX();
+        y = ((dd+aa*x)*goc - (hh+ee*x))/ (ff - bb*goc);
+        z = - (dd+aa*x + bb*y)/cc;
+    }
+    else if (ff!=0 && bb!=0) {
+        auto fob = ff/bb;
+        z = this->GetZ();
+        x = ((dd+cc*z)*fob - (hh+gg*z))/ (ee - aa*fob);
+        y = - (dd+cc*z + aa*x)/bb;
+    }
+    else {
+        auto goc = gg/cc;
+        y = this->GetY();
+        x = ((dd+bb*y)*goc - (hh+ff*y))/ (ee - aa*goc);
+        y = - (dd+bb*y + aa*x)/cc;
+    }
+
+    auto direction = this->GetNormal().Cross(plane2.GetNormal());
+    TVector3 pointA(x,y,z);
+    return LKGeoLine(pointA, pointA+direction);
+}
