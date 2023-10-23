@@ -23,6 +23,7 @@ class LKHit : public LKWPoint
     protected:
         Int_t fHitID = -1;
         Int_t fTrackID = -1;
+        Int_t fChannelID = -1;
         Double_t fAlpha = -999; // TODO the polar angle
         Double_t fDX = -999;
         Double_t fDY = -999;
@@ -56,6 +57,7 @@ class LKHit : public LKWPoint
 
         void SetHitID(Int_t id);
         void SetTrackID(Int_t id);
+        void SetChannelID(Int_t id);
         void SetAlpha(Double_t a);
         void SetPositionError(TVector3 dpos);
         void SetPositionError(Double_t dx, Double_t dy, Double_t dz);
@@ -78,6 +80,7 @@ class LKHit : public LKWPoint
 
         Int_t GetHitID()   const;
         Int_t GetTrackID() const;
+        Int_t GetChannelID() const;
         Double_t GetAlpha()   const;
         TVector3 GetDPosition() const;
         Double_t GetDX()      const;
@@ -108,7 +111,7 @@ class LKHit : public LKWPoint
         virtual void AddToEveSet(TEveElement *eveSet, Double_t scale=1);
 #endif
 
-        ClassDef(LKHit, 1)
+        ClassDef(LKHit, 2)
 };
 
 class LKHitSortDirection {
