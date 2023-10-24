@@ -47,6 +47,7 @@ class LKParameter : public TNamed
         bool    IsMultiple()    const { return (fType==4); }
 
         int      GetInt   (int i=-1) const;  ///< Get parameter in int
+        Long64_t GetLong  (int i=-1) const;  ///< Get parameter in int
         bool     GetBool  (int i=-1) const;  ///< Get parameter in bool
         double   GetDouble(int i=-1) const;  ///< Get parameter in double
         TString  GetString(int i=-1) const;  ///< Get parameter in TString

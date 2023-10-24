@@ -136,6 +136,7 @@ class LKParameterContainer : public TObjArray
         Bool_t AddLine(std::string line); ///< Set parameter by line
         Bool_t AddPar(TString name, TString val, TString comment=""); ///< Set parameter TString
         Bool_t AddPar(TString name, Int_t val, TString comment="")    { return AddPar(name,Form("%d",val),comment); } ///< Set parameter Int_t
+        Bool_t AddPar(TString name, Long64_t val, TString comment="") { return AddPar(name,Form("%lld",val),comment); } ///< Set parameter Double_t
         Bool_t AddPar(TString name, Double_t val, TString comment="") { return AddPar(name,Form("%f",val),comment); } ///< Set parameter Double_t
 
         Bool_t CheckPar(TString name) const;
@@ -144,6 +145,7 @@ class LKParameterContainer : public TObjArray
         Int_t    GetParN     (TString name) const;              ///< Get number of parameters in array of given name.
         Bool_t   GetParBool  (TString name, int idx=-1) const;  ///< Get parameter in Bool_t
         Int_t    GetParInt   (TString name, int idx=-1) const;  ///< Get parameter in Int_t
+        Long64_t GetParLong  (TString name, int idx=-1) const;  ///< Get parameter in Long64_t
         Double_t GetParDouble(TString name, int idx=-1) const;  ///< Get parameter in Double_t
         TString  GetParString(TString name, int idx=-1) const;  ///< Get parameter in TString
         Int_t    GetParColor (TString name, int idx=-1) const;  ///< Get parameter in Color_t

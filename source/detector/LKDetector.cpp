@@ -49,7 +49,7 @@ void LKDetector::SetTransparency(Int_t transparency)
 void LKDetector::AddPlane(LKDetectorPlane *plane, Int_t planeID)
 {
     plane -> SetPlaneID(planeID);
-    //plane -> SetPar(fPar);
+    plane -> SetPar(fPar);
     //plane -> Init();
     plane -> SetRank(fRank+1);
     plane -> SetDetector(this);

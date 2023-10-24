@@ -803,6 +803,13 @@ Int_t LKParameterContainer::GetParInt(TString name, int idx) const
     return valueInt;
 }
 
+Long64_t LKParameterContainer::GetParLong(TString name, int idx) const
+{
+    auto parameter = FindPar(name,true);
+    auto valueLong = parameter -> GetLong(idx);
+    return valueLong;
+}
+
 Double_t LKParameterContainer::GetParDouble(TString name, int idx) const
 {
     auto parameter = FindPar(name,true);

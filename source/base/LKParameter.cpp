@@ -83,6 +83,18 @@ void LKParameter::Print(Option_t *option) const
      if (fType==4) e_info << "(M) " << fName << " " << fValue << " # " << fComment << std::endl;
 }
 
+Long64_t LKParameter::GetLong(int idx) const
+{
+    TString value = fValue;
+    if (idx>=0) value = fValueArray[idx];
+
+    if (!CheckFormulaValidity(value,true))
+        ProcessTypeError("Long64_t");
+
+    return value.Atoll();
+    //return TFormula("formula",value).Eval(0);
+}
+
 int LKParameter::GetInt(int idx) const
 {
     TString value = fValue;

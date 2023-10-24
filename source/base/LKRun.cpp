@@ -28,6 +28,11 @@ LKRun::LKRun(TString runName, int id, TString tag)
     :LKTask("LKRun", "LKRun")
 {
     fInstance = this;
+    TString inputFileName = "";
+    if (runName.Index("/")>=0) {
+        inputFileName = runName;
+        runName = "";
+    }
     fRunName = runName;
     fRunID = id;
     fTag = tag;
@@ -84,6 +89,9 @@ LKRun::LKRun(TString runName, int id, TString tag)
     }
 
     CreateParameterContainer();
+
+    if (!inputFileName.IsNull())
+        AddInputFile(inputFileName);
 }
 
 void LKRun::PrintLILAK()
