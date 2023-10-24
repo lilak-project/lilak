@@ -30,7 +30,6 @@ void LKParameter::SetPar(TString name, TString raw, TString value, TString comme
     Clear();
     fName = name;
     fTitle = raw;
-    fValue = value;
     fComment = comment;
     fType = parameterType;
 
@@ -47,6 +46,12 @@ void LKParameter::SetPar(TString name, TString raw, TString value, TString comme
     if (fTitle.IsNull() && !fValue.IsNull()) fTitle = fValue;
     if (!fTitle.IsNull() && fValue.IsNull()) fValue = fTitle;
 
+    SetValue(value);
+}
+
+void LKParameter::SetValue(TString value)
+{
+    fValue = value;
     auto listOfTokens = value.Tokenize(" ");
     fNumValues = listOfTokens -> GetEntries();
     if (fNumValues>1) {

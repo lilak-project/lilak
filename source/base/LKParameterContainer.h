@@ -110,6 +110,8 @@ class LKParameterContainer : public TObjArray
         void SaveAs(const char *filename, Option_t *option = "") const;
         LKParameterContainer *CloneParameterContainer() const;
 
+        void Recompile();
+
         bool IsEmpty() const; ///< Return true if empty
         void ReplaceEnvVariables(TString &val); ///< evaluate and replace all unraveled variables with ({par},+,-,...)
         void ReplaceVariables(TString &val); ///< evaluate and replace all unraveled variables with ({par},+,-,...)
@@ -166,7 +168,7 @@ class LKParameterContainer : public TObjArray
         LKParameterContainer* CreateGroupContainer(TString nameGroup);
 
     protected:
-        LKParameter *SetPar    (TString name, TString  raw, TString val, TString comment, int parameterType);
+        LKParameter *SetPar    (TString name, TString  raw, TString val, TString comment, int parameterType, bool rewriteParameter=false);
         LKParameter *SetPar    (TString name, TString  val, TString comment="") { return SetPar(name,val,val,comment,0); } ///< Set parameter string
         LKParameter *SetPar    (TString name, Int_t    val, TString comment="") { return SetPar(name,Form("%d",val),Form("%d",val),comment,0); } ///< Set parameter Int_t
         LKParameter *SetPar    (TString name, Double_t val, TString comment="") { return SetPar(name,Form("%f",val),Form("%f",val),comment,0); } ///< Set parameter Double_t
@@ -184,11 +186,18 @@ class LKParameterContainer : public TObjArray
         Int_t fNumInputFiles = 0;
         Int_t fRank = 0;
 
+        const int kParameterIsStandard = 0;
+        const int kParameterIsLineComment = 1;
+        const int kParameterIsTemporary = 2;
+        const int kParameterIsConditional = 3;
+        const int kParameterIsMultiple = 4;
+        //const int kRewriteParameter = 5;
+
 #ifdef LILAK_BUILD_JSONCPP
         Json::Value fJsonValues;
 #endif
 
-    ClassDef(LKParameterContainer, 1)
+    ClassDef(LKParameterContainer, 2)
 };
 
 #endif

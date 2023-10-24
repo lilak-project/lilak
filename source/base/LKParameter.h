@@ -22,6 +22,7 @@ class LKParameter : public TNamed
 
         void SetLineComment(TString comment);
         void SetPar(TString name, TString raw, TString value, TString comment, int parameterType);
+        void SetValue(TString value);
 
         //const char *GetName()
         TString GetGroup()      const { return fGroup; }
@@ -89,7 +90,7 @@ class LKParameter : public TNamed
          */
         int fType = 0;
 
-    ClassDef(LKParameter, 1)
+    ClassDef(LKParameter, 2)
 };
 
 #endif

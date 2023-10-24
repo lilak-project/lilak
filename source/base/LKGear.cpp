@@ -16,6 +16,7 @@ void LKGear::AddParameterContainer(LKParameterContainer *par) {
         fPar = par;
     else
         fPar -> AddParameterContainer(par);
+    fPar -> Recompile();
 }
 
 void LKGear::AddParameterContainer(TString fname) {
@@ -25,6 +26,7 @@ void LKGear::AddParameterContainer(TString fname) {
         fPar -> SearchAndAddPar();
     else
         fPar -> AddFile(fname);
+    fPar -> Recompile();
 }
 
 LKParameterContainer *LKGear::GetParameterContainer() const { return fPar; }

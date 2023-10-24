@@ -76,6 +76,19 @@ void LKParameterContainer::SaveAs(const char *fileName, Option_t *) const
     Print(fileName0);
 }
 
+void LKParameterContainer::Recompile()
+{
+    R__COLLECTION_READ_LOCKGUARD(ROOT::gCoreMutex);
+    TIter iterator(this);
+    LKParameter *parameter = nullptr;
+    while ((parameter = dynamic_cast<LKParameter*>(iterator())))
+    {
+        TString value = parameter -> GetRaw();
+        ReplaceVariables(value);
+        parameter -> SetValue(value);
+    }
+}
+
 bool LKParameterContainer::IsEmpty() const
 {
     if (GetEntries()>0)
@@ -640,9 +653,9 @@ Bool_t LKParameterContainer::AddLine(std::string line)
 
 Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment)
 {
-    bool errorAlreadyExist = false;
+    bool sendErrorIfAlreadyExist = false;
     if (FindPar(name) != nullptr)
-        errorAlreadyExist = true;
+        sendErrorIfAlreadyExist = true;
 
     if (name.IsNull()&&value.IsNull()&&!comment.IsNull()) {
         SetLineComment(comment);
@@ -653,52 +666,53 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
         bool allowSetPar = true;
         TString groupName;
 
-        const int parameterIsStandard = 0;
-        const int parameterIsLineComment = 1;
-        const int parameterIsTemporary = 2;
-        const int parameterIsConditional = 3;
-        const int parameterIsMultiple = 4;
-        const int rewriteParameter = 5;
-        int parameterType = parameterIsStandard;
+        int parameterType = kParameterIsStandard;
+        bool rewriteParameter = false;
 
         if (name[0]=='<') {
             name = name(1, name.Sizeof()-2);
             AddFile(name, value);
             return true;
         }
-        else if (name[0]=='*') {
+        if (name[0]=='!') {
             name = name(1, name.Sizeof()-2);
-            parameterType = parameterIsTemporary;
+            rewriteParameter = true;
+            sendErrorIfAlreadyExist = false;
         }
-        else if (name[0]=='@') {
-            parameterType = parameterIsConditional;
-            name = name(1, name.Sizeof()-2);
-            groupName = name(0,name.Index("/"));
-            if (name.Index("/")<0)
-                lk_error << "Parameter name " << name << " is out of naming rule" << endl;
 
-            if (CheckPar(groupName)==false&&CheckValue(groupName)==false)
-                allowSetPar = false; // @todo save as hidden parameter when they are not allowed to be set
-        }
-        else if (name[0]=='&') {
-            name = name(1, name.Sizeof()-2);
-            parameterType = parameterIsMultiple;
-            errorAlreadyExist = false;
-        }
-        else if (name[0]=='!') {
-            name = name(1, name.Sizeof()-2);
-            parameterType = rewriteParameter;
-            errorAlreadyExist = false;
+        while (true) {
+            if (name[0]=='*') {
+                name = name(1, name.Sizeof()-2);
+                parameterType = kParameterIsTemporary;
+                continue;
+            }
+            else if (name[0]=='@') {
+                parameterType = kParameterIsConditional;
+                name = name(1, name.Sizeof()-2);
+                groupName = name(0,name.Index("/"));
+                if (name.Index("/")<0)
+                    lk_error << "Parameter name " << name << " is out of naming rule" << endl;
+                if (CheckPar(groupName)==false&&CheckValue(groupName)==false)
+                    allowSetPar = false; // @todo save as hidden parameter when they are not allowed to be set
+                    continue;
+            }
+            else if (name[0]=='&') {
+                name = name(1, name.Sizeof()-2);
+                parameterType = kParameterIsMultiple;
+                sendErrorIfAlreadyExist = false;
+                continue;
+            }
+            break;
         }
 
         if (allowSetPar)
         {
-            if (errorAlreadyExist) {
+            if (sendErrorIfAlreadyExist) {
                 lk_error << "Parameter " << name << " already exist!" << endl;
                 return false;
             }
             else {
-                SetPar(name,value,value,comment,parameterType);
+                SetPar(name,value,value,comment,parameterType,rewriteParameter);
                 return true;
             }
         }
@@ -709,18 +723,28 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
     return false;
 }
 
-LKParameter *LKParameterContainer::SetPar(TString name, TString raw, TString value, TString comment, int parameterType) {
+LKParameter *LKParameterContainer::SetPar(TString name, TString raw, TString value, TString comment, int parameterType, bool rewriteParameter)
+{
+    auto parameterOld = (LKParameter*) FindObject(name);
+    if (parameterOld!=nullptr) {
+        if (rewriteParameter) {
+            SetLineComment(TString(Form("%s was overwritten from %s",name.Data(),parameterOld->GetRaw().Data())));
+            Remove(parameterOld);
+        }
+        else
+            return parameterOld;
+    }
     ReplaceVariables(value);
-    auto named = new LKParameter(name, raw, value, comment, parameterType);
-    Add(named);
-    return named;
+    auto parameter = new LKParameter(name, raw, value, comment, parameterType);
+    Add(parameter);
+    return parameter;
 }
 
 LKParameter *LKParameterContainer::SetLineComment(TString comment) {
-    auto named = new LKParameter();
-    named -> SetLineComment(comment);
-    Add(named);
-    return named;
+    auto parameter = new LKParameter();
+    parameter -> SetLineComment(comment);
+    Add(parameter);
+    return parameter;
 }
 
 LKParameter *LKParameterContainer::SetParFile(TString name) {
@@ -864,19 +888,31 @@ LKParameter *LKParameterContainer::FindPar(TString givenName, bool terminateIfNu
     R__COLLECTION_READ_LOCKGUARD(ROOT::gCoreMutex);
 
     TIter iterator(this);
-    LKParameter *parameter;
+    LKParameter *parameter = nullptr;
+    bool parameterIsFound = false;
     while ((parameter = dynamic_cast<LKParameter*>(iterator())))
     {
         if (parameter) {
             auto parName = parameter -> GetName();
-            if (parName==givenName)
-                return parameter;
+            if (parName==givenName) {
+                parameterIsFound = true;
+                break;
+            }
             if (parameter -> IsConditional()) {
                 auto mainName = parameter -> GetMainName();
-                if (mainName==givenName)
-                    return parameter;
+                if (mainName==givenName) {
+                    parameterIsFound = true;
+                    break;
+                }
             }
         }
+    }
+
+    if (parameterIsFound) {
+        //TString value = parameter -> GetRaw();
+        //ReplaceVariables(value);
+        //parameter -> SetValue(value);
+        return parameter;
     }
 
     if (terminateIfNull) {
