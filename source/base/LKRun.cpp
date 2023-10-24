@@ -871,18 +871,14 @@ void LKRun::Run(Long64_t numEvents)
     if (!StartOfRun(numEvents))
         return;
 
-    fEventCount = 1;
-
     //fEventMessage.clear();
 
     for (fIdxEntry = fStartEventID; fIdxEntry <= fEndEventID; ++fIdxEntry) {
         fCurrentEventID = fIdxEntry;
 
-        bool continueRun = RunEvent(fCurrentEventID);
+        bool continueRun = ExecuteEvent(fCurrentEventID);
         if (!continueRun)
             break;
-
-        ++fEventCount;
     }
 
     LKRun::EndOfRun();
@@ -907,29 +903,39 @@ void LKRun::Run(Long64_t startID, Long64_t endID)
 
 bool LKRun::RunEvent(Long64_t eventID)
 {
+    SetNumPrintMessage(fNumEntries);
+    StartOfRun(fNumEntries);
+    return ExecuteEvent(eventID);
+}
+
+bool LKRun::ExecuteEvent(Long64_t eventID)
+{
     if (eventID==-1) {
         eventID = fCurrentEventID;
     }
     else if (eventID==-2) {
         fCurrentEventID = fCurrentEventID + 1;
-        if (fCurrentEventID > fNumEntries - 1) {
-            fCurrentEventID = fCurrentEventID - 1;
-            lk_info << "End of run! (at event " << fCurrentEventID << ")" << endl;
-            return false;
-        }
-        eventID = fCurrentEventID;
+    }
+    else {
+        fCurrentEventID = eventID;
     }
 
-    if (eventID < 0 || eventID > fNumEntries - 1) {
-        lk_error << "EventID: " << eventID << ", not in proper range." << endl;
+    if (fCurrentEventID > fNumEntries - 1) {
+        fCurrentEventID = fCurrentEventID - 1;
+        lk_info << "End of run! (at event " << fCurrentEventID << ")" << endl;
+        return false;
+    }
+
+    if (fCurrentEventID < 0 || fCurrentEventID > fNumEntries - 1) {
+        lk_error << "EventID: " << fCurrentEventID << " (" << eventID << ")" << ", not in proper range." << endl;
         lk_error << "Entry range : " << 0 << " -> " << fNumEntries - 1 << endl;
         lk_error << "Exit run" << endl;
         return false;
     }
 
-    GetEntry(fCurrentEventID);
+    LKRun::GetEntry(fCurrentEventID);
 
-    if (fEventCount==0||fEventCount%fNumSkipEventsForMessage!=0) {
+    if (fEventCount==0||fEventCount%fEventCountForMessage!=0) {
         lk_set_message(false);
     }
 
@@ -946,11 +952,16 @@ bool LKRun::RunEvent(Long64_t eventID)
     if (fOutputTree != nullptr)
         fOutputTree -> Fill();
 
+    ++fEventCount;
+
     return true;
 }
 
 bool LKRun::StartOfRun(Long64_t numEvents)
 {
+    if (fRunHasStarted)
+        return false;
+
     if (fInitialized == false) {
         lk_info << "LKRun is not initialized!" << endl;
         lk_info << "try initialization..." << endl;
@@ -963,7 +974,7 @@ bool LKRun::StartOfRun(Long64_t numEvents)
     if (fNumEntries<=0)
         fNumEntries = numEvents;
 
-    CheckIn();
+    //CheckIn();
 
     if (numEvents > 0)
         fEndEventID = numEvents - 1;
@@ -983,11 +994,18 @@ bool LKRun::StartOfRun(Long64_t numEvents)
 
     fNumRunEntries = fEndEventID - fStartEventID + 1;
 
-    if (fNumRunEntries<fNumPrintMessage)
-        fNumSkipEventsForMessage = 1;
-    fNumSkipEventsForMessage = fNumRunEntries/fNumPrintMessage;
-    if (fNumSkipEventsForMessage==0)
-        fNumSkipEventsForMessage = 1;
+    //if (fEventCountForMessage==0)
+    {
+        if (fNumRunEntries<fNumPrintMessage)
+            fEventCountForMessage = 1;
+        fEventCountForMessage = fNumRunEntries/fNumPrintMessage;
+        if (fEventCountForMessage==0)
+            fEventCountForMessage = 1;
+    }
+
+    fEventCount = 1;
+
+    fRunHasStarted = true;
 
     return true;
 }
@@ -1022,7 +1040,9 @@ bool LKRun::EndOfRun()
 
     WriteOutputFile();
 
-    CheckOut();
+    fRunHasStarted = false;
+
+    //CheckOut();
 
     if (fAutoTerminate) Terminate(this);
 
@@ -1048,6 +1068,7 @@ bool LKRun::CheckFileExistence(TString fileName)
     return true;
 }
 
+/*
 void LKRun::CheckIn()
 {
     fSignalEndOfRun = false;
@@ -1072,6 +1093,7 @@ void LKRun::CheckOut()
 
     fCheckIn = false;
 }
+*/
 
 void LKRun::AddDetector(LKDetector *detector) {
     detector -> SetRun(this);

@@ -226,7 +226,7 @@ void LKEveTask::DrawDetectorPlanes()
 
         auto cvs = (TCanvas *) fCvsDetectorPlaneArray -> At(iPlane);
 
-        cvs -> Clear();
+        //cvs -> Clear();
         cvs -> cd();
         plane -> Draw();
 

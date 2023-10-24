@@ -95,7 +95,8 @@ class LKRun : public LKTask
         void SetTag(TString tag) { fTag = tag; }
         void SetSplit(Int_t split, Long64_t numSplitEntries) { fSplit = split; fNumSplitEntries = numSplitEntries; }
 
-        void SetNumPrintMessage(int num) { fNumPrintMessage = num; }
+        void SetEventCountForMessage(Long64_t val) { fEventCountForMessage = val; }
+        void SetNumPrintMessage(Long64_t num) { fNumPrintMessage = num; }
 
         void AddParAfterFirst(TString fname) { fParAddAfterFirst = fname; }
 
@@ -180,8 +181,7 @@ class LKRun : public LKTask
          */
         void Run(Long64_t numEvents = -1);
         void Run(Long64_t startID, Long64_t endID); ///< Run in range from startID to endID
-        bool RunEvent(Long64_t eventID=-1); ///< Run just one event of eventID.
-        bool RunNextEvent() { return RunEvent(-2); }
+        bool RunEvent(Long64_t eventID=-2);
         //void RuSplit(Long64_t eventID);
 
         /**
@@ -207,9 +207,10 @@ class LKRun : public LKTask
         static TString ConfigureDataPath(TString name, bool search = false, TString pathData="", bool addVersion=false);
         static bool CheckFileExistence(TString fileName);
 
-    private:
-        void CheckIn();
-        void CheckOut();
+    protected:
+        bool ExecuteEvent(Long64_t eventID=-1); ///< Run just one event of eventID.
+        //void CheckIn();
+        //void CheckOut();
 
     private:
         bool fRunNameIsSet = false;
@@ -265,10 +266,11 @@ class LKRun : public LKTask
         Long64_t fCurrentEventID = 0;
         Long64_t fEventCount = 0;
         Long64_t fNumRunEntries = 0;
-        Long64_t fNumSkipEventsForMessage = 0;
-        Int_t fNumPrintMessage = 20;
+        Long64_t fEventCountForMessage = 0;
+        Long64_t fNumPrintMessage = 20;
+        bool fRunHasStarted = false;
         bool fSignalEndOfRun = false;
-        bool fCheckIn = false;
+        //bool fCheckIn = false;
 
         LKParameterContainer *fRunHeader = nullptr;
         LKParameterContainer *fG4ProcessTable = nullptr; ///< List of Geant4 physics process
