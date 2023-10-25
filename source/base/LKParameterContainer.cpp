@@ -176,6 +176,12 @@ Int_t LKParameterContainer::AddFile(TString parName, TString fileName)
 
     TString fileNameFull;
 
+    bool rewriteParameter = false;
+    if (fileName[0]=='!') {
+        fileName = fileName(1, fileName.Sizeof()-2);
+        rewriteParameter = true;
+    }
+
     bool existFile = false;
 
     if (fileName[0]=='/' || fileName[0]=='$' || fileName =='~'|| fileName[0]=='.') {
@@ -232,6 +238,8 @@ Int_t LKParameterContainer::AddFile(TString parName, TString fileName)
         string line;
 
         while (getline(file, line)) {
+            if (rewriteParameter && line.size()>0)
+                line = "!"+line;
             if (AddLine(line))
                 countParameters++;
         }
@@ -674,10 +682,16 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
             AddFile(name, value);
             return true;
         }
-        if (name[0]=='!') {
-            name = name(1, name.Sizeof()-2);
-            rewriteParameter = true;
-            sendErrorIfAlreadyExist = false;
+
+        while (true)
+        {
+            if (name[0]=='!') {
+                name = name(1, name.Sizeof()-2);
+                rewriteParameter = true;
+                sendErrorIfAlreadyExist = false;
+            }
+            else
+                break;
         }
 
         while (true) {
@@ -725,7 +739,7 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
 
 LKParameter *LKParameterContainer::SetPar(TString name, TString raw, TString value, TString comment, int parameterType, bool rewriteParameter)
 {
-    auto parameterOld = (LKParameter*) FindObject(name);
+    auto parameterOld = (LKParameter*) FindPar(name);
     if (parameterOld!=nullptr) {
         if (rewriteParameter) {
             SetLineComment(TString(Form("%s was overwritten from %s",name.Data(),parameterOld->GetRaw().Data())));
@@ -736,6 +750,12 @@ LKParameter *LKParameterContainer::SetPar(TString name, TString raw, TString val
     }
     ReplaceVariables(value);
     auto parameter = new LKParameter(name, raw, value, comment, parameterType);
+    if (parameter -> IsConditional() && rewriteParameter) {
+        auto mainName = parameter -> GetMainName();
+        auto parameterConditional = (LKParameter*) FindPar(mainName);
+        if (parameterConditional!=nullptr)
+            Remove(parameterConditional);
+    }
     Add(parameter);
     return parameter;
 }
