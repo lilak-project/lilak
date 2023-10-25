@@ -97,6 +97,8 @@ class LKRun : public LKTask
 
         void SetNumPrintMessage(int num) { fNumPrintMessage = num; }
 
+        void AddParAfterFirst(TString fname) { fParAddAfterFirst = fname; }
+
         /**
          * Initailize LKRun.
          * Configure input and output files(trees and branches), input parameters and detectors
@@ -223,6 +225,8 @@ class LKRun : public LKTask
         TFile *fInputFile = nullptr;
         TChain *fInputTree = nullptr;
         std::vector<TString> fInputFileNameArray;
+
+        TString fParAddAfterFirst = "";
 
         Int_t fNumFriends = 0;
         TObjArray *fFriendTrees = nullptr;

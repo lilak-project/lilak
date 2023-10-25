@@ -21,7 +21,7 @@ class LKDetector : public TNamed, public LKGear
         virtual ~LKDetector() {}
 
         virtual void Print(Option_t *option="") const;
-        virtual bool Init() = 0;
+        virtual bool Init();
 
         TGeoVolume *CreateGeoTop(TString name = "TOP");
         void FinishGeometry();

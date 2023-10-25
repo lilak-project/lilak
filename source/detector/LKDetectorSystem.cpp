@@ -95,7 +95,7 @@ void LKDetectorSystem::SetTransparency(Int_t transparency)
 void LKDetectorSystem::AddDetector(LKDetector *detector)
 {
     SetDetector(detector);
-    detector -> AddPar(fPar);
+    //detector -> SetPar(fPar);
     Add(detector);
 }
 

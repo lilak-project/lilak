@@ -25,6 +25,16 @@ void LKDetector::Print(Option_t *) const
     }
 }
 
+bool LKDetector::Init()
+{
+    BuildDetectorPlane();
+    for (auto iPlane = 0; iPlane < fNumPlanes; ++iPlane) {
+        auto plane = (LKDetectorPlane *) fDetectorPlaneArray -> At(iPlane);
+        plane -> Init();
+    }
+    return true;
+}
+
 TGeoManager *LKDetector::GetGeoManager() { return fGeoManager; }
 void LKDetector::SetGeoManager(TGeoManager *man) { fGeoManager = man; }
 
@@ -39,7 +49,8 @@ void LKDetector::SetTransparency(Int_t transparency)
 void LKDetector::AddPlane(LKDetectorPlane *plane, Int_t planeID)
 {
     plane -> SetPlaneID(planeID);
-    plane -> Init();
+    //plane -> SetPar(fPar);
+    //plane -> Init();
     plane -> SetRank(fRank+1);
     plane -> SetDetector(this);
     if (fRun!=nullptr)
@@ -67,6 +78,7 @@ TGeoVolume *LKDetector::CreateGeoTop(TString name)
 
     return fParent -> GetGeoTopVolume();
 }
+
 void LKDetector::FinishGeometry()
 {
     if (fParent == nullptr) {
@@ -79,17 +91,18 @@ void LKDetector::FinishGeometry()
     }
 }
 
-void LKDetector::SetRun(LKRun *run) {
+void LKDetector::SetRun(LKRun *run)
+{
     fRun = run;
     for (auto iPlane = 0; iPlane < fNumPlanes; ++iPlane) {
         auto plane = (LKDetectorPlane *) fDetectorPlaneArray -> At(iPlane);
         lk_debug << fRun << endl;
         plane -> SetRun(run);
     }
-};
+}
 
-
-LKPulseGenerator *LKDetector::GetPulseGenerator() {
+LKPulseGenerator *LKDetector::GetPulseGenerator()
+{
     if (fPulseGenerator==nullptr) {
         TString pulserFile = "";
         TString pulserFileParName = fName+"/pulserFile";

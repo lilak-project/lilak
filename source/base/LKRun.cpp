@@ -596,6 +596,10 @@ bool LKRun::Init()
         if (fInputFile -> Get("ParameterContainer") != nullptr) {
             auto par = (LKParameterContainer *) fInputFile -> Get("ParameterContainer");
             AddParameterContainer(par->CloneParameterContainer());
+            if (!fParAddAfterFirst.IsNull()) {
+                AddParameterContainer(fParAddAfterFirst);
+                fParAddAfterFirst = "";
+            }
             lk_info << "Parameter container found in " << fInputFileName << endl;
         }
         else {
@@ -627,7 +631,8 @@ bool LKRun::Init()
 
     if (fDetectorSystem -> GetEntries() != 0) {
         fDetectorSystem -> SetRun(this);
-        fDetectorSystem -> AddParameterContainer(fPar);
+        //fDetectorSystem -> AddParameterContainer(fPar);
+        fDetectorSystem -> SetPar(fPar);
         fDetectorSystem -> Init();
         fDetectorSystem -> SetTransparency(80);
         fDetectorSystem -> Print();
@@ -1070,6 +1075,9 @@ void LKRun::CheckOut()
 
 void LKRun::AddDetector(LKDetector *detector) {
     detector -> SetRun(this);
+    if (fPar==nullptr)
+        CreateParameterContainer();
+    //fDetectorSystem -> SetPar(fPar);
     fDetectorSystem -> AddDetector(detector);
 }
 LKDetector *LKRun::GetDetector(Int_t i) const { return (LKDetector *) fDetectorSystem -> At(i); }
