@@ -107,6 +107,7 @@ class LKHit : public LKWPoint
         void AddTrackCand(Int_t id);
         void RemoveTrackCand(Int_t trackID);
         bool FindTrackCand(Int_t id);
+        bool PropagateTrackCand();
 
 #ifdef ACTIVATE_EVE
         virtual bool DrawByDefault();

@@ -101,6 +101,7 @@ void LKTracklet::Clear(Option_t *option)
 
 void LKTracklet::AddHit(LKHit *hit)
 {
+    hit -> SetTrackID(fTrackID);
     fHitArray.AddHit(hit);
 }
 

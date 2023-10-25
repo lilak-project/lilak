@@ -294,6 +294,15 @@ bool LKHit::FindTrackCand(Int_t trackID)
     return false;
 }
 
+bool LKHit::PropagateTrackCand()
+{
+    Int_t n = fTrackCandArray.size();
+    if (n<1)
+        return false;
+    SetTrackID(fTrackCandArray[n-1]);
+    return true;
+}
+
 #ifdef ACTIVATE_EVE
 bool LKHit::DrawByDefault() { return true; }
 bool LKHit::IsEveSet() { return true; }
