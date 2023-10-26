@@ -16,6 +16,7 @@ void LKHit::Clear(Option_t *option)
     fHitID = -1;
     fTrackID = -1;
     fChannelID = -1;
+    fPedestal = -999;
     fAlpha = -999;
     fDX = -999;
     fDY = -999;
@@ -49,6 +50,7 @@ void LKHit::Copy(TObject &obj) const
     hit.SetPosition(fX,fY,fZ);
     hit.SetPositionError(fDX,fDY,fDZ);
     hit.SetCharge(fW);
+    hit.SetPedestal(fPedestal);
     hit.SetAlpha(fAlpha);
 
     /* TODO
@@ -67,6 +69,7 @@ void LKHit::CopyFrom(LKHit *hit)
     fY         = hit -> GetY        ();
     fZ         = hit -> GetZ        ();
     fW         = hit -> GetCharge   ();
+    fPedestal  = hit -> GetPedestal ();
     fAlpha     = hit -> GetAlpha    ();
     fHitID     = hit -> GetHitID    ();
     fSortValue = hit -> GetSortValue();
@@ -210,6 +213,7 @@ void LKHit::PropagateMC()
 void LKHit::SetHitID(Int_t id) { fHitID = id; }
 void LKHit::SetTrackID(Int_t id) { fTrackID = id; }
 void LKHit::SetChannelID(Int_t id) { fChannelID = id; }
+void LKHit::SetPedestal(Double_t a) { fPedestal = a; }
 void LKHit::SetAlpha(Double_t a) { fAlpha = a; }
 void LKHit::SetPositionError(TVector3 dpos) { fDX = dpos.X(); fDY = dpos.Y(); fDZ = dpos.Z(); }
 void LKHit::SetPositionError(Double_t dx, Double_t dy, Double_t dz) { fDX = dx; fDY = dy; fDZ = dz; }
@@ -242,6 +246,7 @@ void LKHit::RemoveHit(LKHit *hit)
 Int_t LKHit::GetHitID()   const { return fHitID; }
 Int_t LKHit::GetTrackID() const { return fTrackID; }
 Int_t LKHit::GetChannelID() const { return fChannelID; }
+Double_t LKHit::GetPedestal()   const { return fPedestal; }
 Double_t LKHit::GetAlpha()   const { return fAlpha; }
 TVector3 LKHit::GetDPosition() const { return TVector3(fDX,fDY,fDZ); }
 Double_t LKHit::GetDX()      const { return fDX; }
