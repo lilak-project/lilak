@@ -173,16 +173,15 @@ class LKRun : public LKTask
         /**
          * Run all events
          *
-         * # Difference between Run and Event methods
-         * - Run(nid), Run(id1,id2) and RunEvent(id):
+         * - Run(nid), Run(id1,id2), RunEvent(id) and RunSelectedEvent(selection):
          *   >> CheckIn() -> Run ExecTasks() for all event(s) -> Run EndOfRunTasks() -> Write trees, parameters, headers -> CheckOut()
-         * - Event(id), NextEvent():
          *   >> Run Exec() for one event (will not write any object)
          */
-        void Run(Long64_t numEvents = -1);
-        void Run(Long64_t startID, Long64_t endID); ///< Run in range from startID to endID
-        bool RunEvent(Long64_t eventID=-2);
-        //void RuSplit(Long64_t eventID);
+        void Run(Long64_t numEvents = -1); ///< Run number of events numEvents from the first point
+        void Run(Long64_t startID, Long64_t endID); ///< Run in range: from startID to endID
+        bool RunEvent(Long64_t eventID=-2); ///< Run event of eventID
+        bool RunSelectedEvent(TString selection); ///< Find event that matches the given selection and run. The selection is set from first call of RunSelectedEvent.
+        //void RunSplit(Long64_t eventID);
 
         /**
          * Run ExecTasks() for single event. This will not write any object.
@@ -257,6 +256,15 @@ class LKRun : public LKTask
         std::map<TString, TObject*> fRunObjectPtrMap;
 
         Long64_t fNumEntries = 0;
+
+        //TTreeFormula* fSelect = nullptr;
+        //Long64_t fCurrentEventIDForSelection = 0;
+
+        int fTreeNumber = -1;
+        Long64_t fPrevSelEventID = 0;
+        Long64_t fCurrSelEventID = 0;
+        TEntryList *fSelEntryList = nullptr;
+        Long64_t fNumSelEntries;
 
         //std::vector<const char *> fEventMessage;
 

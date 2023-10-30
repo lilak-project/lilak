@@ -10,6 +10,7 @@
 #include "TRandom.h"
 #include "TObjString.h"
 #include "TApplication.h"
+#include "TEntryList.h"
 
 #include "LKRun.h"
 
@@ -906,6 +907,54 @@ bool LKRun::RunEvent(Long64_t eventID)
     SetNumPrintMessage(fNumEntries);
     StartOfRun(fNumEntries);
     return ExecuteEvent(eventID);
+}
+
+bool LKRun::RunSelectedEvent(TString selection)
+{
+    if (fSelEntryList==nullptr) {
+        if (selection.IsNull()) {
+            lk_warning << "Selection is empty!" << endl;
+            return false;
+        }
+        SetNumPrintMessage(fNumEntries);
+        StartOfRun(fNumEntries);
+        lk_info << "Selection : " << selection << endl;
+        fInputTree -> Draw(">>lkentrylist",selection.Data(),"entrylist");
+        fSelEntryList = (TEntryList*) gDirectory -> Get("lkentrylist");
+        fNumSelEntries = fSelEntryList -> GetN();
+        fInputTree -> SetEntryList(fSelEntryList);
+        fPrevSelEventID = -1;
+        fCurrSelEventID = -1;
+        fTreeNumber = -1;
+        lk_info << "Number of selected events = " << fNumSelEntries << endl;
+    }
+
+    if (fCurrSelEventID>=fNumSelEntries-1) {
+        lk_warning << "End of selected events" << endl;
+        return false;
+    }
+
+    auto entryNumber = fInputTree -> GetEntryNumber(++fCurrSelEventID);
+    if (entryNumber<0) {
+        lk_warning << "Entry number is < 0." << endl;
+        return false;
+    }
+
+    auto localEntry = fInputTree -> LoadTree(entryNumber);
+    if (localEntry<0) {
+        lk_warning << "Local entry is < 0." << endl;
+        return false;
+    }
+
+    // If you do not call entries inbetween, you face some kind of bug when drawing detector plane...
+    if (entryNumber>fPrevSelEventID+1)
+        for (auto eventID=fPrevSelEventID+1; eventID<entryNumber; ++eventID) {
+            //LKRun::GetEntry(eventID);
+            //ExecuteEvent(eventID);
+        }
+    fPrevSelEventID = entryNumber;
+
+    return ExecuteEvent(entryNumber);
 }
 
 bool LKRun::ExecuteEvent(Long64_t eventID)
