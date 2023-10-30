@@ -37,6 +37,8 @@ class LKDetectorPlane : public TNamed, public LKGear
         virtual Int_t FindChannelID(Int_t section, Int_t row, Int_t layer) { return -1; }
 
         virtual TCanvas *GetCanvas(Option_t *option = "");
+        virtual int GetNumCPads() { return 1; }
+        virtual TPad *GetCPad(int iPad) { return (TPad*) GetCanvas(); }
         virtual TH2* GetHist(Option_t *option = "-1") = 0;
         virtual bool SetDataFromBranch() { return false; }
         virtual void FillDataToHist() {};

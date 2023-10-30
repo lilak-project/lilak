@@ -226,46 +226,50 @@ void LKEveTask::DrawDetectorPlanes()
 
         auto cvs = (TCanvas *) fCvsDetectorPlaneArray -> At(iPlane);
 
-        //cvs -> Clear();
         cvs -> cd();
         plane -> Draw();
 
         auto axis1 = plane -> GetAxis1();
         auto axis2 = plane -> GetAxis2();
 
-        for (Int_t iBranch = 0; iBranch < fNumSelectedBranches; ++iBranch)
+        auto numPads = plane -> GetNumCPads();
+        for (auto iPad=0; iPad<numPads; ++iPad)
         {
-            TClonesArray *branch = nullptr;
-            if (fNumSelectedBranches != 0) {
-                TString branchName = fSelBranchNames.at(iBranch);
-                branch = fRun -> GetBranchA(branchName);
-            }
-            else
-                branch = fRun -> GetBranchA(iBranch);
+            for (Int_t iBranch = 0; iBranch < fNumSelectedBranches; ++iBranch)
+            {
+                TClonesArray *branch = nullptr;
+                if (fNumSelectedBranches != 0) {
+                    TString branchName = fSelBranchNames.at(iBranch);
+                    branch = fRun -> GetBranchA(branchName);
+                }
+                else
+                    branch = fRun -> GetBranchA(iBranch);
 
-            TObject *objSample = nullptr;
+                TObject *objSample = nullptr;
 
-            Int_t numTracklets = branch -> GetEntries();
+                Int_t numTracklets = branch -> GetEntries();
 
-            if (numTracklets != 0) {
-                objSample = branch -> At(0);
-                if (objSample -> InheritsFrom("LKContainer") == false || objSample -> InheritsFrom("LKTracklet") == false) {
+                if (numTracklets != 0) {
+                    objSample = branch -> At(0);
+                    if (objSample -> InheritsFrom("LKContainer") == false || objSample -> InheritsFrom("LKTracklet") == false) {
+                        continue;
+                    }
+                }
+                else {
                     continue;
                 }
-            }
-            else {
-                continue;
-            }
 
-            auto trackletSample = (LKTracklet *) objSample;
-            if (trackletSample -> DoDrawOnDetectorPlane())
-            {
-                for (auto iTracklet = 0; iTracklet < numTracklets; ++iTracklet) {
-                    auto tracklet = (LKTracklet *) branch -> At(iTracklet);
-                    if (!SelectTrack(tracklet))
-                        continue;
+                auto trackletSample = (LKTracklet *) objSample;
+                if (trackletSample -> DoDrawOnDetectorPlane())
+                {
+                    for (auto iTracklet = 0; iTracklet < numTracklets; ++iTracklet) {
+                        auto tracklet = (LKTracklet *) branch -> At(iTracklet);
+                        if (!SelectTrack(tracklet))
+                            continue;
 
-                    tracklet -> TrajectoryOnPlane(axis1,axis2) -> Draw("samel"); // @todo
+                        plane -> GetCPad(iPad);
+                        tracklet -> TrajectoryOnPlane(axis1,axis2) -> Draw("samel"); // @todo
+                    }
                 }
             }
         }
