@@ -268,6 +268,7 @@ TVector3 LKHit::GetCoSquaredMean() const { return fHitArray.GetCoSquaredMean(); 
 
 std::vector<Int_t> *LKHit::GetTrackCandArray() { return &fTrackCandArray; }
 Int_t LKHit::GetNumTrackCands() { return fTrackCandArray.size(); }
+Int_t LKHit::GetTrackCand(Int_t id) { return fTrackCandArray.at(id); }
 void LKHit::AddTrackCand(Int_t id) { fTrackCandArray.push_back(id); }
 
 void LKHit::RemoveTrackCand(Int_t trackID)
@@ -280,6 +281,17 @@ void LKHit::RemoveTrackCand(Int_t trackID)
         }
     }
     fTrackCandArray.push_back(-1);
+}
+
+bool LKHit::FindTrackCand(Int_t trackID)
+{
+    Int_t n = fTrackCandArray.size();
+    for (auto i = 0; i < n; i++) {
+        if (fTrackCandArray[i] == trackID) {
+            return true;
+        }
+    }
+    return false;
 }
 
 #ifdef ACTIVATE_EVE

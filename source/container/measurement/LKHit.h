@@ -103,8 +103,10 @@ class LKHit : public LKWPoint
 
         vector<Int_t> *GetTrackCandArray();
         Int_t GetNumTrackCands();
+        Int_t GetTrackCand(Int_t id);
         void AddTrackCand(Int_t id);
         void RemoveTrackCand(Int_t trackID);
+        bool FindTrackCand(Int_t id);
 
 #ifdef ACTIVATE_EVE
         virtual bool DrawByDefault();
