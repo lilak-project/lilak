@@ -716,6 +716,11 @@ bool LKRun::Init()
 
     Print();
 
+    if (fInitialized) {
+        lk_info << "Initialized!" << endl;
+        return fInitialized;
+    }
+
     return fInitialized;
 }
 
@@ -1051,7 +1056,7 @@ bool LKRun::StartOfRun(Long64_t numEvents)
 
     fNumRunEntries = fEndEventID - fStartEventID + 1;
 
-    //if (fEventCountForMessage==0)
+    if (fEventCountForMessage==0)
     {
         if (fNumRunEntries<fNumPrintMessage)
             fEventCountForMessage = 1;
