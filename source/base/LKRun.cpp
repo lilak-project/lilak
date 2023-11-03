@@ -605,10 +605,10 @@ bool LKRun::Init()
         if (fInputFile -> Get("ParameterContainer") != nullptr) {
             auto par = (LKParameterContainer *) fInputFile -> Get("ParameterContainer");
             AddParameterContainer(par->CloneParameterContainer());
-            //if (!fParAddAfterFirst.IsNull()) {
-            //    AddParameterContainer(fParAddAfterFirst);
-            //    fParAddAfterFirst = "";
-            //}
+            if (!fParAddAfter.IsNull()) {
+                AddParameterContainer(fParAddAfter);
+                fParAddAfter = "";
+            }
             lk_info << "Parameter container found in " << fInputFileName << endl;
         }
         else {

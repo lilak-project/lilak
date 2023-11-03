@@ -98,7 +98,7 @@ class LKRun : public LKTask
         void SetEventCountForMessage(Long64_t val) { fEventCountForMessage = val; }
         void SetNumPrintMessage(Long64_t num) { fNumPrintMessage = num; }
 
-        void AddParAfterFirst(TString fname) { fParAddAfterFirst = fname; }
+        void AddParAfter(TString fname) { fParAddAfter = fname; }
 
         /**
          * Initailize LKRun.
@@ -226,7 +226,7 @@ class LKRun : public LKTask
         TChain *fInputTree = nullptr;
         std::vector<TString> fInputFileNameArray;
 
-        TString fParAddAfterFirst = "";
+        TString fParAddAfter = "";
 
         Int_t fNumFriends = 0;
         TObjArray *fFriendTrees = nullptr;
