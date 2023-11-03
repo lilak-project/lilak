@@ -108,7 +108,7 @@ class LKParameterContainer : public TObjArray
          */
         virtual void Print(Option_t *option = "") const;
         void SaveAs(const char *filename, Option_t *option = "") const;
-        LKParameterContainer *CloneParameterContainer() const;
+        LKParameterContainer *CloneParameterContainer(const char* name="") const;
 
         void Recompile();
 

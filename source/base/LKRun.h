@@ -284,7 +284,6 @@ class LKRun : public LKTask
         LKParameterContainer *fG4ProcessTable = nullptr; ///< List of Geant4 physics process
         LKParameterContainer *fG4SDTable = nullptr;      ///< List of Geant4 sensitive detectors
         LKParameterContainer *fG4VolumeTable = nullptr;
-
         LKDetectorSystem *fDetectorSystem = nullptr;
 
         std::vector<TString> fListOfGitBranches;

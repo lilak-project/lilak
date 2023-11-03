@@ -597,9 +597,10 @@ void LKParameterContainer::Print(Option_t *option) const
         fileOut << endl;
 }
 
-LKParameterContainer *LKParameterContainer::CloneParameterContainer() const
+LKParameterContainer *LKParameterContainer::CloneParameterContainer(const char* name) const
 {
     LKParameterContainer *new_collection = new LKParameterContainer();
+    new_collection -> SetName("ParameterContainer_clone");
 
     TIter iterator(this);
     LKParameter *parameter;
