@@ -45,9 +45,6 @@ void LKHelixTrack::Clear(Option_t *option)
 
     fIsPositiveChargeParticle = true;
 
-    fHitArray.Clear();
-    fHitIDArray.clear();
-
     fdEdxArray.clear();
 }
 
@@ -269,36 +266,6 @@ bool LKHelixTrack::FitPlane()
     return false;
 }
 
-void LKHelixTrack::AddHit(LKHit *hit)
-{
-    fHitArray.AddHit(hit);
-    fHitIDArray.push_back(hit->GetHitID());
-}
-
-void LKHelixTrack::RemoveHit(LKHit *hit)
-{
-    auto id = hit -> GetHitID();
-    fHitArray.RemoveHit(hit);
-    auto numHits = fHitIDArray.size();
-    for (auto iHit=0; iHit<numHits; ++iHit) {
-        if (fHitIDArray[iHit]==id) {
-            fHitIDArray.erase(fHitIDArray.begin()+iHit);
-            break;
-        }
-    }
-}
-
-/*
-   void LKHelixTrack::DeleteHits()
-   {
-   auto hits = fHitArray.GetHitArray();
-   for (auto hit : *hits)
-   delete hit;
-
-   fHitArray.Clear();
-   }
- */
-
 void LKHelixTrack::SortHits(bool increasing)
 {
     TIter next(&fHitArray);
@@ -453,14 +420,6 @@ void LKHelixTrack::DetermineParticleCharge(TVector3 vertex)
 }
 
 
-/*
- * HITS
- */
-Int_t LKHelixTrack::GetNumHits() const { return fHitIDArray.size(); }
-LKHit *LKHelixTrack::GetHit(Int_t idx) const { return fHitArray.GetHit(idx); }
-Int_t LKHelixTrack::GetHitID(Int_t idx) const { return fHitIDArray[idx]; }
-LKHitArray *LKHelixTrack::GetHitArray() { return &fHitArray; }
-std::vector<Int_t> *LKHelixTrack::GetHitIDArray() { return &fHitIDArray; }
 
 /*
  * dE/dx

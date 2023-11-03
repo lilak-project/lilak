@@ -20,6 +20,7 @@ class LKTracklet : public LKContainer
         Int_t fPDG = -1;
 
         LKHitArray fHitArray; //!
+        vector<Int_t> fHitIDArray;
 
         TGraphErrors *fTrajectoryOnPlane = nullptr; //!
 
@@ -41,7 +42,11 @@ class LKTracklet : public LKContainer
         Int_t GetParentID() const { return fParentID; }
         Int_t GetPDG() const { return fPDG; }
 
+        Int_t GetNumHits() const { return fHitIDArray.size(); }
+        LKHit *GetHit(Int_t idx) const { return fHitArray.GetHit(idx); }
+        Int_t GetHitID(Int_t idx) const { return fHitIDArray[idx]; }
         LKHitArray *GetHitArray() { return &fHitArray; }
+        std::vector<Int_t> *GetHitIDArray() { return &fHitIDArray; }
 
         virtual void AddHit(LKHit *hit);
         virtual void RemoveHit(LKHit *hit);

@@ -96,18 +96,28 @@ void LKTracklet::Clear(Option_t *option)
     fParentID = -1;
     fPDG = -1;
 
-    fHitArray.Clear();  //!
+    fHitArray.Clear();
+    fHitIDArray.clear();
 }
 
 void LKTracklet::AddHit(LKHit *hit)
 {
     hit -> SetTrackID(fTrackID);
     fHitArray.AddHit(hit);
+    fHitIDArray.push_back(hit->GetHitID());
 }
 
 void LKTracklet::RemoveHit(LKHit *hit)
 {
     fHitArray.RemoveHit(hit);
+    auto id = hit -> GetHitID();
+    auto numHits = fHitIDArray.size();
+    for (auto iHit=0; iHit<numHits; ++iHit) {
+        if (fHitIDArray[iHit]==id) {
+            fHitIDArray.erase(fHitIDArray.begin()+iHit);
+            break;
+        }
+    }
 }
 
 bool LKTracklet::DrawByDefault() { return true; }

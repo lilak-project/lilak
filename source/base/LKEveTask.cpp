@@ -227,6 +227,7 @@ void LKEveTask::DrawEve3D()
                 100,pos1.At(LKVector3::kZ),pos2.At(LKVector3::kZ),
                 100,pos1.At(LKVector3::kX),pos2.At(LKVector3::kX),
                 100,pos1.At(LKVector3::kY),pos2.At(LKVector3::kY));
+        fFrame3D -> SetStats(0);
         fGraphTrack3DArray = new TClonesArray("TGraph2DErrors",100);
         fGraphHit3DArray = new TClonesArray("TGraph2DErrors",100);
     }

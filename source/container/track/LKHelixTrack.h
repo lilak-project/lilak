@@ -54,7 +54,7 @@ class LKHelixTrack : public LKTracklet, public LKGeoHelix
         std::vector<Double_t> fdEdxArray;  ///< dE/dx array;
 
         //LKHitArray fHitArray; //!
-        vector<Int_t> fHitIDArray;
+        //vector<Int_t> fHitIDArray;
 
     public:
         virtual void Clear(Option_t *option = "");
@@ -73,9 +73,6 @@ class LKHelixTrack : public LKTracklet, public LKGeoHelix
         virtual bool Fit();
         virtual bool FitPlane();
 
-        void AddHit(LKHit *hit);
-        void RemoveHit(LKHit *hit);
-        //void DeleteHits();
         void SortHits(bool increasing = true);
         void SortHitsByTimeOrder();
 
@@ -152,8 +149,8 @@ class LKHelixTrack : public LKTracklet, public LKGeoHelix
         Int_t GetNumHits() const;
         LKHit *GetHit(Int_t idx) const;
         Int_t GetHitID(Int_t idx) const;
-        LKHitArray *GetHitArray();
-        std::vector<Int_t> *GetHitIDArray();
+        //LKHitArray *GetHitArray();
+        //std::vector<Int_t> *GetHitIDArray();
 
         /*
          */
