@@ -108,7 +108,7 @@ TCanvas *LKWindowManager::Canvas(const char *name, Int_t mode, Double_t value1, 
     if (mode==kFull)       return CanvasFull(name,name);
     if (mode==kFullRatio)  return CanvasFullRatio(name,name,value1);
     if (mode==kSquare)     return CanvasSquare(name,name);
-    if (mode==kFullSquare) return CanvasFullSquare(name,name);
+    if (mode==kFullSquare) return CanvasFullSquare(name,name,value1);
     if (mode==kResize)     return CanvasResize(name,name,value1,value2);
     return CanvasDefault(name,name);
 }
@@ -133,10 +133,12 @@ TCanvas *LKWindowManager::CanvasSquare(const char* name, const char* title)
     return cvs;
 }
 
-TCanvas *LKWindowManager::CanvasFullSquare(const char* name, const char* title)
+TCanvas *LKWindowManager::CanvasFullSquare(const char* name, const char* title, Double_t ratio)
 {
-    Int_t width  = fWCurrentDisplay;
-    Int_t height = fHCurrentDisplay;
+    if (ratio>1 && ratio<=100) ratio = ratio * 0.01;
+    else if (ratio<=0 || ratio>1) { e_warning << "ratio should be between 0 and 1! (" << ratio << "). ratio is corrected to 1." << endl; ratio = 1; }
+    Int_t width  = ratio*fWCurrentDisplay;
+    Int_t height = ratio*fHCurrentDisplay;
     if (width<height) height = width;
     else width = height;
     fXCurrentCanvas = fXCurrentCanvas + fWSpacing;
@@ -155,7 +157,7 @@ TCanvas *LKWindowManager::CanvasFull(const char* name, const char* title)
     return cvs;
 }
 
-TCanvas *LKWindowManager::CanvasFullRatio(const char* name, const char* title, Int_t ratio)
+TCanvas *LKWindowManager::CanvasFullRatio(const char* name, const char* title, Double_t ratio)
 {
     if (ratio>1 && ratio<=100) ratio = ratio * 0.01;
     else if (ratio<=0 || ratio>1) { e_warning << "ratio should be between 0 and 1! (" << ratio << "). ratio is corrected to 1." << endl; ratio = 1; }

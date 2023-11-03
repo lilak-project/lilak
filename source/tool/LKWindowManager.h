@@ -50,9 +50,9 @@ class LKWindowManager : public TObject
         TCanvas *Canvas          (const char *name, Int_t mode=0, Double_t value1=-1, Double_t value2=-1);
         TCanvas *CanvasDefault   (const char* name, const char* title);
         TCanvas *CanvasFull      (const char* name, const char* title);
-        TCanvas *CanvasFullRatio (const char* name, const char* title, Int_t ratio);
+        TCanvas *CanvasFullRatio (const char* name, const char* title, Double_t ratio);
         TCanvas *CanvasSquare    (const char* name, const char* title);
-        TCanvas *CanvasFullSquare(const char* name, const char* title);
+        TCanvas *CanvasFullSquare(const char* name, const char* title, Double_t ratio);
         TCanvas *CanvasResize    (const char* name, const char* title, Int_t width0, Int_t height0);
 
         const Int_t kDefault    = 0;

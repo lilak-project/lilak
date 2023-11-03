@@ -216,7 +216,7 @@ void LKEveTask::DrawEve3D()
     gEve -> Redraw3D();
 #else
     if (fCanvas3D==nullptr) {
-        fCanvas3D = LKWindowManager::GetWindowManager() -> CanvasFullSquare("LKEveCanvas3D","LKEveCanvas3D");
+        fCanvas3D = LKWindowManager::GetWindowManager() -> CanvasFullSquare("LKEveCanvas3D","LKEveCanvas3D",0.6);
         auto detector = fDetectorSystem -> GetDetector(0);
         double x1, y1, z1, x2, y2, z2;
         auto success = detector -> GetEffectiveDimension(x1, y1, z1, x2, y2, z2);
@@ -308,97 +308,7 @@ void LKEveTask::DrawEve3D()
                 graphHit3D -> Draw("same p error");
             }
         }
-
-        /*
-        auto eveEvent = (TEveEventManager *) fEveEventManagerArray -> FindObject(branchName);
-        if (eveEvent==nullptr) {
-            eveEvent = new TEveEventManager(branchName);
-            fEveEventManagerArray -> Add(eveEvent);
-            gEve -> AddEvent(eveEvent);
-        }
-
-        int numSelected = 0;
-
-        Int_t nObjects = branchA -> GetEntries();
-        if (isTracklet)
-        {
-            for (Int_t iObject = 0; iObject < nObjects; ++iObject) {
-                LKTracklet *tracklet = (LKTracklet *) branchA -> At(iObject);
-
-                 j/if (removePointTrack)
-                 //if (tracklet -> InheritsFrom("LKMCTrack"))
-                 //if (((LKMCTrack *) tracklet) -> GetNumVertices() < 2)
-                 //continue;
-
-                if (!SelectTrack(tracklet))
-                    continue;
-
-                auto eveLine = (TEveLine *) tracklet -> CreateEveElement();
-                tracklet -> SetEveElement(eveLine, fEveScale);
-                SetEveLineAtt(eveLine,branchName);
-                eveEvent -> AddElement(eveLine);
-                numSelected++;
-            }
-        }
-        else if (eveObj -> IsEveSet())
-        {
-            auto eveSet = (TEvePointSet *) eveObj -> CreateEveElement();
-            TString name = Form("%s_%s",eveSet->GetElementName(),branchName.Data());
-            eveSet -> SetElementName(name);
-            for (Int_t iObject = 0; iObject < nObjects; ++iObject) {
-                eveObj = (LKContainer *) branchA -> At(iObject);
-
-                if (isHit)  {
-                    LKHit *hit = (LKHit *) branchA -> At(iObject);
-                    hit -> SetSortValue(1);
-
-                    if (!SelectHit(hit))
-                        continue;
-                }
-
-                eveObj -> AddToEveSet(eveSet, fEveScale);
-                numSelected++;
-            }
-            SetEveMarkerAtt(eveSet, branchName);
-            eveEvent -> AddElement(eveSet);
-        }
-        else {
-            for (Int_t iObject = 0; iObject < nObjects; ++iObject) {
-                eveObj = (LKContainer *) branchA -> At(iObject);
-                auto eveElement = eveObj -> CreateEveElement();
-                eveObj -> SetEveElement(eveElement, fEveScale);
-                TString name = Form("%s_%d",eveElement -> GetElementName(),iObject);
-                eveElement -> SetElementName(name);
-                eveEvent -> AddElement(eveElement);
-                numSelected++;
-            }
-        }
-        */
-
-        //lk_info << "Drawing " << branchName << " [" << branchA -> At(0) -> ClassName() << "] " << numSelected << "(" << branchA -> GetEntries() << ")" << endl;
     }
-
-    /*
-    if (fGraphZXY[0]->GetN()>0) fGraphZXY[0] -> Draw("same p error");
-    if (fGraphZXY[1]->GetN()>0) fGraphZXY[1] -> Draw("same p error");
-    if (fGraphZXY[2]->GetN()>0) fGraphZXY[2] -> Draw("same p error");
-    if (fGraphZXY[3]->GetN()>0) fGraphZXY[3] -> Draw("same p error");
-    fCvsAll -> Modified();
-    fCvsAll -> Update();
-    if (existLTrack) {
-        auto graphFitL = lineL.GetGraphZXY();
-        graphFitL -> SetMarkerColor(kRed);
-        graphFitL -> SetLineColor(kRed);
-        graphFitL -> Draw("same p0 line");
-    }
-    if (existRTrack) {
-        auto graphFitR = lineR.GetGraphZXY();
-        graphFitR -> SetMarkerColor(kViolet);
-        graphFitR -> SetLineColor(kViolet);
-        graphFitR -> Draw("same p0 line");
-    }
-    */
-
 #endif
 }
 
@@ -522,9 +432,9 @@ void LKEveTask::SetEveLineAtt(TAttLine *el, TString branchName)
         el -> SetLineWidth(width);
         el -> SetLineColor(color);
     }
-    else if (fPar->CheckPar(branchName+"/lineStyle")) el -> SetLineStyle(fPar -> GetParStyle(branchName+"/lineStyle")); 
-    else if (fPar->CheckPar(branchName+"/lineWidth")) el -> SetLineWidth(fPar -> GetParWidth(branchName+"/lineWidth"));
-    else if (fPar->CheckPar(branchName+"/lineColor")) el -> SetLineColor(fPar -> GetParColor(branchName+"/lineColor"));
+    if (fPar->CheckPar(branchName+"/lineStyle")) el -> SetLineStyle(fPar -> GetParStyle(branchName+"/lineStyle")); 
+    if (fPar->CheckPar(branchName+"/lineWidth")) el -> SetLineWidth(fPar -> GetParWidth(branchName+"/lineWidth"));
+    if (fPar->CheckPar(branchName+"/lineColor")) el -> SetLineColor(fPar -> GetParColor(branchName+"/lineColor"));
 }
 
 void LKEveTask::SetEveMarkerAtt(TAttMarker *el, TString branchName)
@@ -537,9 +447,9 @@ void LKEveTask::SetEveMarkerAtt(TAttMarker *el, TString branchName)
         el -> SetMarkerSize(size);
         el -> SetMarkerColor(color);
     }
-    else if (fPar->CheckPar(branchName+"/markerStyle")) el -> SetMarkerStyle(fPar -> GetParStyle(branchName+"/markerStyle"));
-    else if (fPar->CheckPar(branchName+"/markerSize"))  el -> SetMarkerSize (fPar -> GetParSize (branchName+"/markerSize" ));
-    else if (fPar->CheckPar(branchName+"/markerColor")) el -> SetMarkerColor(fPar -> GetParColor(branchName+"/markerColor"));
+    if (fPar->CheckPar(branchName+"/markerStyle")) el -> SetMarkerStyle(fPar -> GetParStyle(branchName+"/markerStyle"));
+    if (fPar->CheckPar(branchName+"/markerSize"))  el -> SetMarkerSize (fPar -> GetParSize (branchName+"/markerSize" ));
+    if (fPar->CheckPar(branchName+"/markerColor")) el -> SetMarkerColor(fPar -> GetParColor(branchName+"/markerColor"));
 }
 
 #ifdef ACTIVATE_EVE
