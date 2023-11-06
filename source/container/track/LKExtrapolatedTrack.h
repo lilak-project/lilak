@@ -36,8 +36,8 @@ class LKExtrapolatedTrack : public LKTracklet
 
         virtual Double_t LengthAt(TVector3) const { return 0.; } // TODO
 
-        virtual TGraph *TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3::Axis axis2, Double_t scale=1);
-        virtual TGraph *TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3::Axis axis2, bool (*fisout)(TVector3 pos), Double_t scale=1);
+        virtual TGraphErrors *TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3::Axis axis2, Double_t scale=1);
+        virtual TGraphErrors *TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3::Axis axis2, bool (*fisout)(TVector3 pos), Double_t scale=1);
 
 
 

@@ -195,10 +195,10 @@ TVector3 LKExtrapolatedTrack::ExtrapolateByLength(Double_t length) const
     return point;
 }
 
-TGraph *LKExtrapolatedTrack::TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3::Axis axis2, Double_t)
+TGraphErrors *LKExtrapolatedTrack::TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3::Axis axis2, Double_t)
 {
     if (fTrajectoryOnPlane == nullptr) {
-        fTrajectoryOnPlane = new TGraph();
+        fTrajectoryOnPlane = new TGraphErrors();
         fTrajectoryOnPlane -> SetLineColor(kRed);
     }
 
@@ -215,10 +215,10 @@ TGraph *LKExtrapolatedTrack::TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3:
     return fTrajectoryOnPlane;
 }
 
-TGraph *LKExtrapolatedTrack::TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3::Axis axis2, bool (*fisout)(TVector3 pos), Double_t)
+TGraphErrors *LKExtrapolatedTrack::TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3::Axis axis2, bool (*fisout)(TVector3 pos), Double_t)
 {
     if (fTrajectoryOnPlane == nullptr) {
-        fTrajectoryOnPlane = new TGraph();
+        fTrajectoryOnPlane = new TGraphErrors();
         fTrajectoryOnPlane -> SetLineColor(kRed);
     }
 

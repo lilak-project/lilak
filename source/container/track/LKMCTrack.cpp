@@ -224,11 +224,11 @@ void LKMCTrack::AddToEveSet(TEveElement *, Double_t)
 }
 #endif
 
-TGraph *LKMCTrack::TrajectoryOnPlane(axis_t axis1, axis_t axis2, bool (*fisout)(TVector3 pos), Double_t scale)
+TGraphErrors *LKMCTrack::TrajectoryOnPlane(axis_t axis1, axis_t axis2, bool (*fisout)(TVector3 pos), Double_t scale)
 {
     if (fTrajectoryOnPlane == nullptr)
     {
-        fTrajectoryOnPlane = new TGraph();
+        fTrajectoryOnPlane = new TGraphErrors();
         fTrajectoryOnPlane -> SetLineColor(kRed);
 
         TString pClass;

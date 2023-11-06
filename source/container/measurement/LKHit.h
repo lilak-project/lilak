@@ -86,6 +86,7 @@ class LKHit : public LKWPoint
         Double_t GetPedestal()   const;
         Double_t GetAlpha()   const;
         TVector3 GetDPosition() const;
+        TVector3 GetPositionError() const;
         Double_t GetDX()      const;
         Double_t GetDY()      const;
         Double_t GetDZ()      const;
@@ -109,9 +110,9 @@ class LKHit : public LKWPoint
         bool FindTrackCand(Int_t id);
         bool PropagateTrackCand();
 
-#ifdef ACTIVATE_EVE
         virtual bool DrawByDefault();
         virtual bool IsEveSet();
+#ifdef ACTIVATE_EVE
         virtual TEveElement *CreateEveElement();
         virtual void SetEveElement(TEveElement *, Double_t scale=1);
         virtual void AddToEveSet(TEveElement *eveSet, Double_t scale=1);

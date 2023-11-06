@@ -1,7 +1,8 @@
 #ifndef LKTRACKLET_HH
 #define LKTRACKLET_HH
 
-#include "TGraph.h"
+#include "TGraphErrors.h"
+#include "TGraph2DErrors.h"
 
 #include "LKContainer.h"
 
@@ -20,7 +21,7 @@ class LKTracklet : public LKContainer
 
         LKHitArray fHitArray; //!
 
-        TGraph *fTrajectoryOnPlane = nullptr; //!
+        TGraphErrors *fTrajectoryOnPlane = nullptr; //!
 
     public:
         LKTracklet() {}
@@ -60,8 +61,8 @@ class LKTracklet : public LKContainer
 
         virtual Double_t LengthAt(TVector3 point) const = 0; ///< Length at POCA from point, where tail=0, head=TrackLength
 
-#ifdef ACTIVATE_EVE
         virtual bool DrawByDefault();
+#ifdef ACTIVATE_EVE
         virtual bool IsEveSet();
         virtual TEveElement *CreateEveElement();
         virtual void SetEveElement(TEveElement *, Double_t scale=1);
@@ -69,9 +70,13 @@ class LKTracklet : public LKContainer
 #endif
 
         virtual bool DoDrawOnDetectorPlane();
-        virtual TGraph *TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3::Axis axis2, bool (*fisout)(TVector3 pos), Double_t scale=1);
-        virtual TGraph *TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3::Axis axis2, Double_t scale=1);
-        virtual TGraph *TrajectoryOnPlane(LKDetectorPlane *plane, Double_t scale=1);
+        virtual TGraphErrors *TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3::Axis axis2, bool (*fisout)(TVector3 pos), Double_t scale=1);
+        virtual TGraphErrors *TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3::Axis axis2, Double_t scale=1);
+        virtual TGraphErrors *TrajectoryOnPlane(LKDetectorPlane *plane, Double_t scale=1);
+        void FillTrajectory(TGraphErrors* graphTrack, LKVector3::Axis axis1, LKVector3::Axis axis2, bool (*fisout)(TVector3 pos));
+        void FillTrajectory(TGraphErrors* graphTrack, LKVector3::Axis axis1, LKVector3::Axis axis2);
+        void FillTrajectory3D(TGraph2DErrors* graphTrack3D, LKVector3::Axis axis1, LKVector3::Axis axis2, LKVector3::Axis axis3, bool (*fisout)(TVector3 pos));
+        void FillTrajectory3D(TGraph2DErrors* graphTrack3D, LKVector3::Axis axis1, LKVector3::Axis axis2, LKVector3::Axis axis3);
         //virtual TGraph *CrossSectionOnPlane(TVector3, TVector3, Double_t) { return (TGraph *) nullptr; }
 
         ClassDef(LKTracklet, 1)

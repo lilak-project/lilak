@@ -249,6 +249,7 @@ Int_t LKHit::GetChannelID() const { return fChannelID; }
 Double_t LKHit::GetPedestal()   const { return fPedestal; }
 Double_t LKHit::GetAlpha()   const { return fAlpha; }
 TVector3 LKHit::GetDPosition() const { return TVector3(fDX,fDY,fDZ); }
+TVector3 LKHit::GetPositionError() const { return TVector3(fDX,fDY,fDZ); }
 Double_t LKHit::GetDX()      const { return fDX; }
 Double_t LKHit::GetDY()      const { return fDY; }
 Double_t LKHit::GetDZ()      const { return fDZ; }
@@ -303,9 +304,9 @@ bool LKHit::PropagateTrackCand()
     return true;
 }
 
-#ifdef ACTIVATE_EVE
 bool LKHit::DrawByDefault() { return true; }
 bool LKHit::IsEveSet() { return true; }
+#ifdef ACTIVATE_EVE
 
 TEveElement *LKHit::CreateEveElement()
 {

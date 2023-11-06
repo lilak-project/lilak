@@ -204,10 +204,11 @@ Double_t LKLinearTrack::LengthAt(TVector3 point) const
 void LKLinearTrack::SetQuality(Double_t val) { fQuality = val; }
 Double_t LKLinearTrack::GetQuality() { return fQuality; }
 
-TGraph *LKLinearTrack::TrajectoryOnPlane(axis_t axis1, axis_t axis2, Double_t)
+/*
+TGraphErrors *LKLinearTrack::TrajectoryOnPlane(axis_t axis1, axis_t axis2, Double_t)
 {
     if (fTrajectoryOnPlane == nullptr) {
-        fTrajectoryOnPlane = new TGraph();
+        fTrajectoryOnPlane = new TGraphErrors();
         fTrajectoryOnPlane -> SetLineColor(kRed);
         fTrajectoryOnPlane -> SetLineWidth(2);
     }
@@ -221,14 +222,15 @@ TGraph *LKLinearTrack::TrajectoryOnPlane(axis_t axis1, axis_t axis2, Double_t)
     return fTrajectoryOnPlane;
 }
 
-TGraph *LKLinearTrack::TrajectoryOnPlane(LKDetectorPlane *plane, Double_t scale)
+TGraphErrors *LKLinearTrack::TrajectoryOnPlane(LKDetectorPlane *plane, Double_t scale)
 {
     return TrajectoryOnPlane(plane->GetAxis1(), plane->GetAxis2(), scale);
 }
+*/
 
-TGraph *LKLinearTrack::CrossSectionOnPlane(axis_t axis1, axis_t axis2, Double_t scale)
+TGraph *LKLinearTrack::ProjectionOnPlane(axis_t axis1, axis_t axis2, Double_t scale)
 {
-    auto graph = new TGraph();
+    auto graph = new TGraphErrors();
 
     LKVector3 posi(fX1,fY1,fZ1);
     LKVector3 posf(fX2,fY2,fZ2);
@@ -250,4 +252,3 @@ TGraph *LKLinearTrack::CrossSectionOnPlane(axis_t axis1, axis_t axis2, Double_t 
 
     return graph;
 }
-

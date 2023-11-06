@@ -110,8 +110,8 @@ void LKTracklet::RemoveHit(LKHit *hit)
     fHitArray.RemoveHit(hit);
 }
 
-#ifdef ACTIVATE_EVE
 bool LKTracklet::DrawByDefault() { return true; }
+#ifdef ACTIVATE_EVE
 bool LKTracklet::IsEveSet() { return false; }
 
 TEveElement *LKTracklet::CreateEveElement()
@@ -154,39 +154,56 @@ bool LKTracklet::DoDrawOnDetectorPlane()
     return true;
 }
 
-TGraph *LKTracklet::TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3::Axis axis2, bool (*fisout)(TVector3 pos), Double_t scale)
+TGraphErrors *LKTracklet::TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3::Axis axis2, bool (*fisout)(TVector3 pos), Double_t scale)
 {
-    if (fTrajectoryOnPlane == nullptr) {
-        fTrajectoryOnPlane = new TGraph();
-        fTrajectoryOnPlane -> SetLineColor(kRed);
-    }
+    if (fTrajectoryOnPlane == nullptr)
+        fTrajectoryOnPlane = new TGraphErrors();
 
     fTrajectoryOnPlane -> Set(0);
-
-    bool isout;
-    for (Double_t r = 0.; r < 100.; r += 0.05) {
-        auto pos = scale * LKVector3(ExtrapolateByRatio(r),LKVector3::kZ);
-        isout = fisout(pos);
-        if (isout)
-            break;
-
-        fTrajectoryOnPlane -> SetPoint(fTrajectoryOnPlane->GetN(), pos.At(axis1), pos.At(axis2));
-    }
+    FillTrajectory(fTrajectoryOnPlane, axis1, axis2, fisout);
 
     fTrajectoryOnPlane -> SetLineColor(kRed);
-    if (isout)
-        fTrajectoryOnPlane -> SetLineColor(kGray+1);
 
     return fTrajectoryOnPlane;
 }
 
-TGraph *LKTracklet::TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3::Axis axis2, Double_t scale)
+TGraphErrors *LKTracklet::TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3::Axis axis2, Double_t scale)
 {
     auto fisout = [](TVector3 v3) { return false; };
     return TrajectoryOnPlane(axis1, axis2, fisout, scale);
 }
 
-TGraph *LKTracklet::TrajectoryOnPlane(LKDetectorPlane *plane, Double_t scale)
+TGraphErrors *LKTracklet::TrajectoryOnPlane(LKDetectorPlane *plane, Double_t scale)
 {
     return TrajectoryOnPlane(plane->GetAxis1(), plane->GetAxis2(), scale);
+}
+
+void LKTracklet::FillTrajectory(TGraphErrors* graphTrack, LKVector3::Axis axis1, LKVector3::Axis axis2, bool (*fisout)(TVector3 pos))
+{
+    for (Double_t r = 0.; r < 1.; r += 0.05) {
+        auto pos = LKVector3(ExtrapolateByRatio(r),LKVector3::kZ);
+        if (fisout(pos)) break;
+        graphTrack -> SetPoint(graphTrack->GetN(), pos.At(axis1), pos.At(axis2));
+    }
+}
+
+void LKTracklet::FillTrajectory(TGraphErrors* graphTrack, LKVector3::Axis axis1, LKVector3::Axis axis2)
+{
+    auto fisout = [](TVector3 v3) { return false; };
+    FillTrajectory(graphTrack, axis1, axis2, fisout);
+}
+
+void LKTracklet::FillTrajectory3D(TGraph2DErrors* graphTrack3D, LKVector3::Axis axis1, LKVector3::Axis axis2, LKVector3::Axis axis3, bool (*fisout)(TVector3 pos))
+{
+    for (Double_t r = 0.; r < 1.; r += 0.05) {
+        auto pos = LKVector3(ExtrapolateByRatio(r),LKVector3::kZ);
+        if (fisout(pos)) break;
+        graphTrack3D -> SetPoint(graphTrack3D->GetN(), pos.At(axis1), pos.At(axis2), pos.At(axis3));
+    }
+}
+
+void LKTracklet::FillTrajectory3D(TGraph2DErrors* graphTrack3D, LKVector3::Axis axis1, LKVector3::Axis axis2, LKVector3::Axis axis3)
+{
+    auto fisout = [](TVector3 v3) { return false; };
+    FillTrajectory3D(graphTrack3D, axis1, axis2, axis3, fisout);
 }
