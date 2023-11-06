@@ -71,8 +71,8 @@ void LKWindowManager::ConfigureDisplay()
 {
     Drawable_t id = gClient->GetRoot()->GetId();
     gVirtualX -> GetWindowSize(id, fXCurrentDisplay, fYCurrentDisplay, fWCurrentDisplay, fHCurrentDisplay);
-    fXCurrentCanvas = fWCurrentDisplay = fDeadFrameSize[0];
-    fYCurrentCanvas = fHCurrentDisplay = fDeadFrameSize[3];
+    fXCurrentCanvas = fWCurrentDisplay - fDeadFrameSize[0];
+    fYCurrentCanvas = fHCurrentDisplay - fDeadFrameSize[3];
     fWCurrentDisplay = fWCurrentDisplay - fDeadFrameSize[0] - fDeadFrameSize[1];
     fHCurrentDisplay = fHCurrentDisplay - fDeadFrameSize[2] - fDeadFrameSize[3];
     fGeneralResizeFactor = fWCurrentDisplay / Double_t(1250);

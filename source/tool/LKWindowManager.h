@@ -40,11 +40,12 @@ class LKWindowManager : public TObject
         void SetHSpacing(UInt_t dhCanvas) { fHSpacing = dhCanvas; }
 
         /**
-         * mode = 0 : default canvas with fWDefault x fHDefault (600 x 450).
-         * mode = 1 : full size canvas that fits in the current display.
-         * mode = 2 : full size canvas, size scaled by value1.
-         * mode = 3 : square canvas.
-         * mode = 4 : resize canvas from given w,h = (value1, value2) to show similar scale in the current display.
+         * mode = 0 (kDefault)    : default canvas with fWDefault x fHDefault (600 x 450).
+         * mode = 1 (kFull)       : full size canvas that fits in the current display.
+         * mode = 2 (kFullRatio)  : full size canvas, size scaled by value1.
+         * mode = 3 (kSquare)     : square canvas.
+         * mode = 4 (kFullSquare) : full size square canvas.
+         * mode = 5 (kResize)     : resize canvas from given w,h = (value1, value2) to show similar scale in the current display.
          */
         TCanvas *Canvas          (const char *name, Int_t mode=0, Double_t value1=-1, Double_t value2=-1);
         TCanvas *CanvasDefault   (const char* name, const char* title);
