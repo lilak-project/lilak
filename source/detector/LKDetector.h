@@ -43,6 +43,8 @@ class LKDetector : public TNamed, public LKGear
 
         LKPulseGenerator *GetPulseGenerator();
 
+        virtual bool GetEffectiveDimension(Double_t &x1, Double_t &y1, Double_t &z1, Double_t &x2, Double_t &y2, Double_t &z2) { return false; }
+
     protected:
         virtual bool BuildGeometry() = 0;
         virtual bool BuildDetectorPlane() = 0;

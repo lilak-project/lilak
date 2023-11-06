@@ -78,8 +78,8 @@ class LKDetectorPlane : public TNamed, public LKGear
         TCanvas *fCanvas = nullptr;
         TH2 *fH2Plane = nullptr;
 
-        axis_t fAxis1 = LKVector3::kX;
-        axis_t fAxis2 = LKVector3::kY;
+        axis_t fAxis1 = LKVector3::kNon;
+        axis_t fAxis2 = LKVector3::kNon;
 
         LKDetector *fDetector = nullptr;
 
