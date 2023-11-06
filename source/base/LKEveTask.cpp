@@ -25,6 +25,7 @@
 #include "LKLogger.h"
 #include "LKRun.h"
 #include "LKEveTask.h"
+#include "LKWindowManager.h"
 
 ClassImp(LKEveTask)
 
@@ -213,6 +214,191 @@ void LKEveTask::DrawEve3D()
     }
 
     gEve -> Redraw3D();
+#else
+    if (fCanvas3D==nullptr) {
+        fCanvas3D = LKWindowManager::GetWindowManager() -> CanvasFullSquare("LKEveCanvas3D","LKEveCanvas3D");
+        auto detector = fDetectorSystem -> GetDetector(0);
+        double x1, y1, z1, x2, y2, z2;
+        auto success = detector -> GetEffectiveDimension(x1, y1, z1, x2, y2, z2);
+        LKVector3 pos1(x1,y1,z1);
+        LKVector3 pos2(x2,y2,z2);
+        //fFrame3D = new TH3D(Form("frame_%s",detector->GetName()),Form("%s;z;x;y",detector->GetName()),100,x1,x2,100,y1,y2,100,z1,z2);
+        fFrame3D = new TH3D(Form("frame_%s",detector->GetName()),Form("%s;z;x;y",detector->GetName()),
+                100,pos1.At(LKVector3::kZ),pos2.At(LKVector3::kZ),
+                100,pos1.At(LKVector3::kX),pos2.At(LKVector3::kX),
+                100,pos1.At(LKVector3::kY),pos2.At(LKVector3::kY));
+        fGraphTrack3DArray = new TClonesArray("TGraph2DErrors",100);
+        fGraphHit3DArray = new TClonesArray("TGraph2DErrors",100);
+    }
+    fCanvas3D -> cd();
+    fFrame3D -> Draw();
+    fGraphTrack3DArray -> Clear("C");
+    fGraphHit3DArray -> Clear("C");
+    int countHitGraphs = 0;
+
+    for (Int_t iBranch = 0; iBranch < fNumSelectedBranches; ++iBranch)
+    {
+        TString branchName = fSelBranchNames.at(iBranch);
+        auto branchA = fRun -> GetBranchA(branchName);
+        if (branchA == nullptr) {
+            lk_error << "No eve-branchA name " << branchName << endl;
+            continue;
+        }
+        Int_t numObjects = branchA -> GetEntries();
+        if (numObjects==0)
+            continue;
+
+        auto objSample = branchA -> At(0);
+        if (objSample -> InheritsFrom("LKContainer") == false)
+            continue;
+
+        bool isTracklet = (objSample -> InheritsFrom("LKTracklet")) ? true : false;
+        bool isHit      = (objSample -> InheritsFrom("LKHit"))      ? true : false;
+
+        LKContainer *eveObj = (LKContainer *) objSample;
+        if (fSelBranchNames.size()==0 || !eveObj->DrawByDefault())
+            continue;
+
+        if (isTracklet)
+        {
+            lk_info << numObjects << " tracks found!" << endl;
+            auto trackletSample = (LKTracklet *) objSample;
+            //if (trackletSample -> DoDrawOnDetectorPlane())
+            {
+                for (auto iTracklet = 0; iTracklet < numObjects; ++iTracklet) {
+                    auto tracklet = (LKTracklet *) branchA -> At(iTracklet);
+                    if (!SelectTrack(tracklet))
+                        continue;
+
+                    auto graphTrack3D = (TGraph2DErrors*) fGraphTrack3DArray -> ConstructedAt(iTracklet);
+                    graphTrack3D -> Clear();
+                    tracklet -> FillTrajectory3D(graphTrack3D,LKVector3::kZ,LKVector3::kX,LKVector3::kY);
+                    SetEveLineAtt(graphTrack3D,branchName);
+                    SetEveMarkerAtt(graphTrack3D,branchName);
+                    graphTrack3D -> Draw("same line");
+                }
+            }
+        }
+        else if (isHit)
+        {
+            lk_info << numObjects << " hits found!" << endl;
+            auto hitSample = (LKHit *) objSample;
+            //if (hitSample -> DoDrawOnDetectorPlane())
+            {
+                auto graphHit3D = (TGraph2DErrors*) fGraphHit3DArray -> ConstructedAt(countHitGraphs++);
+                graphHit3D -> Clear();
+                for (auto iHit=0; iHit<numObjects; ++iHit) {
+                    auto hit = (LKHit *) branchA -> At(iHit);
+                    if (!SelectHit(hit))
+                        continue;
+
+                    //auto graphHit3D = (TGraph2DErrors*) fGraphHit3DArray -> ConstructedAt(iHit);
+                    LKVector3 pos(hit -> GetPosition());
+                    LKVector3 err(hit -> GetPositionError());
+                    graphHit3D -> SetPoint(graphHit3D->GetN(),pos.At(LKVector3::kZ),pos.At(LKVector3::kX),pos.At(LKVector3::kY));
+                    graphHit3D -> SetPointError(graphHit3D->GetN()-1,err.At(LKVector3::kZ),err.At(LKVector3::kX),err.At(LKVector3::kY));
+                    //hit -> FillGraph3D(graphHit3D,LKVector3::kZ,LKVector3::kX,LKVector3::kY);
+                    //graphHit3D -> Draw("same p error");
+                }
+                //graphHit3D -> Draw("same p error");
+                graphHit3D -> SetMarkerStyle(20);
+                graphHit3D -> SetMarkerSize(0.5);
+                SetEveLineAtt(graphHit3D,branchName);
+                SetEveMarkerAtt(graphHit3D,branchName);
+                graphHit3D -> Draw("same p error");
+            }
+        }
+
+        /*
+        auto eveEvent = (TEveEventManager *) fEveEventManagerArray -> FindObject(branchName);
+        if (eveEvent==nullptr) {
+            eveEvent = new TEveEventManager(branchName);
+            fEveEventManagerArray -> Add(eveEvent);
+            gEve -> AddEvent(eveEvent);
+        }
+
+        int numSelected = 0;
+
+        Int_t nObjects = branchA -> GetEntries();
+        if (isTracklet)
+        {
+            for (Int_t iObject = 0; iObject < nObjects; ++iObject) {
+                LKTracklet *tracklet = (LKTracklet *) branchA -> At(iObject);
+
+                 j/if (removePointTrack)
+                 //if (tracklet -> InheritsFrom("LKMCTrack"))
+                 //if (((LKMCTrack *) tracklet) -> GetNumVertices() < 2)
+                 //continue;
+
+                if (!SelectTrack(tracklet))
+                    continue;
+
+                auto eveLine = (TEveLine *) tracklet -> CreateEveElement();
+                tracklet -> SetEveElement(eveLine, fEveScale);
+                SetEveLineAtt(eveLine,branchName);
+                eveEvent -> AddElement(eveLine);
+                numSelected++;
+            }
+        }
+        else if (eveObj -> IsEveSet())
+        {
+            auto eveSet = (TEvePointSet *) eveObj -> CreateEveElement();
+            TString name = Form("%s_%s",eveSet->GetElementName(),branchName.Data());
+            eveSet -> SetElementName(name);
+            for (Int_t iObject = 0; iObject < nObjects; ++iObject) {
+                eveObj = (LKContainer *) branchA -> At(iObject);
+
+                if (isHit)  {
+                    LKHit *hit = (LKHit *) branchA -> At(iObject);
+                    hit -> SetSortValue(1);
+
+                    if (!SelectHit(hit))
+                        continue;
+                }
+
+                eveObj -> AddToEveSet(eveSet, fEveScale);
+                numSelected++;
+            }
+            SetEveMarkerAtt(eveSet, branchName);
+            eveEvent -> AddElement(eveSet);
+        }
+        else {
+            for (Int_t iObject = 0; iObject < nObjects; ++iObject) {
+                eveObj = (LKContainer *) branchA -> At(iObject);
+                auto eveElement = eveObj -> CreateEveElement();
+                eveObj -> SetEveElement(eveElement, fEveScale);
+                TString name = Form("%s_%d",eveElement -> GetElementName(),iObject);
+                eveElement -> SetElementName(name);
+                eveEvent -> AddElement(eveElement);
+                numSelected++;
+            }
+        }
+        */
+
+        //lk_info << "Drawing " << branchName << " [" << branchA -> At(0) -> ClassName() << "] " << numSelected << "(" << branchA -> GetEntries() << ")" << endl;
+    }
+
+    /*
+    if (fGraphZXY[0]->GetN()>0) fGraphZXY[0] -> Draw("same p error");
+    if (fGraphZXY[1]->GetN()>0) fGraphZXY[1] -> Draw("same p error");
+    if (fGraphZXY[2]->GetN()>0) fGraphZXY[2] -> Draw("same p error");
+    if (fGraphZXY[3]->GetN()>0) fGraphZXY[3] -> Draw("same p error");
+    fCvsAll -> Modified();
+    fCvsAll -> Update();
+    if (existLTrack) {
+        auto graphFitL = lineL.GetGraphZXY();
+        graphFitL -> SetMarkerColor(kRed);
+        graphFitL -> SetLineColor(kRed);
+        graphFitL -> Draw("same p0 line");
+    }
+    if (existRTrack) {
+        auto graphFitR = lineR.GetGraphZXY();
+        graphFitR -> SetMarkerColor(kViolet);
+        graphFitR -> SetLineColor(kViolet);
+        graphFitR -> Draw("same p0 line");
+    }
+    */
+
 #endif
 }
 
@@ -231,46 +417,53 @@ void LKEveTask::DrawDetectorPlanes()
 
         auto axis1 = plane -> GetAxis1();
         auto axis2 = plane -> GetAxis2();
+        if (axis1==LKVector3::kNon||axis2==LKVector3::kNon)
+            continue;
 
         auto numPads = plane -> GetNumCPads();
         for (auto iPad=0; iPad<numPads; ++iPad)
         {
             for (Int_t iBranch = 0; iBranch < fNumSelectedBranches; ++iBranch)
             {
-                TClonesArray *branch = nullptr;
+                TClonesArray *branchA = nullptr;
+                TString branchName = "";
                 if (fNumSelectedBranches != 0) {
-                    TString branchName = fSelBranchNames.at(iBranch);
-                    branch = fRun -> GetBranchA(branchName);
-                }
-                else
-                    branch = fRun -> GetBranchA(iBranch);
-
-                TObject *objSample = nullptr;
-
-                Int_t numTracklets = branch -> GetEntries();
-
-                if (numTracklets != 0) {
-                    objSample = branch -> At(0);
-                    if (objSample -> InheritsFrom("LKContainer") == false || objSample -> InheritsFrom("LKTracklet") == false) {
-                        continue;
-                    }
+                    branchName = fSelBranchNames.at(iBranch);
+                    branchA = fRun -> GetBranchA(branchName);
                 }
                 else {
-                    continue;
+                    branchName = fRun -> GetBranchName(iBranch);
+                    branchA = fRun -> GetBranchA(iBranch);
                 }
 
-                auto trackletSample = (LKTracklet *) objSample;
-                if (trackletSample -> DoDrawOnDetectorPlane())
-                {
-                    for (auto iTracklet = 0; iTracklet < numTracklets; ++iTracklet) {
-                        auto tracklet = (LKTracklet *) branch -> At(iTracklet);
-                        if (!SelectTrack(tracklet))
-                            continue;
+                Int_t numObjects = branchA -> GetEntries();
+                if (iPlane==0&&iPad==0) lk_info << "Branch: " << branchName << " " << numObjects << endl;
+                if (numObjects==0)
+                    continue;
 
-                        plane -> GetCPad(iPad);
-                        tracklet -> TrajectoryOnPlane(axis1,axis2) -> Draw("samel"); // @todo
+                TObject *objSample = branchA -> At(0);
+                bool isTracklet = (objSample -> InheritsFrom("LKTracklet")) ? true : false;
+                bool isHit = (objSample -> InheritsFrom("LKHit")) ? true : false;
+                if (!isTracklet && !isHit)
+                    continue;
+
+                if (isTracklet)
+                {
+                    if (iPlane==0&&iPad==0) lk_info << numObjects << " tracks found!" << endl;
+                    auto trackletSample = (LKTracklet *) objSample;
+                    if (trackletSample -> DoDrawOnDetectorPlane())
+                    {
+                        for (auto iTracklet = 0; iTracklet < numObjects; ++iTracklet) {
+                            auto tracklet = (LKTracklet *) branchA -> At(iTracklet);
+                            if (!SelectTrack(tracklet))
+                                continue;
+
+                            plane -> GetCPad(iPad);
+                            tracklet -> TrajectoryOnPlane(axis1,axis2) -> Draw("samel"); // @todo
+                        }
                     }
                 }
+                if (isHit) {;}
             }
         }
     }
@@ -291,7 +484,6 @@ void LKEveTask::ConfigureDetectorPlanes()
     for (Int_t iPlane = 0; iPlane < numPlanes; iPlane++) {
         LKDetectorPlane *plane = fDetectorSystem -> GetDetectorPlane(iPlane);
         TCanvas *cvs = plane -> GetCanvas();
-        //cvs -> AddExec("ex", "LKEveTask::ClickSelectedPlane()");
         fCvsDetectorPlaneArray -> Add(cvs);
     }
 }
@@ -308,6 +500,46 @@ bool LKEveTask::SelectTrack(LKTracklet *tracklet)
     //if (fSelMCIDs.size()!=0)  { isGood=0; for (auto id:fSelMCIDs)  { if (tracklet->GetMCID()==id)     { isGood=1; break; }}} if (!isGood) return false;
     //if (fIgnMCIDs.size()!=0)  { isGood=1; for (auto id:fIgnMCIDs)  { if (tracklet->GetMCID()==id)     { isGood=0; break; }}} if (!isGood) return false;
     return true;
+}
+
+bool LKEveTask::SelectHit(LKHit *hit)
+{
+    bool isGood = 1;
+    if (fSelHitPntIDs.size()!=0) { isGood=0; for (auto id:fSelHitPntIDs) { if (hit->GetTrackID()==id) { isGood=1; break; }}} if (!isGood) { hit->SetSortValue(-1); return false; }
+    if (fIgnHitPntIDs.size()!=0) { isGood=1; for (auto id:fIgnHitPntIDs) { if (hit->GetTrackID()==id) { isGood=0; break; }}} if (!isGood) { hit->SetSortValue(-1); return false; }
+    //if (fSelMCIDs.size()!=0)     { isGood=0; for (auto id:fSelMCIDs)     { if (hit->GetMCID()==id)    { isGood=1; break; }}} if (!isGood) { hit->SetSortValue(-1); return false; }
+    //if (fIgnMCIDs.size()!=0)     { isGood=1; for (auto id:fIgnMCIDs)     { if (hit->GetMCID()==id)    { isGood=0; break; }}} if (!isGood) { hit->SetSortValue(-1); return false; }
+    return true;
+}
+
+void LKEveTask::SetEveLineAtt(TAttLine *el, TString branchName)
+{
+    if (fPar->CheckPar(branchName+"/lineAtt")) {
+        auto style = fPar -> GetParStyle(branchName+"/lineAtt",0);
+        auto color = fPar -> GetParWidth(branchName+"/lineAtt",1);
+        auto width = fPar -> GetParColor(branchName+"/lineAtt",2);
+        el -> SetLineStyle(style);
+        el -> SetLineWidth(width);
+        el -> SetLineColor(color);
+    }
+    else if (fPar->CheckPar(branchName+"/lineStyle")) el -> SetLineStyle(fPar -> GetParStyle(branchName+"/lineStyle")); 
+    else if (fPar->CheckPar(branchName+"/lineWidth")) el -> SetLineWidth(fPar -> GetParWidth(branchName+"/lineWidth"));
+    else if (fPar->CheckPar(branchName+"/lineColor")) el -> SetLineColor(fPar -> GetParColor(branchName+"/lineColor"));
+}
+
+void LKEveTask::SetEveMarkerAtt(TAttMarker *el, TString branchName)
+{
+    if (fPar->CheckPar(branchName+"/markerAtt")) {
+        auto style = fPar -> GetParStyle(branchName+"/markerAtt",0);
+        auto size  = fPar -> GetParSize (branchName+"/markerAtt",1);
+        auto color = fPar -> GetParColor(branchName+"/markerAtt",2);
+        el -> SetMarkerStyle(style);
+        el -> SetMarkerSize(size);
+        el -> SetMarkerColor(color);
+    }
+    else if (fPar->CheckPar(branchName+"/markerStyle")) el -> SetMarkerStyle(fPar -> GetParStyle(branchName+"/markerStyle"));
+    else if (fPar->CheckPar(branchName+"/markerSize"))  el -> SetMarkerSize (fPar -> GetParSize (branchName+"/markerSize" ));
+    else if (fPar->CheckPar(branchName+"/markerColor")) el -> SetMarkerColor(fPar -> GetParColor(branchName+"/markerColor"));
 }
 
 #ifdef ACTIVATE_EVE
@@ -391,46 +623,6 @@ void LKEveTask::ConfigureDisplayWindow()
     gEve -> GetBrowser() -> HideBottomTab();
     gEve -> ElementSelect(gEve -> GetCurrentEvent());
     gEve -> GetWindowManager() -> HideAllEveDecorations();
-}
-
-void LKEveTask::SetEveLineAtt(TEveElement *el, TString branchName)
-{
-    if (fPar->CheckPar(branchName+"/lineAtt")) {
-        auto style = fPar -> GetParStyle(branchName+"/lineAtt",0);
-        auto color = fPar -> GetParWidth(branchName+"/lineAtt",1);
-        auto width = fPar -> GetParColor(branchName+"/lineAtt",2);
-        ((TEveLine *) el) -> SetLineStyle(style);
-        ((TEveLine *) el) -> SetLineWidth(width);
-        ((TEveLine *) el) -> SetLineColor(color);
-    }
-    else if (fPar->CheckPar(branchName+"/lineStyle")) ((TEveLine *) el) -> SetLineStyle(fPar -> GetParStyle(branchName+"/lineStyle")); 
-    else if (fPar->CheckPar(branchName+"/lineWidth")) ((TEveLine *) el) -> SetLineWidth(fPar -> GetParWidth(branchName+"/lineWidth"));
-    else if (fPar->CheckPar(branchName+"/lineColor")) ((TEveLine *) el) -> SetLineColor(fPar -> GetParColor(branchName+"/lineColor"));
-}
-
-void LKEveTask::SetEveMarkerAtt(TEveElement *el, TString branchName)
-{
-    if (fPar->CheckPar(branchName+"/markerAtt")) {
-        auto style = fPar -> GetParStyle(branchName+"/markerAtt",0);
-        auto size  = fPar -> GetParSize (branchName+"/markerAtt",1);
-        auto color = fPar -> GetParColor(branchName+"/markerAtt",2);
-        ((TEvePointSet *) el) -> SetMarkerStyle(style);
-        ((TEvePointSet *) el) -> SetMarkerSize(size);
-        ((TEvePointSet *) el) -> SetMarkerColor(color);
-    }
-    else if (fPar->CheckPar(branchName+"/markerStyle")) ((TEvePointSet *) el) -> SetMarkerStyle(fPar -> GetParStyle(branchName+"/markerStyle"));
-    else if (fPar->CheckPar(branchName+"/markerSize"))  ((TEvePointSet *) el) -> SetMarkerSize (fPar -> GetParSize (branchName+"/markerSize" ));
-    else if (fPar->CheckPar(branchName+"/markerColor")) ((TEvePointSet *) el) -> SetMarkerColor(fPar -> GetParColor(branchName+"/markerColor"));
-}
-
-bool LKEveTask::SelectHit(LKHit *hit)
-{
-    bool isGood = 1;
-    if (fSelHitPntIDs.size()!=0) { isGood=0; for (auto id:fSelHitPntIDs) { if (hit->GetTrackID()==id) { isGood=1; break; }}} if (!isGood) { hit->SetSortValue(-1); return false; }
-    if (fIgnHitPntIDs.size()!=0) { isGood=1; for (auto id:fIgnHitPntIDs) { if (hit->GetTrackID()==id) { isGood=0; break; }}} if (!isGood) { hit->SetSortValue(-1); return false; }
-    //if (fSelMCIDs.size()!=0)     { isGood=0; for (auto id:fSelMCIDs)     { if (hit->GetMCID()==id)    { isGood=1; break; }}} if (!isGood) { hit->SetSortValue(-1); return false; }
-    //if (fIgnMCIDs.size()!=0)     { isGood=1; for (auto id:fIgnMCIDs)     { if (hit->GetMCID()==id)    { isGood=0; break; }}} if (!isGood) { hit->SetSortValue(-1); return false; }
-    return true;
 }
 
 void LKEveTask::AddEveElementToEvent(LKContainer *eveObj, bool permanent)

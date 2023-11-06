@@ -3,6 +3,8 @@
 
 #ifdef ACTIVATE_EVE
 #include "TEveEventManager.h"
+#else
+#include "TH3D.h"
 #endif
 
 #include "LKTask.h"
@@ -28,17 +30,16 @@ class LKEveTask : public LKTask
         void DrawPadByPosition(Double_t x, Double_t y);
 
         bool SelectTrack(LKTracklet *track);
+        bool SelectHit(LKHit *hit);
 
 #ifdef ACTIVATE_EVE
         void ConfigureDisplayWindow();
-
-        void SetEveLineAtt(TEveElement *el, TString branchName);
-        void SetEveMarkerAtt(TEveElement *el, TString branchName);
-        bool SelectHit(LKHit *hit);
-
         void AddEveElementToEvent(LKContainer *eveObj, bool permanent = true);
         void AddEveElementToEvent(TEveElement *element, bool permanent = true);
 #endif
+        void SetEveLineAtt(TAttLine *el, TString branchName);
+        void SetEveMarkerAtt(TAttMarker *el, TString branchName);
+        void SetGraphAtt(TGraph *graph, TString branchName);
 
     private:
         vector<Int_t> fSelTrkIDs;
@@ -65,6 +66,11 @@ class LKEveTask : public LKTask
         TEveEventManager *fEveEventManager = nullptr;
         std::vector<TEveElement *> fEveElementList;
         std::vector<TEveElement *> fPermanentEveElementList;
+#else
+        TCanvas* fCanvas3D = nullptr;
+        TH3D* fFrame3D = nullptr;
+        TClonesArray *fGraphTrack3DArray = nullptr;
+        TClonesArray *fGraphHit3DArray = nullptr;
 #endif
 
         Double_t fEveScale = 1;
