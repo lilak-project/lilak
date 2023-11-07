@@ -273,6 +273,7 @@ void LKEveTask::DrawEve3D()
                     auto graphTrack3D = (TGraph2DErrors*) fGraphTrack3DArray -> ConstructedAt(iTracklet);
                     graphTrack3D -> Clear();
                     tracklet -> FillTrajectory3D(graphTrack3D,LKVector3::kZ,LKVector3::kX,LKVector3::kY);
+                    graphTrack3D -> SetLineColor(kRed);
                     SetEveLineAtt(graphTrack3D,branchName);
                     SetEveMarkerAtt(graphTrack3D,branchName);
                     graphTrack3D -> Draw("same line");

@@ -254,6 +254,8 @@ Int_t LKParameterContainer::AddFile(TString parName, TString fileName)
         SetLineComment(Form("%s %d parameters were added",parName.Data(),countParameters));
     }
 
+    Recompile();
+
     return countParameters;
 }
 
@@ -292,6 +294,8 @@ Int_t LKParameterContainer::AddParameterContainer(LKParameterContainer *parc)
         this -> Remove(parameter_parc);
         fNumInputFiles--;
     }
+
+    Recompile();
 
     return countParameters;
 }

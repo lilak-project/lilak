@@ -39,6 +39,9 @@ class LKWindowManager : public TObject
         void SetWSpacing(UInt_t dwCanvas) { fWSpacing = dwCanvas; }
         void SetHSpacing(UInt_t dhCanvas) { fHSpacing = dhCanvas; }
 
+
+        void UpdateNextCanvasPosition();
+
         /**
          * mode = 0 (kDefault)    : default canvas with fWDefault x fHDefault (600 x 450).
          * mode = 1 (kFull)       : full size canvas that fits in the current display.
