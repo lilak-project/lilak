@@ -34,6 +34,8 @@ class LKTracklet : public LKContainer
 
         //virtual void PropagateMC();
 
+        virtual void ClearHits();
+
         void SetTrackID(Int_t val) { fTrackID = val; }
         void SetParentID(Int_t val) { fParentID = val; }
         void SetPDG(Int_t val) { fPDG = val; }
@@ -50,6 +52,8 @@ class LKTracklet : public LKContainer
 
         virtual void AddHit(LKHit *hit);
         virtual void RemoveHit(LKHit *hit);
+
+        bool IsHoldingHits();
 
         virtual bool Fit() { return true; }
 

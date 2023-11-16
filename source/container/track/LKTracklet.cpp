@@ -100,6 +100,13 @@ void LKTracklet::Clear(Option_t *option)
     fHitIDArray.clear();
 }
 
+
+void LKTracklet::ClearHits()
+{
+    fHitArray.Clear();
+    fHitIDArray.clear();
+}
+
 void LKTracklet::AddHit(LKHit *hit)
 {
     hit -> SetTrackID(fTrackID);
@@ -118,6 +125,15 @@ void LKTracklet::RemoveHit(LKHit *hit)
             break;
         }
     }
+}
+
+bool LKTracklet::IsHoldingHits()
+{
+    auto numHits = fHitArray.GetNumHits();
+    auto numHitIDs = fHitIDArray.size();
+    if (numHits==numHitIDs)
+        return true;
+    return false;
 }
 
 bool LKTracklet::DrawByDefault() { return true; }

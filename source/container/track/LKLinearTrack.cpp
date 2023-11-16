@@ -116,10 +116,18 @@ void LKLinearTrack::Print(Option_t *option) const
 {
     TString opts = TString(option);
 
-    //e_info << "(" << setw(12) << fX1 << "," << setw(12) << fY1 << "," << setw(12) << fZ1 << ") -> (" 
-    //               << setw(12) << fX2 << "," << setw(12) << fY2 << "," << setw(12) << fZ2 << ")" << endl;
-    e_info << "(" << fX1 << ", " << fY1 << ", " << fZ1 << ") -> (" 
-                   << fX2 << ", " << fY2 << ", " << fZ2 << ")" << endl;
+    auto numHits = fHitArray.GetNumHits();
+    auto numHitIDs = fHitIDArray.size();
+    TString hitStatus = "";
+    if (numHitIDs>0) {
+        if (numHits==numHitIDs) hitStatus = " (holding hits)";
+        else if (numHits<numHitIDs) hitStatus = " (just hit-ids)";
+        else hitStatus = " (?)";
+    }
+    e_info << "Track-" << fTrackID << " : "
+           << "(" << fX1 << ", " << fY1 << ", " << fZ1 << ") -> ("
+                  << fX2 << ", " << fY2 << ", " << fZ2 << "), "
+           << GetNumHits() << " hits" << hitStatus << endl;
 }
 
 bool LKLinearTrack::Fit()
