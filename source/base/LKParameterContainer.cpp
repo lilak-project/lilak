@@ -192,11 +192,13 @@ Int_t LKParameterContainer::AddFile(TString parName, TString fileName)
     else
     {
         fileNameFull = TString(gSystem -> Getenv("PWD")) + "/" + fileName;
-        if (!TString(gSystem -> Which(".", fileNameFull.Data())).IsNull())
+        if (!TString(gSystem -> Which(".", fileNameFull.Data())).IsNull()) {
             existFile = true;
+        }
         else
         {
-            fileNameFull = TString(gSystem -> Getenv("NEST_PATH")) + "/input/" + fileName;
+            //fileNameFull = TString(gSystem -> Getenv("LILAK_PATH")) + "/input/" + fileName;
+            fileNameFull = TString(LILAK_PATH) + "/input/" + fileName;
             if (!TString(gSystem -> Which(".", fileNameFull.Data())).IsNull())
                 existFile = true;
         }
@@ -604,7 +606,7 @@ void LKParameterContainer::Print(Option_t *option) const
 LKParameterContainer *LKParameterContainer::CloneParameterContainer(const char* name) const
 {
     LKParameterContainer *new_collection = new LKParameterContainer();
-    new_collection -> SetName("ParameterContainer_clone");
+    new_collection -> SetName("ParameterContainer_Clone");
 
     TIter iterator(this);
     LKParameter *parameter;

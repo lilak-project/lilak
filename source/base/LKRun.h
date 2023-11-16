@@ -55,7 +55,7 @@ class LKRun : public LKTask
         virtual void Print(Option_t *option="all") const;
         virtual void Add(TTask *task);
 
-        void PrintEvent(Long64_t entry);
+        void PrintEvent(Long64_t entry=-1);
 
         /// Run name/id
         /// This is equivalent to setting parameter
@@ -119,9 +119,9 @@ class LKRun : public LKTask
          * ex) dataArray = new TClonesArray("TDataClass",1000); // 1000, for example should be around expected maximum number of "data"
          * If persistent is true, branch will write it's data to output tree.
          * If persistent is false, branch will not be written. However the data is accessible during the run
-         * One can se persistency using the parameter [branchName]/persistency
+         * One can set persistency using the parameter [branchName]/persistency
          */
-        bool RegisterBranch(TString name, TObject *obj, bool persistent=true);
+        //bool RegisterBranch(TString name, TObject *obj, bool persistent=true);
 
         /**
          * Register obj and write directly to ouput file
@@ -130,13 +130,17 @@ class LKRun : public LKTask
 
         /**
          * Create, register and return TClonesArray object.
+         * TClonesArray object will not be registered if same name already exist in the branch list and return fail.
+         * If persistent is true, branch will write it's data to output tree.
+         * If persistent is false, branch will not be written. However the data is accessible during the run
+         * One can set persistency using the parameter [branchName]/persistency
          */
         TClonesArray* RegisterBranchA(TString name, const char* className, Int_t size=100, bool persistent=true);
 
         TString GetBranchName(int idx) const;
-        TObject *GetBranch(TString name); ///< Get branch in TObject by name.
-        TObject *GetBranch(int idx);
-        TObject *KeepBranch(TString name);
+        //TObject *GetBranch(TString name); ///< Get branch in TObject by name.
+        //TObject *GetBranch(int idx);
+        //TObject *KeepBranch(TString name);
 
         TClonesArray *GetBranchA(TString name); ///< Get branch in TClonesArray by name. Return nullptr if branch is not inherited from TClonesArray
         TClonesArray *GetBranchA(int idx);
@@ -246,9 +250,9 @@ class LKRun : public LKTask
         TObjArray *fInputTreeBranchArray = nullptr;
 
         Int_t fCountBranches = 0;
-        TObject **fBranchPtr;
+        TClonesArray **fBranchPtr;
         std::vector<TString> fBranchNames;
-        std::map<TString, TObject*> fBranchPtrMap;
+        std::map<TString, TClonesArray*> fBranchPtrMap;
 
         Int_t fCountRunObjects = 0;
         TObject **fRunObjectPtr;
@@ -264,6 +268,7 @@ class LKRun : public LKTask
         Long64_t fPrevSelEventID = 0;
         Long64_t fCurrSelEventID = 0;
         TEntryList *fSelEntryList = nullptr;
+        TString fSelectionString;
         Long64_t fNumSelEntries;
 
         //std::vector<const char *> fEventMessage;
