@@ -1,6 +1,8 @@
 #ifndef LKPARAMETERCONTAINER
 #define LKPARAMETERCONTAINER
 
+//#define DEBUG_ADDPAR
+
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -26,17 +28,22 @@ typedef LKVector3::Axis axis_t;
 using namespace std;
 
 /**
- * # LKParameterContainer is a list of parameters([header][name] [value] [comment])
+ * ## LKParameterContainer
+ *  LKParameterContainer is a list of parameters defined by LKParameter
+ *  The key features of LKParameter are [group], [name], [value], [comment].
+ *  When parameter is defined from text file, line should have a form : [header] [name] [value] [comment]
  *
  * ## [comment]
- *  - Comments should start with "#". Lines starting with "#" are ignored.
+ *  - Comments should start with "#". Lines starting with "#" are defined as hidden line comment.
  *
  * ## [header]
+ *  [header] defines the characteristic of line.
  *  - < : Input parameter file. The parameter-value will be given as anohter input parameter file.
  *  - * : Temporary parameter. May be used when user want to define parameter but do not want to transfer parameter from input file to output file through LKRun. ex) *name value
  *  - @ : Conditional parameter. May be used when user wants to define parameter, only when group name is defined as parameter-name or parameter-value, ex) @group/name value
  *  - & : Multiple parameter. May be defined many times. Can be grouped later using CreateGroupContainer() method.
  *  - ! : Overwrite parameter. Overwrite parameter if this header is used
+ *  - [tab] : See [group] section below.
  *
  * ## [name] and group
  *  - [name] should not contain empty spaces.
@@ -49,18 +56,51 @@ using namespace std;
  *  - [value] can reference other parameters values using {...}. ex) {[name]}, {[name][1]}.
  *  - [value] can reference environment variable using e{...}. ex) e{ROOTSYS}, e{HOME}, e{LILAK_PATH}
  *
- * ## exmpale parameter file
- *  <<           /file/to/add.par
- *  size         100                       # this is comment
+ * ## Folloing symbols should not be included in name / value
+ *   - name  : < @ & ! = { } / *
+ *   - value : { } =
+ *
+ * ## [group]
+ *   - If a [name] ends with '/' and do not have [value], it will define [group].
+ *   - To define parameter under [group], parameter should have [tab], with size of [tab] larger than the [tab] of line where group was defined.
+ *   - Size of [tab] should not be different under same group.
+ *   - Another [group] can be defined under [group] definition
+ *   - Final name of the parameter will have [group]/[name]
+ *
+ *  - < : Input parameter file. The parameter-value will be given as anohter input parameter file.
+ *  - * : Temporary parameter. May be used when user want to define parameter but do not want to transfer parameter from input file to output file through LKRun. ex) *name value
+ *  - @ : Conditional parameter. May be used when user wants to define parameter, only when group name is defined as parameter-name or parameter-value, ex) @group/name value
+ *  - & : Multiple parameter. May be defined many times. Can be grouped later using CreateGroupContainer() method.
+ *  - ! : Overwrite parameter. Overwrite parameter if this header is used
+ *
+ * ## example parameter file
+ * @code{.mac}
+ *  # example parameter file
+ *
+ *  <input_file  path/file/to/add.par
+ *  *LKRun/RunName  lilak 1 sim   # this parameter will last only within the first lilak output file
+ *
+ *  using       option1
+ *  @option1/par  value1  # parameter "par" will be set as "value1" because it was defined previously
+ *  @option2/par  value2  # parameter "par" will not be set 
+ *  @option3/par  value3  # parameter "par" will not be set
+ *
+ *  title        common parameter definitions
  *  dimension    50 60 70
- *  title        this is title 5
- *  length       {dimension[2]}+10
- *  color        kRed+1
- *  using        group1
- *  @group1/par  value1  # this parameter will be set because it was defined previously
- *  @group2/par  value2  # this parameter will not be set
- *  @group3/par  value3  # this parameter will not be set
- *  *LKRun/Tag   test    # this parameter will last only within the first file that parameter was set.
+ *  length       {dimension[2]}+30  # parameter value will be evaluated to 70+30 which is 100
+ *  color        kRed+1  # parameter value will be evaluated to 633 when GetParColor is called.
+ *
+ *  persistency/  # group
+ *      hit      false   # this parameter will be defined as "persistency/hit false"
+ *      track    true    # this parameter will be defined as "persistency/track true"
+ *
+ *  !color       kBlue+3 # parameter value will overwrite above parameter "color"
+ *
+ *  # sometimes user want to define parameter with same name for some reason...
+ *  &SameName   1
+ *  &SameName   2
+ *  &SameName   3
+ * @endcode
  *
  * ## Get parameter
  *
@@ -108,7 +148,7 @@ class LKParameterContainer : public TObjArray
          */
         virtual void Print(Option_t *option = "") const;
         void SaveAs(const char *filename, Option_t *option = "") const;
-        LKParameterContainer *CloneParameterContainer(const char* name="") const;
+        LKParameterContainer *CloneParameterContainer(TString name="") const;
 
         void Recompile();
 
@@ -133,7 +173,7 @@ class LKParameterContainer : public TObjArray
         Int_t  AddJsonTree(const Json::Value &value, TString treeName="");
 #endif
 
-        Bool_t AddLine(std::string line); ///< Set parameter by line
+        Int_t  AddLine(std::string line); ///< Set parameter by line
         Bool_t AddPar(TString name, TString val, TString comment=""); ///< Set parameter TString
         Bool_t AddPar(TString name, Int_t val, TString comment="")    { return AddPar(name,Form("%d",val),comment); } ///< Set parameter Int_t
         Bool_t AddPar(TString name, Long64_t val, TString comment="") { return AddPar(name,Form("%lld",val),comment); } ///< Set parameter Double_t
@@ -194,6 +234,13 @@ class LKParameterContainer : public TObjArray
         const int kParameterIsConditional = 3;
         const int kParameterIsMultiple = 4;
         //const int kRewriteParameter = 5;
+
+    private:
+        TString fCurrentGroupName;
+        Int_t fPreviousTabSize = 0;
+        vector<Int_t> fTabSizeArray;
+        vector<TString> fGroupNameArray;
+
 
 #ifdef LILAK_BUILD_JSONCPP
         Json::Value fJsonValues;

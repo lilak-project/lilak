@@ -789,19 +789,23 @@ TClonesArray* LKRun::RegisterBranchA(TString name, const char* className, Int_t 
             return (TClonesArray*) nullptr;
         }
 
-        TString persistencyMessage = name+"/persistency";
-        if (fPar -> CheckPar(persistencyMessage)) {
-            persistent = fPar -> GetParBool(persistencyMessage);
-            if (persistent)
-                persistencyMessage = TString("(persistent by par. ") + persistencyMessage + ")";
-            else
-                persistencyMessage = TString("(temporary by par. ") + persistencyMessage + ")";
-        }
-        else {
-            if (persistent)
-                persistencyMessage = "(persistent)";
-            else
-                persistencyMessage = "(temporary)";
+        TString persistencyMessage1 = name+"/persistency";
+        TString persistencyMessage2 = TString("persistency/") + name;
+        TString persistencyMessage;
+        for (TString persistencyParName : {persistencyMessage1,persistencyMessage2})  {
+            if (fPar -> CheckPar(persistencyParName)) {
+                persistent = fPar -> GetParBool(persistencyParName);
+                if (persistent)
+                    persistencyMessage = TString("(persistent by par. ") + persistencyParName + ")";
+                else
+                    persistencyMessage = TString("(temporary by par. ") + persistencyParName + ")";
+            }
+            else {
+                if (persistent)
+                    persistencyMessage = "(persistent)";
+                else
+                    persistencyMessage = "(temporary)";
+            }
         }
 
         fBranchPtr[fCountBranches] = array;

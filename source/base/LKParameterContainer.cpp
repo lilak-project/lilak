@@ -217,7 +217,7 @@ Int_t LKParameterContainer::AddFile(TString parName, TString fileName)
         parName = Form("%d", fNumInputFiles);
 
     fNumInputFiles++;
-    LKParameter *parFile;
+    //LKParameter *parFile;
     //if (addFilePar)
     //    parFile = SetParFile(fileNameFull);
     //else {
@@ -242,7 +242,8 @@ Int_t LKParameterContainer::AddFile(TString parName, TString fileName)
         while (getline(file, line)) {
             if (rewriteParameter && line.size()>0)
                 line = "!"+line;
-            if (AddLine(line))
+            int RVAddLine = AddLine(line);
+            if (RVAddLine==1)
                 countParameters++;
         }
 
@@ -270,7 +271,7 @@ Int_t LKParameterContainer::AddParameterContainer(LKParameterContainer *parc)
     auto parameter_parc = SetParCont(parc->GetName());
 
     Int_t countParameters = 0;
-    Int_t countSameParameters = 0;
+    //Int_t countSameParameters = 0;
 
     TIter iterator(parc);
     LKParameter *parameter;
@@ -603,10 +604,11 @@ void LKParameterContainer::Print(Option_t *option) const
         fileOut << endl;
 }
 
-LKParameterContainer *LKParameterContainer::CloneParameterContainer(const char* name) const
+LKParameterContainer *LKParameterContainer::CloneParameterContainer(TString name) const
 {
     LKParameterContainer *new_collection = new LKParameterContainer();
-    new_collection -> SetName("ParameterContainer_Clone");
+    if (name.IsNull()) name = "ParameterContainer_Clone";
+    new_collection -> SetName(name);
 
     TIter iterator(this);
     LKParameter *parameter;
@@ -619,35 +621,163 @@ LKParameterContainer *LKParameterContainer::CloneParameterContainer(const char* 
     return new_collection;
 }
 
-Bool_t LKParameterContainer::AddLine(std::string line)
+Int_t LKParameterContainer::AddLine(std::string ssline)
 {
-    if (line.empty())
-        return false;
+#ifdef DEBUG_ADDPAR
+    e_cout << endl;
+    lk_info << ssline << endl;
+#endif
+    if (ssline.find_first_not_of(" \t\n\v\f\r") == std::string::npos)
+        return 0;
 
-    if (line.find("#") == 0) {
-        TString line2 = TString(line);
+    if (ssline.find("#") == 0) {
+        TString line2 = TString(ssline);
         line2 = line2(1,line2.Sizeof()-2);
         SetLineComment(line2);
-        return true;
+        return 3;
     }
 
-    istringstream ss(line);
+    int sizeOfHead = 0;
+
+    // group -------------------------------------------
+    TString line = ssline;
+    int currentTabSize = 0;
+    while (true) {
+        if (line[currentTabSize]==' ') ++currentTabSize;
+        else break;
+    }
+#ifdef DEBUG_ADDPAR
+    lk_debug << "currentTabSize = " << currentTabSize << endl;
+#endif
+    if (currentTabSize==0) {
+#ifdef DEBUG_ADDPAR
+    lk_debug << "currentTabSize==0" << endl;
+#endif
+        fPreviousTabSize = 0;
+        fCurrentGroupName = "";
+        fTabSizeArray.clear();
+        fGroupNameArray.clear();
+    }
+    else if (currentTabSize>0 && currentTabSize==fPreviousTabSize)
+    {
+#ifdef DEBUG_ADDPAR
+        lk_debug << "currentTabSize>0 && currentTabSize==fPreviousTabSize" << endl;
+        lk_debug << fGroupNameArray.size() << " " << fTabSizeArray.size() << endl;
+#endif
+        if (fGroupNameArray.size()>0) fCurrentGroupName = fGroupNameArray.back();
+        // this is a case when privous defined group name was just parameter without value
+        if (fGroupNameArray.size()==fTabSizeArray.size()+1) {
+            fGroupNameArray.pop_back();
+            if (fGroupNameArray.size()>0) fCurrentGroupName = fGroupNameArray.back();
+            else fCurrentGroupName = "";
+        }
+    }
+    else if (currentTabSize>0 && currentTabSize<fPreviousTabSize) {
+#ifdef DEBUG_ADDPAR
+    lk_debug << "currentTabSize>0 && currentTabSize<fPreviousTabSize" << endl;
+    lk_debug << fGroupNameArray.size() << " " << fTabSizeArray.size() << endl;
+#endif
+        while (true) {
+            fPreviousTabSize = 0;
+            fCurrentGroupName = "";
+            if (fTabSizeArray.size()>0) {
+#ifdef DEBUG_ADDPAR
+                lk_debug << "fTabSizeArray size   = " << fTabSizeArray.size() << endl;
+                lk_debug << "fGroupNameArray size = " << fGroupNameArray.size() << endl;
+                lk_debug << "fPreviousTabSize     = " << fPreviousTabSize << endl;
+                lk_debug << "fCurrentGroupName    = " << fCurrentGroupName  << endl;
+#endif
+                int tabSize = fTabSizeArray.back();
+                TString groupName = fGroupNameArray.back();
+#ifdef DEBUG_ADDPAR
+                lk_debug << "tabSize   = " << tabSize << endl;
+                lk_debug << "groupName = " << groupName  << endl;
+#endif
+                fGroupNameArray.pop_back();
+                fTabSizeArray.pop_back();
+                if (tabSize==currentTabSize) {
+                    fPreviousTabSize = tabSize;
+                    fCurrentGroupName = groupName;
+                    break;
+                }
+            }
+            else
+                break;
+        }
+    }
+    else if (currentTabSize>0 && currentTabSize>fPreviousTabSize) {
+#ifdef DEBUG_ADDPAR
+    lk_debug << "currentTabSize>0 && currentTabSize>fPreviousTabSize" << endl;
+    lk_debug << fGroupNameArray.size() << " " << fTabSizeArray.size() << endl;
+#endif
+        if (fGroupNameArray.size()==fTabSizeArray.size()+1) {
+#ifdef DEBUG_ADDPAR
+            lk_debug << "first element of the current group" << endl;
+#endif
+            // This is the first element of current group
+            fTabSizeArray.push_back(currentTabSize);
+            fPreviousTabSize = currentTabSize;
+            fCurrentGroupName = fGroupNameArray.back();
+        }
+        else {
+            lk_error << "Error at : " << line << endl;
+            lk_error << "Current tab-size is larger than previous, but new tab-size already exist!" << endl;
+            gApplication -> Terminate();
+        }
+    }
+    else {
+        lk_error << "Error at : " << line << endl;
+        lk_error << "Current tab-size = " << currentTabSize << ", previous tab-size = " << fPreviousTabSize << endl;
+        gApplication -> Terminate();
+    }
+    sizeOfHead += currentTabSize;
+#ifdef DEBUG_ADDPAR
+    lk_debug << "sizeOfHead = " << sizeOfHead << endl;
+    lk_debug << "fPreviousTabSize  = " << fPreviousTabSize  << endl;
+    lk_debug << "fCurrentGroupName = " << fCurrentGroupName << endl;
+#endif
+
+    // name -------------------------------------------
+    istringstream ss(ssline);
     TString parName;
     ss >> parName;
+    sizeOfHead += parName.Sizeof()-1;
+    parName = fCurrentGroupName + parName;
 
-    TString parValues = line;
-    parValues.Remove(0,parName.Sizeof()-1);
+    // check if this is group definition -------------------------------------------
+    TString parValues;
+    ss >> parValues;
+#ifdef DEBUG_ADDPAR
+    lk_debug << "parValues = " << parValues << endl;
+#endif
+    if (parValues[0]=='#' || parValues.IsNull()) { // group definition
+        TString groupName = parName;
+        if (groupName.EndsWith("/")==false)
+            groupName = groupName + "/";
+        if (fGroupNameArray.size()==fTabSizeArray.size()+1)
+            fTabSizeArray.push_back(currentTabSize);
+        fGroupNameArray.push_back(groupName);
+#ifdef DEBUG_ADDPAR
+        lk_debug << "groupName = " << groupName << endl;
+#endif
+        if (parName.EndsWith("/"))
+            return 2;
+    }
+
+    // value -------------------------------------------
+    parValues = ssline;
+    parValues.Remove(0,sizeOfHead);
     while (parValues[0]==' ')
         parValues.Remove(0,1);
 
+    // comment -------------------------------------------
     int icomment = parValues.Index("#");
     TString parComment;
-
     if (icomment>0) {
         parComment = parValues(icomment+1,parValues.Sizeof()-1);
         while (parComment[0]==' ')
             parComment.Remove(0,1);
-
+        // split parValues
         parValues = parValues(0,icomment);
         while (parValues[0]==' ')
             parValues.Remove(0,1);
@@ -655,19 +785,20 @@ Bool_t LKParameterContainer::AddLine(std::string line)
             parValues.Remove(parValues.Sizeof()-2,1);
     }
 
-    return AddPar(parName, parValues, parComment);
-    //if (parName.Index("<<")==0) {
-    //    AddFile(parValues);
-    //}
-    //else {
-    //    return AddPar(parName, parValues, parComment);
-    //}
+    // add parameter -------------------------------------------
+    auto RVAddPar = AddPar(parName, parValues, parComment);
 
-    return false;
+    if (RVAddPar)
+        return 1;
+    return 0;
 }
 
 Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment)
 {
+#ifdef DEBUG_ADDPAR
+    e_cout << endl;
+    lk_info << name << " " << value << " " << comment << endl;
+#endif
     bool sendErrorIfAlreadyExist = false;
     if (FindPar(name) != nullptr)
         sendErrorIfAlreadyExist = true;
@@ -715,7 +846,7 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
                     lk_error << "Parameter name " << name << " is out of naming rule" << endl;
                 if (CheckPar(groupName)==false&&CheckValue(groupName)==false)
                     allowSetPar = false; // @todo save as hidden parameter when they are not allowed to be set
-                    continue;
+                continue;
             }
             else if (name[0]=='&') {
                 name = name(1, name.Sizeof()-2);
