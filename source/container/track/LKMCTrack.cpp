@@ -21,38 +21,61 @@ void LKMCTrack::Clear(Option_t *option)
 {
     LKTracklet::Clear(option);
 
-    fPX.clear(); fPX.push_back(-999);
-    fPY.clear(); fPY.push_back(-999);
-    fPZ.clear(); fPZ.push_back(-999);
-    fVX.clear(); fVX.push_back(-999);
-    fVY.clear(); fVY.push_back(-999);
-    fVZ.clear(); fVZ.push_back(-999);
-    fDetectorID.clear(); fDetectorID.push_back(-999);
+    fStatusID.clear();
+    fVolumeID.clear();
+    fPX.clear();
+    fPY.clear();
+    fPZ.clear();
+    fVX.clear();
+    fVY.clear();
+    fVZ.clear();
+    fEnergy.clear();
 
-    fCreatorProcessID = 0;
+    fStatusID.push_back(-999);
+    fVolumeID.push_back(-999);
+    fPX.push_back(-999);
+    fPY.push_back(-999);
+    fPZ.push_back(-999);
+    fVX.push_back(-999);
+    fVY.push_back(-999);
+    fVZ.push_back(-999);
+    fEnergy.push_back(-999);
 }
 
 void LKMCTrack::Print(Option_t *option) const
 {
     TString opts = TString(option);
 
+    e_info << "MC-" << fTrackID << "(" << fParentID << ") " << fPDG << "[" << fStatusID[0] << "]" << endl;
+    Int_t n = fVolumeID.size();
+    for (auto i=0; i<n; ++i) {
+        e_info << "  " << i
+            <<  "> vol="  << fVolumeID[i]
+            <<  ", sta="  << fStatusID[i]
+            <<  ", pos=(" << fVX[i] << "," << fVY[i] << "," << fVZ[i] << ")"
+            <<  ", mom=(" << fPX[i] << "," << fPY[i] << "," << fPZ[i] << ")"
+            <<  ", ene=" << fEnergy[i] << endl;
+    }
+
+    /*
     if (TString(option).Index("all")>=0) {
-        e_info << "MC-" << setw(3) << fTrackID << "(" << setw(3) << fParentID << ") " << setw(11) << fPDG << "[" << setw(2) << fCreatorProcessID << "]" << endl;
+        e_info << "MC-" << setw(3) << fTrackID << "(" << setw(3) << fParentID << ") " << setw(11) << fPDG << "[" << setw(2) << fStatusID << "]" << endl;
         Int_t n = fPX.size();
         for (auto i=0; i<n; ++i) {
             e_info << "  " << i
                 <<  "> mom=(" << setw(12) << fPX[i] << "," << setw(12) << fPY[i] << "," << setw(12) << fPZ[i] << "),"
-                <<   " det="  << setw(12) << fDetectorID[i] << ","
+                <<   " det="  << setw(12) << fVolumeID[i] << ","
                 <<   " pos=(" << setw(12) << fVX[i] << "," << setw(12) << fVY[i] << "," << setw(12) << fVZ[i] << ")" << endl;
         }
     }
     else {
         e_info << "MC-" << setw(3) << fTrackID << "(" << setw(3) << fParentID << ") " << setw(11) << fPDG
-            << "[" << setw(2) << fCreatorProcessID << "]"
+            << "[" << setw(2) << fStatusID << "]"
             << " mom=(" << setw(12) << fPX[0] << "," << setw(12) << fPY[0] << "," << setw(12) << fPZ[0] << "),"
-            << " det="  << setw(12) << fDetectorID[0] << ","
+            << " det="  << setw(12) << fVolumeID[0] << ","
             << " pos=(" << setw(12) << fVX[0] << "," << setw(12) << fVY[0] << "," << setw(12) << fVZ[0] << ")" << endl;
     }
+    */
 }
 
 void LKMCTrack::SetPX(Double_t val)     { fPX[0] = val; }
@@ -61,10 +84,12 @@ void LKMCTrack::SetPZ(Double_t val)     { fPZ[0] = val; }
 void LKMCTrack::SetVX(Double_t val)     { fVX[0] = val; }
 void LKMCTrack::SetVY(Double_t val)     { fVY[0] = val; }
 void LKMCTrack::SetVZ(Double_t val)     { fVZ[0] = val; }
-void LKMCTrack::SetDetectorID(Int_t id) { fDetectorID[0] = id; }
-void LKMCTrack::SetCreatorProcessID(Int_t id)  { fCreatorProcessID = id; }
+void LKMCTrack::SetEnergy(Double_t val) { fEnergy[0] = val; }
+void LKMCTrack::SetVolumeID(Int_t id)   { fVolumeID[0] = id; }
+void LKMCTrack::SetStatusID(Int_t id)   { fStatusID[0] = id; }
+void LKMCTrack::SetDetectorID(Int_t id) { SetVolumeID(id); }
 
-void LKMCTrack::SetMCTrack(Int_t trackID, Int_t parentID, Int_t pdg, Double_t px, Double_t py, Double_t pz, Int_t detectorID, Double_t vx, Double_t vy, Double_t vz, Int_t processID)
+void LKMCTrack::SetMCTrack(Int_t trackID, Int_t parentID, Int_t pdg, Int_t volumeID, Int_t processID, Double_t vx, Double_t vy, Double_t vz, Double_t px, Double_t py, Double_t pz, Double_t energy)
 {
     fTrackID = trackID;
     fParentID = parentID;
@@ -75,11 +100,12 @@ void LKMCTrack::SetMCTrack(Int_t trackID, Int_t parentID, Int_t pdg, Double_t px
     fVX[0] = vx;
     fVY[0] = vy;
     fVZ[0] = vz;
-    fDetectorID[0] = detectorID;
-    fCreatorProcessID = processID;
+    fEnergy[0] = energy;
+    fVolumeID[0] = volumeID;
+    fStatusID[0] = processID;
 }
 
-void LKMCTrack::AddVertex(Double_t px, Double_t py, Double_t pz, Int_t detectorID, Double_t vx, Double_t vy, Double_t vz)
+void LKMCTrack::AddVertex(Int_t volumeID, Int_t processID, Double_t vx, Double_t vy, Double_t vz, Double_t px, Double_t py, Double_t pz, Double_t energy)
 {
     fPX.push_back(px);
     fPY.push_back(py);
@@ -87,10 +113,16 @@ void LKMCTrack::AddVertex(Double_t px, Double_t py, Double_t pz, Int_t detectorI
     fVX.push_back(vx);
     fVY.push_back(vy);
     fVZ.push_back(vz);
-    fDetectorID.push_back(detectorID);
+    fEnergy.push_back(energy);
+    fVolumeID.push_back(volumeID);
+    fStatusID.push_back(processID);
 }
 
 Int_t LKMCTrack::GetNumVertices() const { return (Int_t) fPX.size(); }
+
+Int_t LKMCTrack::GetStatusID(Int_t idx) const { return fStatusID[idx]; }
+Int_t LKMCTrack::GetDetectorID(Int_t idx) const { return fVolumeID[idx]; }
+Int_t LKMCTrack::GetVolumeID(Int_t idx) const { return GetDetectorID(idx); }
 
 Double_t LKMCTrack::GetPX(Int_t idx) const { return fPX[idx]; }
 Double_t LKMCTrack::GetPY(Int_t idx) const { return fPY[idx]; }
@@ -102,12 +134,10 @@ Double_t LKMCTrack::GetVY(Int_t idx) const { return fVY[idx]; }
 Double_t LKMCTrack::GetVZ(Int_t idx) const { return fVZ[idx]; }
 TVector3 LKMCTrack::GetVertex(Int_t idx) const { return TVector3(fVX[idx], fVY[idx], fVZ[idx]); }
 
-Int_t LKMCTrack::GetDetectorID(Int_t idx) const { return fDetectorID[idx]; }
-
-Int_t LKMCTrack::GetCreatorProcessID() const { return fCreatorProcessID; }
 
 TVector3 LKMCTrack::GetPrimaryPosition() const { return TVector3(fVX[0], fVY[0], fVZ[0]); }
-Int_t LKMCTrack::GetPrimaryDetectorID() const { return fDetectorID[0]; }
+Int_t LKMCTrack::GetPrimaryVolumeID() const { return fVolumeID[0]; }
+Int_t LKMCTrack::GetPrimaryDetectorID() const { return GetPrimaryVolumeID(); }
 
 void LKMCTrack::AddStep(LKMCStep *hit) { fStepArray.push_back(hit); }
 vector<LKMCStep *> *LKMCTrack::GetStepArray() { return &fStepArray; }
@@ -199,7 +229,7 @@ void LKMCTrack::SetEveElement(TEveElement *element, Double_t scale)
     line -> SetLineColor(color);
     line -> SetLineWidth(width);
 
-    TString eveName = Form("mc_%s:%d(%d)[%.1f]{%d;%d}",pName.Data(),fTrackID,fParentID,Momentum().Mag(),fDetectorID.at(0),GetNumVertices());
+    TString eveName = Form("mc_%s:%d(%d)[%.1f]{%d;%d}",pName.Data(),fTrackID,fParentID,Momentum().Mag(),fVolumeID.at(0),GetNumVertices());
     line -> SetElementName(eveName);
 
     if (fParentID != 0)

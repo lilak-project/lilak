@@ -39,13 +39,19 @@ class LKMCTrack : public LKTracklet
         void SetVX(Double_t val);
         void SetVY(Double_t val);
         void SetVZ(Double_t val);
+        void SetStatusID(Int_t id);
+        void SetVolumeID(Int_t id);
         void SetDetectorID(Int_t id);
-        void SetCreatorProcessID(Int_t id);
+        void SetEnergy(Double_t val);
 
-        void SetMCTrack(Int_t trackID, Int_t parentID, Int_t pdg, Double_t px, Double_t py, Double_t pz, Int_t detectorID = 0, Double_t vx = 0, Double_t vy = 0, Double_t vz = 0, Int_t processID = -1);
-        void AddVertex(Double_t px, Double_t py, Double_t pz, Int_t detectorID, Double_t vx, Double_t vy, Double_t vz);
+        void SetMCTrack(Int_t trackID, Int_t parentID, Int_t pdg, Int_t detectorID, Int_t processID, Double_t vx, Double_t vy, Double_t vz, Double_t px, Double_t py, Double_t pz, Double_t energy);
+        void AddVertex(Int_t detectorID, Int_t processID, Double_t vx, Double_t vy, Double_t vz, Double_t px, Double_t py, Double_t pz, Double_t energy);
 
         Int_t GetNumVertices() const;
+
+        Int_t GetStatusID(Int_t idx = 0) const;
+        Int_t GetVolumeID(Int_t idx = 0) const;
+        Int_t GetDetectorID(Int_t idx = 0) const;
 
         Double_t GetPX(Int_t idx = 0) const;
         Double_t GetPY(Int_t idx = 0) const;
@@ -57,11 +63,11 @@ class LKMCTrack : public LKTracklet
         Double_t GetVZ(Int_t idx = 0) const;
         TVector3 GetVertex(Int_t idx = 0) const;
 
-        Int_t GetDetectorID(Int_t idx = 0) const;
+        Double_t GetEnergy(Int_t idx = 0) const;
 
-        Int_t GetCreatorProcessID() const;
 
         TVector3 GetPrimaryPosition() const;
+        Int_t GetPrimaryVolumeID() const;
         Int_t GetPrimaryDetectorID() const;
 
         void AddStep(LKMCStep *hit);
@@ -92,19 +98,19 @@ class LKMCTrack : public LKTracklet
         virtual TGraphErrors *TrajectoryOnPlane(axis_t axis1, axis_t axis2, bool (*fisout)(TVector3 pos), Double_t scale=1);
 
     protected:
+        vector<Int_t>    fStatusID;
+        vector<Int_t>    fVolumeID; ///< detector ID (= copyNo)
         vector<Double_t> fPX;
         vector<Double_t> fPY;
         vector<Double_t> fPZ;
         vector<Double_t> fVX;
         vector<Double_t> fVY;
         vector<Double_t> fVZ;
-        vector<Int_t> fDetectorID; ///< detector ID (= copyNo)
+        vector<Double_t> fEnergy;
 
         vector<LKMCStep *> fStepArray; //!
 
-        Int_t fCreatorProcessID = 0;
-
-        ClassDef(LKMCTrack, 1)
+        ClassDef(LKMCTrack, 2)
 };
 
 #endif

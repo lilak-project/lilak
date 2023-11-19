@@ -116,8 +116,8 @@ void LKLinearTrack::Print(Option_t *option) const
 {
     TString opts = TString(option);
 
-    auto numHits = fHitArray.GetNumHits();
-    auto numHitIDs = fHitIDArray.size();
+    int numHits = fHitArray.GetNumHits();
+    int numHitIDs = fHitIDArray.size();
     TString hitStatus = "";
     if (numHitIDs>0) {
         if (numHits==numHitIDs) hitStatus = " (holding hits)";
