@@ -39,7 +39,8 @@ void LKTrackingAction::PreUserTrackingAction(const G4Track* track)
     g4man_info << "Start of T" << track->GetTrackID() << "(" << track->GetParticleDefinition()->GetParticleName() << "), mom(" << momentum.x() << ", " << momentum.y() << ", " << momentum.z() << "), V" << volumeID << ", pos(" << position.x() << ", " << position.y() << ", " << position.z() << ") " << processName << endl;
 #endif
 
-    fRunManager -> AddMCTrack(track -> GetTrackID(), track -> GetParentID(), track -> GetDefinition() -> GetPDGEncoding(), momentum.x(), momentum.y(), momentum.z(), volumeID, position.x(), position.y(), position.z(), processID);
+    fRunManager -> AddMCTrack(track->GetTrackID(), track->GetParentID(), track->GetDefinition()->GetPDGEncoding(), volumeID, processID,
+                              position.x(), position.y(), position.z(), momentum.x(), momentum.y(), momentum.z(), track->GetKineticEnergy());
 }
 
 #ifdef LKG4_DEBUG_TRACKINGACTION

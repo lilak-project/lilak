@@ -34,6 +34,7 @@ class LKG4RunManager : public G4RunManager, public LKGear
         virtual void InitializeGeometry();
         virtual void InitializePhysics();
         void Run(G4int argc=0, char **argv=nullptr, const G4String &type="");
+        void InitializeAndRun(G4int argc=0, char **argv=nullptr, const G4String &type="");
 
         void BeamOn(G4int numEvents, const char *macroFile=0, G4int numSelect=-1);
         void BeamOnAll();
@@ -47,12 +48,8 @@ class LKG4RunManager : public G4RunManager, public LKGear
         LKParameterContainer *GetSensitiveDetectors();
         LKParameterContainer *GetProcessTable();
 
-        void AddMCTrack(Int_t trackID, Int_t parentID, Int_t pdg,
-                Double_t px, Double_t py, Double_t pz,
-                Int_t dID, Double_t vx, Double_t vy, Double_t vz, Int_t pcID);
-
-        void AddTrackVertex(Double_t px, Double_t py, Double_t pz,
-                Int_t dID, Double_t vx, Double_t vy, Double_t vz);
+        void AddMCTrack(Int_t trackID, Int_t parentID, Int_t pdg, Int_t detectorID, Int_t processID, Double_t vx, Double_t vy, Double_t vz, Double_t px, Double_t py, Double_t pz, Double_t energy);
+        void AddTrackVertex(Int_t detectorID, Int_t processID, Double_t vx, Double_t vy, Double_t vz, Double_t px, Double_t py, Double_t pz, Double_t energy);
 
         void AddMCStep(Int_t dID, Double_t x, Double_t y, Double_t z, Double_t t, Double_t e);
 
@@ -98,6 +95,8 @@ class LKG4RunManager : public G4RunManager, public LKGear
         LKMCTrack* fCurrentTrack = nullptr;
 
         Int_t fNumEvents;
+
+        bool fInitialized = false;
 };
 
 #endif

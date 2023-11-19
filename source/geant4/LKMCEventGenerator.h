@@ -10,6 +10,7 @@
  * -# 4) Next line is [nTracks].
  * -# 5) Next [nTracks] lines follows [pdg], [px], [py] and [pz].
  *
+ * [p/e]
  * [nEvents]
  * [eventID] [nTracks] [vx] [vy] [vz]
  * [pdg] [px] [py] [pz]

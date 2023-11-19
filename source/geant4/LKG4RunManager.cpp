@@ -13,6 +13,7 @@
 #include "LKG4RunManager.h"
 #include "LKG4RunMessenger.h"
 #include "LKTrackingAction.h"
+#include "LKStackingAction.h"
 #include "LKSteppingAction.h"
 #include "LKPrimaryGeneratorAction.h"
 #include "LKPrimaryGeneratorAction.h"
@@ -41,7 +42,11 @@ void LKG4RunManager::Initialize()
     if (GetUserPrimaryGeneratorAction() == nullptr) SetUserAction(new LKPrimaryGeneratorAction());
     if (GetUserEventAction() == nullptr)    SetUserAction(new LKEventAction(this));
     if (GetUserTrackingAction() == nullptr) SetUserAction(new LKTrackingAction(this));
+    if (GetUserStackingAction() == nullptr) SetUserAction(new LKStackingAction(this));
     if (GetUserSteppingAction() == nullptr) SetUserAction(new LKSteppingAction(this));
+
+    if (fPar -> CheckPar("LKG4Manager/SuppressG4InitMessage"))
+        fSuppressInitMessage = fPar -> GetParBool("LKG4Manager/SuppressG4InitMessage");
 
     if (fPar -> CheckPar("LKG4Manager/SensitiveDetectors")) {
         auto sdNames = fPar -> GetParVString("LKG4Manager/SensitiveDetectors");
@@ -68,7 +73,7 @@ void LKG4RunManager::Initialize()
     for (auto name : *procNames)
         if (fProcessTable -> CheckPar(name) == false)
             fProcessTable -> AddPar(name, idx++);
-    fProcessTable -> Print();
+    //fProcessTable -> Print();
 
     /*
     if (fPar->CheckPar("G4ExportGDML"))
@@ -88,6 +93,8 @@ void LKG4RunManager::Initialize()
         }
     }
     */
+
+    fInitialized = true;
 }
 
 void LKG4RunManager::InitializeGeometry()
@@ -122,6 +129,12 @@ void LKG4RunManager::InitializePhysics()
 
 void LKG4RunManager::Run(G4int argc, char **argv, const G4String &type)
 {
+    if (fInitialized==false) {
+        g4man_info << "Run manager is not inialized." << endl;
+        g4man_info << "Running Initialize() ..." << endl;
+        Initialize();
+    }
+
     G4UImanager* uiManager = G4UImanager::GetUIpointer();
 
     bool useVisMode = false;
@@ -210,10 +223,15 @@ void LKG4RunManager::SetOutputFile(TString name)
 {
     //fPar -> ReplaceEnvironmentVariable(name);
 
-    fStepPersistency        = fPar -> GetParBool("MCStep/persistency");
-    fEdepSumPersistency     = fPar -> GetParBool("MCEdepSum/persistency");
-    fSecondaryPersistency   = fPar -> GetParBool("MCSecondary/persistency");
-    fTrackVertexPersistency = fPar -> GetParBool("MCTrackVertex/persistency");
+    if (fPar -> CheckPar("MCStep/persistency"       )) { fStepPersistency        = fPar -> GetParBool("MCStep/persistency"       ); }
+    if (fPar -> CheckPar("MCEdepSum/persistency"    )) { fEdepSumPersistency     = fPar -> GetParBool("MCEdepSum/persistency"    ); }
+    if (fPar -> CheckPar("MCSecondary/persistency"  )) { fSecondaryPersistency   = fPar -> GetParBool("MCSecondary/persistency"  ); }
+    if (fPar -> CheckPar("MCTrackVertex/persistency")) { fTrackVertexPersistency = fPar -> GetParBool("MCTrackVertex/persistency"); }
+
+    if (fPar -> CheckPar("persistency/MCStep"       )) { fStepPersistency        = fPar -> GetParBool("persistency/MCStep"       ); }
+    if (fPar -> CheckPar("persistency/MCEdepSum"    )) { fEdepSumPersistency     = fPar -> GetParBool("persistency/MCEdepSum"    ); }
+    if (fPar -> CheckPar("persistency/MCSecondary"  )) { fSecondaryPersistency   = fPar -> GetParBool("persistency/MCSecondary"  ); }
+    if (fPar -> CheckPar("persistency/MCTrackVertex")) { fTrackVertexPersistency = fPar -> GetParBool("persistency/MCTrackVertex"); }
 
     g4man_info << "Setting output file " << name << endl;
     fFile = new TFile(name,"recreate");
@@ -252,14 +270,14 @@ void LKG4RunManager::SetOutputFile(TString name)
             TString esumName = TString("MCESum") + detName;
 
             g4man_info << "Adding new step branch " << stepName << " for detector " << detName << endl;
-            g4man_info << "Adding new esum branch " << esumName << " for detector " << detName << endl;
 
             auto stepArray = new TClonesArray("LKMCStep", 10000);
             fTree -> Branch(stepName, &stepArray);
             fStepArrayList -> Add(stepArray);
 
             fIdxOfCopyNo[copyNo] = fNumActiveVolumes;
-            fTree -> Branch(esumName, &fEdepSumArray[fNumActiveVolumes]);
+            //g4man_info << "Adding new esum branch " << esumName << " for detector " << detName << endl;
+            //fTree -> Branch(esumName, &fEdepSumArray[fNumActiveVolumes]); // TODO
             ++fNumActiveVolumes;
         }
     }
@@ -353,7 +371,7 @@ LKParameterContainer *LKG4RunManager::GetProcessTable()       { return fProcessT
 
 
 
-void LKG4RunManager::AddMCTrack(Int_t trackID, Int_t parentID, Int_t pdg, Double_t px, Double_t py, Double_t pz, Int_t detectorID, Double_t vx, Double_t vy, Double_t vz, Int_t processID)
+void LKG4RunManager::AddMCTrack(Int_t trackID, Int_t parentID, Int_t pdg, Int_t detectorID, Int_t processID, Double_t vx, Double_t vy, Double_t vz, Double_t px, Double_t py, Double_t pz, Double_t energy)
 {
     if (parentID != 0 && !fSecondaryPersistency) {
         fCurrentTrack = nullptr;
@@ -362,15 +380,15 @@ void LKG4RunManager::AddMCTrack(Int_t trackID, Int_t parentID, Int_t pdg, Double
 
     fTrackID = trackID;
     fCurrentTrack = (LKMCTrack *) fTrackArray -> ConstructedAt(fTrackArray -> GetEntriesFast());
-    fCurrentTrack -> SetMCTrack(trackID, parentID, pdg, px, py, pz, detectorID, vx, vy, vz, processID);
+    fCurrentTrack -> SetMCTrack(trackID, parentID, pdg, detectorID, processID, vx, vy, vz, px, py, pz, energy);
 }
 
-void LKG4RunManager::AddTrackVertex(Double_t px, Double_t py, Double_t pz, Int_t detectorID, Double_t vx, Double_t vy, Double_t vz)
+void LKG4RunManager::AddTrackVertex(Int_t detectorID, Int_t processID, Double_t vx, Double_t vy, Double_t vz, Double_t px, Double_t py, Double_t pz, Double_t energy)
 {
     if (fCurrentTrack == nullptr || !fTrackVertexPersistency)
         return;
 
-    fCurrentTrack -> AddVertex(px, py, pz, detectorID, vx, vy, vz);
+    fCurrentTrack -> AddVertex(detectorID, processID, vx, vy, vz, px, py, pz, energy);
 }
 
 void LKG4RunManager::AddMCStep(Int_t detectorID, Double_t x, Double_t y, Double_t z, Double_t t, Double_t e)

@@ -34,7 +34,7 @@ void LKPrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
     fParticleGun -> SetParticlePosition(G4ThreeVector(vx,vy,vz));
 
     if (fPrintExampleEvent)
-        g4man_info << "Printing first event v(" << vx <<","<< vy <<","<< vz <<")"<< endl;
+        g4man_info << "Printing just for first event v(" << vx <<","<< vy <<","<< vz <<")"<< endl;
 
     while (fEventGenerator -> ReadNextTrack(pdg, px, py, pz))
     {
