@@ -52,6 +52,7 @@ class LKWindowManager : public TObject
          */
         TCanvas *Canvas          (const char *name, Int_t mode=0, Double_t value1=-1, Double_t value2=-1);
         TCanvas *CanvasDefault   (const char* name, const char* title);
+        TCanvas *CanvasRatio     (const char* name, const char* title, Double_t ratio);
         TCanvas *CanvasFull      (const char* name, const char* title);
         TCanvas *CanvasFullRatio (const char* name, const char* title, Double_t ratio);
         TCanvas *CanvasSquare    (const char* name, const char* title);
@@ -59,11 +60,12 @@ class LKWindowManager : public TObject
         TCanvas *CanvasResize    (const char* name, const char* title, Int_t width0, Int_t height0);
 
         const Int_t kDefault    = 0;
-        const Int_t kFull       = 1;
-        const Int_t kFullRatio  = 2;
-        const Int_t kSquare     = 3;
-        const Int_t kFullSquare = 4;
-        const Int_t kResize     = 5;
+        const Int_t kRatio      = 1;
+        const Int_t kFull       = 2;
+        const Int_t kFullRatio  = 3;
+        const Int_t kSquare     = 4;
+        const Int_t kFullSquare = 5;
+        const Int_t kResize     = 6;
 
     private:
         void ConfigureDisplay();

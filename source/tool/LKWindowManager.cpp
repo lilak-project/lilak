@@ -105,6 +105,7 @@ void LKWindowManager::SetDeadFrameTop(UInt_t val)
 TCanvas *LKWindowManager::Canvas(const char *name, Int_t mode, Double_t value1, Double_t value2)
 {
     if (mode==kDefault)    return CanvasDefault(name,name);
+    if (mode==kRatio)      return CanvasRatio(name,name,value1);
     if (mode==kFull)       return CanvasFull(name,name);
     if (mode==kFullRatio)  return CanvasFullRatio(name,name,value1);
     if (mode==kSquare)     return CanvasSquare(name,name);
@@ -123,6 +124,17 @@ TCanvas *LKWindowManager::CanvasDefault(const char* name, const char* title)
 {
     Int_t width  = fWDefault;
     Int_t height = fHDefault;
+    UpdateNextCanvasPosition();
+    auto cvs = new TCanvas(name, title, fXCurrentCanvas, fYCurrentCanvas, width, height);
+    return cvs;
+}
+
+TCanvas *LKWindowManager::CanvasRatio(const char* name, const char* title, Double_t ratio)
+{
+    if (ratio>1 && ratio<=100) ratio = ratio * 0.01;
+    else if (ratio<=0 || ratio>1) { e_warning << "ratio should be between 0 and 1! (" << ratio << "). ratio is corrected to 1." << endl; ratio = 1; }
+    Int_t width  = ratio*fWDefault;
+    Int_t height = ratio*fHDefault;
     UpdateNextCanvasPosition();
     auto cvs = new TCanvas(name, title, fXCurrentCanvas, fYCurrentCanvas, width, height);
     return cvs;

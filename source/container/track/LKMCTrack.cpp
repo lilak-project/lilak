@@ -133,7 +133,7 @@ Double_t LKMCTrack::GetVX(Int_t idx) const { return fVX[idx]; }
 Double_t LKMCTrack::GetVY(Int_t idx) const { return fVY[idx]; }
 Double_t LKMCTrack::GetVZ(Int_t idx) const { return fVZ[idx]; }
 TVector3 LKMCTrack::GetVertex(Int_t idx) const { return TVector3(fVX[idx], fVY[idx], fVZ[idx]); }
-
+Double_t LKMCTrack::GetEnergy(Int_t idx) const { return fEnergy[idx]; }
 
 TVector3 LKMCTrack::GetPrimaryPosition() const { return TVector3(fVX[0], fVY[0], fVZ[0]); }
 Int_t LKMCTrack::GetPrimaryVolumeID() const { return fVolumeID[0]; }
