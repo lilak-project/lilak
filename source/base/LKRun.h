@@ -52,9 +52,17 @@ class LKRun : public LKTask
          * - in  : Print input information
          * - det : Print detector information
          */
-        virtual void Print(Option_t *option="all") const;
-        virtual void Add(TTask *task);
+        void Print(Option_t *option="all") const;
 
+        /// Add task to be executed every event
+        void Add(TTask *task);
+
+        /// Set EventTrigger which give signal to LKRun that evnet has started.
+        /// EventTrigger should call LKRun::ExecuteNextEvent() when ever event start, from Exec() method.
+        /// EventTrigger should Return from the Exec() method after all events has been executed.
+        void SetEventTrigger(LKTask *task);
+
+        /// Print first element of each branch in event
         void PrintEvent(Long64_t entry=-1);
 
         /// Run name/id
@@ -210,6 +218,8 @@ class LKRun : public LKTask
         static TString ConfigureDataPath(TString name, bool search = false, TString pathData="", bool addVersion=false);
         static bool CheckFileExistence(TString fileName);
 
+        bool ExecuteNextEvent() { return ExecuteEvent(-2); }
+
     protected:
         bool ExecuteEvent(Long64_t eventID=-1); ///< Run just one event of eventID.
         //void CheckIn();
@@ -298,6 +308,9 @@ class LKRun : public LKTask
 
         Bool_t fAutoEndOfRun = true;
         Bool_t fAutoTerminate = true;
+
+        LKTask* fEventTrigger = nullptr;
+        bool fUsingEventTrigger = false;
 
     private:
         static LKRun *fInstance;

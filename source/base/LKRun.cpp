@@ -463,6 +463,12 @@ void LKRun::Add(TTask *task)
     task0 -> SetRun(this);
 }
 
+void LKRun::SetEventTrigger(LKTask *task)
+{
+    fEventTrigger = task;
+    fUsingEventTrigger = true;
+}
+
 void LKRun::AddInputList(TString listFileName, TString treeName)
 {
     ifstream listFiles(listFileName);
@@ -706,6 +712,7 @@ bool LKRun::Init()
     if (fNumSplitEntries>=0)
         fRunHeader -> AddPar("NumEventsInSplit",int(fNumSplitEntries));
 
+    if (fUsingEventTrigger) fEventTrigger -> Init();
     fInitialized = InitTasks();
 
     if (fInitialized) {
@@ -949,19 +956,24 @@ void LKRun::Run(Long64_t numEvents)
     if (!StartOfRun(numEvents))
         return;
 
-    //fEventMessage.clear();
-
-    for (fIdxEntry = fStartEventID; fIdxEntry <= fEndEventID; ++fIdxEntry) {
-        fCurrentEventID = fIdxEntry;
-
-        bool continueRun = ExecuteEvent(fCurrentEventID);
-        if (!continueRun)
-            break;
+    if (fUsingEventTrigger) {
+        fCurrentEventID = -1;
+        // -------------------------------------------------------------------------------------------
+        // EventTrigger should call LKRun::ExecuteNextEvent() when ever event start, from Exec() method.
+        // Return from the Exec() method when all events has been executed.
+        fEventTrigger -> Exec("");
+        // -------------------------------------------------------------------------------------------
+        LKRun::EndOfRun();
     }
-
-    LKRun::EndOfRun();
-
-    Print();
+    else {
+        for (fIdxEntry = fStartEventID; fIdxEntry <= fEndEventID; ++fIdxEntry) {
+            fCurrentEventID = fIdxEntry;
+            bool continueRun = ExecuteEvent(fCurrentEventID);
+            if (!continueRun)
+                break;
+        }
+        LKRun::EndOfRun();
+    }
 }
 
 
@@ -1156,6 +1168,8 @@ bool LKRun::EndOfRun()
 {
     e_cout << endl;
     lk_info << "Executing of EndOfRunTask" << endl;
+    if (fUsingEventTrigger)
+        fEventTrigger -> EndOfRun();
     EndOfRunTasks();
 
     e_cout << endl;
@@ -1174,11 +1188,6 @@ bool LKRun::EndOfRun()
 
     return true;
 }
-
-//void LKRun::EventMessage(const char *message) {
-    //fEventMessage.push_back(message);
-//}
-
 
 void LKRun::Terminate(TObject *obj, TString message)
 {

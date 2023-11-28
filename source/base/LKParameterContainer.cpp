@@ -877,6 +877,8 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
 
 LKParameter *LKParameterContainer::SetPar(TString name, TString raw, TString value, TString comment, int parameterType, bool rewriteParameter)
 {
+    if (name.EndsWith("="))
+        name = name(0,name.Sizeof()-2);
     auto parameterOld = (LKParameter*) FindPar(name);
     if (parameterOld!=nullptr) {
         if (rewriteParameter) {
