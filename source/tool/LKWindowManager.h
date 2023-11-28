@@ -6,7 +6,7 @@
 #include "TCanvas.h"
 
 #define lk_canvas(name)      LKWindowManager::GetWindowManager() -> Canvas(name,0)
-#define lk_full_canvas(name) LKWindowManager::GetWindowManager() -> Canvas(name,1)
+#define lk_full_canvas(name) LKWindowManager::GetWindowManager() -> Canvas(name,2)
 
 class LKWindowManager : public TObject
 {
@@ -39,8 +39,9 @@ class LKWindowManager : public TObject
         void SetWSpacing(UInt_t dwCanvas) { fWSpacing = dwCanvas; }
         void SetHSpacing(UInt_t dhCanvas) { fHSpacing = dhCanvas; }
 
-
+        Double_t SetRatio(Double_t ratio);
         void UpdateNextCanvasPosition();
+        TCanvas *NewCanvas(const char *name, const char *title, Int_t x, Int_t y, Int_t width, Int_t height);
 
         /**
          * mode = 0 (kDefault)    : default canvas with fWDefault x fHDefault (600 x 450).
@@ -51,10 +52,10 @@ class LKWindowManager : public TObject
          * mode = 5 (kResize)     : resize canvas from given w,h = (value1, value2) to show similar scale in the current display.
          */
         TCanvas *Canvas          (const char *name, Int_t mode=0, Double_t value1=-1, Double_t value2=-1);
-        TCanvas *CanvasDefault   (const char* name, const char* title);
-        TCanvas *CanvasRatio     (const char* name, const char* title, Double_t ratio);
+        TCanvas *CanvasDefault   (const char* name, const char* title, Double_t ratio1=1);
         TCanvas *CanvasFull      (const char* name, const char* title);
         TCanvas *CanvasFullRatio (const char* name, const char* title, Double_t ratio);
+        TCanvas *CanvasRatio     (const char* name, const char* title, Double_t ratio1, Double_t ratio2);
         TCanvas *CanvasSquare    (const char* name, const char* title);
         TCanvas *CanvasFullSquare(const char* name, const char* title, Double_t ratio);
         TCanvas *CanvasResize    (const char* name, const char* title, Int_t width0, Int_t height0);
