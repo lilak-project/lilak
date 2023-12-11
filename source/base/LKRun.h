@@ -103,6 +103,7 @@ class LKRun : public LKTask
         void SetTag(TString tag) { fTag = tag; }
         void SetSplit(Int_t split, Long64_t numSplitEntries) { fSplit = split; fNumSplitEntries = numSplitEntries; }
 
+        void AlwaysPrintMessage() { fEventCountForMessage = 1; }
         void SetEventCountForMessage(Long64_t val) { fEventCountForMessage = val; }
         void SetNumPrintMessage(Long64_t num) { fNumPrintMessage = num; }
 
@@ -218,7 +219,9 @@ class LKRun : public LKTask
         static TString ConfigureDataPath(TString name, bool search = false, TString pathData="", bool addVersion=false);
         static bool CheckFileExistence(TString fileName);
 
-        bool ExecuteNextEvent() { return ExecuteEvent(-2); }
+        bool ExecuteNextEvent();
+
+        bool CheckMute() { return (fEventCount==0||fEventCount%fEventCountForMessage!=0); }
 
     protected:
         bool ExecuteEvent(Long64_t eventID=-1); ///< Run just one event of eventID.

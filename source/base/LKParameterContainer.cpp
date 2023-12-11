@@ -860,7 +860,7 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
         if (allowSetPar)
         {
             if (sendErrorIfAlreadyExist) {
-                lk_error << "Parameter " << name << " already exist!" << endl;
+                lk_warning << "Parameter " << name << " already exist!" << endl;
                 return false;
             }
             else {

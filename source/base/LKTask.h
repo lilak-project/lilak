@@ -28,6 +28,8 @@ class LKTask : public TTask, public LKGear
         bool EndOfRunTasks();
         virtual bool EndOfRun();
 
+        virtual void SignalNextEvent() {};
+
     ClassDef(LKTask, 1)
 };
 

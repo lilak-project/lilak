@@ -466,6 +466,9 @@ void LKRun::Add(TTask *task)
 void LKRun::SetEventTrigger(LKTask *task)
 {
     fEventTrigger = task;
+    fEventTrigger -> SetRun(this);
+    fEventTrigger -> SetRank(fRank+1);
+    fEventTrigger -> AddPar(fPar);
     fUsingEventTrigger = true;
 }
 
@@ -712,7 +715,14 @@ bool LKRun::Init()
     if (fNumSplitEntries>=0)
         fRunHeader -> AddPar("NumEventsInSplit",int(fNumSplitEntries));
 
-    if (fUsingEventTrigger) fEventTrigger -> Init();
+    if (fUsingEventTrigger)
+    {
+        lk_info << "Initializing event trigger task " << fEventTrigger -> GetName() << "." << endl;
+        if (fEventTrigger -> Init() == false) {
+            lk_warning << "Initialization failed!" << endl;
+            fInitialized = false;
+        }
+    }
     fInitialized = InitTasks();
 
     if (fInitialized) {
@@ -724,7 +734,7 @@ bool LKRun::Init()
 
     fCurrentEventID = 0;
 
-    Print();
+    //Print();
 
     if (fInitialized) {
         lk_info << "Initialized!" << endl;
@@ -1045,41 +1055,67 @@ bool LKRun::RunSelectedEvent(TString selection)
     return ExecuteEvent(entryNumber);
 }
 
+bool LKRun::ExecuteNextEvent()
+{
+    if (!fRunHasStarted)
+        StartOfRun();
+    return ExecuteEvent(-3);
+}
+
 bool LKRun::ExecuteEvent(Long64_t eventID)
 {
+    bool numEntriesMatter = true;
+
     if (eventID==-1) {
         eventID = fCurrentEventID;
     }
     else if (eventID==-2) {
         fCurrentEventID = fCurrentEventID + 1;
     }
+    else if (eventID==-3) {
+        fCurrentEventID = fCurrentEventID + 1;
+        if (fNumEntries<0)
+            numEntriesMatter = false;
+    }
     else {
         fCurrentEventID = eventID;
     }
 
-    if (fCurrentEventID > fNumEntries - 1) {
-        fCurrentEventID = fCurrentEventID - 1;
-        lk_info << "End of run! (at event " << fCurrentEventID << ")" << endl;
-        return false;
-    }
+    if (numEntriesMatter)
+    {
+        if (fCurrentEventID > fNumEntries - 1) {
+            fCurrentEventID = fCurrentEventID - 1;
+            lk_info << "End of run! (at event " << fCurrentEventID << ")" << endl;
+            return false;
+        }
 
-    if (fCurrentEventID < 0 || fCurrentEventID > fNumEntries - 1) {
-        lk_error << "EventID: " << fCurrentEventID << " (" << eventID << ")" << ", not in proper range." << endl;
-        lk_error << "Entry range : " << 0 << " -> " << fNumEntries - 1 << endl;
-        lk_error << "Exit run" << endl;
-        return false;
+        if (fCurrentEventID < 0 || fCurrentEventID > fNumEntries - 1) {
+            lk_error << "EventID: " << fCurrentEventID << " (" << eventID << ")" << ", not in proper range." << endl;
+            lk_error << "Entry range : " << 0 << " -> " << fNumEntries - 1 << endl;
+            lk_error << "Exit run" << endl;
+            return false;
+        }
     }
 
     LKRun::GetEntry(fCurrentEventID);
 
-    if (fEventCount==0||fEventCount%fEventCountForMessage!=0) {
+    if ((fEventCount==0||fEventCount%fEventCountForMessage!=0)) {
         lk_set_message(false);
     }
 
-    e_cout << endl;
-    lk_info << "Execute Event " << fCurrentEventID << " (" << fEventCount << "/" << fNumRunEntries << ")" << endl;
-    //ClearArrays();
-    ExecuteTask("");
+    if (numEntriesMatter)
+    {
+        e_cout << endl;
+        lk_info << "Execute Event " << fCurrentEventID << " (" << fEventCount << "/" << fNumRunEntries << ")" << endl;
+        //ClearArrays();
+        ExecuteTask("");
+    }
+    else {
+        lk_info << "Execute Event " << fCurrentEventID << endl;
+        //ClearArrays();
+        ExecuteTask("");
+        e_cout << endl;
+    }
 
     lk_set_message(true);
 
@@ -1134,6 +1170,8 @@ bool LKRun::StartOfRun(Long64_t numEvents)
     if (fEventCountForMessage==0)
     {
         if (fNumRunEntries<fNumPrintMessage)
+            fEventCountForMessage = 1;
+        if (fNumRunEntries==0&&fNumRunEntries==fNumPrintMessage)
             fEventCountForMessage = 1;
         fEventCountForMessage = fNumRunEntries/fNumPrintMessage;
         if (fEventCountForMessage==0)
