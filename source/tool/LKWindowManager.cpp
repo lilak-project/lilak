@@ -78,7 +78,7 @@ void LKWindowManager::ConfigureDisplay()
     fGeneralResizeFactor = fWCurrentDisplay / Double_t(1250);
     fWDefault = fWDefaultOrigin * fGeneralResizeFactor;
     fHDefault = fHDefaultOrigin * fGeneralResizeFactor;
-    e_info << "Full-Canvas-Size = (" << fXCurrentDisplay << ", " << fHCurrentDisplay << ")" << endl;
+    e_info << "Full-Canvas-Size = (" << fWCurrentDisplay << ", " << fHCurrentDisplay << ")" << endl;
 }
 
 void LKWindowManager::SetDeadFrameLeft(UInt_t val)
@@ -116,6 +116,8 @@ TCanvas *LKWindowManager::Canvas(const char *name, Int_t mode, Double_t value1, 
 
 void LKWindowManager::UpdateNextCanvasPosition()
 {
+    if (fFixCanvasPosition)
+        return;
     fXCurrentCanvas = fXCurrentCanvas + fWSpacing;
     fYCurrentCanvas = fYCurrentCanvas + fHSpacing;
 }
@@ -196,10 +198,19 @@ TCanvas *LKWindowManager::CanvasFullRatio(const char* name, const char* title, D
     return cvs;
 }
 
-TCanvas *LKWindowManager::CanvasResize(const char* name, const char* title, Int_t width0, Int_t height0)
+TCanvas *LKWindowManager::CanvasResize(const char* name, const char* title, Int_t width0, Int_t height0, Double_t ratio)
 {
-    Int_t width  = width0 * fGeneralResizeFactor;
-    Int_t height = height0 * fGeneralResizeFactor;
+    if (ratio<0)
+        ratio = fGeneralResizeFactor;
+    Int_t width, height;
+    if (double(fWCurrentDisplay)/fHCurrentDisplay<double(width0)/height0) {
+        width = fWCurrentDisplay*ratio;
+        height = double(fWCurrentDisplay)/width0*height0*ratio;
+    }
+    else {
+        height = fHCurrentDisplay*ratio;
+        width = double(fHCurrentDisplay)/height0*width0*ratio;
+    }
     UpdateNextCanvasPosition();
     auto cvs = NewCanvas(name,title,fXCurrentCanvas, fYCurrentCanvas, width, height);
     return cvs;

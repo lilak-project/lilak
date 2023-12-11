@@ -41,6 +41,7 @@ class LKWindowManager : public TObject
 
         Double_t SetRatio(Double_t ratio);
         void UpdateNextCanvasPosition();
+        void FixCanvasPosition() { fFixCanvasPosition = true; }
         TCanvas *NewCanvas(const char *name, const char *title, Int_t x, Int_t y, Int_t width, Int_t height);
 
         /**
@@ -58,7 +59,7 @@ class LKWindowManager : public TObject
         TCanvas *CanvasRatio     (const char* name, const char* title, Double_t ratio1, Double_t ratio2);
         TCanvas *CanvasSquare    (const char* name, const char* title);
         TCanvas *CanvasFullSquare(const char* name, const char* title, Double_t ratio);
-        TCanvas *CanvasResize    (const char* name, const char* title, Int_t width0, Int_t height0);
+        TCanvas *CanvasResize    (const char* name, const char* title, Int_t width0, Int_t height0, Double_t ratio=-1);
 
         const Int_t kDefault    = 0;
         const Int_t kRatio      = 1;
@@ -80,7 +81,7 @@ class LKWindowManager : public TObject
         UInt_t       fWCurrentDisplay = 0; /// width  of current display
         UInt_t       fHCurrentDisplay = 0; /// height of current display
 
-        UInt_t       fDeadFrameSize[4] = {0,10,10,25}; /// height of the top bar
+        UInt_t       fDeadFrameSize[4] = {0,10,40,0}; /// height of the top bar
 
         Int_t        fXCurrentCanvas = 0;  /// width  position of next canvas
         Int_t        fYCurrentCanvas = 0;  /// height position of next canvas
@@ -95,6 +96,8 @@ class LKWindowManager : public TObject
 
         Int_t        fWSpacing = 25; /// default width  spacing of canvas
         Int_t        fHSpacing = 25; /// default height spacing of canvas
+
+        bool         fFixCanvasPosition = true;
 
     ClassDef(LKWindowManager,1);
 };
