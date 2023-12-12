@@ -986,7 +986,6 @@ void LKRun::Run(Long64_t numEvents)
     }
 }
 
-
 void LKRun::Run(Long64_t startID, Long64_t endID)
 {
     if (startID > endID || startID < 0 || endID > fNumEntries - 1) {
@@ -1122,8 +1121,9 @@ bool LKRun::ExecuteEvent(Long64_t eventID)
     if (fSignalEndOfRun)
         return false;
 
-    if (fOutputTree != nullptr)
+    if (fOutputTree!=nullptr && fFillCurrentEvent==true)
         fOutputTree -> Fill();
+    fFillCurrentEvent = true;
 
     ++fEventCount;
 

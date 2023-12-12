@@ -223,6 +223,8 @@ class LKRun : public LKTask
 
         bool CheckMute() { return (fEventCount==0||fEventCount%fEventCountForMessage!=0); }
 
+        void DoNotFillCurrentEvent() { fFillCurrentEvent = false; }
+
     protected:
         bool ExecuteEvent(Long64_t eventID=-1); ///< Run just one event of eventID.
         //void CheckIn();
@@ -314,6 +316,8 @@ class LKRun : public LKTask
 
         LKTask* fEventTrigger = nullptr;
         bool fUsingEventTrigger = false;
+
+        fFillCurrentEvent = false;
 
     private:
         static LKRun *fInstance;
