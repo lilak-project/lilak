@@ -50,6 +50,8 @@ class GETChannel : public LKChannel
 
         virtual void Draw(Option_t *option="");
 
+        TH1D *GetHist(TString name="");
+
         Int_t GetDetType() const  { return fDetType; }
         Int_t GetFrameNo() const  { return fFrameNo; }
         Int_t GetDecayNo() const  { return fDecayNo; }

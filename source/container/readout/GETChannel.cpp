@@ -82,12 +82,23 @@ GETChannel* GETChannel::CloneChannel() const
 void GETChannel::Draw(Option_t *option)
 {
     if (fHist==nullptr)
-        fHist = new TH1D("hist","",512,0,512);
+        GetHist();
+    fHist -> Draw(option);
+}
+
+TH1D *GETChannel::GetHist(TString name)
+{
+    if (name.IsNull())
+        name = "hist";
+    if (fHist==nullptr)
+        fHist = new TH1D(name,";tb;",512,0,512);
     fHist -> Reset();
+    fHist -> SetName(name);
+    //lk_debug << name << " " << fHist -> GetName() << endl;
     fHist -> SetTitle(Form("%d %d %d %d", fCobo, fAsad, fAget, fChan));
     for (Int_t i=0; i<512; ++i)
         fHist -> SetBinContent(i+1,fWaveformY[i]);
-    fHist -> Draw(option);
+    return fHist;
 }
 
 void GETChannel::SetWaveformY(const UInt_t *waveform)
