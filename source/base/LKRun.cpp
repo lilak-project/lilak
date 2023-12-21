@@ -1130,6 +1130,24 @@ bool LKRun::ExecuteEvent(Long64_t eventID)
     return true;
 }
 
+void LKRun::ClearArrays()
+{
+    // fBranchPtr contains branches from input file too.
+    // So we use fPersistentBranchArray fTemporaryBranchArray for ouput branch initialization
+    // @todo We may need to sort out branch that needs clear before Exec()
+    for (auto branchArray : {fPersistentBranchArray, fTemporaryBranchArray}) {
+        Int_t numBranches = branchArray -> GetEntries();
+        for (Int_t iBranch = 0; iBranch < numBranches; iBranch++) {
+            auto branch = (TClonesArray *) branchArray -> At(iBranch);
+            branch -> Clear("C");
+            //if (branch -> InheritsFrom(TClonesArray::Class()))
+            //    ((TClonesArray *) branch) -> Clear("C");
+            //else
+            //    branch -> Clear();
+        }
+    }
+}
+
 bool LKRun::StartOfRun(Long64_t numEvents)
 {
     if (fRunHasStarted)
@@ -1146,8 +1164,6 @@ bool LKRun::StartOfRun(Long64_t numEvents)
 
     if (fNumEntries<=0)
         fNumEntries = numEvents;
-
-    //CheckIn();
 
     if (numEvents > 0)
         fEndEventID = numEvents - 1;
@@ -1178,28 +1194,22 @@ bool LKRun::StartOfRun(Long64_t numEvents)
             fEventCountForMessage = 1;
     }
 
+    {
+        time_t start_time = time(0);
+        struct tm *now = localtime(&start_time);
+        TString start_ymd = Form("%04d.%02d.%02d",now->tm_year+1900,now->tm_mon+1,now->tm_mday);
+        TString start_hms = Form("%02d:%02d:%02d",now->tm_hour,now->tm_min,now->tm_sec);
+        fRunHeader -> AddPar("start_time",Long64_t(start_time));
+        fRunHeader -> AddPar("start_ymd",start_ymd);
+        fRunHeader -> AddPar("start_hms",start_hms);
+    }
+
     fEventCount = 1;
 
+    fCleanExit = false;
     fRunHasStarted = true;
 
     return true;
-}
-
-void LKRun::ClearArrays() {
-    // fBranchPtr contains branches from input file too.
-    // So we use fPersistentBranchArray fTemporaryBranchArray for ouput branch initialization
-    // @todo We may need to sort out branch that needs clear before Exec()
-    for (auto branchArray : {fPersistentBranchArray, fTemporaryBranchArray}) {
-        Int_t numBranches = branchArray -> GetEntries();
-        for (Int_t iBranch = 0; iBranch < numBranches; iBranch++) {
-            auto branch = (TClonesArray *) branchArray -> At(iBranch);
-            branch -> Clear("C");
-            //if (branch -> InheritsFrom(TClonesArray::Class()))
-            //    ((TClonesArray *) branch) -> Clear("C");
-            //else
-            //    branch -> Clear();
-        }
-    }
 }
 
 bool LKRun::EndOfRun()
@@ -1216,15 +1226,54 @@ bool LKRun::EndOfRun()
         lk_info << "Run stoped at event " << fIdxEntry << " (" << fIdxEntry - fStartEventID << ") because EndOfRun signal was sent" << endl;
     Print("gen:out:in");
 
+    {
+        Long64_t start_time = fRunHeader -> GetParInt("start_time");
+        time_t end_time = time(0);
+        struct tm *now = localtime(&end_time);
+        TString end_ymd = Form("%04d.%02d.%02d",now->tm_year+1900,now->tm_mon+1,now->tm_mday);
+        TString end_hms = Form("%02d:%02d:%02d",now->tm_hour,now->tm_min,now->tm_sec);
+        fRunHeader -> AddPar("end_time",Long64_t(end_time));
+        fRunHeader -> AddPar("end_ymd",end_ymd);
+        fRunHeader -> AddPar("end_hms",end_hms);
+        time_t run_time = end_time - start_time + 54000;
+        now = localtime(&run_time);
+        fRunHeader -> AddPar("run_time",Long64_t(run_time));
+        TString run_time_s = Form("%ddays %dh %dm %ds",now->tm_mday-2,now->tm_hour,now->tm_min,now->tm_sec);
+        fRunHeader -> AddPar("run_time_s",run_time_s);
+    }
+
     WriteOutputFile();
 
     fRunHasStarted = false;
+    fCleanExit = true;
 
-    //CheckOut();
+    ProcessWriteExitLog();
 
-    if (fAutoTerminate) Terminate(this);
+    if (fAutoTerminate) Terminate(this, "good!");
 
     return true;
+}
+
+void LKRun::WriteExitLog(TString path)
+{
+    if (path.IsNull())
+        lk_error << "Must give path for exit log" << endl;
+    else
+        fExitLogPath = path;
+}
+
+void LKRun::ProcessWriteExitLog()
+{
+    if (fExitLogPath.IsNull()) return;
+    if (!fCleanExit) return;
+    auto iLast = fOutputFileName.Last('/');
+    auto nameExitLog = TString(fOutputFileName(iLast+1,fOutputFileName.Sizeof()-2-iLast));
+    if (nameExitLog.EndsWith(".root")) nameExitLog = nameExitLog(0,nameExitLog.Sizeof()-6);
+    if (!fExitLogPath.EndsWith("/")) fExitLogPath = fExitLogPath + "/";
+    lk_info << "Creating " << fExitLogPath+nameExitLog << endl;
+    ofstream exitlog(fExitLogPath+nameExitLog);
+    exitlog << fRunHeader -> GetParString("run_time_s") << endl;
+    exitlog << fOutputFile->GetName() << endl;
 }
 
 void LKRun::Terminate(TObject *obj, TString message)
@@ -1240,33 +1289,6 @@ bool LKRun::CheckFileExistence(TString fileName)
         return false;
     return true;
 }
-
-/*
-void LKRun::CheckIn()
-{
-    fSignalEndOfRun = false;
-    fCheckIn = true;
-
-    //time_t t = time(0);
-    //struct tm * now = localtime(&t);
-    //TString ldate = Form("%04d.%02d.%02d",now->tm_year+1900,now->tm_mon+1,now->tm_mday);
-    //TString ltime = Form("%02d:%02d",now->tm_hour,now->tm_min);
-    //TString lname = LILAK_USERNAME;
-    //TString lversion = LILAK_VERSION;
-    //TString linput = fInputFileName.IsNull() ? "-" : fInputFileName;
-    //TString loutput = fOutputFileName.IsNull() ? "-" : fOutputFileName;
-}
-
-void LKRun::CheckOut()
-{
-    //time_t t = time(0);
-    //struct tm * now = localtime(&t);
-    //TString ldate = Form("%04d.%02d.%02d",now->tm_year+1900,now->tm_mon+1,now->tm_mday);
-    //TString ltime = Form("%02d:%02d",now->tm_hour,now->tm_min);
-
-    fCheckIn = false;
-}
-*/
 
 void LKRun::AddDetector(LKDetector *detector) {
     detector -> SetRun(this);

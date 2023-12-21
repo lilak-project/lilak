@@ -187,7 +187,7 @@ class LKRun : public LKTask
          * Run all events
          *
          * - Run(nid), Run(id1,id2), RunEvent(id) and RunSelectedEvent(selection):
-         *   >> CheckIn() -> Run ExecTasks() for all event(s) -> Run EndOfRunTasks() -> Write trees, parameters, headers -> CheckOut()
+         *   >> StartOfRun() -> Run ExecTasks() for all event(s) -> Run EndOfRunTasks() -> Write trees, parameters, headers -> EndOfRun()
          *   >> Run Exec() for one event (will not write any object)
          */
         void Run(Long64_t numEvents = -1); ///< Run number of events numEvents from the first point
@@ -206,6 +206,9 @@ class LKRun : public LKTask
         bool StartOfRun(Long64_t numEvents = -1);
         void ClearArrays();
         bool EndOfRun();
+
+        void WriteExitLog(TString path);
+        bool IsCleanExit() { return fCleanExit; }
 
         //void EventMessage(const char *message);
 
@@ -227,8 +230,8 @@ class LKRun : public LKTask
 
     protected:
         bool ExecuteEvent(Long64_t eventID=-1); ///< Run just one event of eventID.
-        //void CheckIn();
-        //void CheckOut();
+
+        void ProcessWriteExitLog();
 
     private:
         bool fRunNameIsSet = false;
@@ -297,8 +300,8 @@ class LKRun : public LKTask
         Long64_t fEventCountForMessage = 0;
         Long64_t fNumPrintMessage = 20;
         bool fRunHasStarted = false;
+        bool fCleanExit = false;
         bool fSignalEndOfRun = false;
-        //bool fCheckIn = false;
 
         LKParameterContainer *fRunHeader = nullptr;
         LKParameterContainer *fG4ProcessTable = nullptr; ///< List of Geant4 physics process
@@ -318,6 +321,8 @@ class LKRun : public LKTask
         bool fUsingEventTrigger = false;
 
         bool fFillCurrentEvent = false;
+
+        TString fExitLogPath;
 
     private:
         static LKRun *fInstance;
