@@ -216,7 +216,7 @@ void LKEveTask::DrawEve3D()
     gEve -> Redraw3D();
 #else
     if (fCanvas3D==nullptr) {
-        fCanvas3D = LKWindowManager::GetWindowManager() -> CanvasFullSquare("LKEveCanvas3D","LKEveCanvas3D",0.6);
+        fCanvas3D = LKWindowManager::GetWindowManager() -> CanvasSquare("LKEveCanvas3D",0.6);
         auto detector = fDetectorSystem -> GetDetector(0);
         double x1, y1, z1, x2, y2, z2;
         auto success = detector -> GetEffectiveDimension(x1, y1, z1, x2, y2, z2);
