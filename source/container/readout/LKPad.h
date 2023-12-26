@@ -50,6 +50,9 @@ class LKPad : public LKChannel
         void SetPlaneID(Int_t id);
         Int_t GetPlaneID() const;
 
+        void SetCoboID(Int_t id);
+        Int_t GetCoboID() const;
+
         void SetAsAdID(Int_t id);
         Int_t GetAsAdID() const;
 
@@ -133,6 +136,7 @@ class LKPad : public LKChannel
         bool fActive = false;
 
         Int_t fPlaneID = 0;
+        Int_t fCoboID = -1;
         Int_t fAsAdID = -1;
         Int_t fAGETID = -1;
         Int_t fChannelID = -1;

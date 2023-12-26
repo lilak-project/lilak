@@ -56,10 +56,10 @@ LKPad *LKPadPlane::GetPad(Double_t i, Double_t j)
     return pad;
 }
 
-LKPad *LKPadPlane::GetPad(Int_t section, Int_t row, Int_t layer)
+LKPad *LKPadPlane::GetPad(Int_t section, Int_t layer, Int_t row)
 {
     LKPad *pad = nullptr;
-    auto id = FindPadID(section, row, layer);
+    auto id = FindPadID(section, layer, row);
     if (id>=0)
         pad = GetPad(id);
     return pad;

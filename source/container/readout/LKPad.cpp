@@ -44,7 +44,7 @@ void LKPad::Print(Option_t *option) const
     if (fActive) e_cout << " is Active!" << endl;
     else e_cout << " is NOT Active." << endl;
 
-    e_info << "AsAd(1)AGET(1)CH(2)   : " << Form("%d%d%02d",fAsAdID,fAGETID,fChannelID) << endl;
+    e_info << "Cobo(1)AsAd(1)AGET(1)CH(2)   : " << Form("%d%d%d%02d",fCoboID,fAsAdID,fAGETID,fChannelID) << endl;
     e_info << "(Section, Row, Layer) : (" << fSection << ", " << fRow << ", " << fLayer << ")" << endl;
     e_info << "Noise-Amp | BaseLine  : " << fNoiseAmp << " | " << fBaseLine << endl;
     e_info << "Position              : (" << fPosition.X() << ", " << fPosition.Y() << ", " << fPosition.Z() << ") ; " << fPosition.GetReferenceAxis() << endl;
@@ -159,6 +159,7 @@ void LKPad::SetPad(LKPad *padRef)
 {
     fID = padRef -> GetPadID();
     fPlaneID = padRef -> GetPlaneID();
+    fCoboID = padRef -> GetCoboID();
     fAsAdID = padRef -> GetAsAdID();
     fAGETID = padRef -> GetAGETID();
     fChannelID = padRef -> GetChannelID();
@@ -199,6 +200,9 @@ Int_t LKPad::GetPadID() const { return fID; }
 
 void LKPad::SetPlaneID(Int_t id) { fPlaneID = id; }
 Int_t LKPad::GetPlaneID() const { return fPlaneID; }
+
+void LKPad::SetCoboID(Int_t id) { fCoboID = id; }
+Int_t LKPad::GetCoboID() const { return fCoboID; }
 
 void LKPad::SetAsAdID(Int_t id) { fAsAdID = id; }
 Int_t LKPad::GetAsAdID() const { return fAsAdID; }
@@ -366,7 +370,7 @@ void LKPad::SetHist(TH1D *hist, Option_t *option)
     opts.ToLower();
 
     TString namePad = Form("Pad%03d",fID);
-    TString nameID = Form("ID%d%d%02d",fAsAdID,fAGETID,fChannelID);
+    TString nameID = Form("ID%d%d%d%02d",fCoboID,fAsAdID,fAGETID,fChannelID);
 
     bool firstNameOn = false;
 

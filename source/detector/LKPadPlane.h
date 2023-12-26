@@ -43,10 +43,10 @@ class LKPadPlane : public LKDetectorPlane
         virtual void Clear(Option_t *option = "");
 
         virtual Int_t FindChannelID(Double_t i, Double_t j) { return -1; }
-        virtual Int_t FindChannelID(Int_t section, Int_t row, Int_t layer) { return -1; }
+        virtual Int_t FindChannelID(Int_t section, Int_t layer, Int_t row) { return -1; }
 
         virtual Int_t FindPadID(Double_t i, Double_t j) { return FindChannelID(i,j); }
-        virtual Int_t FindPadID(Int_t section, Int_t row, Int_t layer) { return FindChannelID(section,row,layer); }
+        virtual Int_t FindPadID(Int_t section, Int_t layer, Int_t row) { return FindChannelID(section,layer,row); }
 
         Double_t PadDisplacement() const { return 0; }
 
@@ -59,7 +59,7 @@ class LKPadPlane : public LKDetectorPlane
         LKPad *GetPad(Int_t padID);
 
         LKPad *GetPad(Double_t i, Double_t j);
-        LKPad *GetPad(Int_t section, Int_t row, Int_t layer);
+        LKPad *GetPad(Int_t section, Int_t layer, Int_t row);
 
         void SetPadArray(TClonesArray *padArray);
         void SetHitArray(TClonesArray *hitArray);

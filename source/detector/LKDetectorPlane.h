@@ -34,7 +34,7 @@ class LKDetectorPlane : public TNamed, public LKGear
         virtual bool IsInBoundary(Double_t i, Double_t j) = 0;
 
         virtual Int_t FindChannelID(Double_t i, Double_t j) { return -1; }
-        virtual Int_t FindChannelID(Int_t section, Int_t row, Int_t layer) { return -1; }
+        virtual Int_t FindChannelID(Int_t section, Int_t layer, Int_t row) { return -1; }
 
         virtual TCanvas *GetCanvas(Option_t *option = "");
         virtual int GetNumCPads() { return 1; }
