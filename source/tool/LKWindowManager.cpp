@@ -147,7 +147,8 @@ TCanvas *LKWindowManager::CanvasDefault(TString name, Double_t ratio)
 
 TCanvas *LKWindowManager::CanvasFull(TString name, Double_t ratio1, Double_t ratio2)
 {
-    if (ratio2<0) ratio1 = 1;
+    if (ratio1<0) ratio1 = 1;
+    if (ratio1>0 && ratio2<0) ratio2 = ratio1;
     ratio1 = SetRatio(ratio1);
     ratio2 = SetRatio(ratio2);
     Int_t width  = ratio1*fWCurrentDisplay;
