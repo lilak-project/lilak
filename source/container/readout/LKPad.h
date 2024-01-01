@@ -92,6 +92,7 @@ class LKPad : public LKChannel
         void SetBufferIn(Double_t *buffer);
         Double_t *GetBufferIn();
 
+        void SetBufferRaw(Int_t *buffer);
         void SetBufferRaw(Short_t *buffer);
         Short_t *GetBufferRaw();
 

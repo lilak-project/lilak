@@ -296,6 +296,7 @@ void LKPad::FillBufferIn(Int_t tbin, Double_t val, Int_t trackID)
 void LKPad::SetBufferIn(Double_t *buffer) { memcpy(fBufferIn, buffer, sizeof(Double_t)*512); }
 Double_t *LKPad::GetBufferIn() { return fBufferIn; }
 
+void LKPad::SetBufferRaw(Int_t *buffer) { for (auto i=0; i<512; ++i) fBufferRaw[i] = buffer[i]; }
 void LKPad::SetBufferRaw(Short_t *buffer) { memcpy(fBufferRaw, buffer, sizeof(Short_t)*512); }
 Short_t *LKPad::GetBufferRaw() { return fBufferRaw; }
 

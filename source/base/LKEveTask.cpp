@@ -82,10 +82,12 @@ bool LKEveTask::Init()
 void LKEveTask::Exec(Option_t*)
 {
     Bool_t drawEve3D = true;
-    Bool_t drawDetectorPlanes = true;
+    Bool_t drawPlane = true;
+    if (fPar->CheckPar("LKEveTask/drawEve3D")) drawEve3D = fPar -> GetParBool("LKEveTask/drawEve3D");
+    if (fPar->CheckPar("LKEveTask/drawPlane")) drawPlane = fPar -> GetParBool("LKEveTask/drawPlane");
 
     if (drawEve3D) DrawEve3D();
-    if (drawDetectorPlanes) DrawDetectorPlanes();
+    if (drawPlane) DrawDetectorPlanes();
 }
 
 void LKEveTask::DrawEve3D()

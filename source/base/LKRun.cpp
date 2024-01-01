@@ -1054,15 +1054,10 @@ bool LKRun::RunSelectedEvent(TString selection)
     return ExecuteEvent(entryNumber);
 }
 
-bool LKRun::ExecuteNextEvent()
-{
-    if (!fRunHasStarted)
-        StartOfRun();
-    return ExecuteEvent(-3);
-}
-
 bool LKRun::ExecuteEvent(Long64_t eventID)
 {
+    StartOfRun();
+
     bool numEntriesMatter = true;
 
     if (eventID==-1) {
