@@ -222,15 +222,13 @@ class LKRun : public LKTask
         static TString ConfigureDataPath(TString name, bool search = false, TString pathData="", bool addVersion=false);
         static bool CheckFileExistence(TString fileName);
 
-        bool ExecuteNextEvent();
+        bool ExecuteEvent(Long64_t eventID=-1); ///< Run just one event of eventID.
+        bool ExecuteNextEvent() { return ExecuteEvent(-3); }
 
         bool CheckMute() { return (fEventCount==0||fEventCount%fEventCountForMessage!=0); }
-
         void DoNotFillCurrentEvent() { fFillCurrentEvent = false; }
 
     protected:
-        bool ExecuteEvent(Long64_t eventID=-1); ///< Run just one event of eventID.
-
         void ProcessWriteExitLog();
 
     private:
