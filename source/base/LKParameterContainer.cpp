@@ -106,17 +106,7 @@ void LKParameterContainer::ReplaceEnvVariables(TString &valInput)
         TString replaceFrom2 = replaceFrom;
         replaceFrom2.ToLower();
         TString replaceTo;
-             if (replaceFrom2=="lilak_version"            ) replaceTo = LILAK_VERSION;
-        else if (replaceFrom2=="lilak_hash"               ) replaceTo = LILAK_HASH;
-        else if (replaceFrom2=="lilak_mainproject_version") replaceTo = LILAK_MAINPROJECT_VERSION;
-        else if (replaceFrom2=="lilak_mainproject_hash"   ) replaceTo = LILAK_MAINPROJECT_HASH;
-        else if (replaceFrom2=="lilak_hostname"           ) replaceTo = LILAK_HOSTNAME;
-        else if (replaceFrom2=="lilak_username"           ) replaceTo = LILAK_USERNAME;
-        else if (replaceFrom2=="lilak_hostuser"           ) replaceTo = LILAK_HOSTUSER;
-        else if (replaceFrom2=="lilak_path"               ) replaceTo = LILAK_PATH;
-        else if (replaceFrom2=="lilak_version"            ) replaceTo = LILAK_VERSION;
-        else
-            replaceTo = getenv(replaceFrom);
+        replaceTo = getenv(replaceFrom);
 
         valInput.Replace(ienv,fenv-ienv+1,replaceTo);
         ienv = valInput.Index("e{");
@@ -139,8 +129,21 @@ void LKParameterContainer::ReplaceVariables(TString &valInput)
     while (ipar>=0) {
         int fpar = valInput.Index("}",1,ipar,TString::kExact);
         TString parName2 = valInput(ipar+1,fpar-ipar-1);
-        TString parValue2 = GetParString(parName2);
-        valInput.Replace(ipar,fpar-ipar+1,parValue2);
+        TString replaceTo;
+             if (parName2=="lilak_mainproject_version") replaceTo = LILAK_MAINPROJECT_VERSION;
+        else if (parName2=="lilak_mainproject_hash"   ) replaceTo = LILAK_MAINPROJECT_HASH;
+        else if (parName2=="lilak_version" ) replaceTo = LILAK_VERSION;
+        else if (parName2=="lilak_hash"    ) replaceTo = LILAK_HASH;
+        else if (parName2=="lilak_hostname") replaceTo = LILAK_HOSTNAME;
+        else if (parName2=="lilak_username") replaceTo = LILAK_USERNAME;
+        else if (parName2=="lilak_hostuser") replaceTo = LILAK_HOSTUSER;
+        else if (parName2=="lilak_path"    ) replaceTo = LILAK_PATH;
+        else if (parName2=="lilak_version" ) replaceTo = LILAK_VERSION;
+        else if (parName2=="lilak_data"    ) replaceTo = TString(LILAK_PATH)+"/data/";
+        else if (parName2=="lilak_common"  ) replaceTo = TString(LILAK_PATH)+"/common/";
+        else
+            replaceTo = GetParString(parName2);
+        valInput.Replace(ipar,fpar-ipar+1,replaceTo);
         ipar = valInput.Index("{");
     }
 
