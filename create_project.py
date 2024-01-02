@@ -39,7 +39,7 @@ def print_h(*messages):
     print(print_head+"##"+print_end+full_message)
 
 list_top_directories = ["build","data","log","macros","source"]
-list_proj_subdir = ["container","detector","tool","task","geant4","macros"]
+list_proj_subdir = ["container","detector","tool","task","geant4","macros","commom"]
 
 ls_top = os.listdir("./")
 list_prj_directories = []

@@ -2,6 +2,7 @@
 *.gdml
 
 #build
+CMakeLists.txt
 build
 *.swp
 *.o
@@ -23,6 +24,9 @@ log/*
 
 #cmake configuration log files
 !log/*.in
+
+#common
+common/
 
 #temporary directories
 temp*/

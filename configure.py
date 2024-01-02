@@ -153,6 +153,30 @@ while True:
             if main_project!="lilak":
                 f.write(f'\n\nset(LILAK_PROJECT_MAIN {main_project} CACHE INTERNAL "")')
 
+        top_common_dir = f"{lilak_path}/common/"
+        print()
+        for item in os.listdir(top_common_dir):
+            item_path = os.path.join(top_common_dir, item)
+            if os.path.islink(item_path):
+                #print(f"Removing existing link: {item_path}")
+                os.remove(item_path)
+        for project_name in project_list:
+            projct_path = os.path.join(lilak_path,project_name)
+            ls_directory = os.listdir(projct_path)
+            if "common" in ls_directory:
+                proj_common_dir = f"{projct_path}/common/"
+                ls_proj_common = os.listdir(proj_common_dir)
+                for file1 in sorted(os.listdir(proj_common_dir)):
+                    src_file = os.path.join(proj_common_dir, file1)
+                    dest_link = os.path.join(top_common_dir, file1)
+                    if os.path.exists(dest_link) or os.path.islink(dest_link):
+                        print(f"link already exists: {dest_link}")
+                        continue
+                    else:
+                        print(f"linking {dest_link}")
+                        os.symlink(src_file, dest_link)
+                        #print(f"Link created for {src_file} -> {dest_link}")
+        print()
         for project_name in project_list:
             projct_path = os.path.join(lilak_path,project_name)
             project_cmake_file_name = os.path.join(projct_path, "CMakeLists.txt")
@@ -239,8 +263,8 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
             if input_main_project in project_list:
                 print(f"Main project is {main_project}")
                 break
-            elif input_main_project.isdigit() and int(input_main_project) < len(project_list):
-                main_project = project_list[int(input_main_project)]
+            elif input_main_project.isdigit() and int(input_main_project) <= len(project_list):
+                main_project = project_list[int(input_main_project)-1]
                 print(f"Main project is {main_project}")
                 break
             elif len(input_main_project)==0:
@@ -256,7 +280,6 @@ print_h("Building lilak")
 print()
 
 if lilak_path_is_set==False:
-    print()
     print("   LILAK_PATH is not set. I will set it for you just this time!")
     print()
     os.environ["LILAK_PATH"] = lilak_path
