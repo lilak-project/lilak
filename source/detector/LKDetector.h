@@ -4,6 +4,7 @@
 #include "LKGear.h"
 #include "LKRun.h"
 #include "LKPulseGenerator.h"
+#include "LKChannelAnalyzer.h"
 
 #include "TNamed.h"
 #include "TGeoManager.h"
@@ -41,9 +42,9 @@ class LKDetector : public TNamed, public LKGear
 
         void SetRun(LKRun *run);
 
-        LKPulseGenerator *GetPulseGenerator();
-
         virtual bool GetEffectiveDimension(Double_t &x1, Double_t &y1, Double_t &z1, Double_t &x2, Double_t &y2, Double_t &z2) { return false; }
+
+        virtual LKChannelAnalyzer* GetChannelAnalyzer(int id=0);
 
     protected:
         virtual bool BuildGeometry() = 0;
@@ -56,6 +57,8 @@ class LKDetector : public TNamed, public LKGear
 
         LKPulseGenerator *fPulseGenerator = nullptr;
         LKDetectorSystem *fParent = nullptr;
+
+        LKChannelAnalyzer* fChannelAnalyzer0;
 
     ClassDef(LKDetector, 1)
 };

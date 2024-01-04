@@ -101,20 +101,15 @@ void LKDetector::SetRun(LKRun *run)
     }
 }
 
-LKPulseGenerator *LKDetector::GetPulseGenerator()
+LKChannelAnalyzer* LKDetector::GetChannelAnalyzer(int)
 {
-    if (fPulseGenerator==nullptr) {
-        TString pulserFile = "";
-        TString pulserFileParName = fName+"/pulserFile";
-        lk_info << "Looking for pulser file parameter : " << pulserFileParName << endl;
-        if (fPar -> CheckPar(pulserFileParName)) {
-            pulserFile = fPar -> GetParString(pulserFileParName);
-            lk_info << "pulser file found : " << pulserFile << endl;
-        }
-        else {
-            lk_warning << "not found : " << pulserFile << endl;
-        }
-        fPulseGenerator = new LKPulseGenerator(pulserFile);
+    if (fChannelAnalyzer0==nullptr)
+    {
+        if (fPar->CheckPar("pulseFile")==false)
+            fPar -> AddLine("pulseFile {lilak_common}/pulseReference_PulseExtraction.root");
+        TString pulseFileName = fPar -> GetParString("pulseFile");
+        fChannelAnalyzer0 = new LKChannelAnalyzer();
+        fChannelAnalyzer0 -> SetPulse(pulseFileName);
     }
-    return fPulseGenerator;
+    return fChannelAnalyzer0;
 }

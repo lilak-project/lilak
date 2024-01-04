@@ -92,6 +92,8 @@ LKRun::LKRun(TString runName, int id, TString tag)
 
     if (!inputFileName.IsNull())
         AddInputFile(inputFileName);
+
+    AlwaysPrintMessage();
 }
 
 void LKRun::PrintLILAK()
