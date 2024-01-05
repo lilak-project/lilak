@@ -198,6 +198,21 @@ class LKParameterContainer : public TObjArray
         Double_t GetParSize  (TString name, int idx=-1) const { return GetParDouble(name,idx); }
         axis_t   GetParAxis  (TString name, int idx=-1) const;
 
+        void UpdateParBool  (TString name, Bool_t   &value) { if (CheckPar(name)) value = GetParBool  (name); }
+        void UpdateParInt   (TString name, Int_t    &value) { if (CheckPar(name)) value = GetParInt   (name); }
+        void UpdateParLong  (TString name, Long64_t &value) { if (CheckPar(name)) value = GetParLong  (name); }
+        void UpdateParDouble(TString name, Double_t &value) { if (CheckPar(name)) value = GetParDouble(name); }
+        void UpdateParString(TString name, TString  &value) { if (CheckPar(name)) value = GetParString(name); }
+        void UpdateParColor (TString name, Int_t    &value) { if (CheckPar(name)) value = GetParColor (name); }
+        void UpdateParV3    (TString name, TVector3 &value) { if (CheckPar(name)) value = GetParV3    (name); }
+        void UpdateParX     (TString name, Double_t &value) { if (CheckPar(name)) value = GetParX     (name); }
+        void UpdateParY     (TString name, Double_t &value) { if (CheckPar(name)) value = GetParY     (name); }
+        void UpdateParZ     (TString name, Double_t &value) { if (CheckPar(name)) value = GetParZ     (name); }
+        void UpdateParStyle (TString name, Int_t    &value) { if (CheckPar(name)) value = GetParStyle (name); }
+        void UpdateParWidth (TString name, Int_t    &value) { if (CheckPar(name)) value = GetParWidth (name); }
+        void UpdateParSize  (TString name, Double_t &value) { if (CheckPar(name)) value = GetParSize  (name); }
+        void UpdateParAxis  (TString name, axis_t   &value) { if (CheckPar(name)) value = GetParAxis  (name); }
+
         std::vector<bool>    GetParVBool  (TString name) const;
         std::vector<int>     GetParVInt   (TString name) const;
         std::vector<double>  GetParVDouble(TString name) const;
