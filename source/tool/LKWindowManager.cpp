@@ -43,8 +43,8 @@ void LKWindowManager::Clear(Option_t *option)
     fDeadFrameSize[3] = 0;
     fXCurrentCanvas = 0;
     fYCurrentCanvas = 0;
-    fWDefault = 600;
-    fHDefault = 450;
+    fWDefault = 700;
+    fHDefault = 500;
     fWSpacing = 25;
     fHSpacing = 25;
 }
@@ -75,7 +75,7 @@ void LKWindowManager::ConfigureDisplay()
     fYCurrentCanvas = fDeadFrameSize[3];
     fWCurrentDisplay = fWCurrentDisplay - fDeadFrameSize[0] - fDeadFrameSize[1];
     fHCurrentDisplay = fHCurrentDisplay - fDeadFrameSize[2] - fDeadFrameSize[3];
-    fGeneralResizeFactor = fWCurrentDisplay / Double_t(1250);
+    fGeneralResizeFactor = fWCurrentDisplay / Double_t(1500);
     fWDefault = fWDefaultOrigin * fGeneralResizeFactor;
     fHDefault = fHDefaultOrigin * fGeneralResizeFactor;
     e_info << "Full-Canvas-Size = (" << fWCurrentDisplay << ", " << fHCurrentDisplay << ")" << endl;

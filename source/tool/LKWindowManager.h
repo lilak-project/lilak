@@ -5,8 +5,12 @@
 #include "LKLogger.h"
 #include "TCanvas.h"
 
-#define lk_canvas(name)      LKWindowManager::GetWindowManager() -> Canvas(name,0)
-#define lk_full_canvas(name) LKWindowManager::GetWindowManager() -> Canvas(name,2)
+#define lk_win()    LKWindowManager::GetWindowManager()
+#define lk_cvs()    LKWindowManager::GetWindowManager() -> Canvas()
+#define lk_cvs_d(name)  LKWindowManager::GetWindowManager() -> CanvasDefault(name, ratio);
+#define lk_cvs_s(name)  LKWindowManager::GetWindowManager() -> CanvasFull(name, ratio, ratio2);
+#define lk_cvs_f(name)  LKWindowManager::GetWindowManager() -> CanvasSquare(name, ratio);
+#define lk_cvs_r(name,width0,height0)  kKWindowManager::GetWindowManager() -> CanvasResize(name, width0, height0, ratio);
 
 class LKWindowManager : public TObject
 {
@@ -50,10 +54,10 @@ class LKWindowManager : public TObject
          * mode = 2 (kSquare)     : square canvas.
          * mode = 3 (kResize)     : resize canvas from given w,h = (value1, value2) to show similar scale in the current display.
          */
-        TCanvas *Canvas          (TString name="", Int_t mode=0, Double_t value1=1, Double_t value2=-1, Double_t value3=-1);
-        TCanvas *CanvasDefault   (TString name, Double_t ratio=1);
-        TCanvas *CanvasFull      (TString name, Double_t ratio=1, Double_t ratio2=-1);
-        TCanvas *CanvasSquare    (TString name, Double_t ratio=1);
+        TCanvas *Canvas          (TString name="cvs_lilak", Int_t mode=0, Double_t value1=1, Double_t value2=-1, Double_t value3=-1);
+        TCanvas *CanvasDefault   (TString name="cvs_lilak", Double_t ratio=1);
+        TCanvas *CanvasFull      (TString name="cvs_lilak", Double_t ratio=1, Double_t ratio2=-1);
+        TCanvas *CanvasSquare    (TString name="cvs_lilak", Double_t ratio=1);
         TCanvas *CanvasResize    (TString name, Int_t width0, Int_t height0, Double_t ratio=-1);
 
         const Int_t kDefault    = 0;
