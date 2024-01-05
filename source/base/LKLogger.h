@@ -18,6 +18,7 @@
 #define lk_set_cout(val)    LKLogManager::SetPrintCout(val)
 #define lk_set_info(val)    LKLogManager::SetPrintInfo(val)
 #define lk_set_warning(val) LKLogManager::SetPrintWarn(val)
+#define lk_set_strong(val)  LKLogManager::SetPrintStrong(val)
 #define lk_set_error(val)   LKLogManager::SetPrintError(val)
 #define lk_set_test(val)    LKLogManager::SetPrintTest(val)
 #define lk_set_list(val)    LKLogManager::SetPrintList(val)
@@ -28,6 +29,7 @@
 #define lk_cout     LKLogger(fName,__FUNCTION__,0,1)
 #define lk_info     LKLogger(fName,__FUNCTION__,0,2)
 #define lk_warning  LKLogger(fName,__FUNCTION__,0,3)
+#define lk_strong   LKLogger(fName,__FUNCTION__,0,7)
 #define lk_error    LKLogger(fName,__FUNCTION__,0,4)
 #define lk_test     LKLogger(fName,__FUNCTION__,0,5)
 #define lk_list(i)  LKLogger(fName,__FUNCTION__,i,6)
@@ -37,6 +39,7 @@
 #define e_cout      LKLogger("","",0,1)
 #define e_info      LKLogger("","",0,2)
 #define e_warning   LKLogger("","",0,3)
+#define e_strong    LKLogger("","",0,7)
 #define e_error     LKLogger("","",0,4)
 #define e_test      LKLogger("","",0,5)
 #define e_list(i)   LKLogger("","",i,6)
@@ -56,6 +59,7 @@ class LKLogManager
         static bool fPrintCout;
         static bool fPrintInfo;
         static bool fPrintWarn;
+        static bool fPrintStrong;
         static bool fPrintError;
         static bool fPrintList;
         static bool fPrintTest;
@@ -77,6 +81,7 @@ class LKLogManager
         static void SetPrintCout(bool val);
         static void SetPrintInfo(bool val);
         static void SetPrintWarn(bool val);
+        static void SetPrintStrong(bool val);
         static void SetPrintError(bool val);
         static void SetPrintList(bool val);
         static void SetPrintTest(bool val);
@@ -88,6 +93,7 @@ class LKLogManager
         static bool PrintCout();
         static bool PrintInfo();
         static bool PrintWarn();
+        static bool PrintStrong();
         static bool PrintError();
         static bool PrintList();
         static bool PrintTest();

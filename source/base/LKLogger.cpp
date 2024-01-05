@@ -43,6 +43,7 @@ bool LKLogManager::fPrintDebug    = true;
 bool LKLogManager::fPrintCout     = true;
 bool LKLogManager::fPrintInfo     = true;
 bool LKLogManager::fPrintWarn     = true;
+bool LKLogManager::fPrintStrong   = true;
 bool LKLogManager::fPrintError    = true;
 bool LKLogManager::fPrintList     = true;
 bool LKLogManager::fPrintTest     = true;
@@ -51,6 +52,7 @@ bool LKLogManager::fPrintMessage  = true;
 void LKLogManager::SetPrintCout   (bool val) { fPrintCout = val; }
 void LKLogManager::SetPrintInfo   (bool val) { fPrintInfo = val; }
 void LKLogManager::SetPrintWarn   (bool val) { fPrintWarn = val; }
+void LKLogManager::SetPrintStrong (bool val) { fPrintStrong = val; }
 void LKLogManager::SetPrintList   (bool val) { fPrintList = val; }
 void LKLogManager::SetPrintPlane  (bool val) { fPrintPlane = val; }
 void LKLogManager::SetPrintError  (bool val) { fPrintError = val; }
@@ -63,6 +65,7 @@ bool LKLogManager::PrintDebug()   { return fPrintDebug; }
 bool LKLogManager::PrintCout()    { return fPrintCout; }
 bool LKLogManager::PrintInfo()    { return fPrintInfo; }
 bool LKLogManager::PrintWarn()    { return fPrintWarn; }
+bool LKLogManager::PrintStrong()  { return fPrintStrong; }
 bool LKLogManager::PrintError()   { return fPrintError; }
 bool LKLogManager::PrintList()    { return fPrintList; }
 bool LKLogManager::PrintTest()    { return fPrintTest; }
@@ -93,6 +96,7 @@ LKLogger::LKLogger(TString name, const std::string &title ,int rank, int option)
         case 1:  (LKLogManager::PrintCout())   ? LKLogManager::SetPrintCurrent(true) : LKLogManager::SetPrintCurrent(false); break;
         case 2:  (LKLogManager::PrintInfo())   ? LKLogManager::SetPrintCurrent(true) : LKLogManager::SetPrintCurrent(false); break;
         case 3:  (LKLogManager::PrintWarn())   ? LKLogManager::SetPrintCurrent(true) : LKLogManager::SetPrintCurrent(false); break;
+        case 7:  (LKLogManager::PrintStrong()) ? LKLogManager::SetPrintCurrent(true) : LKLogManager::SetPrintCurrent(false); break;
         case 5:  (LKLogManager::PrintTest())   ? LKLogManager::SetPrintCurrent(true) : LKLogManager::SetPrintCurrent(false); break;
         case 6:  (LKLogManager::PrintList())   ? LKLogManager::SetPrintCurrent(true) : LKLogManager::SetPrintCurrent(false); break;
         case 4:  (LKLogManager::PrintError())  ? LKLogManager::SetPrintCurrent(true) : LKLogManager::SetPrintCurrent(false); break;
@@ -110,6 +114,7 @@ LKLogger::LKLogger(TString name, const std::string &title ,int rank, int option)
                 case 3:  std::cout << header << "\033[0;33m" << "warn> "  << "\033[0m"; break;
                 case 5:  std::cout << header << "\033[0;36m" << "test> "  << "\033[0m"; break;
                 case 4:  std::cout << header << "\033[0;31m" << "error> " << "\033[0m"; break;
+                case 7:  std::cout << header << "\033[0;31m" << "LOOK> "  << "\033[0m"; break;
                 case 6:
                          if (rank<0)
                              std::cout << header << "\033[0;34m" << std::right << std::setw(4) << "*" << "  " << "\033[0m";
@@ -128,6 +133,7 @@ LKLogger::LKLogger(TString name, const std::string &title ,int rank, int option)
                     case 3:  LKLogManager::GetLogFile() << header << "warn> "; break;
                     case 4:  LKLogManager::GetLogFile() << header << "error> "; break;
                     case 5:  LKLogManager::GetLogFile() << header << "test> "; break;
+                    case 7:  LKLogManager::GetLogFile() << header << "LOOK> "; break;
                     case 6:  LKLogManager::GetLogFile() << header << std::right << std::setw(4) << rank << " "; break;
                     default: ;
                 }
