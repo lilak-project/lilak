@@ -1,7 +1,7 @@
 #ifndef LKHIT_HH
 #define LKHIT_HH
 
-#include "LKWPoint.h"
+#include "LKContainer.h"
 #include "LKContainer.h"
 #include "LKHitArray.h"
 
@@ -18,26 +18,33 @@ using namespace std;
 
 class LKTracklet;
 
-class LKHit : public LKWPoint
+class LKHit : public LKContainer
 {
     protected:
-        Int_t fHitID = -1;
-        Int_t fTrackID = -1;
-        Int_t fChannelID = -1;
-        Double_t fPedestal = -1;
-        Double_t fAlpha = -999; // TODO the polar angle
+        Double_t fX  = -999;
+        Double_t fY  = -999;
+        Double_t fZ  = -999;
+        Double_t fW  = -999;
         Double_t fDX = -999;
         Double_t fDY = -999;
         Double_t fDZ = -999;
-        Double_t fSortValue = 0; //! sort earlier if smaller, latter if larger
+        Double_t fTb = -999;
+        Int_t fHitID = -999;
+        Int_t fTrackID = -999;
+        Int_t fChannelID = -999;
+        Double_t fAlpha = -999; ///< Use for polar angle
+        Double_t fPedestal = -999;
+        Int_t fSection = -999;
+        Int_t fLayer = -999;
+        Int_t fRow = -999;
 
-        LKHitArray fHitArray; //!
-
-        vector<Int_t> fTrackCandArray;  //!
+        Double_t fSortValue = 0; //! Temporary parameter for sorting. Sort earlier if smaller, latter if larger
+        LKHitArray fHitArray; //! Temporary hit array
+        vector<Int_t> fTrackCandArray;  //! Temporary array for track ID candidates
 
     public :
         LKHit() { Clear(); }
-        LKHit(Double_t x, Double_t y, Double_t z, Double_t q) { Clear(); Set(x,y,z,q); }
+        LKHit(Double_t x, Double_t y, Double_t z, Double_t q) { Clear(); SetPosition(x,y,z); SetW(q); }
         virtual ~LKHit() {}
 
         virtual void Clear(Option_t *option = "");
@@ -45,62 +52,113 @@ class LKHit : public LKWPoint
         virtual void Copy (TObject &object) const;
         void CopyFrom(LKHit *hit);
 
-        void SetSortValue(Double_t val);
+        void SetSortValue(Double_t val) { fSortValue = val; }
         void SetSortByX(bool sortEarlierIfSmaller);
         void SetSortByY(bool sortEarlierIfSmaller);
         void SetSortByZ(bool sortEarlierIfSmaller);
         void SetSortByCharge(bool sortEarlierIfSmaller);
         void SetSortByDistanceTo(TVector3 point, bool sortEarlierIfCloser);
+        void SetSortByLayer(bool sortEarlierIfSmaller);
         virtual Bool_t IsSortable() const;
         virtual Int_t Compare(const TObject *obj) const;
 
         //virtual void PropagateMC();
 
-        void SetHitID(Int_t id);
-        void SetTrackID(Int_t id);
-        void SetChannelID(Int_t id);
-        void SetPedestal(Double_t p);
-        void SetAlpha(Double_t a);
-        void SetPositionError(TVector3 dpos);
-        void SetPositionError(Double_t dx, Double_t dy, Double_t dz);
-        void SetXError(Double_t dx);
-        void SetYError(Double_t dy);
-        void SetZError(Double_t dz);
-        void SetX(Double_t x);
-        void SetY(Double_t y);
-        void SetZ(Double_t z);
-        void SetCharge(Double_t charge);
+        void SetX(Double_t x) { fX = x; }
+        void SetY(Double_t y) { fY = y; }
+        void SetZ(Double_t z) { fZ = z; }
+        void SetW(Double_t w) { fW = w; } ///< Same as SetCharge
+        void SetCharge(Double_t charge) { fW = charge; }
+        void SetWeight(Double_t w) { fW = w; }
+        void SetPosition(Double_t x, Double_t y, Double_t z) { fX = x; fY = y; fZ = z; }
+        void SetPosition(TVector3 pos) { fX = pos.X(); fY = pos.Y(); fZ = pos.Z(); }
+        void SetHitID(Int_t id) { fHitID = id; }
+        void SetTrackID(Int_t id) { fTrackID = id; }
+        void SetChannelID(Int_t id) { fChannelID = id; }
+        void SetPadID(Int_t id) { fChannelID = id; } ///< Same as SetChannelID
+        void SetPedestal(Double_t a) { fPedestal = a; }
+        void SetAlpha(Double_t a) { fAlpha = a; }
+        void SetPositionError(TVector3 dpos) { fDX = dpos.X(); fDY = dpos.Y(); fDZ = dpos.Z(); }
+        void SetPositionError(Double_t dx, Double_t dy, Double_t dz) { fDX = dx; fDY = dy; fDZ = dz; }
+        void SetXError(Double_t dx) { fDX = dx; }
+        void SetYError(Double_t dy) { fDY = dy; }
+        void SetZError(Double_t dz) { fDZ = dz; }
+        void SetTb(Double_t tb) { fTb = tb; }
+        void SetSection(Int_t section) { fSection = section; }
+        void SetLayer(Int_t layer) { fLayer = layer; }
+        void SetRow(Int_t row) { fRow = row; }
 
         virtual void AddHit(LKHit *hit);
         virtual void RemoveHit(LKHit *hit);
 
-        Double_t GetSortValue() const;
-
         LKHitArray *GetHitArray() { return &fHitArray; }
 
-        Int_t GetNumHits() const;
+        Double_t x() const { return fX; }
+        Double_t y() const { return fY; }
+        Double_t z() const { return fZ; }
+        Double_t w() const { return fW; }
+        Double_t X() const { return fX; }
+        Double_t Y() const { return fY; }
+        Double_t Z() const { return fZ; }
+        Double_t W() const { return fW; }
+        Double_t GetX() const { return fX; }
+        Double_t GetY() const { return fY; }
+        Double_t GetZ() const { return fZ; }
+        Double_t GetCharge() const { return fW; }
+        TVector3 GetPosition() const { return TVector3(fX,fY,fZ); }
+        LKVector3 GetPosition(LKVector3::Axis ref) const { return LKVector3(fX,fY,fZ,ref); }
+        TVector3 GetDPosition() const { return TVector3(fDX,fDY,fDZ); }
+        TVector3 GetPositionError() const { return TVector3(fDX,fDY,fDZ); }
+        Double_t GetDX() const { return fDX; }
+        Double_t GetDY() const { return fDY; }
+        Double_t GetDZ() const { return fDZ; }
+        Double_t GetTb() const { return fTb; }
+        Int_t GetHitID() const { return fHitID; }
+        Int_t GetTrackID() const { return fTrackID; }
+        Int_t GetChannelID() const { return fChannelID; }
+        Int_t GetPadID() const { return fChannelID; } ///< Same as GetChannelID
+        Double_t GetPedestal() const { return fPedestal; }
+        Double_t GetAlpha() const { return fAlpha; }
+        Int_t GetSection() const { return fSection; }
+        Int_t GetLayer() const { return fLayer; }
+        Int_t GetRow() const { return fRow; }
+        Double_t GetSortValue() const { return fSortValue; }
 
-        Int_t GetHitID()   const;
-        Int_t GetTrackID() const;
-        Int_t GetChannelID() const;
-        Double_t GetPedestal()   const;
-        Double_t GetAlpha()   const;
-        TVector3 GetDPosition() const;
-        TVector3 GetPositionError() const;
-        Double_t GetDX()      const;
-        Double_t GetDY()      const;
-        Double_t GetDZ()      const;
-        Double_t GetX()       const;
-        Double_t GetY()       const;
-        Double_t GetZ()       const;
-        Double_t GetCharge()  const;
+        TVector3 GetMean()          const { return fHitArray.GetMean();          }
+        TVector3 GetVariance()      const { return fHitArray.GetVariance();      }
+        TVector3 GetCovariance()    const { return fHitArray.GetCovariance();    }
+        TVector3 GetStdDev()        const { return fHitArray.GetStdDev();        }
+        TVector3 GetSquaredMean()   const { return fHitArray.GetSquaredMean();   }
+        TVector3 GetCoSquaredMean() const { return fHitArray.GetCoSquaredMean(); }
 
-        TVector3 GetMean()          const;
-        TVector3 GetVariance()      const;
-        TVector3 GetCovariance()    const;
-        TVector3 GetStdDev()        const;
-        TVector3 GetSquaredMean()   const;
-        TVector3 GetCoSquaredMean() const;
+        inline Double_t & operator[](int i) {
+            switch(i) {
+                case 0:
+                    return fX;
+                case 1:
+                    return fY;
+                case 2:
+                    return fZ;
+                default:
+                    Error("operator[](i)", "bad index (%d) returning 0",i);
+            }
+            return fX;
+        }
+
+        inline Double_t operator[](int i) const {
+            switch(i) {
+                case 0:
+                    return fX;
+                case 1:
+                    return fY;
+                case 2:
+                    return fZ;
+                default:
+                    Error("operator[](i)", "bad index (%d) returning 0",i);
+            }
+            return 0.;
+        }
+
 
         vector<Int_t> *GetTrackCandArray();
         Int_t GetNumTrackCands();
@@ -118,7 +176,7 @@ class LKHit : public LKWPoint
         virtual void AddToEveSet(TEveElement *eveSet, Double_t scale=1);
 #endif
 
-        ClassDef(LKHit, 2)
+        ClassDef(LKHit, 3)
 };
 
 class LKHitSortDirection {
@@ -271,6 +329,26 @@ class LKHitSortByDistanceTo {
         bool operator() (LKHit* a, LKHit* b) { return (a->GetPosition()-fP).Mag() < (b->GetPosition()-fP).Mag(); }
     private:
         TVector3 fP;
+};
+
+class LKHitSortSectionRow {
+    public:
+        LKHitSortSectionRow();
+        bool operator() (LKHit* h1, LKHit* h2) {
+            if (h1 -> GetSection() == h2 -> GetSection())
+                return h1 -> GetRow() < h2 -> GetRow();
+            return h1 -> GetSection() < h2 -> GetSection();
+        }
+};
+
+class LKHitSortSectionLayer {
+    public:
+        LKHitSortSectionLayer();
+        bool operator() (LKHit* h1, LKHit* h2) {
+            if (h1 -> GetSection() == h2 -> GetSection())
+                return h1 -> GetLayer() < h2 -> GetLayer();
+            return h1 -> GetSection() < h2 -> GetSection();
+        }
 };
 
 #endif

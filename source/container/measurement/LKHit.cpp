@@ -11,37 +11,56 @@ ClassImp(LKHit)
 
 void LKHit::Clear(Option_t *option)
 {
-    LKWPoint::Clear(option);
+    LKContainer::Clear(option);
 
+    fX = -999;
+    fY = -999;
+    fZ = -999;
+    fW = -999;
     fHitID = -1;
     fTrackID = -1;
     fChannelID = -1;
     fPedestal = -999;
     fAlpha = -999;
-    fDX = -999;
-    fDY = -999;
-    fDZ = -999;
-    fSortValue = 0;
+    fDX = 0;
+    fDY = 0;
+    fDZ = 0;
+    fSection = -999;
+    fLayer = -999;
+    fRow = -999;
+    fTb = -999;
 
+    fSortValue = 0;
     fHitArray.Clear("C");
     fTrackCandArray.clear();
 }
 
 void LKHit::Print(Option_t *option) const
 {
-    e_info << "HID,TID,X,Y,Z,W: "
+    e_info
+        //<< "HTMP-ID: "
+        << "HTP-ID: "
         << setw(4)  << fHitID
-        << setw(4)  << fTrackID << " |"
-        << setw(6)  << fChannelID << " |"
+        << setw(4)  << fTrackID
+        //<< setw(4)  << fMCID
+        << setw(4)  << fChannelID
+        << "| XYZ: "
         << setw(12) << fX
         << setw(12) << fY
-        << setw(12) << fZ << " |"
-        << setw(12) << fW << endl;
+        << setw(12) << fZ
+        << "| Q: "
+        << setw(12) << fW
+        << "| SRL: "
+        << setw(4) << fSection
+        << setw(4) << fRow
+        << setw(4) << fLayer
+        << "| Tb: "
+        << setw(4) << fTb << endl;
 }
 
 void LKHit::Copy(TObject &obj) const
 {
-    LKWPoint::Copy(obj);
+    LKContainer::Copy(obj);
     auto hit = (LKHit &) obj;
 
     hit.SetHitID(fHitID);
@@ -52,6 +71,10 @@ void LKHit::Copy(TObject &obj) const
     hit.SetCharge(fW);
     hit.SetPedestal(fPedestal);
     hit.SetAlpha(fAlpha);
+    hit.SetSection(fSection);
+    hit.SetLayer(fLayer);
+    hit.SetRow(fRow);
+    hit.SetTb(fTb);
 
     /* TODO
        auto numHits = fHitArray.GetNumHits();
@@ -62,23 +85,24 @@ void LKHit::Copy(TObject &obj) const
 
 void LKHit::CopyFrom(LKHit *hit)
 {
-    fDX        = hit -> GetDX       ();
-    fDY        = hit -> GetDY       ();
-    fDZ        = hit -> GetDZ       ();
     fX         = hit -> GetX        ();
     fY         = hit -> GetY        ();
     fZ         = hit -> GetZ        ();
     fW         = hit -> GetCharge   ();
+    fDX        = hit -> GetDX       ();
+    fDY        = hit -> GetDY       ();
+    fDZ        = hit -> GetDZ       ();
+    fTb        = hit -> GetTb       ();
     fPedestal  = hit -> GetPedestal ();
     fAlpha     = hit -> GetAlpha    ();
     fHitID     = hit -> GetHitID    ();
     fSortValue = hit -> GetSortValue();
     fTrackID   = hit -> GetTrackID  ();
-    fChannelID = hit -> GetChannelID  ();
+    fChannelID = hit -> GetChannelID();
+    fSection   = hit -> GetSection  ();
+    fRow       = hit -> GetRow      ();
+    fLayer     = hit -> GetLayer    ();
 }
-
-void LKHit::SetSortValue(Double_t val) { fSortValue = val; }
-Double_t LKHit::GetSortValue() const { return fSortValue; }
 
 void LKHit::SetSortByX(bool sortEarlierIfSmaller) {
     if (sortEarlierIfSmaller) fSortValue =  fX;
@@ -106,6 +130,12 @@ void LKHit::SetSortByDistanceTo(TVector3 point, bool sortEarlierIfCloser)
     auto dist = (point - GetPosition()).Mag();
     if (sortEarlierIfCloser) fSortValue =  dist;
     else                     fSortValue = -dist;
+}
+
+void LKHit::SetSortByLayer(bool sortEarlierIfSmaller)
+{
+    if (sortEarlierIfSmaller) fSortValue =  fLayer;
+    else                      fSortValue = -fLayer;
 }
 
 Bool_t LKHit::IsSortable() const { return true; }
@@ -210,21 +240,6 @@ void LKHit::PropagateMC()
 }
 */
 
-void LKHit::SetHitID(Int_t id) { fHitID = id; }
-void LKHit::SetTrackID(Int_t id) { fTrackID = id; }
-void LKHit::SetChannelID(Int_t id) { fChannelID = id; }
-void LKHit::SetPedestal(Double_t a) { fPedestal = a; }
-void LKHit::SetAlpha(Double_t a) { fAlpha = a; }
-void LKHit::SetPositionError(TVector3 dpos) { fDX = dpos.X(); fDY = dpos.Y(); fDZ = dpos.Z(); }
-void LKHit::SetPositionError(Double_t dx, Double_t dy, Double_t dz) { fDX = dx; fDY = dy; fDZ = dz; }
-void LKHit::SetXError(Double_t dx) { fDX = dx; }
-void LKHit::SetYError(Double_t dy) { fDY = dy; }
-void LKHit::SetZError(Double_t dz) { fDZ = dz; }
-void LKHit::SetX(Double_t x) { fX = x; }
-void LKHit::SetY(Double_t y) { fY = y; }
-void LKHit::SetZ(Double_t z) { fZ = z; }
-void LKHit::SetCharge(Double_t charge) { fW = charge; }
-
 void LKHit::AddHit(LKHit *hit)
 {
     fHitArray.AddHit(hit);
@@ -242,30 +257,6 @@ void LKHit::RemoveHit(LKHit *hit)
     fZ = fHitArray.GetMeanZ();
     fW = fHitArray.GetW();
 }
-
-Int_t LKHit::GetHitID()   const { return fHitID; }
-Int_t LKHit::GetTrackID() const { return fTrackID; }
-Int_t LKHit::GetChannelID() const { return fChannelID; }
-Double_t LKHit::GetPedestal()   const { return fPedestal; }
-Double_t LKHit::GetAlpha()   const { return fAlpha; }
-TVector3 LKHit::GetDPosition() const { return TVector3(fDX,fDY,fDZ); }
-TVector3 LKHit::GetPositionError() const { return TVector3(fDX,fDY,fDZ); }
-Double_t LKHit::GetDX()      const { return fDX; }
-Double_t LKHit::GetDY()      const { return fDY; }
-Double_t LKHit::GetDZ()      const { return fDZ; }
-Double_t LKHit::GetX()       const { return fX; }
-Double_t LKHit::GetY()       const { return fY; }
-Double_t LKHit::GetZ()       const { return fZ; }
-Double_t LKHit::GetCharge()  const { return fW; }
-
-
-TVector3 LKHit::GetMean()          const { return fHitArray.GetMean();          }
-TVector3 LKHit::GetVariance()      const { return fHitArray.GetVariance();      }
-TVector3 LKHit::GetCovariance()    const { return fHitArray.GetCovariance();    }
-TVector3 LKHit::GetStdDev()        const { return fHitArray.GetStdDev();        }
-TVector3 LKHit::GetSquaredMean()   const { return fHitArray.GetSquaredMean();   }
-TVector3 LKHit::GetCoSquaredMean() const { return fHitArray.GetCoSquaredMean(); }
-
 
 std::vector<Int_t> *LKHit::GetTrackCandArray() { return &fTrackCandArray; }
 Int_t LKHit::GetNumTrackCands() { return fTrackCandArray.size(); }
