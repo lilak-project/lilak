@@ -58,7 +58,7 @@ class LKDetector : public TNamed, public LKGear
         LKPulseGenerator *fPulseGenerator = nullptr;
         LKDetectorSystem *fParent = nullptr;
 
-        LKChannelAnalyzer* fChannelAnalyzer0;
+        LKChannelAnalyzer* fChannelAnalyzer0 = nullptr;
 
     ClassDef(LKDetector, 1)
 };

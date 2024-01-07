@@ -7,7 +7,7 @@
 #include "LKRun.h"
 #include "LKPad.h"
 #include "LKHitArray.h"
-
+#include "LKChannelAnalyzer.h"
 
 #include "TH2.h"
 #include "TCanvas.h"
@@ -25,6 +25,7 @@ class LKDetectorPlane : public TNamed, public LKGear
 {
     protected:
         LKDetector *fDetector = nullptr;
+        LKChannelAnalyzer* fChannelAnalyzer = nullptr;
 
         int fPlaneID = -1; ///< Detector plane id
         axis_t fAxis1 = LKVector3::kNon; ///< Axis-1 lying in plane. Must be set by input parameter.
@@ -53,6 +54,7 @@ class LKDetectorPlane : public TNamed, public LKGear
         void SetDetector(LKDetector *detector) { fDetector = detector; }
         void SetPlaneID(int id) { fPlaneID = id; }
         int GetPlaneID() const { return fPlaneID; }
+        virtual LKChannelAnalyzer* GetChannelAnalyzer(int id=0);
 
         axis_t GetAxis1() const { return fAxis1; }
         axis_t GetAxis2() const { return fAxis2; }
@@ -130,14 +132,14 @@ class LKDetectorPlane : public TNamed, public LKGear
 
         /// Find pad corresponding to the position (i,j) and fill time-bin by amount of charge.
         void FillBufferIn(double i, double j, double tb, double charge, int trackID = -1);
-        void AddHit(LKTpcHit *hit);
+        void AddHit(LKHit *hit);
 
         virtual void ResetHitMap(); ///< For tracking use
         virtual void ResetEvent(); ///< For tracking use
-        virtual LKTpcHit *PullOutNextFreeHit(); ///< For tracking use
-        void PullOutNeighborHits(vector<LKTpcHit*> *hits, vector<LKTpcHit*> *neighborHits); ///< For tracking use
-        void PullOutNeighborHits(TVector2 p, int range, vector<LKTpcHit*> *neighborHits); ///< For tracking use
-        void PullOutNeighborHits(double x, double y, int range, vector<LKTpcHit*> *neighborHits); ///< For tracking use
+        virtual LKHit *PullOutNextFreeHit(); ///< For tracking use
+        void PullOutNeighborHits(vector<LKHit*> *hits, vector<LKHit*> *neighborHits); ///< For tracking use
+        void PullOutNeighborHits(TVector2 p, int range, vector<LKHit*> *neighborHits); ///< For tracking use
+        void PullOutNeighborHits(double x, double y, int range, vector<LKHit*> *neighborHits); ///< For tracking use
         void PullOutNeighborHits(double x, double y, int range, LKHitArray *neighborHits); ///< For tracking use
         void PullOutNeighborHits(LKHitArray *hits, LKHitArray *neighborHits); ///< For tracking use
         void GrabNeighborPads(vector<LKPad*> *pads, vector<LKPad*> *neighborPads); ///< For tracking use
@@ -149,6 +151,11 @@ class LKDetectorPlane : public TNamed, public LKGear
         /// Self debugging tool. Result will be printed out.
         /// For each pad, check number of registered neighbor pads.
         bool PadNeighborChecker();
+        /// Self debugging tool. Result will be printed out.
+        /// For each pad, check
+        /// 1) section, layer, row map
+        /// 2) cobo, aget, asad, chan map
+        bool PadMapChecker();
 
     ClassDef(LKDetectorPlane, 2)
 };

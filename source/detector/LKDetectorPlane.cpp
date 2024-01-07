@@ -97,7 +97,7 @@ void LKDetectorPlane::SetHitArray(TClonesArray *hitArray)
     int numHits = hitArray -> GetEntries();
     for (auto iHit = 0; iHit < numHits; ++iHit)
     {
-        auto hit = (LKTpcHit *) hitArray -> At(iHit);
+        auto hit = (LKHit *) hitArray -> At(iHit);
         auto padID = hit -> GetPadID();
         if (padID < 0)
             continue;
@@ -107,7 +107,7 @@ void LKDetectorPlane::SetHitArray(TClonesArray *hitArray)
     }
 }
 
-void LKDetectorPlane::AddHit(LKTpcHit *hit)
+void LKDetectorPlane::AddHit(LKHit *hit)
 {
     auto pad = GetPadFast(hit -> GetPadID());
     if (hit -> GetHitID() >= 0)
@@ -244,7 +244,6 @@ bool LKDetectorPlane::SetDataFromBranch()
         hitBranchName = fPar -> GetParString(hitBranchParName);
     }
     lk_info << "hit-branch name is " << hitBranchName << endl;
-    lk_debug << fRun << endl;
     auto hitArray = fRun -> GetBranchA(hitBranchName);
     if (hitArray==nullptr)
         lk_warning << "hit array deosn't exist!" << endl;
@@ -300,7 +299,7 @@ void LKDetectorPlane::ResetHitMap()
     fFreePadIdx = 0;
 }
 
-LKTpcHit *LKDetectorPlane::PullOutNextFreeHit()
+LKHit *LKDetectorPlane::PullOutNextFreeHit()
 {
     if (fFreePadIdx == fChannelArray -> GetEntriesFast() - 1)
         return nullptr;
@@ -319,7 +318,7 @@ void LKDetectorPlane::PullOutNeighborHits(LKHitArray *hits, LKHitArray *neighbor
 {
     auto numHits = hits -> GetEntries();
     for (auto iHit=0; iHit<numHits; ++iHit){
-        auto hit = (LKTpcHit *) hits -> GetHit(iHit);
+        auto hit = (LKHit *) hits -> GetHit(iHit);
         auto pad = (LKPad *) fChannelArray -> At(hit -> GetPadID());
         auto neighbors = pad -> GetNeighborPadArray();
         for (auto neighbor : *neighbors) {
@@ -365,7 +364,7 @@ void LKDetectorPlane::PullOutNeighborHits(double x, double y, int range, LKHitAr
         neighbor -> LetGo();
 }
 
-void LKDetectorPlane::PullOutNeighborHits(vector<LKTpcHit*> *hits, vector<LKTpcHit*> *neighborHits)
+void LKDetectorPlane::PullOutNeighborHits(vector<LKHit*> *hits, vector<LKHit*> *neighborHits)
 {
     for (auto hit : *hits) {
         auto pad = (LKPad *) fChannelArray -> At(hit -> GetPadID());
@@ -375,12 +374,12 @@ void LKDetectorPlane::PullOutNeighborHits(vector<LKTpcHit*> *hits, vector<LKTpcH
     }
 }
 
-void LKDetectorPlane::PullOutNeighborHits(TVector2 p, int range, vector<LKTpcHit*> *neighborHits)
+void LKDetectorPlane::PullOutNeighborHits(TVector2 p, int range, vector<LKHit*> *neighborHits)
 {
     PullOutNeighborHits(p.X(), p.Y(), range, neighborHits);
 }
 
-void LKDetectorPlane::PullOutNeighborHits(double x, double y, int range, vector<LKTpcHit*> *neighborHits)
+void LKDetectorPlane::PullOutNeighborHits(double x, double y, int range, vector<LKHit*> *neighborHits)
 {
     vector<LKPad *> neighborsUsed;
     vector<LKPad *> neighborsTemp;
@@ -431,6 +430,61 @@ void LKDetectorPlane::GrabNeighborPads(vector<LKPad*> *pads, vector<LKPad*> *nei
 }
 
 TObjArray *LKDetectorPlane::GetPadArray() { return fChannelArray; }
+
+bool LKDetectorPlane::PadMapChecker()
+{
+    lk_info << "Number of pads: " << fChannelArray -> GetEntries() << endl;
+
+    int countBadSLR = 0;
+    int countBadCAAC = 0;
+
+    LKPad *pad;
+    TIter iterPads(fChannelArray);
+    while ((pad = (LKPad *) iterPads.Next())) {
+        if (pad -> GetPadID() == -1) {
+            continue;
+        }
+        auto padID0 = pad -> GetPadID();
+        auto section = pad -> GetSection();
+        auto layer = pad -> GetLayer();
+        auto row = pad -> GetRow();
+        auto padID1 = FindPadID(section,layer,row);
+        auto cobo = pad -> GetCoboID();
+        auto aget = pad -> GetAGETID();
+        auto asad = pad -> GetAsAdID();
+        auto chan = pad -> GetChannelID();
+        auto padID2 = FindPadID(cobo,aget,asad,chan);
+
+        if (padID1 != padID0) {
+            auto pad1 = (LKPad *) fChannelArray -> At(padID1);
+            lk_warning << "Bad SLR  map! Pad:" << padID0 << " (" << pad -> GetSection() << "," << pad -> GetRow() << "," << pad -> GetLayer() << ")"
+                                << " --> Pad:" << padID1 << " (" << pad1-> GetSection() << "," << pad1-> GetRow() << "," << pad1-> GetLayer() << ")" << endl;
+            ++countBadSLR;
+        }
+
+        if (padID2 != padID0) {
+            auto pad2 = (LKPad *) fChannelArray -> At(padID2);
+            lk_warning << "Bad CAAC map! Pad:" << padID0 << " (" << pad -> GetCoboID() << "," << pad -> GetAGETID() << "," << pad -> GetAsAdID() << "," << pad -> GetChannelID() << ")"
+                                << " --> Pad:" << padID2 << " (" << pad2-> GetCoboID() << "," << pad2-> GetAGETID() << "," << pad2-> GetAsAdID() << "," << pad2-> GetChannelID() << ")" << endl;
+            ++countBadCAAC;
+        }
+    }
+
+    if (countBadSLR > 0) {
+        lk_warning << "=================== Bad pad SLR map exist!!!" << endl;
+        lk_warning << "=================== Number of bad pads: " << countBadSLR << endl;
+        return false;
+    }
+
+    if (countBadCAAC > 0) {
+        lk_warning << "=================== Bad pad CAAC map exist!!!" << endl;
+        lk_warning << "=================== Number of bad pads: " << countBadCAAC << endl;
+        return false;
+    }
+
+    lk_info << "=================== All pads are good!" << endl;
+    return true;
+}
 
 bool LKDetectorPlane::PadPositionChecker(bool checkCorners)
 {
@@ -545,9 +599,9 @@ bool LKDetectorPlane::PadNeighborChecker()
     }
 
     lk_info << "=================== Maximum distance between neighbor pads: " << distMax << endl;
-    lk_info << "               1 --> Pad:" << pad0->GetPadID() << "(" << pad0->GetI() << "," << pad0->GetJ()
+    lk_info << "                    1 --> Pad:" << pad0->GetPadID() << "(" << pad0->GetI() << "," << pad0->GetJ()
         << "|" << pad0-> GetSection() << "," << pad0 -> GetRow() << "," << pad0 -> GetLayer() << ")" << endl;
-    lk_info << "               2 --> Pad:" << pad1->GetPadID() << "(" << pad1->GetI() << "," << pad1->GetJ()
+    lk_info << "                    2 --> Pad:" << pad1->GetPadID() << "(" << pad1->GetI() << "," << pad1->GetJ()
         << "|" << pad1-> GetSection() << "," << pad1 -> GetRow() << "," << pad1 -> GetLayer() << ")" << endl;
 
 
@@ -557,25 +611,25 @@ bool LKDetectorPlane::PadNeighborChecker()
     }
     cout << endl;
 
-    TString examples1; for (auto ii=0; ii<int(ids1Neighbors.size()); ++ii) { if (ii>4) break; examples1 += Form(" %d",ids1Neighbors[ii]); }
-    TString examples2; for (auto ii=0; ii<int(ids2Neighbors.size()); ++ii) { if (ii>4) break; examples2 += Form(" %d",ids2Neighbors[ii]); }
-    TString examples3; for (auto ii=0; ii<int(ids3Neighbors.size()); ++ii) { if (ii>4) break; examples3 += Form(" %d",ids3Neighbors[ii]); }
-    TString examples4; for (auto ii=0; ii<int(ids4Neighbors.size()); ++ii) { if (ii>4) break; examples4 += Form(" %d",ids4Neighbors[ii]); }
-    TString examples5; for (auto ii=0; ii<int(ids5Neighbors.size()); ++ii) { if (ii>4) break; examples5 += Form(" %d",ids5Neighbors[ii]); }
-    TString examples6; for (auto ii=0; ii<int(ids6Neighbors.size()); ++ii) { if (ii>4) break; examples6 += Form(" %d",ids6Neighbors[ii]); }
-    TString examples7; for (auto ii=0; ii<int(ids7Neighbors.size()); ++ii) { if (ii>4) break; examples7 += Form(" %d",ids7Neighbors[ii]); }
-    TString examples8; for (auto ii=0; ii<int(ids8Neighbors.size()); ++ii) { if (ii>4) break; examples8 += Form(" %d",ids8Neighbors[ii]); }
-    TString examples9; for (auto ii=0; ii<int(ids9Neighbors.size()); ++ii) { if (ii>4) break; examples9 += Form(" %d",ids9Neighbors[ii]); }
+    TString examples1; for (auto ii=0; ii<int(ids1Neighbors.size()); ++ii) { if (ii>4) break; examples1 += Form("%d,",ids1Neighbors[ii]); }
+    TString examples2; for (auto ii=0; ii<int(ids2Neighbors.size()); ++ii) { if (ii>4) break; examples2 += Form("%d,",ids2Neighbors[ii]); }
+    TString examples3; for (auto ii=0; ii<int(ids3Neighbors.size()); ++ii) { if (ii>4) break; examples3 += Form("%d,",ids3Neighbors[ii]); }
+    TString examples4; for (auto ii=0; ii<int(ids4Neighbors.size()); ++ii) { if (ii>4) break; examples4 += Form("%d,",ids4Neighbors[ii]); }
+    TString examples5; for (auto ii=0; ii<int(ids5Neighbors.size()); ++ii) { if (ii>4) break; examples5 += Form("%d,",ids5Neighbors[ii]); }
+    TString examples6; for (auto ii=0; ii<int(ids6Neighbors.size()); ++ii) { if (ii>4) break; examples6 += Form("%d,",ids6Neighbors[ii]); }
+    TString examples7; for (auto ii=0; ii<int(ids7Neighbors.size()); ++ii) { if (ii>4) break; examples7 += Form("%d,",ids7Neighbors[ii]); }
+    TString examples8; for (auto ii=0; ii<int(ids8Neighbors.size()); ++ii) { if (ii>4) break; examples8 += Form("%d,",ids8Neighbors[ii]); }
+    TString examples9; for (auto ii=0; ii<int(ids9Neighbors.size()); ++ii) { if (ii>4) break; examples9 += Form("%d,",ids9Neighbors[ii]); }
 
-    lk_info << "No. of pads with 1 neighbors = " << ids1Neighbors.size() << "(" << examples1 << " )" << endl;
-    lk_info << "No. of pads with 2 neighbors = " << ids2Neighbors.size() << "(" << examples2 << " )" << endl;
-    lk_info << "No. of pads with 3 neighbors = " << ids3Neighbors.size() << "(" << examples3 << " )" << endl;
-    lk_info << "No. of pads with 4 neighbors = " << ids4Neighbors.size() << "(" << examples4 << " )" << endl;
-    lk_info << "No. of pads with 5 neighbors = " << ids5Neighbors.size() << "(" << examples5 << " )" << endl;
-    lk_info << "No. of pads with 6 neighbors = " << ids6Neighbors.size() << "(" << examples6 << " )" << endl;
-    lk_info << "No. of pads with 7 neighbors = " << ids7Neighbors.size() << "(" << examples7 << " )" << endl;
-    lk_info << "No. of pads with 8 neighbors = " << ids8Neighbors.size() << "(" << examples8 << " )" << endl;
-    lk_info << "No. of pads with > neighbors = " << ids9Neighbors.size() << "(" << examples9 << " )" << endl;
+    lk_info << "No. of pads with 1 neighbors = " << ids1Neighbors.size() << " (" << examples1 << ")" << endl;
+    lk_info << "No. of pads with 2 neighbors = " << ids2Neighbors.size() << " (" << examples2 << ")" << endl;
+    lk_info << "No. of pads with 3 neighbors = " << ids3Neighbors.size() << " (" << examples3 << ")" << endl;
+    lk_info << "No. of pads with 4 neighbors = " << ids4Neighbors.size() << " (" << examples4 << ")" << endl;
+    lk_info << "No. of pads with 5 neighbors = " << ids5Neighbors.size() << " (" << examples5 << ")" << endl;
+    lk_info << "No. of pads with 6 neighbors = " << ids6Neighbors.size() << " (" << examples6 << ")" << endl;
+    lk_info << "No. of pads with 7 neighbors = " << ids7Neighbors.size() << " (" << examples7 << ")" << endl;
+    lk_info << "No. of pads with 8 neighbors = " << ids8Neighbors.size() << " (" << examples8 << ")" << endl;
+    lk_info << "No. of pads with > neighbors = " << ids9Neighbors.size() << " (" << examples9 << ")" << endl;
 
     return true;
 }
@@ -639,10 +693,25 @@ void LKDetectorPlane::DriftElectronBack(LKPad* pad, double tb, TVector3 &posReco
     LKVector3 pos(fAxis3);
     pos.SetI(pad->GetI());
     pos.SetJ(pad->GetJ());
-    if (fAxis3==fAxisDrift)
+    if (fAxis3!=fAxisDrift)
         pos.SetK(fTbToLength*tb+fPosition);
     else
-        pos.SetK(-(fTbToLength*tb+fPosition));
+        pos.SetK((-fTbToLength)*tb+fPosition);
     posReco = pos.GetXYZ();
     driftLength = fTbToLength*tb;
+}
+
+LKChannelAnalyzer* LKDetectorPlane::GetChannelAnalyzer(int)
+{
+    if (fChannelAnalyzer==nullptr)
+    {
+        if (fPar->CheckPar("pulseFile")==false) {
+            fPar -> AddLine("pulseFile {lilak_common}/pulseReference.root");
+        }
+        TString pulseFileName = fPar -> GetParString("pulseFile");
+        fChannelAnalyzer = new LKChannelAnalyzer();
+        fChannelAnalyzer -> SetPulse(pulseFileName);
+        fChannelAnalyzer -> Print();
+    }
+    return fChannelAnalyzer;
 }
