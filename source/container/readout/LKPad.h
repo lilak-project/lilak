@@ -2,7 +2,7 @@
 #define LKPAD_HH
 
 #include "LKChannel.h"
-#include "LKTpcHit.h"
+#include "LKHit.h"
 #include "LKHitArray.h"
 #include "LKVector3.h"
 
@@ -82,8 +82,8 @@ class LKPad : public LKChannel
         void AddPadCorner(Double_t i, Double_t j);
         vector<TVector2> *GetPadCorners();
 
-        void SetSectionRowLayer(Int_t section, Int_t row, Int_t layer);
-        void GetSectionRowLayer(Int_t &section, Int_t &row, Int_t &layer) const;
+        void SetSectionLayerRow(Int_t section, Int_t layer, Int_t row);
+        void GetSectionLayerRow(Int_t &section, Int_t &layer, Int_t &row) const;
         Int_t GetSection() const;
         Int_t GetRow() const;
         Int_t GetLayer() const;
@@ -102,13 +102,13 @@ class LKPad : public LKChannel
         void AddNeighborPad(LKPad *pad);
         vector<LKPad *> *GetNeighborPadArray();
 
-        void AddHit(LKTpcHit *hit);
+        void AddHit(LKHit *hit);
         Int_t GetNumHits() const;
-        LKTpcHit *GetHit(Int_t idx);
+        LKHit *GetHit(Int_t idx);
 
         void ClearHits();
-        LKTpcHit *PullOutNextFreeHit();
-        void PullOutHits(vector<LKTpcHit *> *hits);
+        LKHit *PullOutNextFreeHit();
+        void PullOutHits(vector<LKHit *> *hits);
         void PullOutHits(LKHitArray *hist);
 
         bool IsGrabed() const;
@@ -158,7 +158,7 @@ class LKPad : public LKChannel
         Double_t fBufferOut[512];
 
         vector<LKPad *> fNeighborPadArray; //!
-        vector<LKTpcHit *> fHitArray; //!
+        vector<LKHit *> fHitArray; //!
 
         vector<Int_t>    fMCIDArray;      ///< MC Track-ID
         vector<Double_t> fMCWeightArray;  ///< Sum of weight of corresponding Track-ID

@@ -39,17 +39,25 @@ void LKPad::Print(Option_t *option) const
         return;
     }
 
-    e_info << "==" << endl;
+    e_info << "== Pad ==" << endl;
     e_info << "Pad-ID(Plane-ID)      : " << fID << "(" << fPlaneID << ")";
     if (fActive) e_cout << " is Active!" << endl;
     else e_cout << " is NOT Active." << endl;
 
     e_info << "Cobo(1)AsAd(1)AGET(1)CH(2)   : " << Form("%d%d%d%02d",fCoboID,fAsAdID,fAGETID,fChannelID) << endl;
-    e_info << "(Section, Row, Layer) : (" << fSection << ", " << fRow << ", " << fLayer << ")" << endl;
+    e_info << "(Section, Layer, Row) : (" << fSection << ", " << fLayer << ", " << fRow << ")" << endl;
     e_info << "Noise-Amp | BaseLine  : " << fNoiseAmp << " | " << fBaseLine << endl;
     e_info << "Position              : (" << fPosition.X() << ", " << fPosition.Y() << ", " << fPosition.Z() << ") ; " << fPosition.GetReferenceAxis() << endl;
     TString nbids; for (auto ii=0; ii<int(fNeighborPadArray.size()); ++ii) nbids += Form(" %d",fNeighborPadArray.at(ii)->GetPadID());
     e_info << "Neighbors             : " << nbids << "(" << fNeighborPadArray.size() << ")" << endl;
+
+    auto numHits = fHitArray.size();
+    e_info << "Number of hits        : " << numHits << endl;
+    for (auto iHit=0; iHit<numHits; ++iHit) {
+        auto hit = fHitArray.at(iHit);
+        e_cout << "      " << iHit << ") id = " << hit -> GetHitID() << " | xyzw = " << hit -> GetX() << ", " << hit -> GetY() << ", " << hit -> GetZ() << ", " << hit -> GetCharge()
+        << " | tp = " << hit -> GetTb() << " " << hit -> GetPedestal() << endl;
+    }
 
     if (opts.Index(">")>=0) {
         Int_t numMCID = fMCIDArray.size();
@@ -99,6 +107,7 @@ void LKPad::DrawMCID(Option_t *option)
 
 void LKPad::DrawHit(Option_t *option)
 {
+/*
     TString opts(option);
     opts.ToLower();
 
@@ -114,6 +123,7 @@ void LKPad::DrawHit(Option_t *option)
             }
         }
     }
+*/
 }
 
 Bool_t LKPad::IsSortable() const { return true; }
@@ -244,18 +254,18 @@ Double_t LKPad::GetZ() const { return fPosition.Z(); }
 void LKPad::AddPadCorner(Double_t i, Double_t j) { fPadCorners.push_back(TVector2(i,j)); }
 vector<TVector2> *LKPad::GetPadCorners() { return &fPadCorners; }
 
-void LKPad::SetSectionRowLayer(Int_t section, Int_t row, Int_t layer) 
+void LKPad::SetSectionLayerRow(Int_t section, Int_t layer, Int_t row)
 {
     fSection = section;
-    fRow = row;
     fLayer = layer;
+    fRow = row;
 }
 
-void LKPad::GetSectionRowLayer(Int_t &section, Int_t &row, Int_t &layer) const 
+void LKPad::GetSectionLayerRow(Int_t &section, Int_t &layer, Int_t &row) const
 {
     section = fSection;
-    row = fRow;
     layer = fLayer;
+    row = fRow;
 }
 
 Int_t LKPad::GetSection() const { return fSection; }
@@ -306,12 +316,12 @@ Double_t *LKPad::GetBufferOut() { return fBufferOut; }
 void LKPad::AddNeighborPad(LKPad *pad) { fNeighborPadArray.push_back(pad); }
 vector<LKPad *> *LKPad::GetNeighborPadArray() { return &fNeighborPadArray; }
 
-void LKPad::AddHit(LKTpcHit *hit) { fHitArray.push_back(hit); }
+void LKPad::AddHit(LKHit *hit) { fHitArray.push_back(hit); }
 Int_t LKPad::GetNumHits() const { return fHitArray.size(); }
-LKTpcHit *LKPad::GetHit(Int_t idx) { return fHitArray.at(idx); }
+LKHit *LKPad::GetHit(Int_t idx) { return fHitArray.at(idx); }
 void LKPad::ClearHits() { fHitArray.clear(); }
 
-LKTpcHit *LKPad::PullOutNextFreeHit()
+LKHit *LKPad::PullOutNextFreeHit()
 {
     Int_t n = fHitArray.size();
     if (n == 0)
@@ -339,7 +349,7 @@ void LKPad::PullOutHits(LKHitArray *hits)
     fHitArray.clear();
 }
 
-void LKPad::PullOutHits(vector<LKTpcHit *> *hits)
+void LKPad::PullOutHits(vector<LKHit *> *hits)
 {
     Int_t n = fHitArray.size();
     if (n == 0)
