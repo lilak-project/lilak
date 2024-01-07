@@ -727,6 +727,11 @@ bool LKRun::Init()
     }
     fInitialized = InitTasks();
 
+    for (auto iPlane=0; iPlane<fDetectorSystem->GetNumPlanes(); ++iPlane) {
+        auto plane = fDetectorSystem -> GetDetectorPlane(iPlane);
+        plane -> SetDataFromBranch();
+    }
+
     if (fInitialized) {
         lk_info << fNumEntries << " input entries" << endl;
         lk_info << "LKRun initialized!" << endl;

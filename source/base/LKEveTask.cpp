@@ -217,18 +217,25 @@ void LKEveTask::DrawEve3D()
 
     gEve -> Redraw3D();
 #else
+
+    auto axis1 = LKVector3::kZ;
+    auto axis2 = LKVector3::kX;
+    auto axis3 = LKVector3::kY;
+
     if (fCanvas3D==nullptr) {
         fCanvas3D = LKWindowManager::GetWindowManager() -> CanvasSquare("LKEveCanvas3D",0.6);
         auto detector = fDetectorSystem -> GetDetector(0);
         double x1, y1, z1, x2, y2, z2;
         auto success = detector -> GetEffectiveDimension(x1, y1, z1, x2, y2, z2);
-        LKVector3 pos1(x1,y1,z1);
-        LKVector3 pos2(x2,y2,z2);
+        LKVector3 min(x1,y1,z1);
+        LKVector3 max(x2,y2,z2);
         //fFrame3D = new TH3D(Form("frame_%s",detector->GetName()),Form("%s;z;x;y",detector->GetName()),100,x1,x2,100,y1,y2,100,z1,z2);
-        fFrame3D = new TH3D(Form("frame_%s",detector->GetName()),Form("%s;z;x;y",detector->GetName()),
-                100,pos1.At(LKVector3::kZ),pos2.At(LKVector3::kZ),
-                100,pos1.At(LKVector3::kX),pos2.At(LKVector3::kX),
-                100,pos1.At(LKVector3::kY),pos2.At(LKVector3::kY));
+        fFrame3D = new TH3D(
+                Form("frame_%s",detector->GetName()),
+                Form("%s;z;x;y",detector->GetName()),
+                100,min.At(axis1),max.At(axis1),
+                100,min.At(axis2),max.At(axis2),
+                100,min.At(axis3),max.At(axis3));
         fFrame3D -> SetStats(0);
         fGraphTrack3DArray = new TClonesArray("TGraph2DErrors",100);
         fGraphHit3DArray = new TClonesArray("TGraph2DErrors",100);
@@ -296,13 +303,11 @@ void LKEveTask::DrawEve3D()
                     if (!SelectHit(hit))
                         continue;
 
-                    //auto graphHit3D = (TGraph2DErrors*) fGraphHit3DArray -> ConstructedAt(iHit);
                     LKVector3 pos(hit -> GetPosition());
                     LKVector3 err(hit -> GetPositionError());
-                    graphHit3D -> SetPoint(graphHit3D->GetN(),pos.At(LKVector3::kZ),pos.At(LKVector3::kX),pos.At(LKVector3::kY));
-                    graphHit3D -> SetPointError(graphHit3D->GetN()-1,err.At(LKVector3::kZ),err.At(LKVector3::kX),err.At(LKVector3::kY));
+                    graphHit3D -> SetPoint(graphHit3D->GetN(),pos.At(axis1),pos.At(axis2),pos.At(axis3));
+                    graphHit3D -> SetPointError(graphHit3D->GetN()-1,err.At(axis1),err.At(axis2),err.At(axis3));
                     //hit -> FillGraph3D(graphHit3D,LKVector3::kZ,LKVector3::kX,LKVector3::kY);
-                    //graphHit3D -> Draw("same p error");
                 }
                 //graphHit3D -> Draw("same p error");
                 graphHit3D -> SetMarkerStyle(20);
