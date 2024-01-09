@@ -74,6 +74,14 @@ LKPad *LKDetectorPlane::GetPad(int section, int layer, int row) {
     return pad;
 }
 
+LKPad *LKDetectorPlane::GetPad(int cobo, int asad, int aget, int chan) {
+    LKPad *pad = nullptr;
+    auto id = FindPadID(cobo, asad, aget, chan);
+    if (id>=0)
+        pad = GetPad(id);
+    return pad;
+}
+
 void LKDetectorPlane::SetPadArray(TClonesArray *padArray)
 {
     fPadDataIsSet = true;
@@ -453,7 +461,7 @@ bool LKDetectorPlane::PadMapChecker()
         auto aget = pad -> GetAGETID();
         auto asad = pad -> GetAsAdID();
         auto chan = pad -> GetChannelID();
-        auto padID2 = FindPadID(cobo,aget,asad,chan);
+        auto padID2 = FindPadID(cobo,asad,aget,chan);
 
         if (padID1 != padID0) {
             auto pad1 = (LKPad *) fChannelArray -> At(padID1);

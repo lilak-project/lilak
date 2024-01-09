@@ -146,7 +146,7 @@ class LKHelixTrack : public LKTracklet, public LKGeoHelix
 
         /*
          */
-        Int_t GetNumHits() const;
+        //Int_t GetNumHits() const;
         LKHit *GetHit(Int_t idx) const;
         Int_t GetHitID(Int_t idx) const;
         //LKHitArray *GetHitArray();

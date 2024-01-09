@@ -115,13 +115,14 @@ class LKDetectorPlane : public TNamed, public LKGear
         virtual int FindChannelID(int section, int layer, int row) { return -1; } ///< Implementation recommanded. Find channel using section, layer, row info.
         virtual int FindPadID(double i, double j) { return FindChannelID(i,j); }
         virtual int FindPadID(int section, int layer, int row) { return FindChannelID(section,layer,row); }
-        virtual int FindPadID(int cobo, int aget, int asad, int chan) { return -1; }
+        virtual int FindPadID(int cobo, int asad, int aget, int chan) { return -1; }
         LKChannel *GetChannelFast(int idx) { return (LKChannel *) fChannelArray -> At(idx); }
         LKPad *GetPadFast(int idx) { return (LKPad *) fChannelArray -> At(idx); }
         LKChannel *GetChannel(int idx);
         LKPad *GetPad(int padID);
         LKPad *GetPad(double i, double j);
         LKPad *GetPad(int section, int layer, int row);
+        LKPad *GetPad(int cobo, int asad, int aget, int chan);
 
     public:
         virtual bool SetDataFromBranch(); ///< Implementation recommanded. Set waveform and hit data from input tree branches to pads
