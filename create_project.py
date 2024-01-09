@@ -8,7 +8,6 @@ lilak_path = os.getenv('LILAK_PATH')
 if lilak_path is None:
     lilak_path = current_path
 
-#sys.path.insert(1, lilak_path+'/macros/dummy_class_writter/')
 sys.path.append(lilak_path+'/macros/dummy_class_writter/')
 from lilakcc import lilakcc
 
@@ -39,7 +38,8 @@ def print_h(*messages):
     print(print_head+"##"+print_end+full_message)
 
 list_top_directories = ["build","data","log","macros","source"]
-list_proj_subdir = ["container","detector","tool","task","geant4","macros","commom"]
+list_proj_subdir = ["macros","container","detector","common","tool","task","geant4"]
+list_creator_subdir = ["container","detector","tool","task","geant4"]
 
 ls_top = os.listdir("./")
 list_prj_directories = []
@@ -93,6 +93,37 @@ print_h("Creating sub-directories")
 print()
 print(f"   You can create dummy classes using scripts in macros/dummy_class_writer/")
 
+#list_commands = []
+#list_commands.append(os.chdir(project_path))
+#for subdir_name in list_proj_subdir:
+#    print_h(f'Creating {subdir_name}')
+#    subdir_path = os.path.join(project_path,subdir_name)
+#    list_commands.append(os.system(f'mkdir -p {subdir_path}'))
+#    list_commands.append(os.chdir(subdir_path))
+#    list_commands.append(os.system(f'touch .{subdir_name}'))
+#    if subdir_name=="macros":
+#        list_commands.append(os.system(f'mkdir -p data'))
+#        list_commands.append(os.chdir('data'))
+#        list_commands.append(os.system(f'touch .data'))
+#    elif subdir_name in list_creator_subdir:
+#        while True:
+#            if subdir_name=="geant4":
+#                class_name = input(f"   Enter class name to create Geant4 Detector-Construction class <[name]/Enter>: ")
+#            else:
+#                class_name = input(f"   Enter class name to create {subdir_name} class <[name]/Enter>: ")
+#            if class_name=='':
+#                break
+#            if class_name!='':
+#                content = f"+class {class_name}\n+path {subdir_path}"
+#                content_dp = f"+class {class_name}Plane\n+path {subdir_path}"
+#                if subdir_name=="container":    list_commands.append(lilakcc(content).print_container())
+#                if subdir_name=="geant4":       list_commands.append(lilakcc(content).print_geant4dc())
+#                if subdir_name=="task":         list_commands.append(lilakcc(content).print_task())
+#                if subdir_name=="tool":         list_commands.append(lilakcc(content).print_tool())
+#                if subdir_name=="detector":
+#                    list_commands.append(lilakcc(content).print_detector())
+#                    list_commands.append(lilakcc(content_dp).print_detector_plane())
+
 os.chdir(project_path)
 for subdir_name in list_proj_subdir:
     print_h(f'Creating {subdir_name}')
@@ -101,16 +132,23 @@ for subdir_name in list_proj_subdir:
     os.chdir(subdir_path)
     os.system(f'touch .{subdir_name}')
 
-    if subdir_name!="macros":
+    if subdir_name=="macros":
+        os.system(f'mkdir -p data')
+        os.chdir('data')
+        os.system(f'touch .data')
+    elif subdir_name in list_creator_subdir:
         while True:
-            class_name = input(f"   Enter class name to create {subdir_name} class <[name]/Enter>: ")
+            if subdir_name=="geant4":
+                class_name = input(f"   Enter class name to create Geant4 Detector-Construction class <[name]/Enter>: ")
+            else:
+                class_name = input(f"   Enter class name to create {subdir_name} class <[name]/Enter>: ")
             if class_name=='':
                 break
             if class_name!='':
                 content = f"+class {class_name}\n+path {subdir_path}"
                 content_dp = f"+class {class_name}Plane\n+path {subdir_path}"
                 if subdir_name=="container": lilakcc(content).print_container()
-                if subdir_name=="geant4": lilakcc(content).print_geant4()
+                if subdir_name=="geant4": lilakcc(content).print_geant4dc()
                 if subdir_name=="task": lilakcc(content).print_task()
                 if subdir_name=="tool": lilakcc(content).print_tool()
                 if subdir_name=="detector":

@@ -1075,7 +1075,8 @@ class lilakcc:
         elif data_type=="odata":
             line_data_in_par_container = f'&{self.name}/data/output {data_bclass} {data_bname}'
             self.parfile_data_lines[2].append(line_data_in_par_container)
-            line_par_in_par_container = f'{data_bname}/persistency true'
+            #line_par_in_par_container = f'{data_bname}/persistency true'
+            line_par_in_par_container = f'persistency/{data_bname} true'
             self.parfile_lines.append(line_par_in_par_container)
 
         #num_data = "num" + data_bname[0].title()+data_bname[1:]
@@ -1913,13 +1914,7 @@ void run_{self.name}()
             print(f"""/// This macro create geant4 simulation with {self.name}
 #include "LKLogger.h"
 #include "LKG4RunManager.h"
-#include "LKParameterContainer.h"
-#include "LKPrimaryGeneratorAction.h"
-#include "LKEventAction.h"
-#include "LKTrackingAction.h"
-#include "LKSteppingAction.h"
-
-#include "QGSP_BERT.hh"
+#include "FTFP_BERT_HP.hh"
 #include "G4StepLimiterPhysics.hh"
 #include "{self.name}.h"
 
@@ -1928,14 +1923,11 @@ int main(int argc, char** argv)
     lk_logger("data/log");
 
     auto runManager = new LKG4RunManager();
-
-    G4VModularPhysicsList* physicsList = new QGSP_BERT;
+    G4VModularPhysicsList* physicsList = new FTFP_BERT_HP;
     physicsList -> RegisterPhysics(new G4StepLimiterPhysics());
     runManager -> SetUserInitialization(physicsList);
     runManager -> AddParameterContainer(argv[1]);
-    runManager -> GetPar() -> Print();
     runManager -> SetUserInitialization(new {self.name}());
-    runManager -> Initialize();
     runManager -> Run(argc, argv);
 
     delete runManager;
@@ -1948,53 +1940,65 @@ int main(int argc, char** argv)
         with open(f'{name_run}', 'w') as f1:
             print(f"""# (lilak) geant4 run macro
 
-LKG4Manager/VisMode false
-LKG4Manager/G4OutputFile data/tpc_sim.root
-LKG4Manager/G4InputFile single_proton_100MeV.gen
-#LKG4Manager/G4VisFile
-#LKG4Manager/G4MacroFile
+LKG4Manager/
+    VisMode false
+    G4InputFile data/single_proton_100MeV.gen
+    G4OutputFile data/run_g4sim.root
+    SuppressG4InitMessage true
+    #G4VisFile # if G4VisFile is given instead of G4/ group below, G4VisFile will be used with visualization mode
+    #G4MacroFile # if G4MacroFile is given instead of G4/ group below, G4MacroFile will be used with simulation mode
 
-MCSetEdepSum/persistency true
-MCStep/persistency true
-MCSecondary/persistency true
-MCTrackVertex/persistency true
+persistency/
+    MCTrackVertex true
+    MCSecondary true
+    MCEdepSum true
+    MCStep true
 
-G4/run/setCutForAGivenParticle e- 100. mm
-G4/run/suppressPP true
-G4/run/beamOnAll""",file=f1)
+G4/ # instead of using separate geant4 macro users can put the commands under G4/ group
+    run/setCutForAGivenParticle e- 500. mm
+    run/suppressPP true
+    run/beamOnAll # run all events in gen file""",file=f1)
 
         name_run = os.path.join(self.path,"run_geant4_vis.mac")
         print(f'{name_run}')
         with open(f'{name_run}', 'w') as f1:
             print(f"""# (lilak) geant4 visualization macro
 
-LKG4Manager/VisMode true
-LKG4Manager/G4OutputFile data/tpc_sim.root
-LKG4Manager/G4InputFile single_proton_100MeV.gen
-#LKG4Manager/G4VisFile
-#LKG4Manager/G4MacroFile
+LKG4Manager/
+    VisMode true
+    G4InputFile data/single_proton_100MeV.gen
+    G4OutputFile data/run_g4vis.root
+    SuppressG4InitMessage true
+    #G4VisFile # if G4VisFile is given instead of G4/ group below, G4VisFile will be used with visualization mode
+    #G4MacroFile # if G4MacroFile is given instead of G4/ group below, G4MacroFile will be used with simulation mode
 
-MCSetEdepSum/persistency true
-MCStep/persistency true
-MCSecondary/persistency true
-MCTrackVertex/persistency true
+persistency/
+    MCTrackVertex true
+    MCSecondary false
+    MCEdepSum false
+    MCStep false
 
-G4/vis/open OGL 600x600-0+0
-G4/vis/drawVolume
-G4/run/setCutForAGivenParticle e- 100. mm
-G4/vis/scene/add/axes 0 0 0 500 mm
-G4/vis/viewer/flush
-G4/vis/viewer/set/lightsVector -1 0 0
-G4/vis/viewer/set/style wireframe
-G4/vis/viewer/set/auxiliaryEdge true
-G4/vis/modeling/trajectories/create/drawByCharge
-G4/vis/scene/endOfEventAction accumulate
-G4/vis/geometry/set/visibility World 0 false
-G4/vis/viewer/set/viewpointThetaPhi 100 160
-#G4/vis/viewer/set/autoRefresh true
-#G4/tracking/verbose 1
-#G4/vis/verbose warnings
-#G4/run/beamOn 1""",file=f1)
+G4/ # instead of using separate geant4 macro users can put the commands under G4/ group
+    vis/open OGL 600x600-0+0
+    /vis/drawVolume
+    #vis/scene/add/axes 0 0 0 100 mm
+    vis/viewer/flush
+    vis/viewer/set/lightsVector -1 0 0
+    vis/viewer/set/style wireframe
+    vis/viewer/set/auxiliaryEdge true
+    vis/viewer/set/lineSegmentsPerCircle 100
+    vis/scene/add/trajectories smooth
+    vis/modeling/trajectories/create/drawByCharge
+    vis/modeling/trajectories/drawByCharge-0/default/setDrawStepPts true
+    vis/modeling/trajectories/drawByCharge-0/default/setStepPtsSize 2
+    vis/scene/endOfEventAction accumulate
+    vis/geometry/set/visibility World 0 false
+    vis/viewer/set/viewpointThetaPhi 100 160
+    vis/viewer/set/autoRefresh true
+    tracking/verbose 1
+    vis/verbose warnings
+    run/setCutForAGivenParticle e- 100. mm
+    run/beamOn 1""",file=f1)
 
         name_run = os.path.join(self.path,"single_proton_100MeV.gen")
         print(f'{name_run}')
