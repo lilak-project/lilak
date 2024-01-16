@@ -130,8 +130,8 @@ void LKParameterContainer::ReplaceVariables(TString &valInput)
         int fpar = valInput.Index("}",1,ipar,TString::kExact);
         TString parName2 = valInput(ipar+1,fpar-ipar-1);
         TString replaceTo;
-             if (parName2=="lilak_mainproject_version") replaceTo = LILAK_MAINPROJECT_VERSION;
-        else if (parName2=="lilak_mainproject_hash"   ) replaceTo = LILAK_MAINPROJECT_HASH;
+        if (parName2=="lilak_mainproject_version") replaceTo = LILAK_MAINPROJECT_VERSION;
+        else if (parName2=="lilak_mainproject_hash") replaceTo = LILAK_MAINPROJECT_HASH;
         else if (parName2=="lilak_version" ) replaceTo = LILAK_VERSION;
         else if (parName2=="lilak_hash"    ) replaceTo = LILAK_HASH;
         else if (parName2=="lilak_hostname") replaceTo = LILAK_HOSTNAME;
@@ -141,6 +141,11 @@ void LKParameterContainer::ReplaceVariables(TString &valInput)
         else if (parName2=="lilak_version" ) replaceTo = LILAK_VERSION;
         else if (parName2=="lilak_data"    ) replaceTo = TString(LILAK_PATH)+"/data/";
         else if (parName2=="lilak_common"  ) replaceTo = TString(LILAK_PATH)+"/common/";
+        else if (parName2.EndsWith("]")) {
+            int idx = TString(parName2(parName2.Index("[")+1,parName2.Index("]")-parName2.Index("[")-1)).Atoi();
+            parName2 = parName2(0,parName2.Index("["));
+            replaceTo = GetParString(parName2,idx);
+        }
         else
             replaceTo = GetParString(parName2);
         valInput.Replace(ipar,fpar-ipar+1,replaceTo);
@@ -484,14 +489,22 @@ void LKParameterContainer::Print(Option_t *option) const
     bool printToFile = false;
     ofstream fileOut;
 
-    if (printOptions.Index("!eval" )>=0) { evaluatePar = false;      printOptions.ReplaceAll("!eval", ""); }
-    if (printOptions.Index("eval"  )>=0) { evaluatePar = true;       printOptions.ReplaceAll("eval",  ""); }
+    if (printOptions.Index("all")>=0) {
+        evaluatePar = true;
+        showLineComment = true;
+        showParComments = true;
+        printToScreen = true;
+    }
+    else {
+        if (printOptions.Index("!eval" )>=0) { evaluatePar = false;      printOptions.ReplaceAll("!eval", ""); }
+        if (printOptions.Index("eval"  )>=0) { evaluatePar = true;       printOptions.ReplaceAll("eval",  ""); }
 
-    if (printOptions.Index("!line#")>=0) { showLineComment = false;  printOptions.ReplaceAll("!line#",""); }
-    if (printOptions.Index("line#" )>=0) { showLineComment = true;   printOptions.ReplaceAll("line#", ""); }
+        if (printOptions.Index("!line#")>=0) { showLineComment = false;  printOptions.ReplaceAll("!line#",""); }
+        if (printOptions.Index("line#" )>=0) { showLineComment = true;   printOptions.ReplaceAll("line#", ""); }
 
-    if (printOptions.Index("!par#" )>=0) { showParComments = false;  printOptions.ReplaceAll("!par#", ""); }
-    if (printOptions.Index("par#"  )>=0) { showParComments = true;   printOptions.ReplaceAll("par#",  ""); }
+        if (printOptions.Index("!par#" )>=0) { showParComments = false;  printOptions.ReplaceAll("!par#", ""); }
+        if (printOptions.Index("par#"  )>=0) { showParComments = true;   printOptions.ReplaceAll("par#",  ""); }
+    }
 
     TString fileName = printOptions;
     if (fileName.IsNull()) {
@@ -586,12 +599,14 @@ void LKParameterContainer::Print(Option_t *option) const
         if (isLineComment && showLineComment) {
             if (showLineComment) {
                 if (printToScreen) e_cout << "# " << parComment << endl;
-                if (printToFile)   fileOut << "# " << parComment << endl;
+                //if (printToFile)   fileOut << "# " << parComment << endl;
+                if (printToFile)   fileOut << parameter->GetLine() << endl;
             }
         }
         else if (isParameter) {
             if (printToScreen) e_list(parNumber) << left << setw(nwidth) << parName << " " << setw(vwidth) << parValue << " " << parComment << endl;
-            if (printToFile) fileOut << parNumber << ". " << left << setw(nwidth) << parName << " " << setw(vwidth) << parValue << " " << parComment << endl;
+            //if (printToFile) fileOut << parNumber << ". " << left << setw(nwidth) << parName << " " << setw(vwidth) << parValue << " " << parComment << endl;
+            if (printToFile) fileOut << parameter->GetLine() << endl;
         }
 
         preGroup = parGroup;
@@ -647,6 +662,12 @@ Int_t LKParameterContainer::AddLine(std::string ssline)
     int currentTabSize = 0;
     while (true) {
         if (line[currentTabSize]==' ') ++currentTabSize;
+        else if (line[currentTabSize]=='#') {
+            TString line2 = TString(ssline);
+            line2 = line2(currentTabSize+1,line2.Sizeof()-2-currentTabSize);
+            SetLineComment(line2);
+            return 3;
+        }
         else break;
     }
 #ifdef DEBUG_ADDPAR

@@ -33,12 +33,8 @@ class LKParameter : public TNamed
         int     GetN()          const { return fNumValues; }
         int     GetType()       const { return fType; }
 
-        TString GetGroup(int ith);
-
-        const char* GetLine() {
-            const char *line = Form("%s %s",fName.Data(),fValue.Data());
-            return line;
-        }
+        TString GetGroup(int ith) const;
+        TString GetLine(TString option="tc") const;
 
         bool    IsStandard()    const { return (fType==0); }
         bool    IsLineComment() const { return (fType==1); }

@@ -380,7 +380,9 @@ TString LKRun::ConfigureDataPath(TString name, bool search, TString pathData, bo
 
             for (auto path : pathList) {
                 fullName = path + name;
+                e_info << "Trying to find " << fullName << " ..." << endl;
                 if (LKRun::CheckFileExistence(fullName)) {
+                    e_info << "Found " << fullName << "!" << endl;
                     found = true;
                     break;
                 }
@@ -493,8 +495,8 @@ void LKRun::AddInputFile(TString fileName, TString treeName)
 
 void LKRun::AddFriend(TString fileName)
 {
-  fileName = LKRun::ConfigureDataPath(fileName,true,fDataPath);
-  fFriendFileNameArray.push_back(fileName);
+    fileName = LKRun::ConfigureDataPath(fileName,true,fDataPath);
+    fFriendFileNameArray.push_back(fileName);
 }
 
 TChain *LKRun::GetFriendChain(Int_t iFriend) const { return ((TChain *) fFriendTrees -> At(iFriend)); }
@@ -507,10 +509,10 @@ bool LKRun::Init()
     lk_info << "Initializing" << endl;
 
     Int_t idxInput = 1;
-    if (fInputFileName.IsNull() && fInputFileNameArray.size() != 0) {
+    //if (fInputFileName.IsNull() && fInputFileNameArray.size() != 0) {
         fInputFileName = fInputFileNameArray[0];
         //idxInput = 1;
-    }
+    //}
 
     if (!fRunNameIsSet) {
         if (fPar -> CheckPar("LKRun/RunName")) {
@@ -1242,6 +1244,7 @@ bool LKRun::EndOfRun()
         fRunHeader -> AddPar("run_time",Long64_t(run_time));
         TString run_time_s = Form("%ddays %dh %dm %ds",now->tm_mday-2,now->tm_hour,now->tm_min,now->tm_sec);
         fRunHeader -> AddPar("run_time_s",run_time_s);
+        fRunHeader -> AddPar("num_events",fEndEventID - fStartEventID + 1);
     }
 
     WriteOutputFile();

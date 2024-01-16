@@ -52,6 +52,7 @@ void LKParameter::SetPar(TString name, TString raw, TString value, TString comme
 void LKParameter::SetValue(TString value)
 {
     fValue = value;
+    value.ReplaceAll(","," ");
     auto listOfTokens = value.Tokenize(" ");
     fNumValues = listOfTokens -> GetEntries();
     if (fNumValues>1) {
@@ -76,11 +77,7 @@ void LKParameter::Clear(Option_t *option)
 
 void LKParameter::Print(Option_t *option) const
 {
-     if (fType==0) e_info << fName << " " << fValue << " # " << fComment << std::endl;
-     if (fType==1) e_info << "# " << fComment << std::endl;
-     if (fType==2) e_info << "(T) " << fName << " " << fValue << " # " << fComment << std::endl;
-     if (fType==3) e_info << "(C) " << fName << " " << fValue << " # " << fComment << std::endl;
-     if (fType==4) e_info << "(M) " << fName << " " << fValue << " # " << fComment << std::endl;
+    e_cout << GetLine() << std::endl;
 }
 
 Long64_t LKParameter::GetLong(int idx) const
@@ -268,7 +265,7 @@ bool LKParameter::CheckFormulaValidity(TString formula, bool isInt) const
     return true;
 }
 
-TString LKParameter::GetGroup(int ith)
+TString LKParameter::GetGroup(int ith) const
 {
     TString name = fName;
     TString group;
@@ -289,4 +286,23 @@ TString LKParameter::GetGroup(int ith)
         return TString();
 
     return group;
+}
+
+
+TString LKParameter::GetLine(TString option) const
+{
+    TString line;
+    if (IsLineComment()) {
+        line = TString("# ") + fComment;
+        return line;
+    }
+    if (option.Index("t")) {
+        if (IsTemporary())   line += "*";
+        if (IsConditional()) line += "@";
+        if (IsMultiple())    line += "&";
+    }
+    line = line + fName + " " + fValue;
+    if (option.Index("c"))
+        line = line + " # " + fComment;;
+    return line;
 }
