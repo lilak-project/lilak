@@ -55,7 +55,7 @@ class LKG4RunManager : public G4RunManager, public LKGear
 
         void SetNumEvents(Int_t numEvents);
 
-        void NextEvent();
+        virtual void NextEvent();
         void WriteToFile(TObject *obj);
         void EndOfRun();
 

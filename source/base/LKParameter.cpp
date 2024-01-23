@@ -267,7 +267,7 @@ bool LKParameter::CheckFormulaValidity(TString formula, bool isInt) const
 
 TString LKParameter::GetGroup(int ith) const
 {
-    TString name = fName;
+    TString name = fName.Data();
     TString group;
     int iBreak = 0;
     int countBreak = 0;

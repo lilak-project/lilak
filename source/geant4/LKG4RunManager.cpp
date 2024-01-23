@@ -166,8 +166,8 @@ void LKG4RunManager::Run(G4int argc, char **argv, const G4String &type)
     }
     else {
         while ((parameter = (LKParameter*) next())) {
-            //if (parameter->GetGroup(1)=="vis") continue;
-            auto command = Form("/%s",parameter -> GetLine());
+            auto command = Form("/%s",parameter->GetLine().Data());
+            e_info << command << endl;
             uiManager -> ApplyCommand(command);
         }
     }
