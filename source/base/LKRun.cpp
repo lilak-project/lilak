@@ -382,7 +382,7 @@ TString LKRun::ConfigureDataPath(TString name, bool search, TString pathData, bo
                 fullName = path + name;
                 e_info << "Trying to find " << fullName << " ..." << endl;
                 if (LKRun::CheckFileExistence(fullName)) {
-                    e_info << "Found " << fullName << "!" << endl;
+                    e_info << "Found " << fullName << endl;
                     found = true;
                     break;
                 }
@@ -486,7 +486,7 @@ void LKRun::AddInputList(TString listFileName, TString treeName)
 
 void LKRun::AddInputFile(TString fileName, TString treeName)
 {
-    if (fInputFileName.IsNull()) fInputFileName = fileName;
+    //if (fInputFileName.IsNull()) fInputFileName = fileName;
     fileName = LKRun::ConfigureDataPath(fileName,true,fDataPath);
     fInputVersion = GetFileHash(fileName);
     fInputFileNameArray.push_back(fileName);

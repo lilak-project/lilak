@@ -3,7 +3,6 @@
 
 #include "LKGear.h"
 #include "LKRun.h"
-#include "LKPulseGenerator.h"
 #include "LKChannelAnalyzer.h"
 
 #include "TNamed.h"
@@ -55,7 +54,6 @@ class LKDetector : public TNamed, public LKGear
         Int_t fNumPlanes = 0;
         TObjArray *fDetectorPlaneArray;
 
-        LKPulseGenerator *fPulseGenerator = nullptr;
         LKDetectorSystem *fParent = nullptr;
 
         LKChannelAnalyzer* fChannelAnalyzer0 = nullptr;

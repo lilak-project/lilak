@@ -55,6 +55,7 @@ set(LILAK_SOURCE_DIRECTORY_LIST
     ${LILAK_PATH}/source/geometry
     ${LILAK_PATH}/source/detector
     ${LILAK_PATH}/source/container
+    ${LILAK_PATH}/source/task
     ${LILAK_PATH}/source/container/track
     ${LILAK_PATH}/source/container/readout
     ${LILAK_PATH}/source/container/measurement

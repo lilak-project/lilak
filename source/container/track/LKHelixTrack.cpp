@@ -52,6 +52,7 @@ void LKHelixTrack::Print(Option_t *option) const
 {
     TString opts = TString(option);
 
+    /*
     if (opts.Index("s")>=0) {
         TString trackID = Form("%d",fTrackID);
         TString parentID = Form("%d",fParentID);
@@ -61,7 +62,9 @@ void LKHelixTrack::Print(Option_t *option) const
         e_info << GetFitStatusString() << "-" << trackID << "(" << parentID << ")"
             << " | p=" << Momentum().Mag() << "[MeV]" << endl;
     }
-    else {
+    else
+        */
+    {
         TString center = "("+TString::Itoa(fI,10)+", "+TString::Itoa(fJ,10)+")";
 
         if (fA == LKVector3::kX) center = TString("(y,z): ")+center;
@@ -69,10 +72,13 @@ void LKHelixTrack::Print(Option_t *option) const
         else if (fA == LKVector3::kZ) center = TString("(x,y): ")+center;
 
         e_cout << left;
-        e_info << setw(13) << "Track ID"     << " : " << fTrackID << endl;
-        e_info << setw(13) << "Parent ID"    << " : " << fParentID << endl;
-        e_info << setw(13) << "Fit Status"   << " : " << GetFitStatusString() << endl;
-        e_info << setw(13) << "# of Hits"    << " : " << fHitArray.GetNumHits() << endl;
+
+        TString trackID = Form("%d",fTrackID);
+        TString parentID = Form("%d",fParentID);
+        if (fTrackID < 0) trackID = "x";
+        if (fParentID < 0) parentID = "x";
+
+        e_info << "LKHelixTrack " << trackID << "(" << parentID << ") " << "[" << GetFitStatusString() << "] #hits = " << fHitArray.GetNumHits() << endl;
 
         if (fFitStatus == LKHelixTrack::kHelix || fFitStatus == LKHelixTrack::kGenfitTrack)
         {

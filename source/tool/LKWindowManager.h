@@ -7,10 +7,10 @@
 
 #define lk_win()    LKWindowManager::GetWindowManager()
 #define lk_cvs()    LKWindowManager::GetWindowManager() -> Canvas()
-#define lk_cvs_d(name)  LKWindowManager::GetWindowManager() -> CanvasDefault(name, ratio);
-#define lk_cvs_s(name)  LKWindowManager::GetWindowManager() -> CanvasFull(name, ratio, ratio2);
-#define lk_cvs_f(name)  LKWindowManager::GetWindowManager() -> CanvasSquare(name, ratio);
-#define lk_cvs_r(name,width0,height0)  kKWindowManager::GetWindowManager() -> CanvasResize(name, width0, height0, ratio);
+#define lk_cvs_d(name)  LKWindowManager::GetWindowManager() -> CanvasDefault(name);
+#define lk_cvs_s(name)  LKWindowManager::GetWindowManager() -> CanvasFull(name);
+#define lk_cvs_f(name)  LKWindowManager::GetWindowManager() -> CanvasSquare(name);
+#define lk_cvs_r(name,width0,height0)  kKWindowManager::GetWindowManager() -> CanvasResize(name, width0, height0);
 
 class LKWindowManager : public TObject
 {
