@@ -14,6 +14,10 @@ set(BUILD_MFM_CONVERTER OFF CACHE INTERNAL "")
 set(BUILD_JSONCPP       OFF CACHE INTERNAL "")
 set(LILAK_PROJECT_LIST      CACHE INTERNAL "") # List of LILAK projects to build
 set(LILAK_PROJECT_MAIN      CACHE INTERNAL "")
+#set(GRUDIR "/usr/local/gru" CACHE INTERNAL "")
+#set(GETDIR "/usr/local/get" CACHE INTERNAL "")
+set(GRUDIR               "" CACHE INTERNAL "")
+set(GETDIR               "" CACHE INTERNAL "")
 
 #---Configuration
 include(log/build_options.cmake)
@@ -125,13 +129,11 @@ if(BUILD_MFM_CONVERTER)
     #set(GETDIR2 "/opt/software/get_src/20210208/MultiFrame/src")
     #include_directories(${GETDIR2})
 
-    set(GRUDIR "/usr/local/gru")
-    message(STATUS GRUDIR: ${GRUDIR})
+    message(STATUS GRUDIR:\ ${GRUDIR})
     include_directories(${GRUDIR}/include)
     link_directories(${GRUDIR}/lib)
 
-    set(GETDIR "/usr/local/get")
-    message(STATUS GETDIR: ${GETDIR})
+    message(STATUS GETDIR:\ ${GETDIR})
     include_directories(${GETDIR}/include)
     link_directories(${GETDIR}/lib)
 endif(BUILD_MFM_CONVERTER)

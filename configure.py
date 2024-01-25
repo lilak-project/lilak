@@ -35,7 +35,7 @@ print("  ",lilak_path)
 build_option_file_name = os.path.join(log_path, "build_options.cmake")
 
 main_project = "lilak"
-options0 = {
+build_options0 = {
     "ACTIVATE_EVE": False,
     "BUILD_GEANT4_SIM": False,
     "BUILD_MFM_CONVERTER": False,
@@ -43,7 +43,10 @@ options0 = {
     #"BUILD_DOXYGEN_DOC": False,
     #"CREATE_GIT_LOG": True,
 }
-options1 = options0.copy()
+build_options = build_options0.copy()
+
+GRU_dir = "/usr/local/gru"
+GET_dir = "/usr/local/get"
 
 list_top_directories = ["build","data","log","macros","source"]
 list_prj_subdir_link = ["container","detector","tool","task"]
@@ -118,8 +121,12 @@ if os.path.exists(build_option_file_name):
                 if len(tokens)>1:
                     if tokens[0]=="LILAK_PROJECT_MAIN":
                         main_project = tokens[1]
+                    elif tokens[0]=="GRUDIR":
+                        GRU_dir = tokens[1]
+                    elif tokens[0]=="GETDIR":
+                        GET_dir = tokens[1]
                     elif tokens[0]!="LILAK_PROJECT_LIST":
-                        options1[tokens[0]] = (True if tokens[1]=="ON" else False)
+                        build_options[tokens[0]] = (True if tokens[1]=="ON" else False)
             elif len(line)>0 and line!=")" and line.strip().find("CACHE INTERNAL")<0 and line.strip().find("LILAK")!=0:
                 comment = ""
                 if line.find("#")>0:
@@ -128,20 +135,22 @@ if os.path.exists(build_option_file_name):
 
 confirm = 0
 while True:
+### Loading configuration
     print_h("Loading configuration from", build_option_file_name)
     print()
-    for key, value in options1.items():
+    for key, value in build_options.items():
         print(f"   {key} = {value}")
     print()
     print_project_list()
     print()
     if confirm==0:
         confirm = input_e0("Use above options? <Enter/0>: ")
+### using previous build options
     if confirm==1:
         print()
         print("saving options to", build_option_file_name)
         with open(build_option_file_name, "w") as f:
-            for key, value in options1.items():
+            for key, value in build_options.items():
                 vonoff = "ON" if value==1 else "OFF"
                 f.write(f"set({key} {vonoff} CACHE INTERNAL \"\")\n")
             project_all = ""
@@ -150,6 +159,8 @@ while True:
             f.write("\nset(LILAK_PROJECT_LIST ${LILAK_PROJECT_LIST}")
             f.write(f"{project_all}")
             f.write('\n    CACHE INTERNAL ""\n)')
+            f.write(f'\n\nset(GRUDIR {GRU_dir} CACHE INTERNAL "")')
+            f.write(f'\nset(GETDIR {GET_dir} CACHE INTERNAL "")')
             if main_project!="lilak":
                 f.write(f'\n\nset(LILAK_PROJECT_MAIN {main_project} CACHE INTERNAL "")')
 
@@ -212,17 +223,31 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
 )""")
         break
 
+### for new build options
     print_h("Build options")
     print()
-    options1 = options0.copy()
+    build_options = build_options0.copy()
 
-    list_chosen_key = input_options(options1,question="Type option number(s) to Add. Type <Enter> if non: ")
+    list_chosen_key = input_options(build_options,question="Type option number(s) to Add. Type <Enter> if non: ")
     for key in list_chosen_key:
-        options1[key] = True
+        build_options[key] = True
+        if key=="BUILD_MFM_CONVERTER":
+            print()
+            print(f"       GRU directory is")
+            print(f"       {GRU_dir}")
+            user_input_gg = input(f"       Type path to change directory, or else press <Enter>: ")
+            if user_input_gg!='':
+                GRU_dir = user_input_gg
+            print()
+            print(f"       GET directory is")
+            print(f"       {GET_dir}")
+            user_input_gg = input(f"       Type path to change directory, or else press <Enter>: ")
+            if user_input_gg!='':
+                GET_dir = user_input_gg
 
+### project
     print_h("Add Project")
     print()
-
     user_input_project = "x"
     project_list = []
     while len(user_input_project)>0:
@@ -248,6 +273,7 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
             project_list.append(key)
         break
 
+### main project
     if True:
         print_h("Select main project")
         print()
