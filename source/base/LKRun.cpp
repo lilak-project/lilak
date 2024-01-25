@@ -509,10 +509,10 @@ bool LKRun::Init()
     lk_info << "Initializing" << endl;
 
     Int_t idxInput = 1;
-    //if (fInputFileName.IsNull() && fInputFileNameArray.size() != 0) {
+    if (fInputFileName.IsNull() && fInputFileNameArray.size() != 0) {
         fInputFileName = fInputFileNameArray[0];
-        //idxInput = 1;
-    //}
+        idxInput = 1;
+    }
 
     if (!fRunNameIsSet) {
         if (fPar -> CheckPar("LKRun/RunName")) {

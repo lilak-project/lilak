@@ -110,50 +110,29 @@ endif(ACTIVATE_EVE)
 include(${ROOT_USE_FILE})
 
 if(BUILD_MFM_CONVERTER)
-    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/local/etc/cmake")
+    #set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/local/etc/cmake")
+    #add_definitions( -DTIXML_USE_STL ) ###
+    #include_directories(${MFMHistServer_SOURCE_DIR}/source)
+    #find_package(ROOT REQUIRED)
     #set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR})
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ROOT_CXX_FLAGS} -std=c++14 -pthread -Wno-deprecated-declarations")
-    set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -lncurses" )
+    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ROOT_CXX_FLAGS} -std=c++14 -pthread -Wno-deprecated-declarations")
+    #set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -lncurses" )
+    #include_directories(${ROOT_INCLUDE_DIR} ${CMAKE_SOURCE_DIR})
+    #link_directories(${ROOT_LIBRARY_DIR})
+    #set(GRUDIR "/usr/local/gru")
+    #include_directories(${GRUDIR}/vigru)
+    #include_directories(${GRUDIR}/gsoap)
+    #set(GETDIR2 "/opt/software/get_src/20210208/MultiFrame/src")
+    #include_directories(${GETDIR2})
+
+    set(GRUDIR "/usr/local/gru")
+    message(STATUS GRUDIR: ${GRUDIR})
+    include_directories(${GRUDIR}/include)
+    link_directories(${GRUDIR}/lib)
 
     set(GETDIR "/usr/local/get")
-    set(GRUDIR "/usr/local/gru")
-    set(GETDIR2 "/opt/software/get_src/20210208/MultiFrame/src")
-    set(GETDIR3 "/opt/software/get_src/20210208/MultiFrame/src/mfm/")
-    set(LIBGRUDIR "${GRUDIR}")
-
-    message(STATUS "GETDIR        : " ${GETDIR})
-    message(STATUS "GRUDIR        : " ${GRUDIR})
-    message(STATUS "GETDIR2       : " ${GETDIR2})
-
-    message(STATUS "include_directories : " ${GETDIR}/include)
-    message(STATUS "include_directories : " ${GRUDIR}/include)
-    message(STATUS "include_directories : " ${GRUDIR}/vigru)
-    message(STATUS "include_directories : " ${GRUDIR}/gsoap)
-
-    message(STATUS "link_directories : " ${LIBGRUDIR}/lib)
-    message(STATUS "link_directories : " ${ROOT_LIBRARY_DIR})
-    message(STATUS "link_directories : " ${GRUDIR}/lib)
-    message(STATUS "link_directories : " ${GETDIR}/lib)
-
-    message(STATUS ${ROOT_LIBRARIES})
-
-#
-#
-    include_directories(${MFMHistServer_SOURCE_DIR}/source)
-    include_directories(${ROOT_INCLUDE_DIR} ${CMAKE_SOURCE_DIR})
-
+    message(STATUS GETDIR: ${GETDIR})
     include_directories(${GETDIR}/include)
-    include_directories(${GRUDIR}/include)
-    include_directories(${GRUDIR}/vigru)
-    include_directories(${GRUDIR}/gsoap)
-#
-#
-    include_directories(${GETDIR2})
-    #/opt/software/sources_MFMHS/get_src/20210208/MultiFrame/src/mfm/Frame.*
-
-    link_directories(${LIBGRUDIR}/lib)
-    link_directories(${ROOT_LIBRARY_DIR})
-    link_directories(${GRUDIR}/lib)
     link_directories(${GETDIR}/lib)
 endif(BUILD_MFM_CONVERTER)
 
@@ -289,9 +268,9 @@ foreach(_executable ${LILAK_EXECUTABLE_LIST})
     execute_process(COMMAND root-config --libs OUTPUT_VARIABLE ROOT_LD_FLAGS OUTPUT_STRIP_TRAILING_WHITESPACE)
     set(CMAKE_EXE_LINKER_FLAGS ${ROOT_LD_FLAGS})
     if(BUILD_MFM_CONVERTER)
-        target_link_libraries(${_executable_name} ${Geant4_LIBRARIES} ${ROOT_LIBRARIES} LILAK Html Spectrum XMLIO GRU MultiFrame)
+        target_link_libraries(${_executable_name} ${Geant4_LIBRARIES} LILAK)
     else(BUILD_MFM_CONVERTER)
-        target_link_libraries(${_executable_name} ${Geant4_LIBRARIES} ${ROOT_LIBRARIES} LILAK)
+        target_link_libraries(${_executable_name} ${Geant4_LIBRARIES} LILAK)
     endif(BUILD_MFM_CONVERTER)
 endforeach(_executable)
 

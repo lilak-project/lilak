@@ -43,12 +43,12 @@ options0 = {
     #"BUILD_DOXYGEN_DOC": False,
     #"CREATE_GIT_LOG": True,
 }
-options = options0.copy()
+options1 = options0.copy()
 
 list_top_directories = ["build","data","log","macros","source"]
 list_prj_subdir_link = ["container","detector","tool","task"]
 list_prj_subdir_xlink = ["source"]
-list_sub_packages = ["geant4", "get", "fftw"]
+list_sub_packages = ["geant4", "get", "fftw", "mfm"]
 
 project_list = []
 def print_project_list(numbering=False):
@@ -119,7 +119,7 @@ if os.path.exists(build_option_file_name):
                     if tokens[0]=="LILAK_PROJECT_MAIN":
                         main_project = tokens[1]
                     elif tokens[0]!="LILAK_PROJECT_LIST":
-                        options[tokens[0]] = (True if tokens[1]=="ON" else False)
+                        options1[tokens[0]] = (True if tokens[1]=="ON" else False)
             elif len(line)>0 and line!=")" and line.strip().find("CACHE INTERNAL")<0 and line.strip().find("LILAK")!=0:
                 comment = ""
                 if line.find("#")>0:
@@ -130,7 +130,7 @@ confirm = 0
 while True:
     print_h("Loading configuration from", build_option_file_name)
     print()
-    for key, value in options.items():
+    for key, value in options1.items():
         print(f"   {key} = {value}")
     print()
     print_project_list()
@@ -141,7 +141,7 @@ while True:
         print()
         print("saving options to", build_option_file_name)
         with open(build_option_file_name, "w") as f:
-            for key, value in options.items():
+            for key, value in options1.items():
                 vonoff = "ON" if value==1 else "OFF"
                 f.write(f"set({key} {vonoff} CACHE INTERNAL \"\")\n")
             project_all = ""
@@ -204,7 +204,7 @@ while True:
                         f.write('    CACHE INTERNAL ""\n)\n\n')
 
                 # executables
-                f.write("""file(GLOB MACROS_FOR_EXECUTABLE_PROCESS ${CMAKE_CURRENT_SOURCE_DIR}/macros/*.cc)
+                f.write("""file(GLOB MACROS_FOR_EXECUTABLE_PROCESS ${CMAKE_CURRENT_SOURCE_DIR}/macros*/*.cc)
 
 set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
     ${MACROS_FOR_EXECUTABLE_PROCESS}
@@ -214,11 +214,11 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
 
     print_h("Build options")
     print()
-    options = options0.copy()
+    options1 = options0.copy()
 
-    list_chosen_key = input_options(options,question="Type option number(s) to Add. Type <Enter> if non: ")
+    list_chosen_key = input_options(options1,question="Type option number(s) to Add. Type <Enter> if non: ")
     for key in list_chosen_key:
-        options[key] = True
+        options1[key] = True
 
     print_h("Add Project")
     print()
