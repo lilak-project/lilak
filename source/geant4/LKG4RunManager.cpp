@@ -16,7 +16,6 @@
 #include "LKStackingAction.h"
 #include "LKSteppingAction.h"
 #include "LKPrimaryGeneratorAction.h"
-#include "LKPrimaryGeneratorAction.h"
 
 LKG4RunManager::LKG4RunManager()
 :G4RunManager()
@@ -39,6 +38,8 @@ LKG4RunManager::~LKG4RunManager()
 
 void LKG4RunManager::Initialize()
 {
+    fTryInitialized = true;
+
     if (GetUserPrimaryGeneratorAction() == nullptr) SetUserAction(new LKPrimaryGeneratorAction());
     if (GetUserEventAction() == nullptr)    SetUserAction(new LKEventAction(this));
     if (GetUserTrackingAction() == nullptr) SetUserAction(new LKTrackingAction(this));
@@ -65,7 +66,12 @@ void LKG4RunManager::Initialize()
     G4RunManager::Initialize();
 
     SetOutputFile(fPar->GetParString("LKG4Manager/G4OutputFile").Data());
-    SetGeneratorFile(fPar->GetParString("LKG4Manager/G4InputFile").Data());
+    fInitEventGenerator = SetGeneratorFile(fPar->GetParString("LKG4Manager/G4InputFile").Data());
+    if (!fInitEventGenerator) {
+        fInitialized = false;
+        g4man_error << "Event generator cannot be initialized!" << endl;
+        return;
+    }
 
     auto procNames = G4ProcessTable::GetProcessTable() -> GetNameList();
     Int_t idx = 0;
@@ -129,10 +135,15 @@ void LKG4RunManager::InitializePhysics()
 
 void LKG4RunManager::Run(G4int argc, char **argv, const G4String &type)
 {
-    if (fInitialized==false) {
+    if (fTryInitialized==false) {
         g4man_info << "Run manager is not inialized." << endl;
         g4man_info << "Running Initialize() ..." << endl;
         Initialize();
+    }
+
+    if (fInitialized==false) {
+        g4man_error << "Unable to initialize." << endl;
+        return;
     }
 
     G4UImanager* uiManager = G4UImanager::GetUIpointer();
@@ -155,8 +166,8 @@ void LKG4RunManager::Run(G4int argc, char **argv, const G4String &type)
 
         G4UIExecutive* uiExecutive = new G4UIExecutive(argc,argv,type);
         while ((parameter = (LKParameter*) next())) {
-            //if (parameter->GetName()=="exit") continue;
-            auto command = Form("/%s",parameter -> GetLine());
+            auto command = Form("/%s",parameter->GetLine("").Data());
+            g4man_info << command << endl;
             uiManager -> ApplyCommand(command);
         }
         uiExecutive -> SessionStart();
@@ -166,8 +177,8 @@ void LKG4RunManager::Run(G4int argc, char **argv, const G4String &type)
     }
     else {
         while ((parameter = (LKParameter*) next())) {
-            auto command = Form("/%s",parameter->GetLine().Data());
-            e_info << command << endl;
+            auto command = Form("/%s",parameter->GetLine("").Data());
+            g4man_info << command << endl;
             uiManager -> ApplyCommand(command);
         }
     }
@@ -180,15 +191,18 @@ void LKG4RunManager::Run(G4int argc, char **argv, const G4String &type)
 
 void LKG4RunManager::BeamOnAll()
 {
+    g4man_info << "BeamOnAll " << fNumEvents << endl;
     BeamOn(fNumEvents);
 }
 
 void LKG4RunManager::BeamOn(G4int numEvents, const char *macroFile, G4int numSelect)
 {
+    g4man_info << "BeamOn" << endl;
     if(numEvents<=0) { fakeRun = true; }
     else { fakeRun = false; }
     G4bool cond = ConfirmBeamOnCondition();
-    if(cond)
+    g4man_info << "BeamOn condition: " << cond << endl;
+    if (cond)
     {
         numberOfEventToBeProcessed = numEvents;
         numberOfEventProcessed = 0;
@@ -204,7 +218,10 @@ void LKG4RunManager::BeamOn(G4int numEvents, const char *macroFile, G4int numSel
         else
             RunInitialization();
 
+        g4man_info << "DoEventLoop" << endl;
+        //g4man_info << numEvents << " " << macroFile << " " << numSelect << endl;
         DoEventLoop(numEvents,macroFile,numSelect);
+        g4man_info << "RunTermination" << endl;
         RunTermination();
     }
     fakeRun = false;
@@ -212,11 +229,13 @@ void LKG4RunManager::BeamOn(G4int numEvents, const char *macroFile, G4int numSel
 
 void LKG4RunManager::SetSuppressInitMessage(bool val) { fSuppressInitMessage = val; }
 
-void LKG4RunManager::SetGeneratorFile(TString value)
+bool LKG4RunManager::SetGeneratorFile(TString value)
 {
     auto pga = (LKPrimaryGeneratorAction *) userPrimaryGeneratorAction;
     //fPar -> ReplaceEnvironmentVariable(value);
-    pga -> SetEventGenerator(value.Data());
+    if (!pga -> SetEventGenerator(value.Data()))
+        return false;
+    return true;
 }
 
 void LKG4RunManager::SetOutputFile(TString name)

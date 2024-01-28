@@ -10,17 +10,22 @@ LKMCEventGenerator::LKMCEventGenerator()
 LKMCEventGenerator::LKMCEventGenerator(TString fileName)
 {
     fInputFile.open(fileName.Data());
+    if (fInputFile.is_open()==false) {
+        e_error << fileName << " cannot be opened!" << endl;
+        fNumEvents = 0;
+    }
+    else {
+        TString me;
+        fInputFile >> me;
+        me.ToLower();
 
-    TString me;
-    fInputFile >> me;
-    me.ToLower();
+        if (me == "p") fReadMomentumOrEnergy = true;
+        else if (me == "e") fReadMomentumOrEnergy = false;
 
-    if (me == "p") fReadMomentumOrEnergy = true;
-    else if (me == "e") fReadMomentumOrEnergy = false;
+        fInputFile >> fNumEvents;
 
-    fInputFile >> fNumEvents;
-
-    g4gen_info << fileName << " containing " << fNumEvents << " events, initialized with " << me << endl;
+        g4gen_info << fileName << " containing " << fNumEvents << " events, initialized with " << me << endl;
+    }
 }
 
 LKMCEventGenerator::~LKMCEventGenerator()

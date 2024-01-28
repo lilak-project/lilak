@@ -60,9 +60,13 @@ void LKPrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
     fPrintExampleEvent = false;
 }
 
-void LKPrimaryGeneratorAction::SetEventGenerator(const char *fileName)
+bool LKPrimaryGeneratorAction::SetEventGenerator(const char *fileName)
 {
     fEventGenerator = new LKMCEventGenerator(fileName);
     fReadMomentumOrEnergy = fEventGenerator -> ReadMomentumOrEnergy();
-    ((LKG4RunManager *) LKG4RunManager::GetRunManager()) -> SetNumEvents(fEventGenerator -> GetNumEvents());
+    auto numEvents = fEventGenerator -> GetNumEvents();
+    ((LKG4RunManager *) LKG4RunManager::GetRunManager()) -> SetNumEvents(numEvents);
+    if (numEvents==0)
+        return false;
+    return true;
 }

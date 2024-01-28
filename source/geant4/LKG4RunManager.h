@@ -3,6 +3,7 @@
 
 #define g4man_info LKLogger("LKG4RunManager",__FUNCTION__,0,2)
 #define g4man_warning LKLogger("LKG4RunManager",__FUNCTION__,0,3)
+#define g4man_error LKLogger("LKG4RunManager",__FUNCTION__,0,4)
 
 #include <iostream>
 #include <vector>
@@ -60,7 +61,7 @@ class LKG4RunManager : public G4RunManager, public LKGear
         void EndOfRun();
 
     private:
-        void SetGeneratorFile(TString value);
+        bool SetGeneratorFile(TString value);
         void SetOutputFile(TString value);
 
         bool fSuppressInitMessage = false;
@@ -96,7 +97,9 @@ class LKG4RunManager : public G4RunManager, public LKGear
 
         Int_t fNumEvents;
 
+        bool fTryInitialized = false;
         bool fInitialized = false;
+        bool fInitEventGenerator = false;
 };
 
 #endif

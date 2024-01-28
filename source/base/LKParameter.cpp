@@ -302,7 +302,7 @@ TString LKParameter::GetLine(TString option) const
         if (IsMultiple())    line += "&";
     }
     line = line + fName + " " + fValue;
-    if (option.Index("c"))
-        line = line + " # " + fComment;;
+    if (option.Index("c") && fComment.IsNull()==false)
+        line = line + " # " + fComment;
     return line;
 }
