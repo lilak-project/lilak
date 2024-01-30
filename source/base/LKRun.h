@@ -318,7 +318,7 @@ class LKRun : public LKTask
         LKTask* fEventTrigger = nullptr;
         bool fUsingEventTrigger = false;
 
-        bool fFillCurrentEvent = false;
+        bool fFillCurrentEvent = true;
 
         TString fExitLogPath;
 
