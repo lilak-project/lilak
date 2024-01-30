@@ -37,8 +37,8 @@ class LKRun : public LKTask
     public:
         static LKRun* GetRun(); ///< Get LKRun static pointer.
 
-        LKRun(TString runName, int id, TString tag);
-        LKRun() : LKRun("run",-1,"") {}
+        LKRun(TString runName, Int_t id, Int_t division, TString tag);
+        LKRun() : LKRun("run",-1,-1,"") {}
         virtual ~LKRun() {};
 
         static void PrintLILAK();              ///< Print compiled LILAK information
@@ -67,10 +67,11 @@ class LKRun : public LKTask
 
         /// Run name/id
         /// This is equivalent to setting parameter
-        /// LKRun/RunName [name] [id] [tag(optional)] [split(optional)].
-        void SetRunName(TString name, Int_t id=0, TString tag=""); ///< Set Run name and id.
+        /// LKRun/RunName [name] [id] [division(optional)].[tag(optional)]
+        void SetRunName(TString name, Int_t id=0, Int_t division=-1, TString tag=""); ///< Set Run name and id.
         const char* GetRunName() const { return fRunName.Data(); }
         Int_t GetRunID() const { return fRunID; }
+        Int_t GetDivision() const { return fDivision; }
 
         /// Set data directory path. Default directory : path/to/LILAK/data
         /// Data path will not be used if full path of the input/ouput file is given.
@@ -100,8 +101,9 @@ class LKRun : public LKTask
         void SetOutputFile(TString name, bool addVersion=false) { fOutputFileName = name; fAddVersion = addVersion; }
         TFile* GetOutputFile() { return fOutputFile; }
         TTree* GetOutputTree() { return fOutputTree; }
+        void SetDivision(Int_t division) { fDivision = division; }
         void SetTag(TString tag) { fTag = tag; }
-        void SetSplit(Int_t split, Long64_t numSplitEntries) { fSplit = split; fNumSplitEntries = numSplitEntries; }
+        void SetSplit(Int_t split, Long64_t numEventsInSplit) { fSplit = split; fNumEventsInSplit = numEventsInSplit; }
 
         void AlwaysPrintMessage() { fEventCountForMessage = 1; }
         void SetEventCountForMessage(Long64_t val) { fEventCountForMessage = val; }
@@ -146,15 +148,15 @@ class LKRun : public LKTask
          */
         TClonesArray* RegisterBranchA(TString name, const char* className, Int_t size=100, bool persistent=true);
 
-        TString GetBranchName(int idx) const;
+        TString GetBranchName(Int_t idx) const;
         //TObject *GetBranch(TString name); ///< Get branch in TObject by name.
-        //TObject *GetBranch(int idx);
+        //TObject *GetBranch(Int_t idx);
         //TObject *KeepBranch(TString name);
 
         TClonesArray *GetBranchA(TString name); ///< Get branch in TClonesArray by name. Return nullptr if branch is not inherited from TClonesArray
-        TClonesArray *GetBranchA(int idx);
+        TClonesArray *GetBranchA(Int_t idx);
         TClonesArray *KeepBranchA(TString name);
-        int GetNumBranches() const { return fCountBranches; }
+        Int_t GetNumBranches() const { return fCountBranches; }
 
         void AddDetector(LKDetector *detector); ///< Set detector
         LKDetector *GetDetector(Int_t idx=0) const;
@@ -235,6 +237,7 @@ class LKRun : public LKTask
         bool fRunNameIsSet = false;
         TString fRunName = "run";
         Int_t   fRunID = -1;
+        Int_t   fDivision = -1;
 
         bool fInitialized = false;
 
@@ -256,8 +259,10 @@ class LKRun : public LKTask
         bool fAddVersion = false;
         TString fOuputHash = "";
         TString fTag = "";
+        TString fTagInput = "";
         Int_t fSplit = -1;
-        Long64_t fNumSplitEntries = -1;
+        Int_t fSplitInput = -1;
+        Long64_t fNumEventsInSplit = -1;
         TFile *fOutputFile = nullptr;
         TTree *fOutputTree = nullptr;
 
@@ -280,7 +285,7 @@ class LKRun : public LKTask
         //TTreeFormula* fSelect = nullptr;
         //Long64_t fCurrentEventIDForSelection = 0;
 
-        int fTreeNumber = -1;
+        Int_t fTreeNumber = -1;
         Long64_t fPrevSelEventID = 0;
         Long64_t fCurrSelEventID = 0;
         TEntryList *fSelEntryList = nullptr;
@@ -308,7 +313,7 @@ class LKRun : public LKTask
         LKDetectorSystem *fDetectorSystem = nullptr;
 
         std::vector<TString> fListOfGitBranches;
-        std::vector<int> fListOfNumTagsInGitBranches;
+        std::vector<Int_t> fListOfNumTagsInGitBranches;
         std::vector<TString> fListOfGitHashTags; ///<@todo
         std::vector<TString> fListOfVersionMarks; ///<@todo
 

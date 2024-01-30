@@ -24,7 +24,7 @@ LKRun* LKRun::GetRun() {
     return new LKRun();
 }
 
-LKRun::LKRun(TString runName, int id, TString tag)
+LKRun::LKRun(TString runName, Int_t id, Int_t division, TString tag)
     :LKTask("LKRun", "LKRun")
 {
     fInstance = this;
@@ -35,6 +35,7 @@ LKRun::LKRun(TString runName, int id, TString tag)
     }
     fRunName = runName;
     fRunID = id;
+    fDivision = division;
     fTag = tag;
     fFriendTrees = new TObjArray();
     fPersistentBranchArray = new TObjArray();
@@ -53,7 +54,7 @@ LKRun::LKRun(TString runName, int id, TString tag)
     ifstream log_branch_list(TString(LILAK_PATH)+"/log/LKBranchList.log");
     string line;
     TString hashTag, branchName;
-    int numTags = -1;
+    Int_t numTags = -1;
     std::vector<TString> revListOfVersionMarks;
     while (getline(log_branch_list, line)) {
         istringstream ss(line);
@@ -106,10 +107,12 @@ void LKRun::PrintLILAK()
     LKLogger("LKRun",__FUNCTION__,0,2) << "  LILAK Path          : " << LILAK_PATH << endl;
 }
 
-void LKRun::SetRunName(TString name, Int_t id, TString tag) {
+void LKRun::SetRunName(TString name, Int_t id, Int_t division, TString tag)
+{
     fRunNameIsSet = true;
     fRunName = name;
     fRunID = id;
+    fDivision = division;
     fTag = tag;
 }
 
@@ -119,12 +122,12 @@ bool LKRun::ConfigureRunFromFileName(TString inputName)
     TString runPath;
     TString runFileName = inputName;
     TString runName;
-    int runID;
+    Int_t runID;
     TString runTag;
-    int runSplit;
+    Int_t runSplit;
     TString runVersion;
 
-    int iPathBreak = inputName.Last('/');
+    Int_t iPathBreak = inputName.Last('/');
     if (iPathBreak>=0) {
         runPath = inputName(0,iPathBreak+1).Data(); // including '/'
         runFileName = inputName(iPathBreak+1,inputName.Sizeof()-iPathBreak-2).Data();
@@ -137,7 +140,7 @@ bool LKRun::ConfigureRunFromFileName(TString inputName)
         TString token1 = ((TObjString *) array->At(1)) -> GetString();
         TString token2 = ((TObjString *) array->At(2)) -> GetString();
 
-        int szSPLIT = 6; // SPLIT_
+        Int_t szSPLIT = 6; // SPLIT_
         TString runSplitH = token1(0,szSPLIT).Data();
         TString runSplitN = token1(szSPLIT,token1.Sizeof()-szSPLIT-1).Data();
         if (runSplitH=="SPLIT_" && runSplitN.IsDec()) {
@@ -151,7 +154,7 @@ bool LKRun::ConfigureRunFromFileName(TString inputName)
         nameIsInFormat = true;
         TString token1 = ((TObjString *) array->At(1)) -> GetString();
 
-        int szSPLIT = 6; // SPLIT_
+        Int_t szSPLIT = 6; // SPLIT_
         TString runSplitH = token1(0,szSPLIT).Data();
         TString runSplitN = token1(szSPLIT,token1.Sizeof()-szSPLIT-1).Data();
         if (runSplitH=="SPLIT_" && runSplitN.IsDec()) {
@@ -175,7 +178,7 @@ bool LKRun::ConfigureRunFromFileName(TString inputName)
     if (nameIsInFormat) {
         TString name_id = ((TObjString *) array->At(0)) -> GetString();
 
-        int iUnderBreak = name_id.Last('_');
+        Int_t iUnderBreak = name_id.Last('_');
         runName = name_id(0,iUnderBreak);
         TString runIDTemp = name_id(iUnderBreak+1,4);
         if (!runIDTemp.IsDec())
@@ -187,6 +190,7 @@ bool LKRun::ConfigureRunFromFileName(TString inputName)
     if (nameIsInFormat) {
         fRunName = runName;
         fRunID = runID;
+        //fDivision = division;
         fTag = runTag;
         fSplit = runSplit;
     }
@@ -200,11 +204,9 @@ TString LKRun::ConfigureFileName()
 
     TString fileName = fRunName + Form("_%04d", fRunID);
 
-    if (!fTag.IsNull())
-        fileName = fileName + "." + fTag;
-
-    if (fSplit != -1)
-        fileName = fileName + Form(".SPLIT_%d",fSplit);
+    if (fDivision >= 0) fileName = fileName + Form(".D%d",fDivision);
+    if (!fTag.IsNull()) fileName = fileName + Form(".%s",fTag.Data());
+    if (fSplit != -1)   fileName = fileName + Form(".S%d",fSplit);
 
     //fileName = fileName + Form(".%s",LILAK_MAINPROJECT_VERSION);
 
@@ -390,7 +392,7 @@ TString LKRun::ConfigureDataPath(TString name, bool search, TString pathData, bo
                 TString vxName = fullName;
                 bool breakFlag = false;
                 if (fullName.EndsWith(".root")) {
-                    for (auto iv=int(listOfHashVersions.size())-1; iv>=0; --iv)
+                    for (auto iv=Int_t(listOfHashVersions.size())-1; iv>=0; --iv)
                         //for (auto versionMark : listOfHashVersions)
                     {
                         auto versionMark = listOfHashVersions.at(iv);
@@ -516,11 +518,16 @@ bool LKRun::Init()
 
     if (!fRunNameIsSet) {
         if (fPar -> CheckPar("LKRun/RunName")) {
+            fPar -> UpdatePar(fRunID,    "LKRun/RunID");
+            fPar -> UpdatePar(fDivision, "LKRun/Division");
+            fPar -> UpdatePar(fTag,      "LKRun/Tag");
+            fPar -> UpdatePar(fSplit,    "LKRun/Split");
             auto numRunNames = fPar -> GetParN("LKRun/RunName");
-            if (fRunName=="run") fRunName = fPar -> GetParString("LKRun/RunName",0);
-            if (fRunID==-1) fRunID = fPar -> GetParInt("LKRun/RunName",1);
-            if (fTag.IsNull()&&numRunNames>2) fTag = fPar -> GetParString("LKRun/RunName",2);
-            if (fSplit==-1&&numRunNames>3) fSplit = fPar -> GetParInt("LKRun/RunName",3);
+            if (fRunName=="run")              fRunName = fPar -> GetParString("LKRun/RunName",0);
+            if (fRunID==-1)                   fRunID   = fPar -> GetParInt   ("LKRun/RunName",1);
+            if (fDivision<0&&numRunNames>2)   fDivision= fPar -> GetParInt   ("LKRun/RunName",2);
+            if (fTag.IsNull()&&numRunNames>3) fTag     = fPar -> GetParString("LKRun/RunName",3);
+            if (fSplit==-1&&numRunNames>4)    fSplit   = fPar -> GetParInt   ("LKRun/RunName",4);
             fRunNameIsSet = true;
         }
     }
@@ -642,8 +649,9 @@ bool LKRun::Init()
                 LKParameterContainer *runHeaderIn = (LKParameterContainer *) fInputFile -> Get("RunHeader");
                 fRunName = runHeaderIn -> GetParString("RunName");
                 fRunID = runHeaderIn -> GetParInt("RunID");
-                //fTag = runHeaderIn -> GetParString("Tag");
-                //fSplit = runHeaderIn -> GetParInt("Split");
+                runHeaderIn -> UpdatePar(fDivision,"Division");
+                runHeaderIn -> UpdatePar(fSplitInput,"Split");
+                runHeaderIn -> UpdatePar(fTagInput,"Tag");
             }
             else {
                 ConfigureRunFromFileName(fInputFileName);
@@ -701,23 +709,52 @@ bool LKRun::Init()
         }
     }
 
-    fRunHeader = new LKParameterContainer();
-    fRunHeader -> SetName("RunHeader");
-    fRunHeader -> AddPar("MainP_Version",LILAK_MAINPROJECT_VERSION);
-    fRunHeader -> AddPar("LILAK_Version",LILAK_VERSION);
-    fRunHeader -> AddPar("LILAK_HostName",LILAK_HOSTNAME);
-    fRunHeader -> AddPar("LILAK_UserName",LILAK_USERNAME);
-    fRunHeader -> AddPar("LILAK_Path",LILAK_PATH);
-    fRunHeader -> AddPar("NumInputFiles",int(fInputFileNameArray.size()));
-    fRunHeader -> AddPar("InputFile",fInputFileName);
-    fRunHeader -> AddPar("OutputFile",fOutputFileName);
-    fRunHeader -> AddPar("RunName",fRunName);
-    fRunHeader -> AddPar("RunID",fRunID);
-    fRunHeader -> AddPar("RunTag",fTag);
-    if (fSplit>=0)
+    {
+        fRunHeader = new LKParameterContainer();
+        fRunHeader -> SetName("RunHeader");
+        fRunHeader -> AddPar("MainP_Version",LILAK_MAINPROJECT_VERSION);
+        fRunHeader -> AddPar("LILAK_Version",LILAK_VERSION);
+        fRunHeader -> AddPar("LILAK_HostName",LILAK_HOSTNAME);
+        fRunHeader -> AddPar("LILAK_UserName",LILAK_USERNAME);
+        fRunHeader -> AddPar("LILAK_Path",LILAK_PATH);
+
+        fRunHeader -> AddPar("NumInputFiles",Int_t(fInputFileNameArray.size()));
+        fRunHeader -> AddPar("InputFile",fInputFileName);
+        for (Int_t iInput = idxInput; iInput < fInputFileNameArray.size(); iInput++)
+            fRunHeader -> AddPar(Form("InputFile_%d",iInput),fInputFileNameArray[iInput]);
+        for (Int_t iFriend = idxInput; iFriend < fFriendFileNameArray.size(); iFriend++)
+            fRunHeader -> AddPar(Form("FriendFile_%d",iFriend),fFriendFileNameArray[iFriend]);
+        fRunHeader -> AddPar("OutputFile",fOutputFileName);
+
+        fRunHeader -> AddPar("RunName",fRunName);
+        fRunHeader -> AddPar("RunID",fRunID);
+        fRunHeader -> AddPar("Division",fDivision);
+        fRunHeader -> AddPar("Tag",fTag);
         fRunHeader -> AddPar("Split",fSplit);
-    if (fNumSplitEntries>=0)
-        fRunHeader -> AddPar("NumEventsInSplit",int(fNumSplitEntries));
+        fRunHeader -> AddPar("NumEventsInSplit",Int_t(fNumEventsInSplit));
+        fRunHeader -> AddPar("TagInput",fTagInput);
+        fRunHeader -> AddPar("SplitInput",fSplitInput);
+
+        if (fUsingEventTrigger)
+            fRunHeader -> AddPar("EventTriggerTask",fEventTrigger->GetName());
+        TIter next(fTasks);
+        TTask *task;
+        Int_t countTasks = 0;
+        while((task=(TTask*)next()))
+            fRunHeader -> AddPar(Form("Task_%d",countTasks++),task->ClassName());
+
+        Int_t countDetectors = 0;
+        for (auto iDetector=0; iDetector<fDetectorSystem->GetNumDetectors(); ++iDetector) {
+            auto plane = fDetectorSystem -> GetDetector(iDetector);
+            fRunHeader -> AddPar(Form("Detector_%d",countDetectors++),plane->GetName());
+        }
+
+        Int_t countPlanes = 0;
+        for (auto iPlane=0; iPlane<fDetectorSystem->GetNumPlanes(); ++iPlane) {
+            auto plane = fDetectorSystem -> GetDetectorPlane(iPlane);
+            fRunHeader -> AddPar(Form("DetectorPlane_%d",countPlanes++),plane->GetName());
+        }
+    }
 
     if (fUsingEventTrigger)
     {
@@ -852,14 +889,14 @@ TClonesArray* LKRun::RegisterBranchA(TString name, const char* className, Int_t 
     return array;
 }
 
-TString LKRun::GetBranchName(int idx) const
+TString LKRun::GetBranchName(Int_t idx) const
 {
     TString branchName = fBranchNames[idx];
     return branchName;
 }
 
 /*
-TObject *LKRun::GetBranch(int idx)
+TObject *LKRun::GetBranch(Int_t idx)
 {
     TObject *dataContainer = fBranchPtr[idx];
     return dataContainer;
@@ -887,7 +924,7 @@ TObject *LKRun::KeepBranch(TString name) {
 }
 */
 
-TClonesArray *LKRun::GetBranchA(int idx)
+TClonesArray *LKRun::GetBranchA(Int_t idx)
 {
     auto dataContainer = fBranchPtr[idx];
     if (dataContainer!=nullptr) {// && dataContainer -> InheritsFrom("TClonesArray")) {
@@ -1179,8 +1216,8 @@ bool LKRun::StartOfRun(Long64_t numEvents)
         fEndEventID = fNumEntries-1;
 
     if (fSplit >= 0) {
-        fStartEventID = fSplit * fNumSplitEntries;
-        fEndEventID = ((fSplit+1) * fNumSplitEntries) - 1 ;
+        fStartEventID = fSplit * fNumEventsInSplit;
+        fEndEventID = ((fSplit+1) * fNumEventsInSplit) - 1 ;
         if (fEndEventID > fNumEntries - 1)
             fEndEventID = fNumEntries - 1;
     }
