@@ -80,16 +80,92 @@ void LKParameter::Print(Option_t *option) const
     e_cout << GetLine() << std::endl;
 }
 
-Long64_t LKParameter::GetLong(int idx) const
+bool LKParameter::CheckTypeInt(int idx) const
 {
-    TString value = fValue;
-    if (idx>=0) value = fValueArray[idx];
-
+    TString value = ((idx>=0) ? fValue : fValueArray[idx]);
     if (!CheckFormulaValidity(value,true))
-        ProcessTypeError("Long64_t");
+        return false;
+    return true;
+}
 
-    return value.Atoll();
-    //return TFormula("formula",value).Eval(0);
+bool LKParameter::CheckTypeLong(int idx) const
+{
+    TString value = ((idx>=0) ? fValue : fValueArray[idx]);
+    if (!CheckFormulaValidity(value,true))
+        return false;
+    return true;
+}
+
+bool LKParameter::CheckTypeBool(int idx) const
+{
+    TString value = ((idx>=0) ? fValue : fValueArray[idx]);
+    value.ToLower();
+    if (value=="true"||value=="1"||value=="false"||value=="0")
+        return true;
+    return false;
+}
+
+bool LKParameter::CheckTypeDouble(int idx) const
+{
+    TString value = ((idx>=0) ? fValue : fValueArray[idx]);
+    if (!CheckFormulaValidity(value))
+        return false;
+    return true;
+}
+
+bool LKParameter::CheckTypeString(int idx) const { return true; }
+
+bool LKParameter::CheckTypeColor(int idx) const
+{
+    TString value = ((idx>=0) ? fValue : fValueArray[idx]);
+    if (value.Index("k")==0)
+    {
+        value.ReplaceAll("kWhite"  ,"0");
+        value.ReplaceAll("kBlack"  ,"1");
+        value.ReplaceAll("kGray"   ,"920");
+        value.ReplaceAll("kRed"    ,"632");
+        value.ReplaceAll("kGreen"  ,"416");
+        value.ReplaceAll("kBlue"   ,"600");
+        value.ReplaceAll("kYellow" ,"400");
+        value.ReplaceAll("kMagenta","616");
+        value.ReplaceAll("kCyan"   ,"432");
+        value.ReplaceAll("kOrange" ,"800");
+        value.ReplaceAll("kSpring" ,"820");
+        value.ReplaceAll("kTeal"   ,"840");
+        value.ReplaceAll("kAzure"  ,"860");
+        value.ReplaceAll("kViolet" ,"880");
+        value.ReplaceAll("kPink"   ,"900");
+    }
+    if (!CheckFormulaValidity(value,true))
+        return false;
+    return true;
+}
+
+bool LKParameter::CheckTypeAxis(int idx) const
+{
+    TString value = ((idx>=0) ? fValue : fValueArray[idx]);
+         if (value== "x") return true;
+    else if (value== "y") return true;
+    else if (value== "z") return true;
+    else if (value=="-x") return true;
+    else if (value=="-y") return true;
+    else if (value=="-z") return true;
+    else if (value== "i") return true;
+    else if (value== "j") return true;
+    else if (value== "k") return true;
+    else if (value=="-i") return true;
+    else if (value=="-j") return true;
+    else if (value=="-k") return true;
+    else if (value== "0") return true;
+    return false;
+}
+
+bool LKParameter::CheckTypeV3() const
+{
+    if (!CheckTypeDouble(0)) return false;
+    if (!CheckTypeDouble(1)) return false;
+    if (!CheckTypeDouble(2)) return false;
+    return true;
 }
 
 int LKParameter::GetInt(int idx) const
@@ -98,9 +174,21 @@ int LKParameter::GetInt(int idx) const
     if (idx>=0) value = fValueArray[idx];
 
     if (!CheckFormulaValidity(value,true))
-        ProcessTypeError("int");
+        ProcessTypeError("int", value);
 
     return TFormula("formula",value).Eval(0);
+}
+
+Long64_t LKParameter::GetLong(int idx) const
+{
+    TString value = fValue;
+    if (idx>=0) value = fValueArray[idx];
+
+    if (!CheckFormulaValidity(value,true))
+        ProcessTypeError("Long64_t", value);
+
+    return value.Atoll();
+    //return TFormula("formula",value).Eval(0);
 }
 
 bool LKParameter::GetBool(int idx) const
@@ -112,7 +200,7 @@ bool LKParameter::GetBool(int idx) const
     if (value=="true"||value=="1") return true;
     else if (value=="false"||value=="0") return false;
     else 
-        ProcessTypeError("bool");
+        ProcessTypeError("bool", value);
     return true;
 }
 
@@ -122,7 +210,7 @@ double LKParameter::GetDouble(int idx) const
     if (idx>=0) value = fValueArray[idx];
 
     if (!CheckFormulaValidity(value))
-        ProcessTypeError("double");
+        ProcessTypeError("double", value);
 
     return TFormula("formula",value).Eval(0);
 }
@@ -160,7 +248,7 @@ int LKParameter::GetColor(int idx) const
     }
 
     if (!CheckFormulaValidity(value,true))
-        ProcessTypeError("color");
+        ProcessTypeError("color", value);
 
     return TFormula("formula",value).Eval(0);
 }
@@ -239,9 +327,9 @@ std::vector<TString> LKParameter::GetVString() const
     return array;
 }
 
-void LKParameter::ProcessTypeError(TString type) const
+void LKParameter::ProcessTypeError(TString type, TString value) const
 {
-    e_error << "Parameter " << fName << " = " << fValue << " is not convertable to " << type << std::endl;
+    e_error << "Parameter " << fName << ", value = " << value << " is not convertable to " << type << std::endl;
     gApplication -> Terminate();
 }
 

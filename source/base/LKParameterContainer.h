@@ -182,21 +182,36 @@ class LKParameterContainer : public TObjArray
         Bool_t CheckPar(TString name) const;
         Bool_t CheckValue(TString name) const;
 
-        Int_t    GetParN     (TString name) const;              ///< Get number of parameters in array of given name.
-        Bool_t   GetParBool  (TString name, int idx=-1) const;  ///< Get parameter in Bool_t
-        Int_t    GetParInt   (TString name, int idx=-1) const;  ///< Get parameter in Int_t
-        Long64_t GetParLong  (TString name, int idx=-1) const;  ///< Get parameter in Long64_t
-        Double_t GetParDouble(TString name, int idx=-1) const;  ///< Get parameter in Double_t
-        TString  GetParString(TString name, int idx=-1) const;  ///< Get parameter in TString
-        Int_t    GetParColor (TString name, int idx=-1) const;  ///< Get parameter in Color_t
-        TVector3 GetParV3    (TString name) const;              ///< Get parameter in TVector
+        Bool_t CheckParTypeBool  (TString name, int idx=-1) const { return FindPar(name,true) -> CheckTypeBool  (idx); }
+        Bool_t CheckParTypeInt   (TString name, int idx=-1) const { return FindPar(name,true) -> CheckTypeInt   (idx); }
+        Bool_t CheckParTypeLong  (TString name, int idx=-1) const { return FindPar(name,true) -> CheckTypeLong  (idx); }
+        Bool_t CheckParTypeDouble(TString name, int idx=-1) const { return FindPar(name,true) -> CheckTypeDouble(idx); }
+        Bool_t CheckParTypeString(TString name, int idx=-1) const { return FindPar(name,true) -> CheckTypeString(idx); }
+        Bool_t CheckParTypeColor (TString name, int idx=-1) const { return FindPar(name,true) -> CheckTypeColor (idx); }
+        Bool_t CheckParTypeV3    (TString name) const             { return FindPar(name,true) -> CheckTypeV3    ();    }
+        Bool_t CheckParTypeX     (TString name) const { return CheckParTypeDouble(name,0); }
+        Bool_t CheckParTypeY     (TString name) const { return CheckParTypeDouble(name,1); }
+        Bool_t CheckParTypeZ     (TString name) const { return CheckParTypeDouble(name,2); }
+        Bool_t CheckParTypeStyle (TString name, int idx=-1) const { return CheckParTypeInt(name,idx); }
+        Bool_t CheckParTypeWidth (TString name, int idx=-1) const { return CheckParTypeInt(name,idx); }
+        Bool_t CheckParTypeSize  (TString name, int idx=-1) const { return CheckParTypeDouble(name,idx); }
+        Bool_t CheckParTypeAxis  (TString name, int idx=-1) const { return FindPar(name,true) -> CheckTypeAxis(idx); }
+
+        Int_t    GetParN     (TString name) const             { return FindPar(name,true) -> GetN     ();    }///< Get number of parameters in array of given name.
+        Bool_t   GetParBool  (TString name, int idx=-1) const { return FindPar(name,true) -> GetBool  (idx); } ///< Get parameter in Bool_t
+        Int_t    GetParInt   (TString name, int idx=-1) const { return FindPar(name,true) -> GetInt   (idx); } ///< Get parameter in Int_t
+        Long64_t GetParLong  (TString name, int idx=-1) const { return FindPar(name,true) -> GetLong  (idx); } ///< Get parameter in Long64_t
+        Double_t GetParDouble(TString name, int idx=-1) const { return FindPar(name,true) -> GetDouble(idx); } ///< Get parameter in Double_t
+        TString  GetParString(TString name, int idx=-1) const { return FindPar(name,true) -> GetString(idx); } ///< Get parameter in TString
+        Int_t    GetParColor (TString name, int idx=-1) const { return FindPar(name,true) -> GetColor (idx); } ///< Get parameter in Color_t
+        TVector3 GetParV3    (TString name) const             { return FindPar(name,true) -> GetV3    ();    } ///< Get parameter in TVector
         Double_t GetParX     (TString name) const { return GetParDouble(name,0); }
         Double_t GetParY     (TString name) const { return GetParDouble(name,1); }
         Double_t GetParZ     (TString name) const { return GetParDouble(name,2); }
         Int_t    GetParStyle (TString name, int idx=-1) const { return GetParInt(name,idx); }
         Int_t    GetParWidth (TString name, int idx=-1) const { return GetParInt(name,idx); }
         Double_t GetParSize  (TString name, int idx=-1) const { return GetParDouble(name,idx); }
-        axis_t   GetParAxis  (TString name, int idx=-1) const;
+        axis_t   GetParAxis  (TString name, int idx=-1) const { return FindPar(name,true) -> GetAxis(); }
 
         /// UpdatePar() will update given value, if parameter with name and idx exist. If not, value will not be changed.
         void UpdatePar(Bool_t   &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParBool  (name,idx); }
@@ -206,10 +221,10 @@ class LKParameterContainer : public TObjArray
         void UpdatePar(TString  &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParString(name,idx); } ///< See UpdatePar(Bool_t, TString, int)
         void UpdatePar(axis_t   &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParAxis  (name,idx); } ///< See UpdatePar(Bool_t, TString, int)
 
-        std::vector<bool>    GetParVBool  (TString name) const;
-        std::vector<int>     GetParVInt   (TString name) const;
-        std::vector<double>  GetParVDouble(TString name) const;
-        std::vector<TString> GetParVString(TString name) const;
+        std::vector<bool>    GetParVBool  (TString name) const { return FindPar(name,true) -> GetVBool  (); }
+        std::vector<int>     GetParVInt   (TString name) const { return FindPar(name,true) -> GetVInt   (); }
+        std::vector<double>  GetParVDouble(TString name) const { return FindPar(name,true) -> GetVDouble(); }
+        std::vector<TString> GetParVString(TString name) const { return FindPar(name,true) -> GetVString(); }
         std::vector<int>     GetParVStyle (TString name) const { return GetParVInt(name); }
         std::vector<int>     GetParVWidth (TString name) const { return GetParVInt(name); }
         std::vector<int>     GetParVColor (TString name) const { return GetParVInt(name); }

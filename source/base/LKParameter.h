@@ -42,6 +42,15 @@ class LKParameter : public TNamed
         bool    IsConditional() const { return (fType==3); }
         bool    IsMultiple()    const { return (fType==4); }
 
+        bool    CheckTypeInt   (int i=-1) const;
+        bool    CheckTypeLong  (int i=-1) const;
+        bool    CheckTypeBool  (int i=-1) const;
+        bool    CheckTypeDouble(int i=-1) const;
+        bool    CheckTypeString(int i=-1) const;
+        bool    CheckTypeColor (int i=-1) const;
+        bool    CheckTypeAxis  (int i=-1) const;
+        bool    CheckTypeV3    ()         const;
+
         int      GetInt   (int i=-1) const;  ///< Get parameter in int
         Long64_t GetLong  (int i=-1) const;  ///< Get parameter in int
         bool     GetBool  (int i=-1) const;  ///< Get parameter in bool
@@ -67,7 +76,7 @@ class LKParameter : public TNamed
         std::vector<double>  GetVSize  () const { return GetVDouble(); }
 
     private:
-        void ProcessTypeError(TString type) const;
+        void ProcessTypeError(TString type, TString value) const;
         bool CheckFormulaValidity(TString formula, bool isInt=false) const;
 
         //TString fName; ///< parameter name defined from TNamed

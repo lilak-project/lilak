@@ -523,11 +523,20 @@ bool LKRun::Init()
             fPar -> UpdatePar(fTag,      "LKRun/Tag");
             fPar -> UpdatePar(fSplit,    "LKRun/Split");
             auto numRunNames = fPar -> GetParN("LKRun/RunName");
-            if (fRunName=="run")              fRunName = fPar -> GetParString("LKRun/RunName",0);
-            if (fRunID==-1)                   fRunID   = fPar -> GetParInt   ("LKRun/RunName",1);
-            if (fDivision<0&&numRunNames>2)   fDivision= fPar -> GetParInt   ("LKRun/RunName",2);
-            if (fTag.IsNull()&&numRunNames>3) fTag     = fPar -> GetParString("LKRun/RunName",3);
-            if (fSplit==-1&&numRunNames>4)    fSplit   = fPar -> GetParInt   ("LKRun/RunName",4);
+            if (fRunName=="run") fRunName = fPar -> GetParString("LKRun/RunName",0);
+            if (fRunID==-1&&numRunNames>1) fRunID = fPar -> GetParInt("LKRun/RunName",1);
+            if (numRunNames==3) {
+                auto checkType = fPar -> CheckParTypeInt("LKRun/RunName",2);
+                if (!checkType)
+                    fTag = fPar -> GetParString("LKRun/RunName",2);
+                else
+                    fDivision = fPar -> GetParInt("LKRun/RunName",2);
+            }
+            else if (numRunNames>=3) {
+                if (fDivision<0&&numRunNames>2)   fDivision= fPar -> GetParInt   ("LKRun/RunName",2);
+                if (fTag.IsNull()&&numRunNames>3) fTag     = fPar -> GetParString("LKRun/RunName",3);
+                if (fSplit==-1&&numRunNames>4)    fSplit   = fPar -> GetParInt   ("LKRun/RunName",4);
+            }
             fRunNameIsSet = true;
         }
     }
@@ -721,9 +730,9 @@ bool LKRun::Init()
         fRunHeader -> AddPar("NumInputFiles",Int_t(fInputFileNameArray.size()));
         fRunHeader -> AddPar("InputFile",fInputFileName);
         for (Int_t iInput = idxInput; iInput < fInputFileNameArray.size(); iInput++)
-            fRunHeader -> AddPar(Form("InputFile_%d",iInput),fInputFileNameArray[iInput]);
+            fRunHeader -> AddPar(Form("InputFile/%d",iInput),fInputFileNameArray[iInput]);
         for (Int_t iFriend = idxInput; iFriend < fFriendFileNameArray.size(); iFriend++)
-            fRunHeader -> AddPar(Form("FriendFile_%d",iFriend),fFriendFileNameArray[iFriend]);
+            fRunHeader -> AddPar(Form("FriendFile/%d",iFriend),fFriendFileNameArray[iFriend]);
         fRunHeader -> AddPar("OutputFile",fOutputFileName);
 
         fRunHeader -> AddPar("RunName",fRunName);
@@ -741,18 +750,18 @@ bool LKRun::Init()
         TTask *task;
         Int_t countTasks = 0;
         while((task=(TTask*)next()))
-            fRunHeader -> AddPar(Form("Task_%d",countTasks++),task->ClassName());
+            fRunHeader -> AddPar(Form("Task/%d",countTasks++),task->ClassName());
 
         Int_t countDetectors = 0;
         for (auto iDetector=0; iDetector<fDetectorSystem->GetNumDetectors(); ++iDetector) {
             auto plane = fDetectorSystem -> GetDetector(iDetector);
-            fRunHeader -> AddPar(Form("Detector_%d",countDetectors++),plane->GetName());
+            fRunHeader -> AddPar(Form("Detector/%d",countDetectors++),plane->GetName());
         }
 
         Int_t countPlanes = 0;
         for (auto iPlane=0; iPlane<fDetectorSystem->GetNumPlanes(); ++iPlane) {
             auto plane = fDetectorSystem -> GetDetectorPlane(iPlane);
-            fRunHeader -> AddPar(Form("DetectorPlane_%d",countPlanes++),plane->GetName());
+            fRunHeader -> AddPar(Form("DetectorPlane/%d",countPlanes++),plane->GetName());
         }
     }
 
