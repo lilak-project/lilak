@@ -12,6 +12,10 @@ class LKLinearTrack : public LKTracklet, public LKGeoLine
         LKLinearTrack();
         LKLinearTrack(Double_t x1, Double_t y1, Double_t z1, Double_t x2, Double_t y2, Double_t z2);
         LKLinearTrack(TVector3 pos1, TVector3 pos2);
+        /// Create 3-dimensionl linear track from two 2-dimensional linear tracks which lie in one of planes.
+        /// planeAxes1 and planeAxes2 should be one of xy, yz, zx, yx, zy, xz
+        LKLinearTrack(LKLinearTrack* track1, TString planeAxes1, LKLinearTrack* track2, TString planeAxes2);
+
         virtual ~LKLinearTrack() {};
 
         void Clear(Option_t *option = "");
@@ -20,6 +24,12 @@ class LKLinearTrack : public LKTracklet, public LKGeoLine
         virtual void SetLine(Double_t x1, Double_t y1, Double_t z1, Double_t x2, Double_t y2, Double_t z2);
         virtual void SetLine(TVector3 pos1, TVector3 pos2);
         virtual void SetLine(LKGeoLine *line);
+
+        /// Create and set this track as 3-dimensionl linear track from two 2-dimensional linear tracks which lie in one of planes.
+        /// planeAxes1 and planeAxes2 should be one of xy, yz, zx, yx, zy, xz
+        /// Quality will be set -1 if two lines do not make 3-dimentison line.
+        /// Quality will be set  1 if two lines make 3-dimentison line.
+        bool Create3DTrack(LKLinearTrack* track1, TString planeAxes1, LKLinearTrack* track2, TString planeAxes2);
 
         virtual bool Fit();
 

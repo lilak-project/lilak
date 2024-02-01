@@ -3,6 +3,7 @@
 
 #include "TGraphErrors.h"
 #include "TGraph2DErrors.h"
+#include "TClonesArray.h"
 
 #include "LKContainer.h"
 
@@ -52,6 +53,18 @@ class LKTracklet : public LKContainer
 
         virtual void AddHit(LKHit *hit);
         virtual void RemoveHit(LKHit *hit);
+
+        /// Be cautious on using this method!
+        /// This method assumes that hit array and track were cretaed in same run and event
+        /// This method will recover hit-array of track, which is removed before end of LILAK run.
+        /// The track ID is set in hit container. The method will use this information to recover hit array.
+        virtual int RecoverHitArrayWithTrackID(TClonesArray* hitArray);
+
+        /// Be cautious on using this method!
+        /// This method assumes that hit array was used to create track in same run and event
+        /// This method will recover hit-array of track, which is removed before end of LILAK run.
+        /// The track store hit IDs. The method will use this information to recover hit array.
+        virtual int RecoverHitArrayWithHitID(TClonesArray* hitArray);
 
         bool IsHoldingHits();
 
