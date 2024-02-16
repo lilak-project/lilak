@@ -339,6 +339,8 @@ bool LKParameter::CheckFormulaValidity(TString formula, bool isInt) const
         return false;
 
     TString formula2 = formula;
+    formula2.ReplaceAll("("," ");
+    formula2.ReplaceAll(")"," ");
     formula2.ReplaceAll("+"," ");
     formula2.ReplaceAll("-"," ");
     formula2.ReplaceAll("/"," ");
@@ -347,8 +349,9 @@ bool LKParameter::CheckFormulaValidity(TString formula, bool isInt) const
     formula2.ReplaceAll("e","1");
     formula2.ReplaceAll("E","1");
 
-    if (!formula2.IsDigit())
+    if (!formula2.IsDigit()) {
         return false;
+    }
 
     return true;
 }

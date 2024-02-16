@@ -303,8 +303,12 @@ void LKRun::Print(Option_t *option) const
     e_cout << endl;
 }
 
-void LKRun::PrintEvent(Long64_t entry)
+void LKRun::PrintEvent(Long64_t entry, TString branchNames, Int_t numPrintCut)
 {
+    bool selectBranches = true;
+    if (branchNames.IsNull())
+        selectBranches = false;
+
     if (entry>=0)
         LKRun::GetEntry(entry);
     for (auto branchArray : {fPersistentBranchArray, fInputTreeBranchArray})
@@ -313,17 +317,24 @@ void LKRun::PrintEvent(Long64_t entry)
         for (Int_t iBranch = 0; iBranch < numBranches; iBranch++)
         {
             auto branch = (TClonesArray *) branchArray -> At(iBranch);
-            if (branch -> InheritsFrom(TClonesArray::Class())) {
+            if (branch -> InheritsFrom(TClonesArray::Class()))
+            {
+                TString branchName = branch -> GetName();
+                if (selectBranches&&branchNames.Index(branchName)<0)
+                    continue;
                 auto array = (TClonesArray *) branch;
                 auto numObj = array -> GetEntries();
                 e_cout << endl;
                 if (numObj==0) {
-                    lk_info << "[" << branch->GetName() << "] 0 objects in this branch" << endl;
+                    lk_info << "[" << branchName << "] 0 objects in this branch" << endl;
                     continue;
                 }
-                for (auto iObj :{0})
+                int numPrint = numObj;
+                if (numPrintCut>0&&numPrint>numPrintCut)
+                    numPrint = numPrintCut;
+                lk_info << "[" << branchName << "] " << numObj << endl;
+                for (auto iObj=0; iObj<numPrint; ++iObj)
                 {
-                    lk_info << "[" << branch->GetName() << "] " << iObj << "(/" << numObj << ")" << endl;
                     auto object = array -> At(iObj);
                     object -> Print();
                 }

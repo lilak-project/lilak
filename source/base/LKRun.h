@@ -62,8 +62,12 @@ class LKRun : public LKTask
         /// EventTrigger should Return from the Exec() method after all events has been executed.
         void SetEventTrigger(LKTask *task);
 
-        /// Print first element of each branch in event
-        void PrintEvent(Long64_t entry=-1);
+        /// Print element of each branch in event
+        /// @param entry Entry number. -1 will use the current entry.
+        /// @param branchNames ex) Track:Hit:RawData
+        /// @param numPrintCut The number of elements to be printed at most
+        void PrintEvent(Long64_t entry=-1, TString branchNames="", Int_t numPrintCut=-1);
+        void PrintEvent(TString branchNames, Int_t numPrintCut=-1) { PrintEvent(-1, branchNames, numPrintCut); }
 
         /// Run name/id
         /// This is equivalent to setting parameter
