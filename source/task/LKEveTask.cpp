@@ -245,6 +245,7 @@ void LKEveTask::DrawEve3D()
     fGraphTrack3DArray -> Clear("C");
     fGraphHit3DArray -> Clear("C");
     int countHitGraphs = 0;
+    int countTracklets = 0;
 
     for (Int_t iBranch = 0; iBranch < fNumSelectedBranches; ++iBranch)
     {
@@ -280,7 +281,7 @@ void LKEveTask::DrawEve3D()
                     if (!SelectTrack(tracklet))
                         continue;
 
-                    auto graphTrack3D = (TGraph2DErrors*) fGraphTrack3DArray -> ConstructedAt(iTracklet);
+                    auto graphTrack3D = (TGraph2DErrors*) fGraphTrack3DArray -> ConstructedAt(countTracklets++);
                     graphTrack3D -> Clear();
                     tracklet -> FillTrajectory3D(graphTrack3D,LKVector3::kZ,LKVector3::kX,LKVector3::kY);
                     graphTrack3D -> SetLineColor(kRed);
