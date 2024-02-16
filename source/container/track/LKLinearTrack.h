@@ -18,6 +18,7 @@ class LKLinearTrack : public LKTracklet, public LKGeoLine
 
         virtual ~LKLinearTrack() {};
 
+        void CopyFrom(LKLinearTrack *track);
         void Clear(Option_t *option = "");
         virtual void Print(Option_t *option="") const;
 

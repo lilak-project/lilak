@@ -129,17 +129,22 @@ void LKTracklet::RemoveHit(LKHit *hit)
 
 int LKTracklet::RecoverHitArrayWithTrackID(TClonesArray* hitArray)
 {
+    auto countHits = 0;
     auto numHits = hitArray -> GetEntries();
     for (auto iHit=0; iHit<numHits; ++iHit)
     {
         auto hit = (LKHit*) hitArray -> At(iHit);
-        if (hit->GetTrackID()==fTrackID)
+        if (hit->GetTrackID()==fTrackID) {
             fHitArray.AddHit(hit);
+            countHits++;
+        }
     }
+    return countHits;
 }
 
 int LKTracklet::RecoverHitArrayWithHitID(TClonesArray* hitArray)
 {
+    auto countHits = 0;
     auto numHits = hitArray -> GetEntries();
     auto numHitIDs = fHitIDArray.size();
     for (auto iHit=0; iHit<numHits; ++iHit)
@@ -148,10 +153,13 @@ int LKTracklet::RecoverHitArrayWithHitID(TClonesArray* hitArray)
         auto hitID = hit -> GetHitID();
         for (auto jHit=0; jHit<numHitIDs; ++jHit)
         {
-            if (hitID==fHitIDArray[jHit])
+            if (hitID==fHitIDArray[jHit]) {
                 fHitArray.AddHit(hit);
+                countHits++;
+            }
         }
     }
+    return countHits;
 }
 
 bool LKTracklet::IsHoldingHits()

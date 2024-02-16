@@ -24,6 +24,31 @@ LKLinearTrack::LKLinearTrack(LKLinearTrack* track1, TString planeAxes1, LKLinear
     Create3DTrack(track1, planeAxes1, track2, planeAxes2);
 }
 
+void LKLinearTrack::CopyFrom(LKLinearTrack *track)
+{
+    TIter nextHit(track->GetHitArray());
+    LKHit* hit;
+    while (hit = (LKHit*) nextHit())
+        fHitArray.AddHit(hit);
+
+    for (auto id : *track->GetHitIDArray())
+        fHitIDArray.push_back(id);
+
+    fQuality     = track -> GetQuality();
+    fTrackID     = track -> GetTrackID();
+    fParentID    = track -> GetParentID();
+    fPDG         = track -> GetPDG();
+    fX1          = track -> GetX1();
+    fY1          = track -> GetY1();
+    fZ1          = track -> GetZ1();
+    fX2          = track -> GetX2();
+    fY2          = track -> GetY2();
+    fZ2          = track -> GetZ2();
+
+    SetLine(fX1,fY1,fZ1, fX2,fY2,fZ2);
+}
+
+
 void LKLinearTrack::SetLine(Double_t x1, Double_t y1, Double_t z1, Double_t x2, Double_t y2, Double_t z2)
 {
     fX1 = x1;
@@ -122,13 +147,21 @@ bool LKLinearTrack::Create3DTrack(LKLinearTrack* track1, TString planeAxes1, LKL
 
     // ----------------------------------------------------------------------------
     // set normal vector of two planes from track1 and track2
-    LKVector3 l3point1;
-    l3point1.SetAt(track1->GetX1(),axis11);
-    l3point1.SetAt(track1->GetY1(),axis12);
+    LKVector3 l3point1i;
+    l3point1i.SetAt(track1->GetX1(),axis11);
+    l3point1i.SetAt(track1->GetY1(),axis12);
 
-    LKVector3 l3point2;
-    l3point2.SetAt(track2->GetX2(),axis21);
-    l3point2.SetAt(track2->GetY2(),axis22);
+    LKVector3 l3point1f;
+    l3point1f.SetAt(track1->GetX2(),axis11);
+    l3point1f.SetAt(track1->GetY2(),axis12);
+
+    LKVector3 l3point2i;
+    l3point2i.SetAt(track2->GetX1(),axis21);
+    l3point2i.SetAt(track2->GetY1(),axis22);
+
+    LKVector3 l3point2f;
+    l3point2f.SetAt(track2->GetX2(),axis21);
+    l3point2f.SetAt(track2->GetY2(),axis22);
 
     LKVector3 l3normal1;
     auto direction1 = track1 -> Direction();
@@ -137,71 +170,73 @@ bool LKLinearTrack::Create3DTrack(LKLinearTrack* track1, TString planeAxes1, LKL
 
     LKVector3 l3normal2;
     auto direction2 = track2 -> Direction();
-    l3normal2.SetAt(-direction2.Y(),axis11);
-    l3normal2.SetAt(direction2.X(),axis12);
+    l3normal2.SetAt(-direction2.Y(),axis21);
+    l3normal2.SetAt(direction2.X(),axis22);
 
     // ----------------------------------------------------------------------------
     // check if two planes make 3d line
-    if (direction1.Dot(direction2)<1.e-10)
+    if (abs(direction1.Dot(direction2))<1.e-10) {
+        fQuality = -1;
         return false;
+    }
 
     // ----------------------------------------------------------------------------
     // make line
-    LKGeoPlaneWithCenter plane1(l3point1.GetXYZ(), l3normal1.GetXYZ());
-    LKGeoPlaneWithCenter plane2(l3point2.GetXYZ(), l3normal2.GetXYZ());
+    LKGeoPlaneWithCenter plane1(l3point1i.GetXYZ(), l3normal1.GetXYZ());
+    LKGeoPlaneWithCenter plane2(l3point2f.GetXYZ(), l3normal2.GetXYZ());
     LKGeoLine line3D = plane1.GetCrossSectionLine(plane2);
 
     // ----------------------------------------------------------------------------
     // find two separated points to configure track
     TVector3 point1, point2;
     auto direction = line3D.Direction();
-    if (direction.X()>direction.Y())
+    if (abs(direction.X())>abs(direction.Y()))
     {
-        if (direction.Z()>direction.X()) {
+        if (abs(direction.Z())>abs(direction.X())) {
             // z
             if (axis11==LKVector3::kZ||axis12==LKVector3::kZ) {
-                point1 = line3D.GetPointAtZ(track1->GetZ1());
-                point2 = line3D.GetPointAtZ(track1->GetZ2());
+                point1 = line3D.GetPointAtZ(l3point1i.Z());
+                point2 = line3D.GetPointAtZ(l3point1f.Z());
             }
             else {
-                point1 = line3D.GetPointAtZ(track2->GetZ1());
-                point2 = line3D.GetPointAtZ(track2->GetZ2());
+                point1 = line3D.GetPointAtZ(l3point2i.Z());
+                point2 = line3D.GetPointAtZ(l3point2f.Z());
             }
         }
         else {
             // x
             if (axis11==LKVector3::kX||axis12==LKVector3::kX) {
-                point1 = line3D.GetPointAtX(track1->GetX1());
-                point2 = line3D.GetPointAtX(track1->GetX2());
+                point1 = line3D.GetPointAtX(l3point1i.X());
+                point2 = line3D.GetPointAtX(l3point1f.X());
             }
             else {
-                point1 = line3D.GetPointAtX(track2->GetX1());
-                point2 = line3D.GetPointAtX(track2->GetX2());
+                point1 = line3D.GetPointAtX(l3point2i.X());
+                point2 = line3D.GetPointAtX(l3point2f.X());
             }
         }
     }
-    else if (direction.Y()>direction.Z())
+    else if (abs(direction.Y())>abs(direction.Z()))
     {
         // y
         if (axis11==LKVector3::kY||axis12==LKVector3::kY) {
-            point1 = line3D.GetPointAtY(track1->GetY1());
-            point2 = line3D.GetPointAtY(track1->GetY2());
+            point1 = line3D.GetPointAtY(l3point1i.Y());
+            point2 = line3D.GetPointAtY(l3point1f.Y());
         }
         else {
-            point1 = line3D.GetPointAtY(track2->GetY1());
-            point2 = line3D.GetPointAtY(track2->GetY2());
+            point1 = line3D.GetPointAtY(l3point2i.Y());
+            point2 = line3D.GetPointAtY(l3point2f.Y());
         }
     }
     else
     {
         // z
         if (axis11==LKVector3::kZ||axis12==LKVector3::kZ) {
-            point1 = line3D.GetPointAtZ(track1->GetZ1());
-            point2 = line3D.GetPointAtZ(track1->GetZ2());
+            point1 = line3D.GetPointAtZ(l3point1i.Z());
+            point2 = line3D.GetPointAtZ(l3point1f.Z());
         }
         else {
-            point1 = line3D.GetPointAtZ(track2->GetZ1());
-            point2 = line3D.GetPointAtZ(track2->GetZ2());
+            point1 = line3D.GetPointAtZ(l3point2i.Z());
+            point2 = line3D.GetPointAtZ(l3point2f.Z());
         }
     }
 
