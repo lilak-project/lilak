@@ -66,7 +66,7 @@ LKGeoBox LKGeoBoxStack::GetBox(Int_t idx) const
 
     pos.AddAt(GetStackAxisDisplacement()*(-.5*(fNumStacks-1)+idx),fStackAxis);
 
-    return LKGeoBox(pos, fdX, fdY, fdZ);
+    return LKGeoBox(pos.X(), pos.Y(), pos.Z(), fdX, fdY, fdZ);
 }
 
 TMultiGraph *LKGeoBoxStack::DrawStackGraph(axis_t a1, axis_t a2)

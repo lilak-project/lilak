@@ -1,4 +1,5 @@
 #include "LKGeoPlane.h"
+#include "LKGeoLine.h"
 #include <cmath>
 
 ClassImp(LKGeoPlane)
@@ -74,4 +75,3 @@ Double_t LKGeoPlane::DistanceToPlane(TVector3 pos) const
     auto dist = (pos - point).Mag();
     return dist;
 }
-

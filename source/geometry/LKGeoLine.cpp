@@ -1,6 +1,7 @@
 #include "LKLogger.h"
 #include "LKGeoLine.h"
 #include <cmath>
+#include "LKGeoBox.h"
 
 ClassImp(LKGeoLine)
 
@@ -21,9 +22,10 @@ LKGeoLine::LKGeoLine(TVector3 pos1, TVector3 pos2)
 void LKGeoLine::Print(Option_t *option) const
 {
     auto dir = Direction();
+    e_info << "== LKGeoLine" << std::endl;
     e_info << "direction : " << dir.X() << ", " << dir.Y() << ", " << dir.Z() << std::endl;
-    e_info << "point-1 : " << fX1 << ", " << fY1 << ", " << fZ1 << std::endl;
-    e_info << "point-2 : " << fX2 << ", " << fY2 << ", " << fZ2 << std::endl;
+    e_info << "point-1 :   " << fX1 << ", " << fY1 << ", " << fZ1 << std::endl;
+    e_info << "point-2 :   " << fX2 << ", " << fY2 << ", " << fZ2 << std::endl;
 }
 
 TVector3 LKGeoLine::GetCenter() const { return .5*TVector3(fX1+fX2, fY1+fY2, fZ1+fZ2); }
@@ -196,6 +198,16 @@ Double_t LKGeoLine::DistanceToLine(TVector3 pos) const
     ClosestPointOnLine(pos.X(), pos.Y(), pos.Z(), x0, y0, z0);
 
     return std::sqrt((pos.X()-x0)*(pos.X()-x0) + (pos.Y()-y0)*(pos.Y()-y0) + (pos.Z()-z0)*(pos.Z()-z0));
+}
+
+bool LKGeoLine::SetRange(LKGeoBox* box)
+{
+    TVector3 point1(fX1,fY1,fZ1);
+    TVector3 point2(fX2,fY2,fZ2);
+    bool inside = box -> GetCrossingPoints(*this,point1,point2);
+    if (inside)
+        this -> SetLine(point1, point2);
+    return inside;
 }
 
 TArrow *LKGeoLine::DrawArrowXY(Double_t asize) { return new TArrow(fX1, fY1, fX2, fY2, asize); }

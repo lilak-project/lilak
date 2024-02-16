@@ -9,6 +9,7 @@
 #include "LKGeoPlaneWithCenter.h"
 #include "TGraph2D.h"
 
+class LKGeoBox;
 class LKGeoPlaneWithCenter;
 
 /**
@@ -68,6 +69,8 @@ class LKGeoLine : public LKGeometry
 
         Double_t DistanceToLine(Double_t x, Double_t y, Double_t z) const;
         Double_t DistanceToLine(TVector3 pos) const;
+
+        bool SetRange(LKGeoBox* box);
 
         TArrow *DrawArrowXY(Double_t asize = 0.02);
         TArrow *DrawArrowYZ(Double_t asize = 0.02);

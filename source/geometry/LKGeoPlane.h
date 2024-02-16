@@ -6,6 +6,8 @@
 #include "LKVector3.h"
 #include "LKGeometry.h"
 
+class LKGeoLine;
+
 /// fA*x + fB*y + fC*z + fD = 0
 class LKGeoPlane : public LKGeometry
 {
