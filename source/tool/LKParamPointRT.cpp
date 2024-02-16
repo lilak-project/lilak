@@ -31,7 +31,7 @@ void LKParamPointRT::Clear(Option_t *option)
 
 void LKParamPointRT::Print(Option_t *option) const
 {
-    e_info << "R = " << fRadius0 << "(" << fRadius1 << ", " << fRadius2 << "), T = " << fTheta0 << "(" << fTheta1 << ", " << fTheta2 << "), " 
+    e_info << "[LKParamPointRT] R = " << fRadius0 << "(" << fRadius1 << ", " << fRadius2 << "), T = " << fTheta0 << "(" << fTheta1 << ", " << fTheta2 << "), " 
         << "weight = " << fWeight << ", "
         << "equation: y = " <<  -TMath::Cos(TMath::DegToRad()*fTheta0) / TMath::Sin(TMath::DegToRad()*fTheta0)  << " * x + " << (fRadius0) /TMath::Sin(TMath::DegToRad()*fTheta0) << endl;;
 }
@@ -137,8 +137,10 @@ TGraph* LKParamPointRT::GetRadialLineInImageSpace(int iParamCorner, double angle
     return graph;
 }
 
-TGraph* LKParamPointRT::GetBandInImageSpace(double x1, double x2, double y1, double y2)
+TGraph* LKParamPointRT::GetBandInImageSpace(TGraph* graph, double x1, double x2, double y1, double y2)
 {
+    graph -> Set(0);
+
     vector<double> xCrossArray;
     xCrossArray.push_back(x1);
     xCrossArray.push_back(x2);
@@ -150,8 +152,9 @@ TGraph* LKParamPointRT::GetBandInImageSpace(double x1, double x2, double y1, dou
         yCrossMaxArray.push_back(-DBL_MAX);
     }
 
-    //for (auto iParamCorner : {1,2,3,4}) {
-    for (auto iParamCorner : {5,7}) {
+    //for (auto iParamCorner : {1,2,3,4})
+    for (auto iParamCorner : {5,7})
+    {
         double x1i = x1;
         double x2i = x2;
         double y1i = y1;
@@ -167,7 +170,6 @@ TGraph* LKParamPointRT::GetBandInImageSpace(double x1, double x2, double y1, dou
         }
     }
 
-    auto graph = new TGraph();
     for (int iCross=0; iCross<xCrossArray.size(); ++iCross) {
         auto xCross = xCrossArray[iCross];
         auto yCross = yCrossMinArray[iCross];
@@ -186,6 +188,12 @@ TGraph* LKParamPointRT::GetBandInImageSpace(double x1, double x2, double y1, dou
     auto yCrossMin = yCrossMinArray[0];
     graph -> SetPoint(graph->GetN(), xCross, yCrossMin);
     return graph;
+}
+
+TGraph* LKParamPointRT::GetBandInImageSpace(double x1, double x2, double y1, double y2)
+{
+    auto graph = new TGraph();
+    return GetBandInImageSpace(graph, x1, x2, y1, y2);
 }
 
 TGraph* LKParamPointRT::GetRibbonInImageSpace(double x1, double x2, double y1, double y2)
@@ -494,7 +502,7 @@ double LKParamPointRT::CorrelateBoxBand(LKImagePoint* imagePoint)
     countCorner = 0;
     for (auto iParamCorner : {5,7})
     {
-             if (includedBelowOrAbove[countCorner]==0) { crossOver = true;  }
+        if (includedBelowOrAbove[countCorner]==0) { crossOver = true;  }
         else if (includedBelowOrAbove[countCorner]==1) { existAbove = true; }
         else if (includedBelowOrAbove[countCorner]==2) { existBelow = true; }
         ++countCorner;

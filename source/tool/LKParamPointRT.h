@@ -54,6 +54,7 @@ class LKParamPointRT : public TObject
         TGraph* GetRadialLineInImageSpace(int iParamCorner, double angleSize);
         TGraph* GetRibbonInImageSpace(double x1, double x2, double y1, double y2);
         TGraph* GetBandInImageSpace(double x1, double x2, double y1, double y2);
+        TGraph* GetBandInImageSpace(TGraph* graph, double x1, double x2, double y1, double y2);
         TGraph* GetRangeGraphInParamSpace(bool drawYX=true);
 
         double DistanceToPoint(TVector3 point);

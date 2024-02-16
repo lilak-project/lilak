@@ -7,6 +7,7 @@ using namespace std;
 #include "TNamed.h"
 #include "LKLogger.h"
 #include "LKGeoLine.h"
+#include "TGraph.h"
 #include "TGraphErrors.h"
 #include "TPad.h"
 
@@ -16,6 +17,7 @@ using namespace std;
 #include "LKODRFitter.h"
 #include "LKHit.h"
 #include "LKVector3.h"
+#include "LKPadInteractive.h"
 
 class LKHTWeightingFunction
 {
@@ -173,16 +175,17 @@ class LKHoughWFInverse : public LKHTWeightingFunction {
     @todo performance & parameters guide
  */
 
-class LKHTLineTracker : public TNamed
+class LKHTLineTracker : public TNamed, public LKPadInteractive
 {
     public:
         LKHTLineTracker();
         virtual ~LKHTLineTracker() { ; }
 
         bool Init();
-        void Clear(Option_t *option="");
         void Print(Option_t *option="") const;
-        void Reset();
+
+        void Reset(); ///< Reset parameter space range and parameter data
+        void Clear(Option_t *option=""); /// Reset parameter space range and parameter data. Clear track-array, hit-array, and point-array.
 
         void ClearPoints();
 
@@ -253,30 +256,35 @@ class LKHTLineTracker : public TNamed
         LKParamPointRT* GetParamPoint(int ir, int it);
 
         void Transform();
+        void DeTransformSelectedPoints();
         LKParamPointRT* FindNextMaximumParamPoint();
         //LKParamPointRT* FindNextMaximumParamPoint2();
+        LKParamPointRT* GetCurrentMaximumParamPoint() { return fParamPoint; }
 
         void RemoveSelectedPoints();
         void SelectPoints(LKParamPointRT* paramPoint, double weightCut=-1);
         LKLinearTrack* FitTrackWithParamPoint(LKParamPointRT* paramPoint, double weightCut=-1); /// Used hits(points) will be removed from the hit array
+        LKLinearTrack* FitTrack3DWithParamPoint(LKParamPointRT* paramPoint, double weightCut=-1); /// Used hits(points) will be removed from the hit array
+
+        LKLinearTrack* FitTrack(LKParamPointRT* paramPoint, double weightCut=-1) { return FitTrackWithParamPoint(paramPoint, weightCut); }
+        LKLinearTrack* FitTrack3D(LKParamPointRT* paramPoint, double weightCut=-1) { return FitTrack3DWithParamPoint(paramPoint, weightCut); }
 
         void CleanLastParamPoint(double rWidth=-1, double tWidth=-1);
         LKParamPointRT* ReinitializeFromLastParamPoint();
         void RetransformFromLastParamPoint();
 
         TGraphErrors *GetDataGraphImageSapce();
+        TGraphErrors *GetSelectedDataGraph(LKParamPointRT* paramPoint);
         TH2D* GetHistImageSpace(TString name="", TString title="");
         TH2D* GetHistParamSpace(TString name="", TString title="");
         void DrawAllParamLines(int i=-1, bool drawRadialLine=true);
         void DrawAllParamBands();
 
-        void DrawToPads(TVirtualPad* padImage, TVirtualPad* padParam);
-        static void ClickPadParam(int iPlane);
+        void Draw(TVirtualPad* padImage, TVirtualPad* padParam, LKParamPointRT* paramPoint=(LKParamPointRT*) nullptr);
 
-        TGraph* GetGraphPathToMaxWeight() { return fGraphPathToMaxWeight; }
+        //TGraph* GetGraphPathToMaxWeight() { return fGraphPathToMaxWeight; }
 
     private:
-
         TVector3     fTransformCenter;
         bool         fInitializedImageData = false;
         bool         fInitializedParamData = false;
@@ -323,7 +331,8 @@ class LKHTLineTracker : public TNamed
         double       fWeightCutTrackFit = 0.2;
 
         TGraphErrors* fGraphImageData = nullptr;
-        TGraph* fGraphPathToMaxWeight = nullptr;
+        TGraphErrors* fGraphSelectedImageData = nullptr;
+        //TGraph* fGraphPathToMaxWeight = nullptr;
 
         TPad *fPadImage = nullptr;
         TPad *fPadParam = nullptr;
@@ -337,7 +346,17 @@ class LKHTLineTracker : public TNamed
         const int kFitTrack = 4;
         const int kClear = 5;
         const int kClearPoints = 6;
+        const int kRemovePoints = 7;
+        const int kDeTransformPoints = 8;
         int fProcess = kNon;
+
+        TGraph* fGraphBand = nullptr;
+
+    public:
+        virtual void ExecMouseClickEventOnPad(TVirtualPad *pad, double xOnClick, double yOnClick);
+
+    private:
+        TGraph* fGraphClicked = nullptr;
 
     ClassDef(LKHTLineTracker,1);
 };
