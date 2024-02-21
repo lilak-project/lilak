@@ -1,3 +1,4 @@
+#include "TObjString.h"
 #include "LKHTLineTracker.h"
 #include "LKPadInteractiveManager.h"
 
@@ -550,65 +551,6 @@ LKParamPointRT* LKHTLineTracker::FindNextMaximumParamPoint()
     return fParamPoint;
 }
 
-/*
-LKParamPointRT* LKHTLineTracker::FindNextMaximumParamPoint2()
-{
-    if (fGraphPathToMaxWeight==nullptr)
-        fGraphPathToMaxWeight = new TGraph();
-    else
-        fGraphPathToMaxWeight -> Set(0);
-    fGraphPathToMaxWeight -> SetPoint(fGraphPathToMaxWeight->GetN(),
-            fRangeParamSpace[1][0]+(fIdxSelectedT+0.5)*fBinSizeParamSpace[1],
-            fRangeParamSpace[0][0]+(fIdxSelectedR+0.5)*fBinSizeParamSpace[0]);
-    double maxValue = fParamData[fIdxSelectedR][fIdxSelectedT];
-    lk_debug << fIdxSelectedT << " " << fIdxSelectedR << " "
-             << fRangeParamSpace[1][0]+(fIdxSelectedT+0.5)*fBinSizeParamSpace[1] << " "
-             << fRangeParamSpace[0][0]+(fIdxSelectedR+0.5)*fBinSizeParamSpace[0] << " " << maxValue << endl;
-    double val;
-    int irAtMax, itAtMax, irNew, itNew;
-    bool foundNewMaximum = false;
-    while (true)
-    {
-        foundNewMaximum = false;
-        for (auto irOff : {-1,0,1}) {
-            for (auto itOff : {-1,0,1})
-            {
-                if (irOff==0&&itOff==0) continue;
-                irNew = fIdxSelectedR + irOff;
-                itNew = fIdxSelectedT + itOff;
-                if (irNew<0 || irNew>=fNumBinsParamSpace[0]) continue;
-                if (itNew==-1) itNew = fNumBinsParamSpace[1] - 1;
-                else if (itNew==fNumBinsParamSpace[1]) itNew = 0;
-
-                val = fParamData[irNew][itNew];
-                lk_debug << irNew << " " << itNew << " " << val << endl;
-                if (val>maxValue) {
-                    foundNewMaximum = true;
-                    irAtMax = irNew;
-                    itAtMax = itNew;
-                    maxValue = val;
-                }
-            }
-        }
-        if (foundNewMaximum) {
-            fIdxSelectedR = irAtMax;
-            fIdxSelectedT = itAtMax;
-            lk_debug << fIdxSelectedT << " " << fIdxSelectedR << " "
-                     << fRangeParamSpace[1][0]+(fIdxSelectedT+0.5)*fBinSizeParamSpace[1] << " "
-                     << fRangeParamSpace[0][0]+(fIdxSelectedR+0.5)*fBinSizeParamSpace[0] << " " << maxValue << endl;
-            fGraphPathToMaxWeight -> SetPoint(fGraphPathToMaxWeight->GetN(),
-                    fRangeParamSpace[1][0]+(fIdxSelectedT+0.5)*fBinSizeParamSpace[1],
-                    fRangeParamSpace[0][0]+(fIdxSelectedR+0.5)*fBinSizeParamSpace[0]);
-        }
-        else
-            break;
-    }
-
-    auto paramPoint = GetParamPoint(fIdxSelectedR,fIdxSelectedT);
-    return paramPoint;
-}
-*/
-
 void LKHTLineTracker::CleanLastParamPoint(double rWidth, double tWidth)
 {
     if (rWidth<0) rWidth = (fRangeParamSpace[0][1]-fRangeParamSpace[0][0])/20;
@@ -920,6 +862,7 @@ TGraphErrors* LKHTLineTracker::GetDataGraphImageSapce()
 {
     if (fGraphImageData==nullptr) {
         fGraphImageData = new TGraphErrors();
+        fGraphImageData -> SetMarkerStyle(20);
         fGraphImageData -> SetMarkerSize(0.5);
     }
     fGraphImageData -> Set(0);
@@ -936,9 +879,8 @@ TGraphErrors* LKHTLineTracker::GetSelectedDataGraph(LKParamPointRT* paramPoint)
     if (fGraphSelectedImageData==nullptr) {
         fGraphSelectedImageData = new TGraphErrors();
         fGraphSelectedImageData -> SetMarkerStyle(24);
+        fGraphSelectedImageData -> SetMarkerSize(1.0);
         fGraphSelectedImageData -> SetMarkerColor(kRed);
-        fGraphSelectedImageData -> SetLineColor(kRed);
-        //fGraphSelectedImageData -> SetMarkerSize(0.5);
     }
     fGraphSelectedImageData -> Set(0);
 
@@ -974,8 +916,20 @@ TH2D* LKHTLineTracker::GetHistParamSpace(TString name, TString title)
     return hist;
 }
 
-void LKHTLineTracker::Draw(TVirtualPad* padImage, TVirtualPad* padParam, LKParamPointRT* paramPoint)
+void LKHTLineTracker::Draw(TVirtualPad* padImage, TVirtualPad* padParam, LKParamPointRT* paramPoint, TString option)
 {
+    if (option.IsNull())
+        option = ":samepx:colz";
+
+    option.ReplaceAll(":"," : ");
+    auto options = option.Tokenize(":");
+    TString option0 = (((TObjString*)options->At(0))->GetString());
+    TString option1 = (((TObjString*)options->At(1))->GetString());
+    TString option2 = (((TObjString*)options->At(2))->GetString());
+    option0 = option0.ReplaceAll(" ","");
+    option1 = option1.ReplaceAll(" ","");
+    option2 = option2.ReplaceAll(" ","");
+
     fPadImage = (TPad *) padImage -> cd();
     fPadParam = (TPad *) padParam -> cd();
 
@@ -983,13 +937,16 @@ void LKHTLineTracker::Draw(TVirtualPad* padImage, TVirtualPad* padParam, LKParam
 
     fPadImage -> cd();
     fHistImage = GetHistImageSpace(Form("histImageSpace_%d",fPadInteractiveID));
-    fHistImage -> Draw("colz");
+    if (option0.IsNull())
+        fHistImage -> Reset();
+    fHistImage -> Draw(option0);
+
     auto graph = GetDataGraphImageSapce();
-    graph -> Draw("samep");
+    graph -> Draw(option1);
 
     fPadParam -> cd();
     fHistParam = GetHistParamSpace(Form("histParamSpace_%d",fPadInteractiveID));
-    fHistParam -> Draw("colz");
+    fHistParam -> Draw(option2);
 
     if (paramPoint!=nullptr)
         ExecMouseClickEventOnPad(fPadParam,paramPoint->GetT0(),paramPoint->GetR0());
@@ -1033,6 +990,9 @@ void LKHTLineTracker::ExecMouseClickEventOnPad(TVirtualPad *pad, double xOnClick
     auto paramPoint = GetParamPoint(biny-1,binx-1);
     paramPoint -> Print();
     paramPoint -> GetBandInImageSpace(fGraphBand, fRangeImageSpace[0][0], fRangeImageSpace[0][1], fRangeImageSpace[1][0], fRangeImageSpace[1][1]);
+    fGraphBand -> SetLineStyle(2);
+    //fGraphBand -> SetLineColor(kBlue-4);
+    fGraphBand -> SetLineColor(kAzure-4);
     fGraphBand -> Draw("samel");
 
     auto graph2 = GetSelectedDataGraph(paramPoint);

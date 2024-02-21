@@ -258,7 +258,6 @@ class LKHTLineTracker : public TNamed, public LKPadInteractive
         void Transform();
         void DeTransformSelectedPoints();
         LKParamPointRT* FindNextMaximumParamPoint();
-        //LKParamPointRT* FindNextMaximumParamPoint2();
         LKParamPointRT* GetCurrentMaximumParamPoint() { return fParamPoint; }
 
         void RemoveSelectedPoints();
@@ -280,7 +279,11 @@ class LKHTLineTracker : public TNamed, public LKPadInteractive
         void DrawAllParamLines(int i=-1, bool drawRadialLine=true);
         void DrawAllParamBands();
 
-        void Draw(TVirtualPad* padImage, TVirtualPad* padParam, LKParamPointRT* paramPoint=(LKParamPointRT*) nullptr);
+        //void Draw(TVirtualPad* padImage, TVirtualPad* padParam, LKParamPointRT* paramPoint=(LKParamPointRT*) nullptr);
+        void Draw(TVirtualPad* padImage, TVirtualPad* padParam, LKParamPointRT* paramPoint, TString option);
+        void Draw(TVirtualPad* padImage, TVirtualPad* padParam, LKParamPointRT* paramPoint) { Draw(padImage, padParam, paramPoint, ""); }
+        void Draw(TVirtualPad* padImage, TVirtualPad* padParam, TString option) { Draw(padImage, padParam, (LKParamPointRT*)nullptr, option); }
+        void Draw(TVirtualPad* padImage, TVirtualPad* padParam) { Draw(padImage, padParam, (LKParamPointRT*)nullptr, ""); }
 
         //TGraph* GetGraphPathToMaxWeight() { return fGraphPathToMaxWeight; }
 
