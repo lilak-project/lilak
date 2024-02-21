@@ -92,7 +92,7 @@ class LKDetectorPlane : public TNamed, public LKGear
         /// @param driftLength[out] Final drift length of the electron
         virtual void DriftElectron(TVector3 posGlobal, TVector3 &posFinal, double &driftLength);
         /// Implementation recommanded.
-        /// Return global position using pad position, and time-bin tb.
+        /// Set poseReco to global position using pad position, and time-bin tb.
         /// Pad position must be set from Init().
         /// Conversion from time-bin (tb) to position in time-axis (post) is calculated by : post = fTbToLength * tb + fPosition
         /// [fTbToLength] is tb to position conversion factor with direction and [fPosition] is detector plane position in time-axis.
@@ -101,6 +101,10 @@ class LKDetectorPlane : public TNamed, public LKGear
         /// @param posReco[out] Reconstructed position of electron(?) before drift.
         /// @param driftLength[out] Drift length of the electron from the reconstructed position.
         virtual void DriftElectronBack(LKPad* pad, double tb, TVector3 &posReco, double &driftLength);
+        /// Implementation recommanded.
+        /// return drift length
+        virtual double DriftElectronBack(double tb);
+
 
     public:
         void AddChannel(LKChannel *channel) { fChannelArray -> Add(channel); } ///< Add channel to channel array in detector plane. For interanl use.

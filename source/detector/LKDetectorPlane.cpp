@@ -709,6 +709,12 @@ void LKDetectorPlane::DriftElectronBack(LKPad* pad, double tb, TVector3 &posReco
     driftLength = fTbToLength*tb;
 }
 
+double LKDetectorPlane::DriftElectronBack(double tb)
+{
+    auto length = fTbToLength*tb+fPosition;
+    return length;
+}
+
 LKChannelAnalyzer* LKDetectorPlane::GetChannelAnalyzer(int)
 {
     if (fChannelAnalyzer==nullptr)
