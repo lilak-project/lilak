@@ -285,8 +285,8 @@ void LKEveTask::DrawEve3D()
                     graphTrack3D -> Clear();
                     tracklet -> FillTrajectory3D(graphTrack3D,LKVector3::kZ,LKVector3::kX,LKVector3::kY);
                     graphTrack3D -> SetLineColor(kRed);
-                    SetEveLineAtt(graphTrack3D,branchName);
-                    SetEveMarkerAtt(graphTrack3D,branchName);
+                    SetGraphAtt(graphTrack3D,branchName);
+                    //SetEveMarkerAtt(graphTrack3D,branchName);
                     graphTrack3D -> Draw("same line");
                 }
             }
@@ -313,8 +313,8 @@ void LKEveTask::DrawEve3D()
                 //graphHit3D -> Draw("same p error");
                 graphHit3D -> SetMarkerStyle(20);
                 graphHit3D -> SetMarkerSize(0.5);
-                SetEveLineAtt(graphHit3D,branchName);
-                SetEveMarkerAtt(graphHit3D,branchName);
+                SetGraphAtt(graphHit3D,branchName);
+                //SetEveMarkerAtt(graphHit3D,branchName);
                 graphHit3D -> Draw("same p error");
             }
         }
@@ -460,6 +460,61 @@ void LKEveTask::SetEveMarkerAtt(TAttMarker *el, TString branchName)
     if (fPar->CheckPar(branchName+"/markerStyle")) el -> SetMarkerStyle(fPar -> GetParStyle(branchName+"/markerStyle"));
     if (fPar->CheckPar(branchName+"/markerSize"))  el -> SetMarkerSize (fPar -> GetParSize (branchName+"/markerSize" ));
     if (fPar->CheckPar(branchName+"/markerColor")) el -> SetMarkerColor(fPar -> GetParColor(branchName+"/markerColor"));
+}
+
+void LKEveTask::SetGraphAtt(TGraph *graph, TString branchName)
+{
+    if (fPar->CheckPar(branchName+"/lineAtt")) {
+        auto lstyle = fPar -> GetParStyle(branchName+"/lineAtt",0);
+        auto lcolor = fPar -> GetParWidth(branchName+"/lineAtt",1);
+        auto lwidth = fPar -> GetParColor(branchName+"/lineAtt",2);
+        graph -> SetLineStyle(lstyle);
+        graph -> SetLineWidth(lwidth);
+        graph -> SetLineColor(lcolor);
+    }
+    if (fPar->CheckPar(branchName+"/lineStyle")) graph -> SetLineStyle(fPar -> GetParStyle(branchName+"/lineStyle"));
+    if (fPar->CheckPar(branchName+"/lineWidth")) graph -> SetLineWidth(fPar -> GetParWidth(branchName+"/lineWidth"));
+    if (fPar->CheckPar(branchName+"/lineColor")) graph -> SetLineColor(fPar -> GetParColor(branchName+"/lineColor"));
+
+    if (fPar->CheckPar(branchName+"/markerAtt")) {
+        auto mstyle = fPar -> GetParStyle(branchName+"/markerAtt",0);
+        auto msize  = fPar -> GetParSize (branchName+"/markerAtt",1);
+        auto mcolor = fPar -> GetParColor(branchName+"/markerAtt",2);
+        graph -> SetMarkerStyle(mstyle);
+        graph -> SetMarkerSize(msize);
+        graph -> SetMarkerColor(mcolor);
+    }
+    if (fPar->CheckPar(branchName+"/markerStyle")) graph -> SetMarkerStyle(fPar -> GetParStyle(branchName+"/markerStyle"));
+    if (fPar->CheckPar(branchName+"/markerSize"))  graph -> SetMarkerSize (fPar -> GetParSize (branchName+"/markerSize" ));
+    if (fPar->CheckPar(branchName+"/markerColor")) graph -> SetMarkerColor(fPar -> GetParColor(branchName+"/markerColor"));
+}
+
+
+void LKEveTask::SetGraphAtt(TGraph2D *graph, TString branchName)
+{
+    if (fPar->CheckPar(branchName+"/lineAtt")) {
+        auto lstyle = fPar -> GetParStyle(branchName+"/lineAtt",0);
+        auto lcolor = fPar -> GetParWidth(branchName+"/lineAtt",1);
+        auto lwidth = fPar -> GetParColor(branchName+"/lineAtt",2);
+        graph -> SetLineStyle(lstyle);
+        graph -> SetLineWidth(lwidth);
+        graph -> SetLineColor(lcolor);
+    }
+    if (fPar->CheckPar(branchName+"/lineStyle")) graph -> SetLineStyle(fPar -> GetParStyle(branchName+"/lineStyle"));
+    if (fPar->CheckPar(branchName+"/lineWidth")) graph -> SetLineWidth(fPar -> GetParWidth(branchName+"/lineWidth"));
+    if (fPar->CheckPar(branchName+"/lineColor")) graph -> SetLineColor(fPar -> GetParColor(branchName+"/lineColor"));
+
+    if (fPar->CheckPar(branchName+"/markerAtt")) {
+        auto mstyle = fPar -> GetParStyle(branchName+"/markerAtt",0);
+        auto msize  = fPar -> GetParSize (branchName+"/markerAtt",1);
+        auto mcolor = fPar -> GetParColor(branchName+"/markerAtt",2);
+        graph -> SetMarkerStyle(mstyle);
+        graph -> SetMarkerSize(msize);
+        graph -> SetMarkerColor(mcolor);
+    }
+    if (fPar->CheckPar(branchName+"/markerStyle")) graph -> SetMarkerStyle(fPar -> GetParStyle(branchName+"/markerStyle"));
+    if (fPar->CheckPar(branchName+"/markerSize"))  graph -> SetMarkerSize (fPar -> GetParSize (branchName+"/markerSize" ));
+    if (fPar->CheckPar(branchName+"/markerColor")) graph -> SetMarkerColor(fPar -> GetParColor(branchName+"/markerColor"));
 }
 
 #ifdef ACTIVATE_EVE

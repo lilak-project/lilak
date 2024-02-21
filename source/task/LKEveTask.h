@@ -40,6 +40,7 @@ class LKEveTask : public LKTask
         void SetEveLineAtt(TAttLine *el, TString branchName);
         void SetEveMarkerAtt(TAttMarker *el, TString branchName);
         void SetGraphAtt(TGraph *graph, TString branchName);
+        void SetGraphAtt(TGraph2D *graph, TString branchName);
 
     private:
         vector<Int_t> fSelTrkIDs;
