@@ -221,6 +221,9 @@ class LKParameterContainer : public TObjArray
         void UpdatePar(TString  &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParString(name,idx); } ///< See UpdatePar(Bool_t, TString, int)
         void UpdatePar(axis_t   &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParAxis  (name,idx); } ///< See UpdatePar(Bool_t, TString, int)
 
+        void UpdateBinning(TString name, Int_t &n, Double_t &x1, Double_t &x2) const;
+        void UpdateV3(TString name, Double_t &x, Double_t &y, Double_t &z) const;
+
         std::vector<bool>    GetParVBool  (TString name) const { return FindPar(name,true) -> GetVBool  (); }
         std::vector<int>     GetParVInt   (TString name) const { return FindPar(name,true) -> GetVInt   (); }
         std::vector<double>  GetParVDouble(TString name) const { return FindPar(name,true) -> GetVDouble(); }

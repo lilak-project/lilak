@@ -128,7 +128,32 @@ void LKParameterContainer::ReplaceVariables(TString &valInput)
     int ipar = valInput.Index("{");
     while (ipar>=0) {
         int fpar = valInput.Index("}",1,ipar,TString::kExact);
+        int mpar = valInput.Index(":",1,ipar,TString::kExact);
         TString parName2 = valInput(ipar+1,fpar-ipar-1);
+        int width = 0;
+        bool setWidth = false;
+        bool fillZeros = false;
+        bool alignLeft = false;
+        if (mpar<fpar) {
+            parName2 = valInput(ipar+1,mpar-ipar-1);
+            TString parOption = valInput(mpar+1,fpar-mpar-1);
+            if (parOption.Index("<")>=0) {
+                parOption.ReplaceAll("<","");
+                alignLeft = true;
+            }
+            if (parOption.Index(">")>=0) {
+                parOption.ReplaceAll(">","");
+                alignLeft = false;
+            }
+            if (parOption.IsDec()) {
+                setWidth = true;
+                if (parOption[0]=='0') {
+                    fillZeros = true;
+                    parOption = parOption(1,parOption.Sizeof()-2);
+                }
+                width = parOption.Atoi();
+            }
+        }
         TString replaceTo;
         if (parName2=="lilak_mainproject_version") replaceTo = LILAK_MAINPROJECT_VERSION;
         else if (parName2=="lilak_mainproject_hash") replaceTo = LILAK_MAINPROJECT_HASH;
@@ -148,6 +173,26 @@ void LKParameterContainer::ReplaceVariables(TString &valInput)
         }
         else
             replaceTo = GetParString(parName2);
+        if (setWidth) {
+            int replaceWidth = replaceTo.Sizeof() - 1;
+            cout << "!!" << " " << width << " " << replaceWidth << endl;
+            if (width>replaceWidth) {
+                int dWidth = width - replaceWidth;
+                TString addSpace = " ";
+                if (fillZeros) addSpace = "0";
+                TString fill;
+                if (alignLeft) {
+                    for (auto i=0; i<dWidth; ++i)
+                        fill += addSpace;
+                    replaceTo = replaceTo + fill;
+                }
+                else {
+                    for (auto i=0; i<dWidth; ++i)
+                        fill += addSpace;
+                    replaceTo = fill + replaceTo;
+                }
+            }
+        }
         valInput.Replace(ipar,fpar-ipar+1,replaceTo);
         ipar = valInput.Index("{");
     }
@@ -937,6 +982,26 @@ LKParameter *LKParameterContainer::SetParFile(TString name) {
 
 LKParameter *LKParameterContainer::SetParCont(TString name) {
     return SetLineComment(Form("input container %s", name.Data()));
+}
+
+void LKParameterContainer::UpdateBinning(TString name, Int_t &n, Double_t &x1, Double_t &x2) const
+{
+    if (CheckPar(name) && GetParN(name)>=3)
+    {
+        n = GetParInt(name,0);
+        x1 = GetParDouble(name,1);
+        x2 = GetParDouble(name,2);
+    }
+}
+
+void LKParameterContainer::UpdateV3(TString name, Double_t &x, Double_t &y, Double_t &z) const
+{
+    if (CheckPar(name) && GetParN(name)>=3)
+    {
+        x = GetParDouble(name,0);
+        y = GetParDouble(name,1);
+        z = GetParDouble(name,2);
+    }
 }
 
 LKParameterContainer* LKParameterContainer::CreateGroupContainer(TString nameGroup)
