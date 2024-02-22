@@ -164,6 +164,11 @@ class LKChannelAnalyzer : public TObject
         LKPulse* GetPulse() const  { return fPulse; }
         TString GetPulseFileName() const { return fPulseFileName; }
 
+        double Eval  (double tb, double tb0=0, double amplitude=1) { return fPulse -> Eval  (tb, tb0, amplitude); }
+        double Error (double tb, double tb0=0, double amplitude=1) { return fPulse -> Error (tb, tb0, amplitude); }
+        double Error0(double tb, double tb0=0, double amplitude=1) { return fPulse -> Error0(tb, tb0, amplitude); }
+        TGraphErrors *GetPulseGraph(double tb0, double amplitude, double pedestal=0) { return fPulse -> GetPulseGraph(tb0, amplitude, pedestal); }
+
         int GetNumHits() const  { return fNumHits; }
         LKPulseFitParameter GetFitParameter(int i) const  { return fFitParameterArray[i]; }
         double GetTbHit(int i) const      { return fFitParameterArray[i].fTbHit; }

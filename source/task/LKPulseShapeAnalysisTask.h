@@ -31,6 +31,7 @@ class LKPulseShapeAnalysisTask : public LKTask
         void Exec(Option_t *option="");
         bool EndOfRun();
 
+        void SetChannelAnalyzer(LKChannelAnalyzer* channelAnalyzer) { fChannelAnalyzer = channelAnalyzer; }
         LKChannelAnalyzer* GetChannelAnalyzer() { return fChannelAnalyzer; }
 
     private:
