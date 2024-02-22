@@ -52,6 +52,8 @@ message(STATUS "Main Project           : " ${LILAK_PROJECT_MAIN})
 set(LILAK_SOURCE_DIRECTORY_LIST
     ${LILAK_PATH}/source/base
     ${LILAK_PATH}/source/tool
+    ${LILAK_PATH}/source/tool/pulse_analysis
+    ${LILAK_PATH}/source/tool/hough_transform
     ${LILAK_PATH}/source/geometry
     ${LILAK_PATH}/source/detector
     ${LILAK_PATH}/source/container
