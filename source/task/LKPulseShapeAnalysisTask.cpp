@@ -16,7 +16,7 @@ bool LKPulseShapeAnalysisTask::Init()
 
     if (fChannelAnalyzer==nullptr)
     {
-        if (fDetectorPlane = fRun -> GetNumPlanes()==0) {
+        if (fRun->GetDetectorSystem()->GetNumPlanes()==0) {
             lk_warning << "Channel analyzer sould be set!" << endl;
             lk_warning << "Using default channel analyzer" << endl;
             fChannelAnalyzer = new LKChannelAnalyzer();

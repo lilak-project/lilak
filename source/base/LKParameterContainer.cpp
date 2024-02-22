@@ -134,7 +134,7 @@ void LKParameterContainer::ReplaceVariables(TString &valInput)
         bool setWidth = false;
         bool fillZeros = false;
         bool alignLeft = false;
-        if (mpar<fpar) {
+        if (mpar>0&&mpar<fpar) {
             parName2 = valInput(ipar+1,mpar-ipar-1);
             TString parOption = valInput(mpar+1,fpar-mpar-1);
             if (parOption.Index("<")>=0) {
@@ -171,8 +171,9 @@ void LKParameterContainer::ReplaceVariables(TString &valInput)
             parName2 = parName2(0,parName2.Index("["));
             replaceTo = GetParString(parName2,idx);
         }
-        else
+        else {
             replaceTo = GetParString(parName2);
+        }
         if (setWidth) {
             int replaceWidth = replaceTo.Sizeof() - 1;
             cout << "!!" << " " << width << " " << replaceWidth << endl;
