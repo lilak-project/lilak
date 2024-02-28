@@ -267,6 +267,14 @@ class LKParameterContainer : public TObjArray
         vector<Int_t> fTabSizeArray;
         vector<TString> fGroupNameArray;
 
+    public:
+        void SetCollectParameters(bool collect);
+        void PrintCollection(TString fileName="");
+
+    private:
+        bool fParameterCollectionMode = false;
+        LKParameterContainer *fCollectedParameterContainer = nullptr;
+
 
 #ifdef LILAK_BUILD_JSONCPP
         Json::Value fJsonValues;

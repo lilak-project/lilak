@@ -1053,6 +1053,8 @@ LKParameter *LKParameterContainer::FindPar(TString givenName, bool terminateIfNu
 {
     R__COLLECTION_READ_LOCKGUARD(ROOT::gCoreMutex);
 
+    //givenName = FindName(givenName);
+
     TIter iterator(this);
     LKParameter *parameter = nullptr;
     bool parameterIsFound = false;
@@ -1074,6 +1076,16 @@ LKParameter *LKParameterContainer::FindPar(TString givenName, bool terminateIfNu
         }
     }
 
+    if (fParameterCollectionMode)
+    {
+        if (parameterIsFound) {
+            fCollectedParameterContainer -> AddLine(Form("%s",parameter->GetLine().Data()));
+        }
+        else {
+            fCollectedParameterContainer -> AddLine(Form("%s",givenName.Data()));
+        }
+    }
+
     if (parameterIsFound) {
         //TString value = parameter -> GetRaw();
         //ReplaceVariables(value);
@@ -1087,4 +1099,20 @@ LKParameter *LKParameterContainer::FindPar(TString givenName, bool terminateIfNu
     }
 
     return (LKParameter *) nullptr;
+}
+
+void LKParameterContainer::SetCollectParameters(bool collect)
+{
+    fParameterCollectionMode = collect;
+    if (fParameterCollectionMode) {
+        if (fCollectedParameterContainer==nullptr) {
+            fCollectedParameterContainer = new LKParameterContainer();
+            fCollectedParameterContainer -> SetName("CollectedPar");
+        }
+    }
+}
+
+void LKParameterContainer::PrintCollection(TString fileName)
+{
+    fCollectedParameterContainer -> Print(fileName);
 }

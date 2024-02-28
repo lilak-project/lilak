@@ -817,6 +817,13 @@ bool LKRun::Init()
     return fInitialized;
 }
 
+void LKRun::InitAndCollectParameters(TString fileName)
+{
+    fPar -> SetCollectParameters(true);
+    Init();
+    fPar -> PrintCollection(fileName);
+}
+
 /*
 bool LKRun::RegisterBranch(TString name, TObject *obj, bool persistent)
 {

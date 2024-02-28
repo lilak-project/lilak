@@ -119,9 +119,15 @@ class LKRun : public LKTask
          * Initailize LKRun.
          * Configure input and output files(trees and branches), input parameters and detectors
          * Init() must be done before Run().
-         * Init
          */
         bool Init();
+
+        /**
+         * Initailize LKRun and collect parameters.
+         * Print collected parameters to fileName.
+         * Print out to screen if fileName is null.
+         */
+        void InitAndCollectParameters(TString fileName="");
 
         LKParameterContainer *GetG4ProcessTable() const { return fG4ProcessTable; }
         LKParameterContainer *GetG4SDTable() const { return fG4SDTable; }
