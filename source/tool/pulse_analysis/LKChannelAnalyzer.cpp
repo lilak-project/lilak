@@ -178,18 +178,6 @@ void LKChannelAnalyzer::Draw(Option_t *option)
     }
 }
 
-TGraph *LKChannelAnalyzer::GetPeakGraph(double tb0, double amplitude, double pedestal)
-{
-    auto graphNew = new TGraphErrors();
-    graphNew -> SetPoint(0,tb0-5,pedestal);
-    graphNew -> SetPoint(1,tb0  ,pedestal);
-    graphNew -> SetPoint(2,tb0  ,amplitude);
-    graphNew -> SetPoint(3,tb0+5,amplitude);
-    graphNew -> SetLineColor(kRed);
-    graphNew -> SetMarkerColor(kRed);
-    return graphNew;
-}
-
 void LKChannelAnalyzer::Analyze(int* data)
 {
     double buffer[512];
@@ -312,9 +300,12 @@ double LKChannelAnalyzer::FindAndSubtractPedestal(double *buffer)
 
     int countBelowCut = 0;
     for (auto iSample=0; iSample<fNumPedestalSamples; ++iSample) {
-        if (fStddevSample[iSample]/fPedestalSample[iSample]<0.1)
+        if (fPedestalSample[iSample]>0&&fStddevSample[iSample]/fPedestalSample[iSample]<0.1)
             countBelowCut++;
     }
+#ifdef DEBUG_CHANA_FINDPED
+        lk_debug << "countBelowCut = " << countBelowCut << endl;
+#endif
 
     double pedestalDiffMin = DBL_MAX;
     double pedestalMeanRef = 0;
@@ -322,11 +313,17 @@ double LKChannelAnalyzer::FindAndSubtractPedestal(double *buffer)
     int idx2 = 0;
     if (countBelowCut>=2) {
         for (auto iSample=0; iSample<fNumPedestalSamples; ++iSample) {
+            if (fPedestalSample[iSample]<=0) continue;
             if (fStddevSample[iSample]/fPedestalSample[iSample]>=0.1) continue;
             for (auto jSample=0; jSample<fNumPedestalSamples; ++jSample) {
                 if (iSample>=jSample) continue;
+                if (fPedestalSample[jSample]<=0) continue;
                 if (fStddevSample[jSample]/fPedestalSample[jSample]>=0.1) continue;
                 double diff = abs(fPedestalSample[iSample] - fPedestalSample[jSample]);
+#ifdef DEBUG_CHANA_FINDPED
+                lk_debug << iSample << "|" << jSample << ") " << fStddevSample[jSample] << " " << fPedestalSample[jSample] << endl;
+                lk_debug << iSample << "|" << jSample << ") " << diff << " <? " << pedestalDiffMin << endl;
+#endif
                 if (diff<pedestalDiffMin) {
                     pedestalDiffMin = diff;
                     pedestalMeanRef = 0.5 * (fPedestalSample[iSample] + fPedestalSample[jSample]);
@@ -372,6 +369,9 @@ double LKChannelAnalyzer::FindAndSubtractPedestal(double *buffer)
     for (auto iSample=0; iSample<fNumPedestalSamplesM1; ++iSample)
     {
         double diffSample = abs(pedestalMeanRef - fPedestalSample[iSample]);
+#ifdef DEBUG_CHANA_FINDPED
+        lk_debug << iSample << " " << diffSample << " " << pedestalErrorRefSample << endl;
+#endif
         if (diffSample<pedestalErrorRefSample)
         {
             fUsedSample[iSample] = true;
@@ -382,11 +382,15 @@ double LKChannelAnalyzer::FindAndSubtractPedestal(double *buffer)
                 tbGlobal++;
             }
 #ifdef DEBUG_CHANA_FINDPED
-            lk_debug << iSample << " diff=" << diffSample << " " << pedestalFinal/countNumPedestalTb << " " << countNumPedestalTb << endl;
+            lk_debug << "diffSample < pedestalErrorRefSample : " << iSample << " diff=" << diffSample << " " << pedestalFinal << " " << countNumPedestalTb << endl;
 #endif
         }
-        else
+        else {
             tbGlobal += fNumTbSample;
+#ifdef DEBUG_CHANA_FINDPED
+            lk_debug << "diffSample > pedestalErrorRefSample : " << iSample << " diff=" << diffSample << " " << pedestalFinal << " " << countNumPedestalTb << endl;
+#endif
+        }
     }
     double diffSample = abs(pedestalMeanRef - fPedestalSample[fNumPedestalSamplesM1]);
     if (diffSample<pedestalErrorRefSample)
@@ -402,6 +406,9 @@ double LKChannelAnalyzer::FindAndSubtractPedestal(double *buffer)
 #endif
     }
 
+#ifdef DEBUG_CHANA_FINDPED
+        lk_debug << pedestalFinal << " " <<  countNumPedestalTb << endl;;
+#endif
     pedestalFinal = pedestalFinal / countNumPedestalTb;
 
 #ifdef DEBUG_CHANA_FINDPED
@@ -453,12 +460,12 @@ bool LKChannelAnalyzer::FindPeak(double *buffer, int &tbPointer, int &tbStartOfP
             //if (value > fThreshold) countAscending++;
             //else countAscendingBelowThreshold++;
         }
-        else 
+        else
         {
 #ifdef DEBUG_CHANA_FINDPEAK
             graphFP -> SetPoint(graphFP->GetN(),tbPointer+0.5,fPedestal);
 #endif
-            // If acended step is below 5, 
+            // If acended step is below 5,
             // or negative pulse is bigger than the found pulse, continue
             //if (countAscending < fNumTbAcendingCut || ((countAscendingBelowThreshold >= countAscending) && (-buffer[tbPointer - 1 - countAscending - countAscendingBelowThreshold] > buffer[tbPointer - 1])))
             if (countAscending < fNumTbAcendingCut)
@@ -512,7 +519,7 @@ bool LKChannelAnalyzer::FindPeak(double *buffer, int &tbPointer, int &tbStartOfP
 }
 
 bool LKChannelAnalyzer::FitPulse(double *buffer, int tbStartOfPulse, int tbPeak,
-        double &tbHit, 
+        double &tbHit,
         double &amplitude,
         double &chi2Fitted,
         int    &ndf,
@@ -686,11 +693,11 @@ void LKChannelAnalyzer::FitAmplitude(double *buffer, double tbStartOfPulse,
 #endif
     double refy = 0;
     double ref2 = 0;
-    int tb0 = int(tbStartOfPulse); 
+    int tb0 = int(tbStartOfPulse);
 #ifdef DEBUG_CHANA_FITAMPLITUDE
     lk_debug << tb0 << " = abs(" << tbStartOfPulse << ")" << endl;
 #endif
-    double tbOffset = tbStartOfPulse - tb0; 
+    double tbOffset = tbStartOfPulse - tb0;
 
     int ndfFit = 0;
     int iTbPulse = 0;
@@ -801,4 +808,83 @@ bool LKChannelAnalyzer::TestPulse(double *buffer, double tbHitPrev, double ampli
     }
 
     return true;
+}
+
+void LKChannelAnalyzer::SetPad(TVirtualPad *pad, TH2D* hist)
+{
+    fPadFitPanel = pad;
+    if (hist!=nullptr)
+        fHistFitPanel = hist;
+    else if (fHistFitPanel==nullptr) {
+        fHistFitPanel = new TH2D("HistCA_FitPanel",";tb;charge;",128,0,512,205,0,4100);
+    }
+    /*
+    auto nx = fHistFitPanel -> GetXaxis() -> GetNbins();
+    auto ny = fHistFitPanel -> GetYaxis() -> GetNbins();
+    for (auto ix=1; ix<nx; ++ix) {
+        for (auto iy=1; iy<ny; ++iy) {
+            if (fHistFitPanel->GetXaxis()->GetBinLowEdge(ix)>400 && fHistFitPanel->GetXaxis()->GetBinLowEdge(iy)>3500)
+                continue;
+        }
+    }
+    */
+    LKPadInteractiveManager::GetManager() -> Add(this,fPadFitPanel);
+}
+
+void LKChannelAnalyzer::ExecMouseClickEventOnPad(TVirtualPad *pad, double xOnClick, double yOnClick)
+{
+    /*
+    if (pad!=fPadFitPanel) {
+        lk_error << pad << " " << fPadFitPanel << endl;
+        return;
+    }
+
+    int selectedBin = fHistParam -> FindBin(xOnClick, yOnClick);
+    int binx, biny, binz;
+    fHistParam -> GetBinXYZ(selectedBin, binx, biny, binz);
+    auto x1 = fHistParam -> GetXaxis() -> GetBinLowEdge(binx);
+    auto y1 = fHistParam -> GetYaxis() -> GetBinLowEdge(biny);
+    if (x1<400&&y1<3500)
+        return;
+
+    fPadFitPanel -> cd();
+    */
+}
+
+TGraphErrors *LKChannelAnalyzer::FillPulseGraph(TGraphErrors* graph, double tb0, double amplitude, double pedestal)
+{
+    fPulse -> FillPulseGraph(graph, tb0, amplitude, pedestal);
+    return graph;
+}
+
+TGraph *LKChannelAnalyzer::FillPeakGraph(TGraph* graph, double tb0, double amplitude, double pedestal)
+{
+    graph -> Set(0);
+    graph -> SetPoint(0,tb0-5,pedestal);
+    graph -> SetPoint(1,tb0  ,pedestal);
+    graph -> SetPoint(2,tb0  ,amplitude+pedestal);
+    graph -> SetPoint(3,tb0+5,amplitude+pedestal);
+    graph -> SetLineColor(kRed);
+    graph -> SetMarkerColor(kRed);
+    return graph;
+}
+
+TGraph *LKChannelAnalyzer::GetPeakGraph(double tb0, double amplitude, double pedestal)
+{
+    if (fGraphArray==nullptr)
+        fGraphArray = new TClonesArray("TGraphErrors",100);
+    auto graphPeak = (TGraph*) fGraphArray -> ConstructedAt(fNumGraphs++);
+    return FillPeakGraph(graphPeak, tb0, amplitude, pedestal);
+}
+
+TGraphErrors *LKChannelAnalyzer::GetPulseGraph(double tb0, double amplitude, double pedestal)
+{
+    if (fGraphArray==nullptr)
+        fGraphArray = new TClonesArray("TGraphErrors",100);
+    TGraphErrors* graph = (TGraphErrors*) fGraphArray -> ConstructedAt(fNumGraphs++);
+    if (fPulseFitMode)
+        fPulse -> FillPulseGraph(graph, tb0, amplitude, pedestal);
+    else
+        FillPeakGraph((TGraph*)graph, tb0, amplitude, pedestal);
+    return graph;
 }

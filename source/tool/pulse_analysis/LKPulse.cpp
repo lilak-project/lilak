@@ -87,16 +87,22 @@ double LKPulse::Error0(double tb, double tb0, double amplitude) { return        
 
 TGraphErrors *LKPulse::GetPulseGraph(double tb0, double amplitude, double pedestal)
 {
-    auto graphNew = new TGraphErrors();
+    auto graphPulse = new TGraphErrors();
+    return FillPulseGraph(graphPulse, tb0, amplitude, pedestal);
+}
+
+TGraphErrors* LKPulse::FillPulseGraph(TGraphErrors* graphPulse, double tb0, double amplitude, double pedestal)
+{
+    graphPulse -> Set(0);
     for (auto iPoint=0; iPoint<fNumPoints; ++iPoint)
     {
         auto xValue = fGraphPulse -> GetPointX(iPoint);
         auto yValue = fInversion * fGraphPulse -> GetPointY(iPoint);
         auto yError = fGraphPulse -> GetErrorY(iPoint);
-        graphNew -> SetPoint(iPoint,xValue+tb0,yValue*amplitude+pedestal);
-        graphNew -> SetPointError(iPoint,0,yError*amplitude);
+        graphPulse -> SetPoint(iPoint,xValue+tb0,yValue*amplitude+pedestal);
+        graphPulse -> SetPointError(iPoint,0,yError*amplitude);
     }
-    graphNew -> SetLineColor(kRed);
-    graphNew -> SetMarkerColor(kRed);
-    return graphNew;
+    graphPulse -> SetLineColor(kRed);
+    graphPulse -> SetMarkerColor(kRed);
+    return graphPulse;
 }

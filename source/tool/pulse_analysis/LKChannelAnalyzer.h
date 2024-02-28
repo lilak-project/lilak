@@ -12,17 +12,19 @@
 #include <cfloat>
 using namespace std;
 
-#include "TObject.h"
 #include "TGraph.h"
 #include "TGraphErrors.h"
 #include "TParameter.h"
 #include "TH1D.h"
 #include "TClonesArray.h"
 #include "TMultiGraph.h"
+#include "TH2D.h"
 
 #include "LKLogger.h"
 #include "LKPulse.h"
 #include "LKPulseFitParameter.h"
+#include "LKPadInteractive.h"
+#include "LKPadInteractiveManager.h"
 
 //#define NUMBER_OF_PEDESTAL_TEST_REGIONS 6
 //#define NUMBER_OF_PEDESTAL_TEST_REGIONS 7
@@ -146,7 +148,7 @@ class LKTbIterationParameters
  *  }
  * @endcode
  */
-class LKChannelAnalyzer : public TObject
+class LKChannelAnalyzer : public LKPadInteractive
 {
     public:
         LKChannelAnalyzer();
@@ -157,8 +159,6 @@ class LKChannelAnalyzer : public TObject
         void Print(Option_t *option="") const;
         void Draw(Option_t *option="");
 
-        TGraph *GetPeakGraph(double tb0, double amplitude, double pedestal);
-
         /// Set pulse function and related parameter from pulse data file created from LKPulseAnalyzer
         void SetPulse(const char* fileName);
         LKPulse* GetPulse() const  { return fPulse; }
@@ -167,7 +167,6 @@ class LKChannelAnalyzer : public TObject
         double Eval  (double tb, double tb0=0, double amplitude=1) { return fPulse -> Eval  (tb, tb0, amplitude); }
         double Error (double tb, double tb0=0, double amplitude=1) { return fPulse -> Error (tb, tb0, amplitude); }
         double Error0(double tb, double tb0=0, double amplitude=1) { return fPulse -> Error0(tb, tb0, amplitude); }
-        TGraphErrors *GetPulseGraph(double tb0, double amplitude, double pedestal=0) { return fPulse -> GetPulseGraph(tb0, amplitude, pedestal); }
 
         int GetNumHits() const  { return fNumHits; }
         LKPulseFitParameter GetFitParameter(int i) const  { return fFitParameterArray[i]; }
@@ -182,7 +181,7 @@ class LKChannelAnalyzer : public TObject
         void AnalyzePeakFinding(double* data);
 
         /**
-         * Find pedestal and subract it from the buffer.
+         * Find pedestal and subtract it from the buffer.
          * Pedestal is estimated through following process
          * 1. Divide tb-region by NUMBER_OF_PEDESTAL_TEST_REGIONS(6)
          * 2. Calculate average-charge for each region.
@@ -244,6 +243,20 @@ class LKChannelAnalyzer : public TObject
 
         double* GetBuffer() { return fBuffer; }
 
+        TGraphErrors *FillPulseGraph(TGraphErrors* graph, double tb0, double amplitude, double pedestal=0);
+        TGraph *FillPeakGraph(TGraph* graph, double tb0, double amplitude, double pedestal=0);
+        TGraphErrors *GetPulseGraph(double tb0, double amplitude, double pedestal=0);
+        TGraph *GetPeakGraph(double tb0, double amplitude, double pedestal=0);
+        void ClearGraphArray() { if (fGraphArray!=nullptr) fGraphArray -> Clear("C"); fNumGraphs = 0; }
+
+    public:
+        virtual void ExecMouseClickEventOnPad(TVirtualPad *pad, double xOnClick, double yOnClick);
+        void SetPad(TVirtualPad *pad, TH2D* hist=nullptr);
+
+    public:
+        TVirtualPad* fPadFitPanel = nullptr;
+        TH2D* fHistFitPanel = nullptr;
+
     private:
         bool         fPulseFitMode = false;
 
@@ -299,6 +312,9 @@ class LKChannelAnalyzer : public TObject
         int          fNDFPulse;
 
         TString      fPulseFileName;
+
+        TClonesArray* fGraphArray = nullptr;
+        Int_t         fNumGraphs = 0;
 
 #ifdef DEBUG_CHANA_FINDPEAK
     public:
