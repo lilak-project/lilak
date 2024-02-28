@@ -17,7 +17,7 @@ class LKPadInteractiveManager : public TObject
         void Add(LKPadInteractive* interactive);
         void Add(LKPadInteractive* interactive, TVirtualPad* pad, TString option="");
 
-        LKPadInteractive* GetPadInteractive(int id) { return (LKPadInteractive*) fPadInteractiveArray -> At(id); }
+        LKPadInteractive* GetPadInteractive(int id) { return (LKPadInteractive*) fPadInteractiveArray -> At(id-fIndexPadInteractive0); }
 
         static void MouseClickEventOnPad();
 
@@ -26,7 +26,8 @@ class LKPadInteractiveManager : public TObject
 
         TObjArray *fPadInteractiveArray = nullptr;
 
-        int fCountPadInteractives = 0;
+        const int fIndexPadInteractive0 = 1100;
+        int       fCountPadInteractives = fIndexPadInteractive0;
 
     ClassDef(LKPadInteractiveManager, 1)
 };

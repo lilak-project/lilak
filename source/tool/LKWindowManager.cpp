@@ -37,10 +37,10 @@ void LKWindowManager::Clear(Option_t *option)
     fYCurrentDisplay = -1;
     fWCurrentDisplay = -1;
     fHCurrentDisplay = -1;
-    fDeadFrameSize[0] = 0;
-    fDeadFrameSize[1] = 0;
-    fDeadFrameSize[2] = 0;
-    fDeadFrameSize[3] = 0;
+    fDeadFrameSize[0] = 25;
+    fDeadFrameSize[1] = 25;
+    fDeadFrameSize[2] = 80;
+    fDeadFrameSize[3] = 50;
     fXCurrentCanvas = 0;
     fYCurrentCanvas = 0;
     fWDefault = 700;
@@ -123,14 +123,16 @@ void LKWindowManager::UpdateNextCanvasPosition()
 Double_t LKWindowManager::SetRatio(Double_t ratio, Double_t defaultValue)
 {
     if (ratio==-1) ratio = defaultValue;
-    if (ratio>1 && ratio<=100) ratio = ratio * 0.01;
-    else if (ratio<=0 || ratio>1) { e_warning << "ratio should be between 0 and 1! (" << ratio << "). ratio is corrected to 1." << endl; ratio = 1; }
+    else {
+        if (ratio>1 && ratio<=100) ratio = ratio * 0.01;
+        else if (ratio<=0 || ratio>1) { e_warning << "ratio should be between 0 and 1! (" << ratio << "). ratio is corrected to 1." << endl; ratio = 1; }
+    }
     return ratio;
 }
 
 TCanvas *LKWindowManager::NewCanvas(TString name, const char *title, Int_t x, Int_t y, Int_t width, Int_t height)
 {
-    auto cvs = new TCanvas(name,name,fXCurrentCanvas,fYCurrentCanvas,width,height);
+    auto cvs = new TCanvas(name,name, fXCurrentCanvas,fYCurrentCanvas,width,height);
     cvs -> SetMargin(0.11,0.05,0.12,0.05);
     return cvs;
 }
@@ -141,7 +143,7 @@ TCanvas *LKWindowManager::CanvasDefault(TString name, Double_t ratio)
     Int_t width  = ratio*fWDefault;
     Int_t height = ratio*fHDefault;
     UpdateNextCanvasPosition();
-    auto cvs = NewCanvas(name,name,fXCurrentCanvas, fYCurrentCanvas, width, height);
+    auto cvs = NewCanvas(name,name, fXCurrentCanvas, fYCurrentCanvas, width, height);
     return cvs;
 }
 
@@ -154,7 +156,7 @@ TCanvas *LKWindowManager::CanvasFull(TString name, Double_t ratio1, Double_t rat
     Int_t width  = ratio1*fWCurrentDisplay;
     Int_t height = ratio2*fHCurrentDisplay;
     UpdateNextCanvasPosition();
-    auto cvs = NewCanvas(name,name,fXCurrentCanvas, fYCurrentCanvas, width, height);
+    auto cvs = NewCanvas(name,name, fXCurrentCanvas, fYCurrentCanvas, width, height);
     return cvs;
 }
 
@@ -166,7 +168,7 @@ TCanvas *LKWindowManager::CanvasSquare(TString name, Double_t ratio)
     if (width<height) height = width;
     else width = height;
     UpdateNextCanvasPosition();
-    auto cvs = NewCanvas(name,name,fXCurrentCanvas, fYCurrentCanvas, width, height);
+    auto cvs = NewCanvas(name,name, fXCurrentCanvas, fYCurrentCanvas, width, height);
     return cvs;
 }
 
@@ -183,7 +185,17 @@ TCanvas *LKWindowManager::CanvasResize(TString name, Int_t width0, Int_t height0
         height = fHCurrentDisplay*ratio;
         width = double(fHCurrentDisplay)/height0*width0*ratio;
     }
+    if (height>fHCurrentDisplay) {
+        auto scale_down = double(fHCurrentDisplay)/height;
+        height = scale_down*height;
+        width  = scale_down*width;
+    }
+    if (width>fWCurrentDisplay) {
+        auto scale_down = double(fWCurrentDisplay)/width;
+        height = scale_down*height;
+        width  = scale_down*width;
+    }
     UpdateNextCanvasPosition();
-    auto cvs = NewCanvas(name,name,fXCurrentCanvas, fYCurrentCanvas, width, height);
+    auto cvs = NewCanvas(name,name, fXCurrentCanvas, fYCurrentCanvas, width, height);
     return cvs;
 }

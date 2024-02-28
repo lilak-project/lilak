@@ -4,7 +4,6 @@
 #include <vector>
 using namespace std;
 
-#include "TNamed.h"
 #include "LKLogger.h"
 #include "LKGeoLine.h"
 #include "TGraph.h"
@@ -175,7 +174,7 @@ class LKHoughWFInverse : public LKHTWeightingFunction {
     @todo performance & parameters guide
  */
 
-class LKHTLineTracker : public TNamed, public LKPadInteractive
+class LKHTLineTracker : public LKPadInteractive
 {
     public:
         LKHTLineTracker();

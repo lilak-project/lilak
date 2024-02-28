@@ -1,7 +1,10 @@
 #include "LKPadInteractiveManager.h"
+#include "LKLogger.h"
 #include "TCanvas.h"
 #include "TH1.h"
 #include "TH2.h"
+
+using namespace std;
 
 ClassImp(LKPadInteractiveManager)
 

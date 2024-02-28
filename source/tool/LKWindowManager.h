@@ -77,7 +77,8 @@ class LKWindowManager : public TObject
         UInt_t       fWCurrentDisplay = 0; /// width  of current display
         UInt_t       fHCurrentDisplay = 0; /// height of current display
 
-        UInt_t       fDeadFrameSize[4] = {0,10,40,0}; /// height of the top bar
+        //UInt_t       fDeadFrameSize[4] = {0,10,40,0}; /// height of the top bar
+        UInt_t       fDeadFrameSize[4] = {25,25,80,50};
 
         Int_t        fXCurrentCanvas = 0;  /// width  position of next canvas
         Int_t        fYCurrentCanvas = 0;  /// height position of next canvas

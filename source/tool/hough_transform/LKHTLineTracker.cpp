@@ -83,19 +83,19 @@ void LKHTLineTracker::ClearPoints()
 
 void LKHTLineTracker::Print(Option_t *option) const
 {
-    lk_info << "[LKHTLineTracker]" << endl;
-    lk_info << "  CurrentProcess: " << GetProcessName() << endl;
-    lk_info << "  Image space:" << endl;
-    lk_info << "  - (x) = (" << fRangeImageSpace[0][0] << ", " << fRangeImageSpace[0][1] << ") / " << fNumBinsImageSpace[0] << endl;
-    lk_info << "  - (y) = (" << fRangeImageSpace[1][0] << ", " << fRangeImageSpace[1][1] << ") / " << fNumBinsImageSpace[1] << endl;
-    lk_info << "  - transform center = (" << fTransformCenter.X() << ", " << fTransformCenter.Y() << ")" << endl;
-    lk_info << "  - number of image points = " << fNumImagePoints << endl;
-    lk_info << "  Parameter space:" << endl;
-    lk_info << "  - (r)     = (" << fRangeParamSpace[0][0] << ", " << fRangeParamSpace[0][1] << ") / " << fNumBinsParamSpace[0] << endl;
-    lk_info << "  - (theta) = (" << fRangeParamSpace[1][0] << ", " << fRangeParamSpace[1][1] << ") / " << fNumBinsParamSpace[1] << endl;
-    lk_info << "  - correlator: " << GetCorrelatorName() << endl;
+    e_info << "[LKHTLineTracker]" << endl;
+    e_info << "  CurrentProcess: " << GetProcessName() << endl;
+    e_info << "  Image space:" << endl;
+    e_info << "  - (x) = (" << fRangeImageSpace[0][0] << ", " << fRangeImageSpace[0][1] << ") / " << fNumBinsImageSpace[0] << endl;
+    e_info << "  - (y) = (" << fRangeImageSpace[1][0] << ", " << fRangeImageSpace[1][1] << ") / " << fNumBinsImageSpace[1] << endl;
+    e_info << "  - transform center = (" << fTransformCenter.X() << ", " << fTransformCenter.Y() << ")" << endl;
+    e_info << "  - number of image points = " << fNumImagePoints << endl;
+    e_info << "  Parameter space:" << endl;
+    e_info << "  - (r)     = (" << fRangeParamSpace[0][0] << ", " << fRangeParamSpace[0][1] << ") / " << fNumBinsParamSpace[0] << endl;
+    e_info << "  - (theta) = (" << fRangeParamSpace[1][0] << ", " << fRangeParamSpace[1][1] << ") / " << fNumBinsParamSpace[1] << endl;
+    e_info << "  - correlator: " << GetCorrelatorName() << endl;
     //if (fIdxSelectedR>=0&&fIdxSelectedT>=0) {
-        //lk_info << " - selected parameter point exist!:" << endl;
+        //e_info << " - selected parameter point exist!:" << endl;
         //auto paramPoint = GetParamPoint(fIdxSelectedR,fIdxSelectedT);
         //paramPoint -> Print();
     //}
@@ -407,7 +407,7 @@ void LKHTLineTracker::Transform()
 void LKHTLineTracker::DeTransformSelectedPoints()
 {
     auto numSelectedHits = fSelectedHitArray -> GetEntries();
-    //lk_debug << "numSelectedHits: " << numSelectedHits << endl;
+    //e_debug << "numSelectedHits: " << numSelectedHits << endl;
 
     for (auto it=0; it<fNumBinsParamSpace[1]; ++it)
     {
@@ -452,7 +452,7 @@ void LKHTLineTracker::DeTransformSelectedPoints()
                         fIdxSelectedR = ir;
                         fIdxSelectedT = it;
                         fParamData[ir][it] = fParamData[ir][it] - weight;
-                        //lk_debug << fParamData[ir][it] << " " << weight << endl;
+                        //e_debug << fParamData[ir][it] << " " << weight << endl;
                     }
                 }
             }
@@ -530,7 +530,7 @@ LKParamPointRT* LKHTLineTracker::FindNextMaximumParamPoint()
         }
     }
 #ifdef DEBUG_SAME_MAX
-    lk_debug << "max value is " << maxValue << endl;
+    e_debug << "max value is " << maxValue << endl;
     int countMaxValue = 0;
     for (auto ir=0; ir<fNumBinsParamSpace[0]; ++ir) {
         for (auto it=0; it<fNumBinsParamSpace[1]; ++it) {
@@ -538,7 +538,7 @@ LKParamPointRT* LKHTLineTracker::FindNextMaximumParamPoint()
                 countMaxValue++;
         }
     }
-    lk_debug << "count same max value : " << countMaxValue << " (" << maxValue << ")" << endl;
+    e_debug << "count same max value : " << countMaxValue << " (" << maxValue << ")" << endl;
 #endif
     if (fIdxSelectedR<0) {
         fParamPoint -> SetPoint(fTransformCenter[0],fTransformCenter[1],-1,0,-1,0,-1);
@@ -637,7 +637,7 @@ void LKHTLineTracker::SelectPoints(LKParamPointRT* paramPoint, double weightCut)
 
     fSelectedHitArray -> Clear();
     fSelectedImagePointIdxs.clear();
-    //lk_debug << fNumImagePoints << endl;
+    //e_debug << fNumImagePoints << endl;
     for (int iImage=0; iImage<fNumImagePoints; ++iImage)
     {
         auto imagePoint = GetImagePoint(iImage);
@@ -664,7 +664,7 @@ void LKHTLineTracker::SelectPoints(LKParamPointRT* paramPoint, double weightCut)
 
 void LKHTLineTracker::RemoveSelectedPoints()
 {
-    //lk_debug << fImagePointArray -> GetEntriesFast() << endl;
+    //e_debug << fImagePointArray -> GetEntriesFast() << endl;
     //DeTransformSelectedPoints();
 
     for (int iImage : fSelectedImagePointIdxs)
@@ -680,7 +680,7 @@ void LKHTLineTracker::RemoveSelectedPoints()
     fHitArray -> Compress();
 
     fNumImagePoints = fImagePointArray -> GetEntriesFast();
-    //lk_debug << fNumImagePoints << endl;
+    //e_debug << fNumImagePoints << endl;
 
     fProcess = kRemovePoints;
 }
@@ -712,13 +712,13 @@ LKLinearTrack* LKHTLineTracker::FitTrackWithParamPoint(LKParamPointRT* paramPoin
     }
 
     if (fLineFitter->GetNumPoints()<fCutNumTrackHits) {
-        //lk_debug << "return because " << fLineFitter->GetNumPoints() << " < " << fCutNumTrackHits << endl;
+        //e_debug << "return because " << fLineFitter->GetNumPoints() << " < " << fCutNumTrackHits << endl;
         return track;
     }
 
     bool fitted = fLineFitter -> FitLine();
     if (fitted==false) {
-        //lk_debug << "return from fitter" << endl;
+        //e_debug << "return from fitter" << endl;
         return track;
     }
 
@@ -769,13 +769,13 @@ LKLinearTrack* LKHTLineTracker::FitTrack3DWithParamPoint(LKParamPointRT* paramPo
         fLineFitter -> AddPoint(hit->X(),hit->Y(),hit->Z(),hit->W());
 
     if (fLineFitter->GetNumPoints()<fCutNumTrackHits) {
-        //lk_debug << "return because " << fLineFitter->GetNumPoints() << " < " << fCutNumTrackHits << endl;
+        //e_debug << "return because " << fLineFitter->GetNumPoints() << " < " << fCutNumTrackHits << endl;
         return track;
     }
 
     bool fitted = fLineFitter -> FitLine();
     if (fitted==false) {
-        //lk_debug << "return from fitter" << endl;
+        //e_debug << "return from fitter" << endl;
         return track;
     }
 
@@ -957,7 +957,7 @@ void LKHTLineTracker::Draw(TVirtualPad* padImage, TVirtualPad* padParam, LKParam
 void LKHTLineTracker::ExecMouseClickEventOnPad(TVirtualPad *pad, double xOnClick, double yOnClick)
 {
     if (pad!=fPadParam) {
-        lk_error << pad << " " << fPadParam << endl; 
+        e_error << pad << " " << fPadParam << endl; 
         return;
     }
 
