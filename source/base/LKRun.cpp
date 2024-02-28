@@ -472,16 +472,23 @@ TString LKRun::ConfigureDataPath(TString name, bool search, TString pathData, bo
     }
 }
 
-void LKRun::Add(TTask *task)
+void LKRun::Add(LKTask *task)
 {
-    LKTask::Add(task);
+    if (task -> IsEventTrigger()) {
+        SetEventTrigger(task);
+        return;
+    }
 
-    auto task0 = (LKTask *) task;
-    task0 -> SetRun(this);
+    LKTask::Add(task);
+    task -> SetRun(this);
 }
 
 void LKRun::SetEventTrigger(LKTask *task)
 {
+    if (fUsingEventTrigger) {
+        lk_error << "Event trigger already exist!" << endl;
+        return;
+    }
     fEventTrigger = task;
     fEventTrigger -> SetRun(this);
     fEventTrigger -> SetRank(fRank+1);

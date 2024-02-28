@@ -55,7 +55,7 @@ class LKRun : public LKTask
         void Print(Option_t *option="all") const;
 
         /// Add task to be executed every event
-        void Add(TTask *task);
+        void Add(LKTask *task);
 
         /// Set EventTrigger which give signal to LKRun that evnet has started.
         /// EventTrigger should call LKRun::ExecuteNextEvent() when ever event start, from Exec() method.
