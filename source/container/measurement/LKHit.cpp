@@ -20,6 +20,7 @@ void LKHit::Clear(Option_t *option)
     fHitID = -1;
     fTrackID = -1;
     fChannelID = -1;
+    fPadID = -1;
     fPedestal = -999;
     fAlpha = -999;
     fDX = 0;
@@ -38,12 +39,13 @@ void LKHit::Clear(Option_t *option)
 void LKHit::Print(Option_t *option) const
 {
     e_info
-        //<< "HTMP-ID: "
+        //<< "HTCP-ID: "
         << "HTP-ID: "
         << setw(4)  << fHitID
         << setw(4)  << fTrackID
         //<< setw(4)  << fMCID
         << setw(4)  << fChannelID
+        << setw(4)  << fPadID
         << "| XYZ: "
         << setw(12) << fX
         << setw(12) << fY
@@ -66,6 +68,7 @@ void LKHit::Copy(TObject &obj) const
     hit.SetHitID(fHitID);
     hit.SetTrackID(fTrackID);
     hit.SetChannelID(fChannelID);
+    hit.SetPadID(fPadID);
     hit.SetPosition(fX,fY,fZ);
     hit.SetPositionError(fDX,fDY,fDZ);
     hit.SetCharge(fW);
@@ -99,6 +102,7 @@ void LKHit::CopyFrom(LKHit *hit)
     fSortValue = hit -> GetSortValue();
     fTrackID   = hit -> GetTrackID  ();
     fChannelID = hit -> GetChannelID();
+    fPadID     = hit -> GetPadID();
     fSection   = hit -> GetSection  ();
     fRow       = hit -> GetRow      ();
     fLayer     = hit -> GetLayer    ();

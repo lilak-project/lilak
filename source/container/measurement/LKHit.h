@@ -32,6 +32,7 @@ class LKHit : public LKContainer
         Int_t fHitID = -999;
         Int_t fTrackID = -999;
         Int_t fChannelID = -999;
+        Int_t fPadID = -999;
         Double_t fAlpha = -999; ///< Use for polar angle
         Double_t fPedestal = -999;
         Int_t fSection = -999;
@@ -75,7 +76,7 @@ class LKHit : public LKContainer
         void SetHitID(Int_t id) { fHitID = id; }
         void SetTrackID(Int_t id) { fTrackID = id; }
         void SetChannelID(Int_t id) { fChannelID = id; }
-        void SetPadID(Int_t id) { fChannelID = id; } ///< Same as SetChannelID
+        void SetPadID(Int_t id) { fPadID = id; }
         void SetPedestal(Double_t a) { fPedestal = a; }
         void SetAlpha(Double_t a) { fAlpha = a; }
         void SetPositionError(TVector3 dpos) { fDX = dpos.X(); fDY = dpos.Y(); fDZ = dpos.Z(); }
@@ -116,7 +117,7 @@ class LKHit : public LKContainer
         Int_t GetHitID() const { return fHitID; }
         Int_t GetTrackID() const { return fTrackID; }
         Int_t GetChannelID() const { return fChannelID; }
-        Int_t GetPadID() const { return fChannelID; } ///< Same as GetChannelID
+        Int_t GetPadID() const { return fPadID; }
         Double_t GetPedestal() const { return fPedestal; }
         Double_t GetAlpha() const { return fAlpha; }
         Int_t GetSection() const { return fSection; }
@@ -176,7 +177,7 @@ class LKHit : public LKContainer
         virtual void AddToEveSet(TEveElement *eveSet, Double_t scale=1);
 #endif
 
-        ClassDef(LKHit, 3)
+        ClassDef(LKHit, 4)
 };
 
 class LKHitSortDirection {
