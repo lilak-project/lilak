@@ -83,6 +83,7 @@ set(LILAK_GEANT4_SOURCE_DIRECDTORY_LIST
 )
 
 set(LILAK_MFM_SOURCE_DIRECDTORY_LIST
+    ${LILAK_PATH}/source/mfm
     CACHE INTERNAL ""
 )
 #---Add geant4 main programs. Directory should be under "/path/to/LILAK/"
