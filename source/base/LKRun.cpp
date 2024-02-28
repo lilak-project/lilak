@@ -1129,6 +1129,9 @@ bool LKRun::RunSelectedEvent(TString selection)
 
 bool LKRun::ExecuteEvent(Long64_t eventID)
 {
+    if (!fRunHasStarted&&eventID==-3)
+        fCurrentEventID = -1;
+
     StartOfRun();
 
     bool numEntriesMatter = true;
@@ -1143,6 +1146,13 @@ bool LKRun::ExecuteEvent(Long64_t eventID)
         fCurrentEventID = fCurrentEventID + 1;
         if (fNumEntries<0)
             numEntriesMatter = false;
+    }
+    else if (eventID==-4) {
+        if (fCurrentEventID>0) {
+            fCurrentEventID = fCurrentEventID - 1;
+            if (fNumEntries<0)
+                numEntriesMatter = false;
+        }
     }
     else {
         fCurrentEventID = eventID;

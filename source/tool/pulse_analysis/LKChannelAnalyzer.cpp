@@ -76,7 +76,7 @@ void LKChannelAnalyzer::Clear(Option_t *option)
 void LKChannelAnalyzer::Print(Option_t *option) const
 {
     if (fPulseFitMode) {
-        e_info << "LKChannelAnalyzer" << endl;
+        e_info << "LKChannelAnalyzer (pulse fitting mode)" << endl;
         e_info << "== General" << endl;
         e_info << "   fTbMax             = " << fTbMax               << endl;
         e_info << "   fTbStart           = " << fTbStart             << endl;
@@ -106,7 +106,7 @@ void LKChannelAnalyzer::Print(Option_t *option) const
         e_info << "   fScaleTbStep       = " << fScaleTbStep         << endl;
     }
     else {
-        e_info << "LKChannelAnalyzer at slope fitting mode (" << endl;
+        e_info << "LKChannelAnalyzer (at maximum finding mode)" << endl;
         e_info << "== General" << endl;
         e_info << "   fThreshold         = " << fThreshold           << endl;
         e_info << "   fTbMax             = " << fTbMax               << endl;
@@ -209,16 +209,31 @@ void LKChannelAnalyzer::Analyze(double* data)
 
 void LKChannelAnalyzer::AnalyzePeakFinding(double* data)
 {
-    int tPeak = 0;
-    double yPeak = 0;
-    for (auto tb=0; tb<fTbMax; ++tb) {
-        if (yPeak<fBuffer[tb]) {
-            tPeak = tb;
-            yPeak = fBuffer[tb];
+    if (fPedestal<3500)
+    {
+        int tMax = 0;
+        double yMax = -DBL_MAX;
+        for (auto tb=0; tb<fTbMax; ++tb) {
+            if (yMax<fBuffer[tb]) {
+                tMax = tb;
+                yMax = fBuffer[tb];
+            }
         }
+        if (yMax >= fThreshold)
+            fFitParameterArray.push_back(LKPulseFitParameter(tMax,yMax,1,1));
     }
-    if (yPeak >= fThreshold)
-        fFitParameterArray.push_back(LKPulseFitParameter(tPeak,yPeak,1,1));
+    else {
+        int tMin = 0;
+        double yMin = DBL_MAX;
+        for (auto tb=0; tb<fTbMax; ++tb) {
+            if (yMin>fBuffer[tb]) {
+                tMin = tb;
+                yMin = fBuffer[tb];
+            }
+        }
+        if (-yMin >= fThreshold)
+            fFitParameterArray.push_back(LKPulseFitParameter(tMin,yMin,1,1));
+    }
 }
 
 void LKChannelAnalyzer::AnalyzePulseFinding(double* data)

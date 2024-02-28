@@ -230,6 +230,7 @@ class LKRun : public LKTask
 
         bool ExecuteEvent(Long64_t eventID=-1); ///< Run just one event of eventID.
         bool ExecuteNextEvent() { return ExecuteEvent(-3); }
+        bool ExecutePreviousEvent() { return ExecuteEvent(-4); }
 
         bool CheckMute() { return (fEventCount==0||fEventCount%fEventCountForMessage!=0); }
         void DoNotFillCurrentEvent() { fFillCurrentEvent = false; }

@@ -8,6 +8,7 @@
 #include "LKTask.h"
 #include "LKChannelAnalyzer.h"
 #include "LKPadInteractive.h"
+#include "TColor.h"
 
 class LKGETChannelViewer : public LKTask, public LKPadInteractive
 { 
@@ -68,18 +69,18 @@ class LKGETChannelViewer : public LKTask, public LKPadInteractive
         int fCountIndv = 0;
         const int fMaxNumIndv = 2;
 
-        double fBinTextSize = 2.0;
-
+        int fPalette = kRainBow;
         double fFillMaximum = 10;
         const int fFillActive = 2;
         const int fFillActHit = 4; /// active and contain hit
         const int fFillSelect = 6;
         const int fFillSelBNA = 8; /// seelected but not active
+        double fBinTextSize = 2.0;
 
         int fYMin = 0;
         int fYMax = 4100;
 
-        int fNumMenu = 1;
+        int fNumMenu = 3;
         int fNumMCAA = 4;
         int fNumCoBo = 4;   ///< par
         int fNumAsAd = 4;   ///< par
@@ -105,6 +106,16 @@ class LKGETChannelViewer : public LKTask, public LKPadInteractive
         bool* fActiveChan;
         bool* fChannelContainHits;
 
+        int* fBinXMenu;
+        int* fBinXCoBo;
+        int* fBinXAsAd;
+        int* fBinXAGET;
+
+        int* fBinYMenu;
+        int* fBinYCoBo;
+        int* fBinYAsAd;
+        int* fBinYAGET;
+
         int* fChanToBin;
         int* fBinToChan;
 
@@ -116,6 +127,8 @@ class LKGETChannelViewer : public LKTask, public LKPadInteractive
         TH2D* fHistMCAAChannels = nullptr;
         TH2D* fHistIndvChannels = nullptr;
 
+        TString fTitleMCAA;
+        TString fTitleChan;
         TString fTitleMCAAChannels;
         TString fTitleIndvChannels;
 
