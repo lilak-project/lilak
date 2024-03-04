@@ -26,6 +26,7 @@
 
 #include "LKTask.h"
 #include "LKParameterContainer.h"
+#include "LKChannelAnalyzer.h"
 
 using namespace std;
 
@@ -50,7 +51,7 @@ class WaveForms {
         vector<vector<vector<UInt_t>>> waveform; // To save the waveform for each Aget, Channel and Bucket
 };
 
-/// @todo mfm::FrameDictionary::instance().addFormats(fFormatFileName.Data());
+/// @todo mfm::FrameDictionary::instance().addFormats(fFrameFormat.Data());
 /// @todo frame.headerField(56u, 4u).value< uint32_t >
 /// @todo frame.header().frameType()  == 0x8
 /// @todo fListOfEventIdx.push_back(frame.headerField(14u, 4u).value< uint32_t >());
@@ -84,7 +85,7 @@ class LKFrameBuilder : public mfm::FrameBuilder
         //void SetMaxAsad(Int_t value) { fMaxAsad = value; }
         //void SetMaxAget(Int_t value) { fMaxAget = value; }
         //void SetMaxChannels(Int_t value) { fMaxChannels = value; }
-        //void SetFormatFile(TString fileName) { fFormatFileName = fileName; }
+        //void SetFormatFile(TString fileName) { fFrameFormat = fileName; }
         //void SetScalerFile(TString fileName) { fScalerFileName = fileName; }
 
         void InitWaveforms();
@@ -106,8 +107,8 @@ class LKFrameBuilder : public mfm::FrameBuilder
         Int_t fMaxAget = 4;
         Int_t fMaxChannels = 68;
 
-        TString fFormatFileName = "/usr/local/get/share/get-bench/format/CoboFormats.xcfg"; //
-        TString fScalerFileName = "scalers.txt";
+        TString fFrameFormat = "/usr/local/get/share/get-bench/format/CoboFormats.xcfg"; //
+        TString fScalerFileName = "";
         ofstream fFileScaler;
 
         WaveForms* fWaveforms;
@@ -128,6 +129,8 @@ class LKFrameBuilder : public mfm::FrameBuilder
         Int_t fGETEventIdx;
         Int_t fGETTimeStamp;
         Int_t fGETD2PTime;
+
+        LKChannelAnalyzer* fChannelAnalyzer;
 };
 
 #endif

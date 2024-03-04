@@ -51,32 +51,23 @@ void LKFrameBuilder::SetPar(LKParameterContainer* par)
 {
     fPar = par;
 
-    fPar -> UpdatePar(fSet2PMode     ,"LKFrameBuilder/Set2PMode");
-    fPar -> UpdatePar(fSetScaler     ,"LKFrameBuilder/SetScaler");
-    fPar -> UpdatePar(fMaxCobo       ,"LKFrameBuilder/MaxCobo");
-    fPar -> UpdatePar(fMaxAsad       ,"LKFrameBuilder/MaxAsad");
-    fPar -> UpdatePar(fMaxAget       ,"LKFrameBuilder/MaxAget");
-    fPar -> UpdatePar(fMaxChannels   ,"LKFrameBuilder/MaxChannels");
-    fPar -> UpdatePar(fFormatFileName,"LKFrameBuilder/FormatFileName");
-    fPar -> UpdatePar(fScalerFileName,"LKFrameBuilder/ScalerFileName");
+    fPar -> UpdatePar(fSet2PMode   ,"LKFrameBuilder/Set2PMode   false");
+    fPar -> UpdatePar(fSetScaler   ,"LKFrameBuilder/SetScaler   false");
+    fPar -> UpdatePar(fMaxCobo     ,"LKFrameBuilder/MaxCobo     4 # maximum number of CoBo");
+    fPar -> UpdatePar(fMaxAsad     ,"LKFrameBuilder/MaxAsad     4 # maximum number of AsAd in one CoBo");
+    fPar -> UpdatePar(fMaxAget     ,"LKFrameBuilder/MaxAget     4 # maximum number of AGET in one AsAd");
+    fPar -> UpdatePar(fMaxChannels ,"LKFrameBuilder/MaxChannels 68 # maximum number of channels in AGET");
+    fPar -> UpdatePar(fFrameFormat ,"LKFrameBuilder/FrameFormat {lilak_common}/CoboFormats.xcfg");
+    fPar -> UpdatePar(fScalerFile  ,"LKFrameBuilder/ScalerFile  # if exist");
 
-    if ( fPar -> CheckPar("LKFrameBuilder/Set2PMode"     )) { lk_info    << "2PMode          is updated = " << fSet2PMode      << endl; }
-    if ( fPar -> CheckPar("LKFrameBuilder/SetScaler"     )) { lk_info    << "Scaler          is updated = " << fSetScaler      << endl; }
-    if ( fPar -> CheckPar("LKFrameBuilder/MaxCobo"       )) { lk_info    << "MaxCobo         is updated = " << fMaxCobo        << endl; }
-    if ( fPar -> CheckPar("LKFrameBuilder/MaxAsad"       )) { lk_info    << "MaxAsad         is updated = " << fMaxAsad        << endl; }
-    if ( fPar -> CheckPar("LKFrameBuilder/MaxAget"       )) { lk_info    << "MaxAget         is updated = " << fMaxAget        << endl; }
-    if ( fPar -> CheckPar("LKFrameBuilder/MaxChannels"   )) { lk_info    << "MaxChannels     is updated = " << fMaxChannels    << endl; }
-    if ( fPar -> CheckPar("LKFrameBuilder/FormatFileName")) { lk_info    << "FormatFileName  is updated = " << fFormatFileName << endl; }
-    if ( fPar -> CheckPar("LKFrameBuilder/ScalerFileName")) { lk_info    << "ScalerFileName  is updated = " << fScalerFileName << endl; }
-
-    if (!fPar -> CheckPar("LKFrameBuilder/Set2PMode"     )) { lk_warning << "2PMode         NOT updated = " << fSet2PMode      << endl; }
-    if (!fPar -> CheckPar("LKFrameBuilder/SetScaler"     )) { lk_warning << "Scaler         NOT updated = " << fSetScaler      << endl; }
-    if (!fPar -> CheckPar("LKFrameBuilder/MaxCobo"       )) { lk_warning << "MaxCobo        NOT updated = " << fMaxCobo        << endl; }
-    if (!fPar -> CheckPar("LKFrameBuilder/MaxAsad"       )) { lk_warning << "MaxAsad        NOT updated = " << fMaxAsad        << endl; }
-    if (!fPar -> CheckPar("LKFrameBuilder/MaxAget"       )) { lk_warning << "MaxAget        NOT updated = " << fMaxAget        << endl; }
-    if (!fPar -> CheckPar("LKFrameBuilder/MaxChannels"   )) { lk_warning << "MaxChannels    NOT updated = " << fMaxChannels    << endl; }
-    if (!fPar -> CheckPar("LKFrameBuilder/FormatFileName")) { lk_warning << "FormatFileName NOT updated = " << fFormatFileName << endl; }
-    if (!fPar -> CheckPar("LKFrameBuilder/ScalerFileName")) { lk_warning << "ScalerFileName NOT updated = " << fScalerFileName << endl; }
+    if (fPar -> CheckPar("LKFrameBuilder/Set2PMode"  )) lk_info << "2PMode      is updated = " << fSet2PMode      << endl; else lk_warning << "2PMode      NOT updated = " << fSet2PMode      << endl;
+    if (fPar -> CheckPar("LKFrameBuilder/SetScaler"  )) lk_info << "Scaler      is updated = " << fSetScaler      << endl; else lk_warning << "Scaler      NOT updated = " << fSetScaler      << endl;
+    if (fPar -> CheckPar("LKFrameBuilder/MaxCobo"    )) lk_info << "MaxCobo     is updated = " << fMaxCobo        << endl; else lk_warning << "MaxCobo     NOT updated = " << fMaxCobo        << endl;
+    if (fPar -> CheckPar("LKFrameBuilder/MaxAsad"    )) lk_info << "MaxAsad     is updated = " << fMaxAsad        << endl; else lk_warning << "MaxAsad     NOT updated = " << fMaxAsad        << endl;
+    if (fPar -> CheckPar("LKFrameBuilder/MaxAget"    )) lk_info << "MaxAget     is updated = " << fMaxAget        << endl; else lk_warning << "MaxAget     NOT updated = " << fMaxAget        << endl;
+    if (fPar -> CheckPar("LKFrameBuilder/MaxChannels")) lk_info << "MaxChannels is updated = " << fMaxChannels    << endl; else lk_warning << "MaxChannels NOT updated = " << fMaxChannels    << endl;
+    if (fPar -> CheckPar("LKFrameBuilder/FrameFormat")) lk_info << "FrameFormat is updated = " << fFormatFileName << endl; else lk_warning << "FrameFormat NOT updated = " << fFormatFileName << endl;
+    if (fPar -> CheckPar("LKFrameBuilder/ScalerFile" )) lk_info << "ScalerFile  is updated = " << fScalerFileName << endl; else lk_warning << "ScalerFile  NOT updated = " << fScalerFileName << endl;
 }
 
 bool LKFrameBuilder::Init()
@@ -127,6 +118,8 @@ bool LKFrameBuilder::Init()
     mfm::FrameDictionary::instance().addFormats(fFormatFileName.Data());
 
     InitWaveforms();
+
+    fChannelAnalyzer = new LKChannelAnalyzer();
 
     return true;
 }
@@ -632,6 +625,17 @@ void LKFrameBuilder::WriteChannels()
 
                 if (coboIdx>=0)
                 {
+                    double time = 0.;
+                    double energy = 0.;
+                    double pedestal = 0.;
+                    int* buffer = fWaveforms->waveform[asad*fMaxAget+aget][chan];
+                    fChannelAnalyzer -> Analyze(buffer);
+                    if (fChannelAnalyzer->GetNumHits()>0) {
+                        time = fChannelAnalyzer -> GetTbHit(0);
+                        energy = fChannelAnalyzer -> GetAmplitude(0);
+                        pedestal = fChannelAnalyzer -> GetPedestal();
+                    }
+
                     auto channel = (GETChannel *) fChannelArray -> ConstructedAt(fCountChannels);
                     channel -> SetID(fCountChannels);
                     channel -> SetFrameNo(frameIdx);
@@ -640,9 +644,10 @@ void LKFrameBuilder::WriteChannels()
                     channel -> SetAsad(asad);
                     channel -> SetAget(aget);
                     channel -> SetChan(chan);
-                    channel -> SetTime(0);
-                    channel -> SetEnergy(0);
-                    channel -> SetWaveformY(fWaveforms->waveform[asad*fMaxAget+aget][chan]);
+                    channel -> SetTime(time);
+                    channel -> SetEnergy(energy);
+                    channel -> SetPedestal(pedestal);
+                    channel -> SetWaveformY(buffer);
 
                     fCountChannels++;
                     fMultGET++;
