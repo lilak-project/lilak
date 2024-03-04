@@ -86,7 +86,7 @@ class LKFrameBuilder : public mfm::FrameBuilder
         //void SetMaxAget(Int_t value) { fMaxAget = value; }
         //void SetMaxChannels(Int_t value) { fMaxChannels = value; }
         //void SetFormatFile(TString fileName) { fFrameFormat = fileName; }
-        //void SetScalerFile(TString fileName) { fScalerFileName = fileName; }
+        //void SetScalerFile(TString fileName) { fScalerFile = fileName; }
 
         void InitWaveforms();
         bool Init();
@@ -108,7 +108,7 @@ class LKFrameBuilder : public mfm::FrameBuilder
         Int_t fMaxChannels = 68;
 
         TString fFrameFormat = "/usr/local/get/share/get-bench/format/CoboFormats.xcfg"; //
-        TString fScalerFileName = "";
+        TString fScalerFile = "";
         ofstream fFileScaler;
 
         WaveForms* fWaveforms;

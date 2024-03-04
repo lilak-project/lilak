@@ -4,8 +4,8 @@ using namespace std;
 #include "LKMFMConversionTask.h"
 #include "GETChannel.h"
 
-#include "GSpectra.h"
-#include "GNetServerRoot.h"
+//#include "GSpectra.h"
+//#include "GNetServerRoot.h"
 
 LKMFMConversionTask::LKMFMConversionTask()
 :LKTask("LKMFMConversionTask","")
