@@ -11,23 +11,23 @@ bool LKPulseExtractionTask::Init()
 {
     fChannelArray = fRun -> GetBranchA("RawData");
 
-    if (fPar -> CheckPar("LKPulseExtractionTask/analysisName"))      fAnalysisName      = fPar -> GetParString("LKPulseExtractionTask/analysisName");
-    if (fPar -> CheckPar("LKPulseExtractionTask/threshold"))         fThreshold         = fPar -> GetParInt("LKPulseExtractionTask/threshold");
-    if (fPar -> CheckPar("LKPulseExtractionTask/fixPedestal"))       fFixPedestal       = fPar -> GetParInt("LKPulseExtractionTask/fixPedestal");
-    if (fPar -> CheckPar("LKPulseExtractionTask/channelIsInverted")) fChannelIsInverted = fPar -> GetParBool("LKPulseExtractionTask/channelIsInverted");
-    if (fPar -> CheckPar("LKPulseExtractionTask/tbRange")) {
+    fPar -> UpdatePar(fAnalysisName      ,"LKPulseExtractionTask/analysisName");
+    fPar -> UpdatePar(fThreshold         ,"LKPulseExtractionTask/threshold");
+    fPar -> UpdatePar(fFixPedestal       ,"LKPulseExtractionTask/fixPedestal");
+    fPar -> UpdatePar(fChannelIsInverted ,"LKPulseExtractionTask/channelIsInverted");
+    if (fPar -> CheckPar("LKPulseExtractionTask/tbRange 0 512")) {
         fTbRange1 = fPar -> GetParInt("LKPulseExtractionTask/tbRange",0);
         fTbRange2 = fPar -> GetParInt("LKPulseExtractionTask/tbRange",1);
     }
-    if (fPar -> CheckPar("LKPulseExtractionTask/tbRangeCut")) {
+    if (fPar -> CheckPar("LKPulseExtractionTask/tbRangeCut 1, 511")) {
         fTbRangeCut1 = fPar -> GetParInt("LKPulseExtractionTask/tbRangeCut",0);
         fTbRangeCut2 = fPar -> GetParInt("LKPulseExtractionTask/tbRangeCut",1);
     }
-    if (fPar -> CheckPar("LKPulseExtractionTask/tbHeightCut")) {
+    if (fPar -> CheckPar("LKPulseExtractionTask/tbHeightCut 100,4000")) {
         fPulseHeightCut1 = fPar -> GetParInt("LKPulseExtractionTask/tbHeightCut",0);
         fPulseHeightCut2 = fPar -> GetParInt("LKPulseExtractionTask/tbHeightCut",1);
     }
-    if (fPar -> CheckPar("LKPulseExtractionTask/tbWidthCut")) {
+    if (fPar -> CheckPar("LKPulseExtractionTask/tbWidthCut 20 40")) {
         fPulseWidthCut1 = fPar -> GetParInt("LKPulseExtractionTask/tbWidthCut",0);
         fPulseWidthCut2 = fPar -> GetParInt("LKPulseExtractionTask/tbWidthCut",1);
     }

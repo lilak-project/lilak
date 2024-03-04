@@ -1053,7 +1053,14 @@ LKParameter *LKParameterContainer::FindPar(TString givenName, bool terminateIfNu
 {
     R__COLLECTION_READ_LOCKGUARD(ROOT::gCoreMutex);
 
-    //givenName = FindName(givenName);
+    TString justName;
+    int index = 0;
+    while (index>=0) {
+        index = givenName.Index(" ");
+        if      (index<0)  { justName  = givenName; break; }
+        else if (index==0) { givenName = givenName(1,givenName.Sizeof()-2); continue; }
+        else               { justName  = givenName(0,index); break; }
+    }
 
     TIter iterator(this);
     LKParameter *parameter = nullptr;
@@ -1062,13 +1069,13 @@ LKParameter *LKParameterContainer::FindPar(TString givenName, bool terminateIfNu
     {
         if (parameter) {
             auto parName = parameter -> GetName();
-            if (parName==givenName) {
+            if (parName==justName) {
                 parameterIsFound = true;
                 break;
             }
             if (parameter -> IsConditional()) {
                 auto mainName = parameter -> GetMainName();
-                if (mainName==givenName) {
+                if (mainName==justName) {
                     parameterIsFound = true;
                     break;
                 }
@@ -1094,7 +1101,7 @@ LKParameter *LKParameterContainer::FindPar(TString givenName, bool terminateIfNu
     }
 
     if (terminateIfNull) {
-        lk_error << "parameter " << givenName << " does not exist!" << endl;
+        lk_error << "parameter " << justName << " does not exist!" << endl;
         gApplication -> Terminate();
     }
 

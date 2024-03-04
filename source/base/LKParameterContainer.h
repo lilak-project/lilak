@@ -280,7 +280,7 @@ class LKParameterContainer : public TObjArray
         Json::Value fJsonValues;
 #endif
 
-    ClassDef(LKParameterContainer, 2)
+    ClassDef(LKParameterContainer, 3)
 };
 
 #endif

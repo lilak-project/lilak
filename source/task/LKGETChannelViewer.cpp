@@ -43,10 +43,10 @@ bool LKGETChannelViewer::Init()
         }
     }
 
-    fPar -> UpdatePar(fNumCoBo,"LKGETChannelViewer/num_cobo");
-    fPar -> UpdatePar(fNumAsAd,"LKGETChannelViewer/num_asad");
-    fPar -> UpdatePar(fNumAGET,"LKGETChannelViewer/num_aget");
-    fPar -> UpdatePar(fNumChan,"LKGETChannelViewer/num_chan");
+    fPar -> UpdatePar(fNumCoBo,"LKGETChannelViewer/MaxCobo     4");
+    fPar -> UpdatePar(fNumAsAd,"LKGETChannelViewer/MaxAsad     4");
+    fPar -> UpdatePar(fNumAGET,"LKGETChannelViewer/MaxAget     4");
+    fPar -> UpdatePar(fNumChan,"LKGETChannelViewer/MaxChannels 68");
 
     if (fNumChan>12*15) { fNXCN = 15; fNYCN = 15; }
     if (fNumChan>12*12) { fNXCN = 12; fNYCN = 15; }
@@ -633,11 +633,13 @@ void LKGETChannelViewer::SelectMenu(int valMenu, bool update)
     {
         fRun -> ExecutePreviousEvent();
     }
+    /*
     else if (valMenu==3) {
         lk_info << "Test fit current buffer" << endl;
         if (fCurrentChan>=0)
             TestPSA();
     }
+    */
     //ResetActive(0);
 
     //if (update) { UpdateMCAA(); ClearChan(); }
@@ -758,7 +760,8 @@ void LKGETChannelViewer::SelectChan(int valChan, bool update)
         return;
     }
 
-    if (update) { UpdateChan(); TestPSA(); }
+    //if (update) { UpdateChan(); TestPSA(); }
+    if (update) { UpdateChan(); }
 #ifdef DEBUG_LKGCV_FUNCTION
     lk_warning << endl;
 #endif

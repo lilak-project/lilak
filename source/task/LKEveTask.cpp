@@ -38,17 +38,26 @@ bool LKEveTask::Init()
 {
     fNumBranches = fRun -> GetNumBranches();
 
-    if (fPar -> CheckPar("LKEveTask/selectTrackIDs"))       fSelTrkIDs      = fPar -> GetParVInt("LKEveTask/selectTrackIDs");
-    if (fPar -> CheckPar("LKEveTask/ignoreTrackIDs"))       fIgnTrkIDs      = fPar -> GetParVInt("LKEveTask/ignoreTrackIDs");
-    if (fPar -> CheckPar("LKEveTask/selectTrackParentIDs")) fSelPntIDs      = fPar -> GetParVInt("LKEveTask/selectTrackParentIDs");
-    if (fPar -> CheckPar("LKEveTask/ignoreTrackParentIDs")) fIgnPntIDs      = fPar -> GetParVInt("LKEveTask/ignoreTrackParentIDs");
-    if (fPar -> CheckPar("LKEveTask/selectTrackPDGs"))      fSelPDGs        = fPar -> GetParVInt("LKEveTask/selectTrackPDGs");
-    if (fPar -> CheckPar("LKEveTask/ignoreTrackPDGs"))      fIgnPDGs        = fPar -> GetParVInt("LKEveTask/ignoreTrackPDGs");
-    if (fPar -> CheckPar("LKEveTask/selectMCIDs"))          fSelMCIDs       = fPar -> GetParVInt("LKEveTask/selectMCIDs");
-    if (fPar -> CheckPar("LKEveTask/ignoreMCIDs"))          fIgnMCIDs       = fPar -> GetParVInt("LKEveTask/ignoreMCIDs");
-    if (fPar -> CheckPar("LKEveTask/selectHitParentIDs"))   fSelHitPntIDs   = fPar -> GetParVInt("LKEveTask/selectHitParentIDs");
-    if (fPar -> CheckPar("LKEveTask/ignoreHitParentIDs"))   fIgnHitPntIDs   = fPar -> GetParVInt("LKEveTask/ignoreHitParentIDs");
-    if (fPar -> CheckPar("LKEveTask/selectBranches"))       fSelBranchNames = fPar -> GetParVString("LKEveTask/selectBranches");
+    if (fPar->CheckPar("LKEveTask/selectTrackIDs"))       fSelTrkIDs      = fPar -> GetParVInt("LKEveTask/selectTrackIDs");
+    if (fPar->CheckPar("LKEveTask/ignoreTrackIDs"))       fIgnTrkIDs      = fPar -> GetParVInt("LKEveTask/ignoreTrackIDs");
+    if (fPar->CheckPar("LKEveTask/selectTrackParentIDs")) fSelPntIDs      = fPar -> GetParVInt("LKEveTask/selectTrackParentIDs");
+    if (fPar->CheckPar("LKEveTask/ignoreTrackParentIDs")) fIgnPntIDs      = fPar -> GetParVInt("LKEveTask/ignoreTrackParentIDs");
+    if (fPar->CheckPar("LKEveTask/selectTrackPDGs"))      fSelPDGs        = fPar -> GetParVInt("LKEveTask/selectTrackPDGs");
+    if (fPar->CheckPar("LKEveTask/ignoreTrackPDGs"))      fIgnPDGs        = fPar -> GetParVInt("LKEveTask/ignoreTrackPDGs");
+    if (fPar->CheckPar("LKEveTask/selectMCIDs"))          fSelMCIDs       = fPar -> GetParVInt("LKEveTask/selectMCIDs");
+    if (fPar->CheckPar("LKEveTask/ignoreMCIDs"))          fIgnMCIDs       = fPar -> GetParVInt("LKEveTask/ignoreMCIDs");
+    if (fPar->CheckPar("LKEveTask/selectHitParentIDs"))   fSelHitPntIDs   = fPar -> GetParVInt("LKEveTask/selectHitParentIDs");
+    if (fPar->CheckPar("LKEveTask/ignoreHitParentIDs"))   fIgnHitPntIDs   = fPar -> GetParVInt("LKEveTask/ignoreHitParentIDs");
+    if (fPar->CheckPar("LKEveTask/selectBranches"))       fSelBranchNames = fPar -> GetParVString("LKEveTask/selectBranches");
+
+    fPar -> CheckPar("LKEveTask/drawEve3D      false    # draw 3d event display using ROOT EVE package and root geometry defined in detector class");
+    fPar -> CheckPar("LKEveTask/drawPlane      true     # draw 2d planes using detector plane class");
+    fPar -> CheckPar("[BranchName]/lineStyle   1        # track line style of [BranchName]. [BranchName] should be replaced to the actual branch name");
+    fPar -> CheckPar("[BranchName]/lineWidth   1        # track line width of [BranchName]. [BranchName] should be replaced to the actual branch name");;
+    fPar -> CheckPar("[BranchName]/lineColor   kBlack   # track line color of [BranchName]. [BranchName] should be replaced to the actual branch name");;
+    fPar -> CheckPar("[BranchName]/markerStyle 20       # track marker style of [BranchName]. [BranchName] should be replaced to the actual branch name");
+    fPar -> CheckPar("[BranchName]/markerSize  1        # track marker size  of [BranchName]. [BranchName] should be replaced to the actual branch name");
+    fPar -> CheckPar("[BranchName]/markerColor kBlue    # track marker style of [BranchName]. [BranchName] should be replaced to the actual branch name");
 
     fNumSelectedBranches = fSelBranchNames.size();
     if (fNumSelectedBranches==0) {
