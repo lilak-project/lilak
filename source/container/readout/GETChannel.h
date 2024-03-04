@@ -5,8 +5,10 @@
 
 #include "TClonesArray.h"
 #include "TH1D.h"
+#include "TGraph.h"
 #include "LKChannel.h"
 #include "LKContainer.h"
+#include "LKHitArray.h"
 #include "LKLogger.h"
 
 /*
@@ -51,6 +53,7 @@ class GETChannel : public LKChannel
         virtual void Draw(Option_t *option="");
 
         TH1D *GetHist(TString name="");
+        TGraph *GetHitGraph();
 
         Int_t GetDetType() const  { return fDetType; }
         Int_t GetFrameNo() const  { return fFrameNo; }
@@ -62,7 +65,7 @@ class GETChannel : public LKChannel
         Int_t GetChan2() const  { return fChan2; }
         Float_t GetTime() const  { return fTime; }
         Float_t GetEnergy() const  { return fEnergy; }
-        Int_t* GetWaveformX() { return fWaveformX; }
+        Float_t GetPedestal() const  { return fPedestal; }
         Int_t* GetWaveformY() { return fWaveformY; }
 
         Int_t GetCAAC() const  { return fCobo*10000+fAsad*1000+fAget*100+fChan; }
@@ -77,11 +80,17 @@ class GETChannel : public LKChannel
         void SetChan2(Int_t dChan) { fChan2 = dChan; }
         void SetTime(Float_t time) { fTime = time; }
         void SetEnergy(Float_t energy) { fEnergy = energy; }
-        void SetWaveformX(const Int_t *waveform) { memcpy(fWaveformX, waveform, sizeof(Int_t)*512); }
+        void SetPedestal(Float_t pedestal) { fPedestal = pedestal; }
         void SetWaveformY(const Int_t *waveform) { memcpy(fWaveformY, waveform, sizeof(Int_t)*512); }
         void SetWaveformY(const UInt_t *waveform);
         void SetWaveformY(std::vector<unsigned int> waveform);
 
+        LKHitArray *GetHitArray() { return &fHitArray; }
+        void AddHit(LKHit *hit) { fHitArray.AddHit(hit); }
+        LKHit* GetHit(Int_t iHit) const {return fHitArray.GetHit(iHit); }
+        Int_t GetNumHits() const { return fHitArray.GetNumHits(); }
+
+    private:
         Int_t        fDetType = -1;
         Int_t        fFrameNo = -1;
         Int_t        fDecayNo = -1;
@@ -92,17 +101,14 @@ class GETChannel : public LKChannel
         Int_t        fChan2 = -1;
         Float_t      fTime = -1;
         Float_t      fEnergy = -1;
-        Int_t        fWaveformX[512];
+        Float_t      fPedestal = -1;
         Int_t        fWaveformY[512];
 
-        Int_t GetBase() const  { return fBase; }
-        void  SetBase(Int_t Base) { fBase = Base; }
-        Int_t fBase = -1;
-
-    private:
+        LKHitArray   fHitArray; //! Temporary hit array
         TH1D* fHist = nullptr; //!
+        TGraph* fGraph = nullptr; //!
 
-    ClassDef(GETChannel,2);
+    ClassDef(GETChannel,3);
 };
 
 #endif

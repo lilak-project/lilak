@@ -83,8 +83,6 @@ class LKHitArray : public TObjArray
         /// Fit is not possible if point is removed through this method
         bool Subtract(Double_t x, Double_t y, Double_t z, Double_t w=0);
 
-        vector<Int_t> *GetHitIDArray();
-
         Int_t GetNumHits() const;
         Int_t GetHitID(Int_t idx) const;
 

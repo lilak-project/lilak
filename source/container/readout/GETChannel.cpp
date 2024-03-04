@@ -20,8 +20,10 @@ void GETChannel::Clear(Option_t *option)
     fChan2 = -1;
     fTime = -1;
     fEnergy = -1;
-    for (auto i=0; i<512; ++i) fWaveformX[i] = -1;
+    fPedestal = -1;
     for (auto i=0; i<512; ++i) fWaveformY[i] = -1;
+
+    fHitArray.Clear("C");
 }
 
 void GETChannel::Print(Option_t *option) const
@@ -38,7 +40,7 @@ void GETChannel::Print(Option_t *option) const
     e_info << "fChan2 : " << fChan2 << std::endl;
     e_info << "fTime : " << fTime << std::endl;
     e_info << "fEnergy : " << fEnergy << std::endl;
-    for (auto i=0; i<512; ++i) e_cout << fWaveformX[i] << " "; e_cout << std::endl;
+    e_info << "fPedestal : " << fPedestal << std::endl;
     for (auto i=0; i<512; ++i) e_cout << fWaveformY[i] << " "; e_cout << std::endl;
 }
 
@@ -57,7 +59,7 @@ void GETChannel::Copy(TObject &object) const
     objCopy.SetChan2(fChan2);
     objCopy.SetTime(fTime);
     objCopy.SetEnergy(fEnergy);
-    objCopy.SetWaveformX(fWaveformX);
+    objCopy.SetPedestal(fPedestal);
     objCopy.SetWaveformY(fWaveformY);
 }
 
@@ -74,16 +76,15 @@ GETChannel* GETChannel::CloneChannel() const
     clone -> SetChan2(fChan2);
     clone -> SetTime(fTime);
     clone -> SetEnergy(fEnergy);
-    clone -> SetWaveformX(fWaveformX);
+    clone -> SetPedestal(fPedestal);
     clone -> SetWaveformY(fWaveformY);
     return clone;
 }
 
 void GETChannel::Draw(Option_t *option)
 {
-    if (fHist==nullptr)
-        GetHist();
-    fHist -> Draw(option);
+    GetHist() -> Draw(option);
+    GetHitGraph() -> Draw("samel");
 }
 
 TH1D *GETChannel::GetHist(TString name)
@@ -94,11 +95,24 @@ TH1D *GETChannel::GetHist(TString name)
         fHist = new TH1D(name,";tb;",512,0,512);
     fHist -> Reset();
     fHist -> SetName(name);
-    //lk_debug << name << " " << fHist -> GetName() << endl;
     fHist -> SetTitle(Form("%d %d %d %d", fCobo, fAsad, fAget, fChan));
     for (Int_t i=0; i<512; ++i)
         fHist -> SetBinContent(i+1,fWaveformY[i]);
     return fHist;
+}
+
+TGraph *GETChannel::GetHitGraph()
+{
+    if (fGraph==nullptr)
+        fGraph = new TGraph();
+    fGraph -> Set(0);
+    fGraph -> SetPoint(0,fTime-5,fPedestal);
+    fGraph -> SetPoint(1,fTime  ,fPedestal);
+    fGraph -> SetPoint(2,fTime  ,fEnergy+fPedestal);
+    fGraph -> SetPoint(3,fTime+5,fEnergy+fPedestal);
+    fGraph -> SetLineColor(kRed);
+    fGraph -> SetMarkerColor(kRed);
+    return fGraph;
 }
 
 void GETChannel::SetWaveformY(const UInt_t *waveform)
