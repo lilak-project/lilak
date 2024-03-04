@@ -531,6 +531,7 @@ void LKParameterContainer::Print(Option_t *option) const
     bool evaluatePar = true;
     bool showLineComment = false;
     bool showParComments = true;
+    bool showLineIndex = true;
     bool printToScreen = true;
     bool printToFile = false;
     ofstream fileOut;
@@ -542,14 +543,17 @@ void LKParameterContainer::Print(Option_t *option) const
         printToScreen = true;
     }
     else {
-        if (printOptions.Index("!eval" )>=0) { evaluatePar = false;      printOptions.ReplaceAll("!eval", ""); }
-        if (printOptions.Index("eval"  )>=0) { evaluatePar = true;       printOptions.ReplaceAll("eval",  ""); }
+        if (printOptions.Index("!eval")>=0) { evaluatePar = false; printOptions.ReplaceAll("!eval", ""); }
+        if (printOptions.Index( "eval")>=0) { evaluatePar = true;  printOptions.ReplaceAll("eval", ""); }
 
-        if (printOptions.Index("!line#")>=0) { showLineComment = false;  printOptions.ReplaceAll("!line#",""); }
-        if (printOptions.Index("line#" )>=0) { showLineComment = true;   printOptions.ReplaceAll("line#", ""); }
+        if (printOptions.Index("!line#")>=0) { showLineComment = false; printOptions.ReplaceAll("!line#", ""); }
+        if (printOptions.Index( "line#")>=0) { showLineComment = true;  printOptions.ReplaceAll("line#", ""); }
 
-        if (printOptions.Index("!par#" )>=0) { showParComments = false;  printOptions.ReplaceAll("!par#", ""); }
-        if (printOptions.Index("par#"  )>=0) { showParComments = true;   printOptions.ReplaceAll("par#",  ""); }
+        if (printOptions.Index("!par#")>=0) { showParComments = false; printOptions.ReplaceAll("!par#", ""); }
+        if (printOptions.Index( "par#")>=0) { showParComments = true;  printOptions.ReplaceAll("par#", ""); }
+
+        if (printOptions.Index("!idx")>=0) { showLineIndex = false; printOptions.ReplaceAll("!idx", ""); }
+        if (printOptions.Index( "idx")>=0) { showLineIndex = true;  printOptions.ReplaceAll("idx", ""); }
     }
 
     TString fileName = printOptions;
@@ -650,7 +654,10 @@ void LKParameterContainer::Print(Option_t *option) const
             }
         }
         else if (isParameter) {
-            if (printToScreen) e_list(parNumber) << left << setw(nwidth) << parName << " " << setw(vwidth) << parValue << " " << parComment << endl;
+            if (printToScreen) {
+                if (showLineIndex) e_list(parNumber) << left << setw(nwidth) << parName << " " << setw(vwidth) << parValue << " " << parComment << endl;
+                else               e_cout << left << setw(nwidth) << parName << " " << setw(vwidth) << parValue << " " << parComment << endl;
+            }
             //if (printToFile) fileOut << parNumber << ". " << left << setw(nwidth) << parName << " " << setw(vwidth) << parValue << " " << parComment << endl;
             if (printToFile) fileOut << parameter->GetLine() << endl;
         }
@@ -1121,5 +1128,8 @@ void LKParameterContainer::SetCollectParameters(bool collect)
 
 void LKParameterContainer::PrintCollection(TString fileName)
 {
-    fCollectedParameterContainer -> Print(fileName);
+    if (fileName.IsNull())
+        fCollectedParameterContainer -> Print("!eval, line#, par#, !idx");
+    else
+        fCollectedParameterContainer -> Print(fileName);
 }
