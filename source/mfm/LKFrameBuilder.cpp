@@ -57,7 +57,7 @@ void LKFrameBuilder::SetPar(LKParameterContainer* par)
     fPar -> UpdatePar(fMaxAsad     ,"LKFrameBuilder/MaxAsad     4 # maximum number of AsAd in one CoBo");
     fPar -> UpdatePar(fMaxAget     ,"LKFrameBuilder/MaxAget     4 # maximum number of AGET in one AsAd");
     fPar -> UpdatePar(fMaxChannels ,"LKFrameBuilder/MaxChannels 68 # maximum number of channels in AGET");
-    fPar -> UpdatePar(fFrameFormat ,"LKFrameBuilder/FrameFormat {lilak_common}/CoboFormats.xcfg");
+    fPar -> UpdatePar(fFrameFormat ,"LKFrameBuilder/FrameFormat #{lilak_common}/CoboFormats.xcfg");
     fPar -> UpdatePar(fScalerFile  ,"LKFrameBuilder/ScalerFile  # if exist");
 
     if (fPar -> CheckPar("LKFrameBuilder/Set2PMode"  )) lk_info << "2PMode      is updated = " << fSet2PMode   << endl; else lk_warning << "2PMode      NOT updated = " << fSet2PMode   << endl;

@@ -534,12 +534,14 @@ bool LKRun::Init()
         idxInput = 1;
     }
 
-    fPar -> CheckPar("LKRun/RunID     run    # name of the run");
+    fPar -> CheckPar("LKRun/Name      run    # name of the run");
+    fPar -> CheckPar("LKRun/RunID     0      # run number");
     fPar -> CheckPar("*LKRun/Tag      test   # tag (*: temporary parameter)");
     fPar -> CheckPar("LKRun/Division  0      # division within the run [optional]");
     fPar -> CheckPar("LKRun/Split     split  # split within the division (or run if no division) [optional]");
     if (!fRunNameIsSet) {
         if (fPar -> CheckPar("#LKRun/RunName")) {
+            fPar -> UpdatePar(fRunName,  "LKRun/Name");
             fPar -> UpdatePar(fRunID,    "LKRun/RunID");
             fPar -> UpdatePar(fDivision, "LKRun/Division");
             fPar -> UpdatePar(fTag,      "LKRun/Tag");
@@ -893,7 +895,8 @@ TClonesArray* LKRun::RegisterBranchA(TString name, const char* className, Int_t 
         TString persistencyMessage1 = name+"/persistency";
         TString persistencyMessage2 = TString("persistency/") + name;
         TString persistencyMessage;
-        for (TString persistencyParName : {persistencyMessage1,persistencyMessage2})  {
+        //for (TString persistencyParName : {persistencyMessage1,persistencyMessage2})  {
+        for (TString persistencyParName : {persistencyMessage2})  {
             if (fPar -> CheckPar(persistencyParName)) {
                 persistent = fPar -> GetParBool(persistencyParName);
                 if (persistent)
