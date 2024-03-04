@@ -1,3 +1,5 @@
+#include <climits>
+
 #include "TStyle.h"
 #include "TText.h"
 
@@ -57,6 +59,8 @@ bool LKGETChannelViewer::Init()
     if (fNumChan>   68) { fNXCN = 10; fNYCN =  8; }
     else                { fNXCN = 10; fNYCN =  7; }
 
+    fNumMenu = 4;
+
     fActiveMenu = new bool[fNumMenu];
     fActiveCoBo = new bool[fNumCoBo];
     fActiveAsAd = new bool[fNumAsAd];
@@ -113,8 +117,6 @@ bool LKGETChannelViewer::Init()
 
     fHistMCAAChannels -> SetStats(0);
     fHistIndvChannels -> SetStats(0);
-
-    fNumMenu = 3;
 
     if (fNumMenu==0)
         fNumMCAA = 3;
@@ -633,13 +635,11 @@ void LKGETChannelViewer::SelectMenu(int valMenu, bool update)
     {
         fRun -> ExecutePreviousEvent();
     }
-    /*
     else if (valMenu==3) {
         lk_info << "Test fit current buffer" << endl;
         if (fCurrentChan>=0)
             TestPSA();
     }
-    */
     //ResetActive(0);
 
     //if (update) { UpdateMCAA(); ClearChan(); }

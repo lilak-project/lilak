@@ -1,3 +1,4 @@
+#include <climits>
 #include "TObjString.h"
 #include "LKHTLineTracker.h"
 #include "LKPadInteractiveManager.h"

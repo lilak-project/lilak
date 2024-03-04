@@ -1,3 +1,4 @@
+#include <cmath>
 #include "LKChannelAnalyzer.h"
 #include "TLine.h"
 
@@ -696,7 +697,7 @@ void LKChannelAnalyzer::FitAmplitude(double *buffer, double tbStartOfPulse,
         double &amplitude,
         double &chi2NDF)
 {
-    if (isnan(tbStartOfPulse)) {
+    if (std::isnan(tbStartOfPulse)) {
 #ifdef DEBUG_CHANA_FITAMPLITUDE
         lk_debug << "return tb is nan" << endl;
 #endif
