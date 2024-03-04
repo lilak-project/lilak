@@ -1068,6 +1068,16 @@ LKParameter *LKParameterContainer::FindPar(TString givenName, bool terminateIfNu
         else if (index==0) { givenName = givenName(1,givenName.Sizeof()-2); continue; }
         else               { justName  = givenName(0,index); break; }
     }
+    while (1) {
+        if      (justName[0]=='<') justName = justName(1,justName.Sizeof()-2);
+        else if (justName[0]=='*') justName = justName(1,justName.Sizeof()-2);
+        else if (justName[0]=='@') justName = justName(1,justName.Sizeof()-2);
+        else if (justName[0]=='&') justName = justName(1,justName.Sizeof()-2);
+        else if (justName[0]=='!') justName = justName(1,justName.Sizeof()-2);
+        else if (justName[0]=='#') justName = justName(1,justName.Sizeof()-2);
+        else
+            break;
+    }
 
     TIter iterator(this);
     LKParameter *parameter = nullptr;

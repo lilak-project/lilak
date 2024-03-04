@@ -534,8 +534,12 @@ bool LKRun::Init()
         idxInput = 1;
     }
 
+    fPar -> CheckPar("LKRun/RunID     run    # name of the run");
+    fPar -> CheckPar("*LKRun/Tag      test   # tag (*: temporary parameter)");
+    fPar -> CheckPar("LKRun/Division  0      # division within the run [optional]");
+    fPar -> CheckPar("LKRun/Split     split  # split within the division (or run if no division) [optional]");
     if (!fRunNameIsSet) {
-        if (fPar -> CheckPar("LKRun/RunName")) {
+        if (fPar -> CheckPar("#LKRun/RunName")) {
             fPar -> UpdatePar(fRunID,    "LKRun/RunID");
             fPar -> UpdatePar(fDivision, "LKRun/Division");
             fPar -> UpdatePar(fTag,      "LKRun/Tag");
@@ -559,7 +563,7 @@ bool LKRun::Init()
         }
     }
     if (fDataPath.IsNull())
-        if (fPar -> CheckPar("LKRun/DataPath")) {
+        if (fPar -> CheckPar("LKRun/DataPath {lilak_data} # path to the output. Using {lilak_data} will save output to lilak/data/")) {
             fDataPath = fPar -> GetParString("LKRun/DataPath");
         }
 
