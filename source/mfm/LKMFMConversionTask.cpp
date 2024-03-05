@@ -32,7 +32,7 @@ bool LKMFMConversionTask::Init()
     lk_info << "Opening file " << inputFileName << endl;
     lk_info << "Block size is " << matrixSize << endl;
     fFileStream.open(inputFileName.Data(), std::ios::binary | std::ios::in);
-    if(!fFileStream) {
+    if(!fFileStream.is_open()) {
         lk_error << "Could not open input file!" << std::endl;
         return false;
     }
