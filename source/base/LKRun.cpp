@@ -535,34 +535,17 @@ bool LKRun::Init()
     }
 
     fPar -> CheckPar("LKRun/Name      run    # name of the run");
-    fPar -> CheckPar("LKRun/RunID     0      # run number");
-    fPar -> CheckPar("*LKRun/Tag      test   # tag (*: temporary parameter)");
+    fPar -> CheckPar("LKRun/RunID     1      # run number");
     fPar -> CheckPar("LKRun/Division  0      # division within the run [optional]");
-    fPar -> CheckPar("LKRun/Split     split  # split within the division (or run if no division) [optional]");
+    fPar -> CheckPar("*LKRun/Tag      test   # tag (*: temporary parameter)");
+
     if (!fRunNameIsSet) {
-        if (fPar -> CheckPar("#LKRun/RunName")) {
-            fPar -> UpdatePar(fRunName,  "LKRun/Name");
-            fPar -> UpdatePar(fRunID,    "LKRun/RunID");
-            fPar -> UpdatePar(fDivision, "LKRun/Division");
-            fPar -> UpdatePar(fTag,      "LKRun/Tag");
-            fPar -> UpdatePar(fSplit,    "LKRun/Split");
-            auto numRunNames = fPar -> GetParN("LKRun/RunName");
-            if (fRunName=="run") fRunName = fPar -> GetParString("LKRun/RunName",0);
-            if (fRunID==-1&&numRunNames>1) fRunID = fPar -> GetParInt("LKRun/RunName",1);
-            if (numRunNames==3) {
-                auto checkType = fPar -> CheckParTypeInt("LKRun/RunName",2);
-                if (!checkType)
-                    fTag = fPar -> GetParString("LKRun/RunName",2);
-                else
-                    fDivision = fPar -> GetParInt("LKRun/RunName",2);
-            }
-            else if (numRunNames>=3) {
-                if (fDivision<0&&numRunNames>2)   fDivision= fPar -> GetParInt   ("LKRun/RunName",2);
-                if (fTag.IsNull()&&numRunNames>3) fTag     = fPar -> GetParString("LKRun/RunName",3);
-                if (fSplit==-1&&numRunNames>4)    fSplit   = fPar -> GetParInt   ("LKRun/RunName",4);
-            }
+        fPar -> UpdatePar(fRunName,  "LKRun/Name      run    # name of the run");
+        fPar -> UpdatePar(fRunID,    "LKRun/RunID     1      # run number");
+        fPar -> UpdatePar(fDivision, "LKRun/Division  0      # division within the run [optional]");
+        fPar -> UpdatePar(fTag,      "*LKRun/Tag      test   # tag (*: temporary parameter)");
+        if (fPar -> CheckPar("LKRun/Name"))
             fRunNameIsSet = true;
-        }
     }
     if (fDataPath.IsNull())
         if (fPar -> CheckPar("LKRun/DataPath {lilak_data} # path to the output. Using {lilak_data} will save output to lilak/data/")) {
@@ -882,50 +865,43 @@ bool LKRun::RegisterObject(TString name, TObject *obj)
 
 TClonesArray* LKRun::RegisterBranchA(TString name, const char* className, Int_t size, bool persistent)
 {
+    if (fBranchPtrMap[name] != nullptr) {
+        lk_error << "The branch with name " << name << " already exist!" << endl;
+        return (TClonesArray*) nullptr;
+    }
+
     TClonesArray *array = new TClonesArray(className, size);
     array -> SetName(name);
 
-    //RegisterBranch(name, array, persistent);
-    {
-        if (fBranchPtrMap[name] != nullptr) {
-            lk_error << "The branch with name " << name << " already exist!" << endl;
-            return (TClonesArray*) nullptr;
-        }
-
-        TString persistencyMessage1 = name+"/persistency";
-        TString persistencyMessage2 = TString("persistency/") + name;
-        TString persistencyMessage;
-        //for (TString persistencyParName : {persistencyMessage1,persistencyMessage2})  {
-        for (TString persistencyParName : {persistencyMessage2})  {
-            if (fPar -> CheckPar(persistencyParName)) {
-                persistent = fPar -> GetParBool(persistencyParName);
-                if (persistent)
-                    persistencyMessage = TString("(persistent by par. ") + persistencyParName + ")";
-                else
-                    persistencyMessage = TString("(temporary by par. ") + persistencyParName + ")";
-            }
-            else {
-                if (persistent)
-                    persistencyMessage = "(persistent)";
-                else
-                    persistencyMessage = "(temporary)";
-            }
-        }
-
-        fBranchPtr[fCountBranches] = array;
-        fBranchPtrMap[name] = fBranchPtr[fCountBranches];
-        fBranchNames.push_back(name);
-        fCountBranches++;
-
-        if (persistent) {
-            if (fOutputTree != nullptr)
-                fOutputTree -> Branch(name, array, 32000, 0);
-            fPersistentBranchArray -> Add(array);
-        } else {
-            fTemporaryBranchArray -> Add(array);
-        }
-        lk_info << "Output branch " << name << " " << persistencyMessage << endl;
+    TString persistencyParName = TString("persistency/") + name;
+    TString persistencyMessage;
+    if (fPar -> CheckPar(persistencyParName + " true")) {
+        persistent = fPar -> GetParBool(persistencyParName);
+        if (persistent)
+            persistencyMessage = TString("(persistent by par. ") + persistencyParName + ")";
+        else
+            persistencyMessage = TString("(temporary by par. ") + persistencyParName + ")";
     }
+    else {
+        if (persistent)
+            persistencyMessage = "(persistent)";
+        else
+            persistencyMessage = "(temporary)";
+    }
+
+    fBranchPtr[fCountBranches] = array;
+    fBranchPtrMap[name] = fBranchPtr[fCountBranches];
+    fBranchNames.push_back(name);
+    fCountBranches++;
+
+    if (persistent) {
+        if (fOutputTree != nullptr)
+            fOutputTree -> Branch(name, array, 32000, 0);
+        fPersistentBranchArray -> Add(array);
+    } else {
+        fTemporaryBranchArray -> Add(array);
+    }
+    lk_info << "Output branch " << name << " " << persistencyMessage << endl;
 
     return array;
 }
