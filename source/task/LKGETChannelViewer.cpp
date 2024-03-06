@@ -93,8 +93,9 @@ bool LKGETChannelViewer::Init()
         for(int j=0; j<fNumAsAd; ++j) {
             fChannelIndex[i][j] = new int*[fNumAGET];
             for(int k=0; k<fNumAGET; ++k) {
-                fChannelIndex[i][j][k] = new int[fNXCN*fNYCN];
-                for(int l = 0; l < fNumAGET; ++l) {
+                const int numViewChannels = fNXCN*fNYCN;
+                fChannelIndex[i][j][k] = new int[numViewChannels];
+                for(int l = 0; l < numViewChannels; ++l) {
                     fChannelIndex[i][j][k][l] = -1;
                 }
             }
