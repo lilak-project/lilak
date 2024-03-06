@@ -15,6 +15,8 @@ using namespace std;
 #include "LKEventHeader.h"
 #include "GETChannel.h"
 
+//#define DEBUG_LKFRAMEBUILDER
+
 LKFrameBuilder::LKFrameBuilder()
 {
     fName = "LKFrameBuilder";
@@ -26,6 +28,9 @@ LKFrameBuilder::~LKFrameBuilder()
 
 void LKFrameBuilder::processFrame(mfm::Frame &frame)
 {
+#ifdef DEBUG_LKFRAMEBUILDER
+    lk_info << endl;
+#endif
     if (frame.header().isBlobFrame())
     {
         if (frame.header().frameType() == 0x7)
@@ -49,6 +54,9 @@ void LKFrameBuilder::processFrame(mfm::Frame &frame)
 
 void LKFrameBuilder::SetPar(LKParameterContainer* par)
 {
+#ifdef DEBUG_LKFRAMEBUILDER
+    lk_info << endl;
+#endif
     fPar = par;
 
     fPar -> UpdatePar(fSet2PMode   ,"LKFrameBuilder/Set2PMode   false");
@@ -72,6 +80,9 @@ void LKFrameBuilder::SetPar(LKParameterContainer* par)
 
 bool LKFrameBuilder::Init()
 {
+#ifdef DEBUG_LKFRAMEBUILDER
+    lk_info << endl;
+#endif
     Bool_t missingEssentials = false;
     if (fMotherTask==nullptr) {
         missingEssentials = true;
@@ -126,6 +137,9 @@ bool LKFrameBuilder::Init()
 
 void LKFrameBuilder::InitWaveforms()
 {
+#ifdef DEBUG_LKFRAMEBUILDER
+    lk_info << endl;
+#endif
     fWaveforms = new WaveForms();
     fWaveforms->waveform.resize(fMaxAsad*fMaxAget);
     fWaveforms->hasSignal.resize(fMaxAsad*fMaxAget);
@@ -145,6 +159,9 @@ void LKFrameBuilder::InitWaveforms()
 
 void LKFrameBuilder::ResetWaveforms()
 {
+#ifdef DEBUG_LKFRAMEBUILDER
+    lk_info << endl;
+#endif
     for(Int_t i=0;i<fMaxAsad;i++){
         for(Int_t j=0;j<fMaxAget;j++){
             if(fWaveforms->hasHit[i*fMaxAget+j] || fWaveforms->hasFPN[i*fMaxAget+j]){
@@ -172,6 +189,9 @@ void LKFrameBuilder::ResetWaveforms()
 
 void LKFrameBuilder::ValidateEvent(mfm::Frame& frame)
 {
+#ifdef DEBUG_LKFRAMEBUILDER
+    lk_info << endl;
+#endif
     if(frame.header().isLayeredFrame())
     {
         unique_ptr<mfm::Frame> subFrame;
@@ -220,6 +240,9 @@ void LKFrameBuilder::ValidateEvent(mfm::Frame& frame)
 
 void LKFrameBuilder::ValidateFrame(mfm::Frame& frame)
 {
+#ifdef DEBUG_LKFRAMEBUILDER
+    lk_info << endl;
+#endif
     /*
     UInt_t coboIdx = frame.headerField("coboIdx").value<UInt_t>();
     UInt_t asadIdx = frame.headerField("asadIdx").value<UInt_t>();
@@ -234,16 +257,16 @@ void LKFrameBuilder::ValidateFrame(mfm::Frame& frame)
     //unsigned short IcMask = BOOST_BINARY( 000000100000000000000000000000000000000000000000000000000000000000000000 );
     ULong_t IcMask = 0x13; // Channel 19
 
-    //cout << coboIdx << " " << asadIdx << "(LSB):" << endl;
+    //lk_info << coboIdx << " " << asadIdx << "(LSB):" << endl;
     ULong_t hitPat_0 = frame.headerField(32u, 8u).value<ULong_t>();
     ULong_t hitPat_1 = frame.headerField(41u, 8u).value<ULong_t>();
     ULong_t hitPat_2 = frame.headerField(50u, 8u).value<ULong_t>();
     ULong_t hitPat_3 = frame.headerField(59u, 8u).value<ULong_t>();
-    //cout << "HitPattern 0: " << hex << hitPat_0 << endl;
-    //cout << "HitPattern 1: " << hex << hitPat_1 << endl;
-    //cout << "HitPattern 2: " << hex << hitPat_2 << endl;
-    //cout << "HitPattern 3: " << hex << hitPat_3 << endl;
-    //cout << "===========================" << endl;
+    //lk_info << "HitPattern 0: " << hex << hitPat_0 << endl;
+    //lk_info << "HitPattern 1: " << hex << hitPat_1 << endl;
+    //lk_info << "HitPattern 2: " << hex << hitPat_2 << endl;
+    //lk_info << "HitPattern 3: " << hex << hitPat_3 << endl;
+    //lk_info << "===========================" << endl;
     //000100000000000100000000001000000000000000000000010000000000100000000000
     //Si and IC data validation
     if(coboIdx==1 && asadIdx==0 && ((hitPat_0&SiMask)||(hitPat_1&SiMask)||(hitPat_2&SiMask)||(hitPat_3&SiMask))){
@@ -257,16 +280,16 @@ void LKFrameBuilder::ValidateFrame(mfm::Frame& frame)
         fGoodMMEvent = true;
     }
 
-    //cout << coboIdx << " " << asadIdx << "(USB):" << endl;
+    //lk_info << coboIdx << " " << asadIdx << "(USB):" << endl;
     hitPat_0 = frame.headerField(31u, 1u).value<ULong_t>();
     hitPat_1 = frame.headerField(40u, 1u).value<ULong_t>();
     hitPat_2 = frame.headerField(49u, 1u).value<ULong_t>();
     hitPat_3 = frame.headerField(58u, 1u).value<ULong_t>();
-    //cout << "HitPattern 0: " << hex << hitPat_0 << endl;
-    //cout << "HitPattern 1: " << hex << hitPat_1 << endl;
-    //cout << "HitPattern 2: " << hex << hitPat_2 << endl;
-    //cout << "HitPattern 3: " << hex << hitPat_3 << endl;
-    //cout << "===========================" << endl;
+    //lk_info << "HitPattern 0: " << hex << hitPat_0 << endl;
+    //lk_info << "HitPattern 1: " << hex << hitPat_1 << endl;
+    //lk_info << "HitPattern 2: " << hex << hitPat_2 << endl;
+    //lk_info << "HitPattern 3: " << hex << hitPat_3 << endl;
+    //lk_info << "===========================" << endl;
     //000100000000000100000000001000000000000000000000010000000000100000000000
 
     //Si and IC data validation
@@ -292,43 +315,46 @@ void LKFrameBuilder::ValidateFrame(mfm::Frame& frame)
 
 void LKFrameBuilder::Event(mfm::Frame& frame)
 {
+#ifdef DEBUG_LKFRAMEBUILDER
+    lk_info << endl;
+#endif
     fWaveforms->frameIdx = 0;
     fWaveforms->decayIdx = 0;
     fChannelArray -> Clear("C");
     fCountChannels = 0;
     if(frame.header().isLayeredFrame()) {
         for(Int_t i = 0;i<frame.itemCount();i++) {
-            //cout << "1isLayered=" << frame.header().isLayeredFrame() << ", itemCount=" << frame.itemCount() << ", frameIndex=" << i << endl;
+            //lk_info << "1isLayered=" << frame.header().isLayeredFrame() << ", itemCount=" << frame.itemCount() << ", frameIndex=" << i << endl;
             fWaveforms->frameIdx = 0;
             fWaveforms->decayIdx = 0;
             try{
                 auto_ptr<mfm::Frame> subFrame = frame.frameAt(i);
                 if((*subFrame.get()).itemCount()>0){ //Make sure we have data
-                    //cout << "2isLayered=" << frame.header().isLayeredFrame() << ", itemCount=" << frame.itemCount() << ", frameIndex=" << i << endl;
+                    //lk_info << "2isLayered=" << frame.header().isLayeredFrame() << ", itemCount=" << frame.itemCount() << ", frameIndex=" << i << endl;
                     fWaveforms->frameIdx = i;
                     UnpackFrame(*subFrame.get());
                     WriteChannels();
                     ResetWaveforms();
                 }else{
-                    //cout << "2no subframe" << endl;
+                    //lk_info << "2no subframe" << endl;
                 }
             }catch (const std::exception& e){
-                cout << e.what() << endl;
+                lk_info << e.what() << endl;
                 return;
             }
         }
     } else {
         try{
             if(frame.itemCount()>0){ //Make sure we have data
-                //cout << "Not Layered Frame" << endl;
+                //lk_info << "Not Layered Frame" << endl;
                 UnpackFrame(frame);
                 WriteChannels();
                 ResetWaveforms();
             }else{
-                cout << "3no subframe" << endl;
+                lk_info << "3no subframe" << endl;
             }
         }catch (const std::exception& e){
-            cout << e.what() << endl;
+            lk_info << e.what() << endl;
             return;
         }
     }
@@ -336,12 +362,18 @@ void LKFrameBuilder::Event(mfm::Frame& frame)
 
 void LKFrameBuilder::UnpackFrame(mfm::Frame& frame)
 {
+#ifdef DEBUG_LKFRAMEBUILDER
+    lk_info << endl;
+#endif
     Int_t prevWEventIdx = fCurrEventIdx;
     UInt_t coboIdx = frame.headerField("coboIdx").value<UInt_t>();
     UInt_t asadIdx = frame.headerField("asadIdx").value<UInt_t>();
     UInt_t itemSize = frame.headerField("itemSize").value<UInt_t>();
     UInt_t frameSize = frame.headerField("frameSize").value<UInt_t>();
     fCurrEventIdx = (Int_t)frame.headerField("eventIdx").value<UInt_t>();
+#ifdef DEBUG_LKFRAMEBUILDER
+    lk_debug << "UnpackFrame Cobo=" << coboIdx << " Asad=" << asadIdx << " itemSize=" << itemSize << " frameSize=" << frameSize << endl;
+#endif
     if(fIsFirstEvent) {
         fFirstEventIdx = fCurrEventIdx;
         fIsFirstEvent=false;
@@ -383,7 +415,12 @@ void LKFrameBuilder::UnpackFrame(mfm::Frame& frame)
     const size_t numChips = 4u;
     vector<uint32_t> chanIdx_(numChips, 0u);
     vector<uint32_t> buckIdx_(numChips, 0u);
-    if(frame.header().frameType() == 1u) {
+
+    if(frame.header().frameType() == 1u)
+    {
+#ifdef DEBUG_LKFRAMEBUILDER
+    lk_info << "frame type 1u" << endl;
+#endif
         mfm::Item item = frame.itemAt(0u);
         mfm::Field field = item.field("");
         mfm::BitField agetIdxField = field.bitField("agetIdx");
@@ -403,7 +440,7 @@ void LKFrameBuilder::UnpackFrame(mfm::Frame& frame)
             fAsadIsTriggered[coboIdx][asadIdx]=0;
             fWaveforms->decayIdx = 0;
         }
-        //cout << "Type:" << frame.header().frameType() << " " <<  fCurrEventIdx << "  " << frameSize << " " << coboIdx << " " << asadIdx << " " << fWaveforms->frameIdx << " " << fWaveforms->decayIdx << " " << frame.itemCount() << endl;
+        //lk_info << "Type:" << frame.header().frameType() << " " <<  fCurrEventIdx << "  " << frameSize << " " << coboIdx << " " << asadIdx << " " << fWaveforms->frameIdx << " " << fWaveforms->decayIdx << " " << frame.itemCount() << endl;
         Int_t lastaget=-1;
         for(UInt_t i=0; i<frame.itemCount(); i++) {
             item = frame.itemAt(i);
@@ -432,7 +469,11 @@ void LKFrameBuilder::UnpackFrame(mfm::Frame& frame)
         }
 
     }
-    else if (frame.header().frameType() == 2u) {
+    else if (frame.header().frameType() == 2u)
+    {
+#ifdef DEBUG_LKFRAMEBUILDER
+        lk_info << "frame type 2u" << endl;
+#endif
         if(fSet2PMode){
             if(fAsadIsTriggered[coboIdx][asadIdx]>0){
                 fAsadIsTriggered[coboIdx][asadIdx]=2;
@@ -487,29 +528,36 @@ void LKFrameBuilder::UnpackFrame(mfm::Frame& frame)
         }
     }
     else {
-        cout << "Frame type " << frame.header().frameType() << " not found" << endl;
+        lk_info << "Frame type " << frame.header().frameType() << " not found" << endl;
         return;
     }
 }
 
-void LKFrameBuilder::decodeCoBoTopologyFrame(mfm::Frame& frame) {
+void LKFrameBuilder::decodeCoBoTopologyFrame(mfm::Frame& frame)
+{ 
+#ifdef DEBUG_LKFRAMEBUILDER
+    lk_info << endl;
+#endif
     if (frame.header().frameType() == 0x7){
         // Print meta-data
-        //cout << "Topology:" << endl;
+        //lk_info << "Topology:" << endl;
         // Skip 8 Byte header
         istream & stream = frame.serializer().inputStream(8u);
         uint8_t value;
         stream.read(reinterpret_cast<char *>(&value), 1lu);
-        //cout << " coboIdx=" << (uint16_t) value << ", ";
+        //lk_info << " coboIdx=" << (uint16_t) value << ", ";
         stream.read(reinterpret_cast<char *>(&value), 1lu);
-        //cout << " asadMask=" << hex << showbase << (uint16_t) value << dec << ", ";
+        //lk_info << " asadMask=" << hex << showbase << (uint16_t) value << dec << ", ";
         stream.read(reinterpret_cast<char *>(&value), 1lu);
-        //cout << " 2pMode=" << boolalpha << (bool) value << endl;
+        //lk_info << " 2pMode=" << boolalpha << (bool) value << endl;
     }
 }
 
 void LKFrameBuilder::decodeMuTanTFrame(mfm::Frame & frame)
 {
+#ifdef DEBUG_LKFRAMEBUILDER
+    lk_info << endl;
+#endif
     fMutantCounter++;
 
     double scaler1;
@@ -536,7 +584,7 @@ void LKFrameBuilder::decodeMuTanTFrame(mfm::Frame & frame)
                 fListOfEventIdx.push_back(frame.headerField(14u, 4u).value< uint32_t >());
                 fListOfD2PTime.push_back(frame.headerField(60u, 4u).value< uint32_t >()*10);
                 fListOfTimeStamp.push_back(frame.headerField(8u, 6u).value< uint64_t >());
-                cout << "decoded: " << fListOfEventIdx.at(fListOfEventIdx.size()-1) << " " << fListOfD2PTime.at(fListOfD2PTime.size()-1) << " " << fListOfTimeStamp.at(fListOfTimeStamp.size()-1) << endl;
+                lk_info << "decoded: " << fListOfEventIdx.at(fListOfEventIdx.size()-1) << " " << fListOfD2PTime.at(fListOfD2PTime.size()-1) << " " << fListOfTimeStamp.at(fListOfTimeStamp.size()-1) << endl;
             }else{
                 scaler1 = frame.headerField(48u, 4u).value< uint32_t >();
                 scaler2 = frame.headerField(52u, 4u).value< uint32_t >();
@@ -552,8 +600,8 @@ void LKFrameBuilder::decodeMuTanTFrame(mfm::Frame & frame)
                     scaler1end = scaler1;
                     scaler2end = scaler2;
                     scaler3end = scaler3;
-                    cout << " Scaler 1 Rate = " << 100*(scaler1end-scaler1start)/(scaler3end-scaler3start) << ", " << (scaler1end-scaler1start) << " " << (scaler3end-scaler3start) << " " << scaler1end << " " << scaler1start << " " << scaler3end << " " << scaler3start << " or " << (100*scaler1end/scaler3end) << endl;
-                    cout << " Scaler 2 Rate(Live) = " << 100*(scaler2end-scaler2start)/(scaler3end-scaler3start) << ", " << scaler2end << " " << scaler2start << " " << scaler3end << " " << scaler3start << " or " << (100*scaler2end/scaler3end) << endl;
+                    lk_info << " Scaler 1 Rate = " << 100*(scaler1end-scaler1start)/(scaler3end-scaler3start) << ", " << (scaler1end-scaler1start) << " " << (scaler3end-scaler3start) << " " << scaler1end << " " << scaler1start << " " << scaler3end << " " << scaler3start << " or " << (100*scaler1end/scaler3end) << endl;
+                    lk_info << " Scaler 2 Rate(Live) = " << 100*(scaler2end-scaler2start)/(scaler3end-scaler3start) << ", " << scaler2end << " " << scaler2start << " " << scaler3end << " " << scaler3start << " or " << (100*scaler2end/scaler3end) << endl;
                     if(fSetScaler)
                     {
                         fFileScaler.open(fScalerFile.Data(), std::ofstream::out|std::ofstream::app);
@@ -575,23 +623,24 @@ void LKFrameBuilder::decodeMuTanTFrame(mfm::Frame & frame)
                     if(fCountPrint>15)
                     {
                         fCountPrint=0;
-                        cout << "Mutant: ";
-                        cout << " TSTMP=" << frame.headerField(8u, 6u).value< uint64_t >() << ", ";
-                        cout << " EVT_NO=" << frame.headerField(14u, 4u).value< uint32_t >() << ", ";
-                        cout << " TRIG=" << hex << showbase << frame.headerField(18u, 2u).value< uint16_t >() << dec << ", ";
-                        cout << " MULT_A="  << frame.headerField(20u, 2u).value< uint16_t >() << ", ";
-                        cout << " MULT_B="  << frame.headerField(22u, 2u).value< uint16_t >() << ", ";
-                        cout << " L0_EVT="  << frame.headerField(24u, 4u).value< uint32_t >() << ", ";
-                        cout << " L1A_EVT="  << frame.headerField(28u, 4u).value< uint32_t >() << ", ";
-                        cout << " L1B_EVT="  << frame.headerField(32u, 4u).value< uint32_t >() << ", ";
-                        cout << " L2_EVT="  << frame.headerField(36u, 4u).value< uint32_t >() << ", ";
-                        cout << " SCA1="  << frame.headerField(48u, 4u).value< uint32_t >() << ", ";
-                        cout << " SCA2="  << frame.headerField(52u, 4u).value< uint32_t >() << ", ";
-                        cout << " SCA3="  << frame.headerField(56u, 4u).value< uint32_t >() << ", ";
-                        cout << " SCA4="  << frame.headerField(40u, 4u).value< uint32_t >() << ", ";
-                        cout << " SCA5="  << frame.headerField(44u, 4u).value< uint32_t >() << ", ";
-                        cout << " D2P="  << frame.headerField(60u, 4u).value< uint32_t >() << endl;
-                        cout << scaler1 << " " << scaler2 << " " << scaler3
+                        lk_info << "Mutant: ";
+                        e_cout  << " TSTMP=" << frame.headerField(8u, 6u).value< uint64_t >() << ", ";
+                        e_cout  << " EVT_NO=" << frame.headerField(14u, 4u).value< uint32_t >() << ", ";
+                        e_cout  << " TRIG=" << hex << showbase << frame.headerField(18u, 2u).value< uint16_t >() << dec << ", ";
+                        e_cout  << " MULT_A="  << frame.headerField(20u, 2u).value< uint16_t >() << ", ";
+                        e_cout  << " MULT_B="  << frame.headerField(22u, 2u).value< uint16_t >() << ", ";
+                        e_cout  << " L0_EVT="  << frame.headerField(24u, 4u).value< uint32_t >() << ", ";
+                        e_cout  << " L1A_EVT="  << frame.headerField(28u, 4u).value< uint32_t >() << ", ";
+                        e_cout  << " L1B_EVT="  << frame.headerField(32u, 4u).value< uint32_t >() << ", ";
+                        e_cout  << " L2_EVT="  << frame.headerField(36u, 4u).value< uint32_t >() << ", ";
+                        e_cout  << " SCA1="  << frame.headerField(48u, 4u).value< uint32_t >() << ", ";
+                        e_cout  << " SCA2="  << frame.headerField(52u, 4u).value< uint32_t >() << ", ";
+                        e_cout  << " SCA3="  << frame.headerField(56u, 4u).value< uint32_t >() << ", ";
+                        e_cout  << " SCA4="  << frame.headerField(40u, 4u).value< uint32_t >() << ", ";
+                        e_cout  << " SCA5="  << frame.headerField(44u, 4u).value< uint32_t >() << ", ";
+                        e_cout  << " D2P="  << frame.headerField(60u, 4u).value< uint32_t >() << endl;
+
+                        lk_info << scaler1 << " " << scaler2 << " " << scaler3
                             << ", IC_Rate=" << Form("%5.2f",(100*scaler1/scaler3)) << "pps"
                             << ", Live=" << Form("%5.2f",((100*scaler2)/scaler3)) << "\%" << endl;
                     }
@@ -604,6 +653,9 @@ void LKFrameBuilder::decodeMuTanTFrame(mfm::Frame & frame)
 
 void LKFrameBuilder::WriteChannels()
 {
+#ifdef DEBUG_LKFRAMEBUILDER
+    lk_info << endl;
+#endif
     UInt_t frameIdx = fWaveforms->frameIdx;
     UInt_t decayIdx = fWaveforms->decayIdx;
     UInt_t coboIdx = fWaveforms->coboIdx;

@@ -25,6 +25,7 @@ class LKMFMConversionTask : public LKTask
         void Exec(Option_t*);
         bool EndOfRun();
         void SignalNextEvent();
+        bool IsEventTrigger() { return true; }
 
     ClassDef(LKMFMConversionTask, 1)
 };
