@@ -101,6 +101,15 @@ TH1D *GETChannel::GetHist(TString name)
     return fHist;
 }
 
+
+void GETChannel::FillHist(TH1D* hist)
+{
+    hist -> Reset();
+    hist -> SetTitle(Form("%d %d %d %d", fCobo, fAsad, fAget, fChan));
+    for (Int_t i=0; i<512; ++i)
+        hist -> SetBinContent(i+1,fWaveformY[i]);
+}
+
 TGraph *GETChannel::GetHitGraph()
 {
     if (fGraph==nullptr)

@@ -5,6 +5,7 @@
 
 #include "TClonesArray.h"
 #include "TH1D.h"
+#include "TH2D.h"
 #include "TGraph.h"
 #include "LKChannel.h"
 #include "LKContainer.h"
@@ -52,6 +53,7 @@ class GETChannel : public LKChannel
 
         virtual void Draw(Option_t *option="");
 
+        void FillHist(TH1D* hist);
         TH1D *GetHist(TString name="");
         TGraph *GetHitGraph();
 
