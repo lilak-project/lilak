@@ -23,7 +23,7 @@ class LKGETChannelViewer : public LKTask, public LKPadInteractive
         LKChannelAnalyzer* GetChannelAnalyzer() { return fChannelAnalyzer; }
 
     protected:
-        void ResetActive(bool resetMenu=true, bool resetCoBo=true, bool resetAsAd=true, bool resetAGET=true, bool resetChan=true);
+        void ResetActive(bool resetMenu=true, bool resetCobo=true, bool resetAsad=true, bool resetAget=true, bool resetChan=true);
         void PrintActive() const;
 
         void FillChannelGraph(int iChannel, TGraph* graph) { Int_t dummy; FillChannelGraph(iChannel, graph, dummy, dummy); }
@@ -34,9 +34,9 @@ class LKGETChannelViewer : public LKTask, public LKPadInteractive
         void ClickedChanNumber(double xOnClick, double yOnClick);
 
         void SelectMenu(int valMenu, bool update=true);
-        void SelectCoBo(int valCoBo, bool update=true);
-        void SelectAsAd(int valAsAd, bool update=true);
-        void SelectAGET(int valAGET, bool update=true);
+        void SelectCobo(int valCobo, bool update=true);
+        void SelectAsad(int valAsad, bool update=true);
+        void SelectAget(int valAget, bool update=true);
         void SelectChan(int valChan, bool update=true);
         void SelectAll(bool update=true);
         void UpdateMCAA();
@@ -82,17 +82,17 @@ class LKGETChannelViewer : public LKTask, public LKPadInteractive
 
         int fNumMenu = 4;
         int fNumMCAA = 4;
-        int fNumCoBo = 4;   ///< par
-        int fNumAsAd = 4;   ///< par
-        int fNumAGET = 4;   ///< par
+        int fNumCobo = 4;   ///< par
+        int fNumAsad = 4;   ///< par
+        int fNumAget = 4;   ///< par
         int fNumChan = 68;  ///< par
         int fNXCN = 10;
         int fNYCN = 7;
 
         int fCurrentMenu = 0;
-        int fCurrentCoBo = 0;
-        int fCurrentAsAd = 0;
-        int fCurrentAGET = 0;
+        int fCurrentCobo = 0;
+        int fCurrentAsad = 0;
+        int fCurrentAget = 0;
         int fCurrentChan = 0;
 
         int**** fChannelIndex;
@@ -100,21 +100,21 @@ class LKGETChannelViewer : public LKTask, public LKPadInteractive
         //bool**** fActiveAllChannels;
         bool* fActiveAllChannels = nullptr;
         bool* fActiveMenu;
-        bool* fActiveCoBo;
-        bool* fActiveAsAd;
-        bool* fActiveAGET;
+        bool* fActiveCobo;
+        bool* fActiveAsad;
+        bool* fActiveAget;
         bool* fActiveChan;
         bool* fChannelContainHits;
 
         int* fBinXMenu;
-        int* fBinXCoBo;
-        int* fBinXAsAd;
-        int* fBinXAGET;
+        int* fBinXCobo;
+        int* fBinXAsad;
+        int* fBinXAget;
 
         int* fBinYMenu;
-        int* fBinYCoBo;
-        int* fBinYAsAd;
-        int* fBinYAGET;
+        int* fBinYCobo;
+        int* fBinYAsad;
+        int* fBinYAget;
 
         int* fChanToBin;
         int* fBinToChan;

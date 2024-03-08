@@ -13,7 +13,9 @@ class LKPadInteractive : public TObject
         void SetPadInteractiveID(int id) { fPadInteractiveID = id; }
         int GetPadInteractiveID() const { return fPadInteractiveID; }
 
-        virtual void ExecMouseClickEventOnPad(TVirtualPad *pad, double xOnClick, double yOnClick) = 0;
+        virtual void ExecMouseClickEventOnPad(TVirtualPad *pad, double xOnClick, double yOnClick) {}
+
+        void AddInteractivePad(TVirtualPad* pad, TString option="");
 
     protected:
         int fPadInteractiveID = -1;

@@ -50,8 +50,8 @@ bool LKEveTask::Init()
     if (fPar->CheckPar("LKEveTask/ignoreHitParentIDs"))   fIgnHitPntIDs   = fPar -> GetParVInt("LKEveTask/ignoreHitParentIDs");
     if (fPar->CheckPar("LKEveTask/selectBranches"))       fSelBranchNames = fPar -> GetParVString("LKEveTask/selectBranches");
 
-    fPar -> CheckPar("LKEveTask/drawEve3D      false    # draw 3d event display using ROOT EVE package and root geometry defined in detector class");
-    fPar -> CheckPar("LKEveTask/drawPlane      true     # draw 2d planes using detector plane class");
+    fPar -> UpdatePar(fDrawEve3D, "LKEveTask/drawEve3D      false    # draw 3d event display using ROOT EVE package and root geometry defined in detector class");
+    fPar -> UpdatePar(fDrawPlane, "LKEveTask/drawPlane      true     # draw 2d planes using detector plane class");
     fPar -> CheckPar("[BranchName]/lineStyle   1        # track line style of [BranchName]. [BranchName] should be replaced to the actual branch name");
     fPar -> CheckPar("[BranchName]/lineWidth   1        # track line width of [BranchName]. [BranchName] should be replaced to the actual branch name");;
     fPar -> CheckPar("[BranchName]/lineColor   kBlack   # track line color of [BranchName]. [BranchName] should be replaced to the actual branch name");;
@@ -90,17 +90,13 @@ bool LKEveTask::Init()
 
 void LKEveTask::Exec(Option_t*)
 {
-    Bool_t drawEve3D = true;
-    Bool_t drawPlane = true;
-    if (fPar->CheckPar("LKEveTask/drawEve3D")) drawEve3D = fPar -> GetParBool("LKEveTask/drawEve3D");
-    if (fPar->CheckPar("LKEveTask/drawPlane")) drawPlane = fPar -> GetParBool("LKEveTask/drawPlane");
-
-    if (drawEve3D) DrawEve3D();
-    if (drawPlane) DrawDetectorPlanes();
+    if (fDrawEve3D) DrawEve3D();
+    if (fDrawPlane) DrawDetectorPlanes();
 }
 
 void LKEveTask::DrawEve3D()
 {
+    lk_info << endl;
 #ifdef ACTIVATE_EVE
     if (gEve!=nullptr) {
         auto numEveEvents = fEveEventManagerArray -> GetEntries();
@@ -232,7 +228,22 @@ void LKEveTask::DrawEve3D()
     auto axis3 = LKVector3::kY;
 
     if (fCanvas3D==nullptr) {
+        auto numPlanes = fDetectorSystem -> GetNumPlanes();
+        for (auto iPlane = 0; iPlane < numPlanes; ++iPlane)
+        {
+            auto plane = fDetectorSystem -> GetDetectorPlane(iPlane);
+            TPad* padCustom = plane -> Get3DEventPad();
+            if (padCustom!=nullptr)
+                fCanvas3D = padCustom;
+                break;
+        }
+    }
+    if (fCanvas3D==nullptr) {
         fCanvas3D = LKWindowManager::GetWindowManager() -> CanvasSquare("LKEveCanvas3D",0.6);
+    }
+
+    if (fFrame3D==nullptr)
+    {
         auto detector = fDetectorSystem -> GetDetector(0);
         double x1, y1, z1, x2, y2, z2;
         auto success = detector -> GetEffectiveDimension(x1, y1, z1, x2, y2, z2);
@@ -248,9 +259,10 @@ void LKEveTask::DrawEve3D()
         fFrame3D -> SetStats(0);
         fGraphTrack3DArray = new TClonesArray("TGraph2DErrors",100);
         fGraphHit3DArray = new TClonesArray("TGraph2DErrors",100);
+        fCanvas3D -> cd();
+        fFrame3D -> Draw();
     }
-    fCanvas3D -> cd();
-    fFrame3D -> Draw();
+
     fGraphTrack3DArray -> Clear("C");
     fGraphHit3DArray -> Clear("C");
     int countHitGraphs = 0;
@@ -333,6 +345,7 @@ void LKEveTask::DrawEve3D()
 
 void LKEveTask::DrawDetectorPlanes()
 {
+    lk_info << endl;
     auto numPlanes = fDetectorSystem -> GetNumPlanes();
     for (auto iPlane = 0; iPlane < numPlanes; ++iPlane)
     {

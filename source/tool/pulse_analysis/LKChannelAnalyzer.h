@@ -245,8 +245,12 @@ class LKChannelAnalyzer : public LKPadInteractive
 
         TGraphErrors *FillPulseGraph(TGraphErrors* graph, double tb0, double amplitude, double pedestal=0);
         TGraph *FillPeakGraph(TGraph* graph, double tb0, double amplitude, double pedestal=0);
+        TGraph *FillPedestalGraph(TGraph *graph, double tb1=0, double tb2=512);
+
         TGraphErrors *GetPulseGraph(double tb0, double amplitude, double pedestal=0);
         TGraph *GetPeakGraph(double tb0, double amplitude, double pedestal=0);
+        TGraph *GetPedestalGraph(double tb1=0, double tb2=512);
+
         void ClearGraphArray() { if (fGraphArray!=nullptr) fGraphArray -> Clear("C"); fNumGraphs = 0; }
 
     public:

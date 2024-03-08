@@ -1,7 +1,6 @@
 #include <climits>
 #include "TObjString.h"
 #include "LKHTLineTracker.h"
-#include "LKPadInteractiveManager.h"
 
 ClassImp(LKHTLineTracker);
 
@@ -934,7 +933,7 @@ void LKHTLineTracker::Draw(TVirtualPad* padImage, TVirtualPad* padParam, LKParam
     fPadImage = (TPad *) padImage -> cd();
     fPadParam = (TPad *) padParam -> cd();
 
-    LKPadInteractiveManager::GetManager() -> Add(this,fPadParam);
+    AddInteractivePad(fPadParam);
 
     fPadImage -> cd();
     fHistImage = GetHistImageSpace(Form("histImageSpace_%d",fPadInteractiveID));
@@ -951,8 +950,6 @@ void LKHTLineTracker::Draw(TVirtualPad* padImage, TVirtualPad* padParam, LKParam
 
     if (paramPoint!=nullptr)
         ExecMouseClickEventOnPad(fPadParam,paramPoint->GetT0(),paramPoint->GetR0());
-
-    LKPadInteractiveManager::GetManager() -> Add(this,fPadParam);
 }
 
 void LKHTLineTracker::ExecMouseClickEventOnPad(TVirtualPad *pad, double xOnClick, double yOnClick)

@@ -844,7 +844,7 @@ void LKChannelAnalyzer::SetPad(TVirtualPad *pad, TH2D* hist)
         }
     }
     */
-    LKPadInteractiveManager::GetManager() -> Add(this,fPadFitPanel);
+    AddInteractivePad(fPadFitPanel);
 }
 
 void LKChannelAnalyzer::ExecMouseClickEventOnPad(TVirtualPad *pad, double xOnClick, double yOnClick)
@@ -902,5 +902,23 @@ TGraphErrors *LKChannelAnalyzer::GetPulseGraph(double tb0, double amplitude, dou
         fPulse -> FillPulseGraph(graph, tb0, amplitude, pedestal);
     else
         FillPeakGraph((TGraph*)graph, tb0, amplitude, pedestal);
+    return graph;
+}
+
+TGraph *LKChannelAnalyzer::GetPedestalGraph(double tb1, double tb2)
+{
+    if (fGraphArray==nullptr)
+        fGraphArray = new TClonesArray("TGraphErrors",100);
+    auto graphPeak = (TGraph*) fGraphArray -> ConstructedAt(fNumGraphs++);
+    return FillPedestalGraph(graphPeak, tb1, tb2);
+}
+
+TGraph *LKChannelAnalyzer::FillPedestalGraph(TGraph *graph, double tb1, double tb2)
+{
+    graph -> Set(0);
+    graph -> SetPoint(0,tb1, fPedestal);
+    graph -> SetPoint(1,tb2, fPedestal);
+    graph -> SetLineStyle(2);
+    graph -> SetLineColor(kGray+1);
     return graph;
 }

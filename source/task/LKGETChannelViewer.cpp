@@ -7,7 +7,6 @@
 #include "LKRun.h"
 #include "LKWindowManager.h"
 #include "LKGETChannelViewer.h"
-#include "LKPadInteractiveManager.h"
 
 #include "GETChannel.h"
 #include "LKWindowManager.h"
@@ -45,9 +44,9 @@ bool LKGETChannelViewer::Init()
         }
     }
 
-    fPar -> UpdatePar(fNumCoBo,"LKGETChannelViewer/MaxCobo     4");
-    fPar -> UpdatePar(fNumAsAd,"LKGETChannelViewer/MaxAsad     4");
-    fPar -> UpdatePar(fNumAGET,"LKGETChannelViewer/MaxAget     4");
+    fPar -> UpdatePar(fNumCobo,"LKGETChannelViewer/MaxCobo     4");
+    fPar -> UpdatePar(fNumAsad,"LKGETChannelViewer/MaxAsad     4");
+    fPar -> UpdatePar(fNumAget,"LKGETChannelViewer/MaxAget     4");
     fPar -> UpdatePar(fNumChan,"LKGETChannelViewer/MaxChannels 68");
 
     if (fNumChan>12*15) { fNXCN = 15; fNYCN = 15; }
@@ -62,37 +61,37 @@ bool LKGETChannelViewer::Init()
     fNumMenu = 4;
 
     fActiveMenu = new bool[fNumMenu];
-    fActiveCoBo = new bool[fNumCoBo];
-    fActiveAsAd = new bool[fNumAsAd];
-    fActiveAGET = new bool[fNumAGET];
+    fActiveCobo = new bool[fNumCobo];
+    fActiveAsad = new bool[fNumAsad];
+    fActiveAget = new bool[fNumAget];
     fActiveChan = new bool[fNXCN*fNYCN];
     fChannelContainHits = new bool[fNXCN*fNYCN];
 
     fBinXMenu = new int[fNumMenu];
-    fBinXCoBo = new int[fNumCoBo];
-    fBinXAsAd = new int[fNumAsAd];
-    fBinXAGET = new int[fNumAGET];
+    fBinXCobo = new int[fNumCobo];
+    fBinXAsad = new int[fNumAsad];
+    fBinXAget = new int[fNumAget];
 
     fBinYMenu = new int[fNumMenu];
-    fBinYCoBo = new int[fNumCoBo];
-    fBinYAsAd = new int[fNumAsAd];
-    fBinYAGET = new int[fNumAGET];
+    fBinYCobo = new int[fNumCobo];
+    fBinYAsad = new int[fNumAsad];
+    fBinYAget = new int[fNumAget];
 
     lk_info << "# of Menu: " << fNumMenu << endl;
-    lk_info << "# of CoBo: " << fNumCoBo << endl;
-    lk_info << "# of AsAd: " << fNumAsAd << endl;
-    lk_info << "# of AGET: " << fNumAGET << endl;
+    lk_info << "# of Cobo: " << fNumCobo << endl;
+    lk_info << "# of Asad: " << fNumAsad << endl;
+    lk_info << "# of Aget: " << fNumAget << endl;
 
-    auto maxNumbr = fNumCoBo;
-    if (maxNumbr<fNumAsAd) maxNumbr = fNumAsAd;
-    if (maxNumbr<fNumAGET) maxNumbr = fNumAGET;
+    auto maxNumbr = fNumCobo;
+    if (maxNumbr<fNumAsad) maxNumbr = fNumAsad;
+    if (maxNumbr<fNumAget) maxNumbr = fNumAget;
 
-    fChannelIndex = new int***[fNumCoBo];
-    for(int i=0; i<fNumCoBo; ++i) {
-        fChannelIndex[i] = new int**[fNumAsAd];
-        for(int j=0; j<fNumAsAd; ++j) {
-            fChannelIndex[i][j] = new int*[fNumAGET];
-            for(int k=0; k<fNumAGET; ++k) {
+    fChannelIndex = new int***[fNumCobo];
+    for(int i=0; i<fNumCobo; ++i) {
+        fChannelIndex[i] = new int**[fNumAsad];
+        for(int j=0; j<fNumAsad; ++j) {
+            fChannelIndex[i][j] = new int*[fNumAget];
+            for(int k=0; k<fNumAget; ++k) {
                 const int numViewChannels = fNXCN*fNYCN;
                 fChannelIndex[i][j][k] = new int[numViewChannels];
                 for(int l = 0; l < numViewChannels; ++l) {
@@ -122,16 +121,16 @@ bool LKGETChannelViewer::Init()
     if (fNumMenu==0)
         fNumMCAA = 3;
 
-    if (fNumCoBo==21&&fNumAsAd==4&&fNumAGET==4)
+    if (fNumCobo==21&&fNumAsad==4&&fNumAget==4)
     {
         fBinYMenu[0] = 1; fBinXMenu[0] = 1;
         fBinYMenu[1] = 1; fBinXMenu[1] = 6;
         fBinYMenu[2] = 1; fBinXMenu[2] = 7;
-        for (auto i=0; i<7; ++i)        { fBinYCoBo[i] = 2; fBinXCoBo[i] = i+1; }
-        for (auto i=7; i<14; ++i)       { fBinYCoBo[i] = 3; fBinXCoBo[i] = i+1-7; }
-        for (auto i=14;i<21; ++i)       { fBinYCoBo[i] = 4; fBinXCoBo[i] = i+1-14; }
-        for (auto i=0; i<fNumAsAd; ++i) { fBinYAsAd[i] = 5; fBinXAsAd[i] = i+1; }
-        for (auto i=0; i<fNumAGET; ++i) { fBinYAGET[i] = 6; fBinXAGET[i] = i+1; }
+        for (auto i=0; i<7; ++i)        { fBinYCobo[i] = 2; fBinXCobo[i] = i+1; }
+        for (auto i=7; i<14; ++i)       { fBinYCobo[i] = 3; fBinXCobo[i] = i+1-7; }
+        for (auto i=14;i<21; ++i)       { fBinYCobo[i] = 4; fBinXCobo[i] = i+1-14; }
+        for (auto i=0; i<fNumAsad; ++i) { fBinYAsad[i] = 5; fBinXAsad[i] = i+1; }
+        for (auto i=0; i<fNumAget; ++i) { fBinYAget[i] = 6; fBinXAget[i] = i+1; }
 
         fHistMCAANumber = new TH2D("LKGCV_HistMCAANumber","",7,0,7,6,0,6);
         fHistMCAANumber2 = new TH2D("LKGCV_HistMCAANumber2","",7,0,7,6,0,6);
@@ -139,21 +138,21 @@ bool LKGETChannelViewer::Init()
     else
     {
         for (auto i=0; i<fNumMenu; ++i) { fBinYMenu[i] = fNumMCAA-3; fBinXMenu[i] = i+1; }
-        for (auto i=0; i<fNumCoBo; ++i) { fBinYCoBo[i] = fNumMCAA-2; fBinXCoBo[i] = i+1; }
-        for (auto i=0; i<fNumAsAd; ++i) { fBinYAsAd[i] = fNumMCAA-1; fBinXAsAd[i] = i+1; }
-        for (auto i=0; i<fNumAGET; ++i) { fBinYAGET[i] = fNumMCAA-0; fBinXAGET[i] = i+1; }
+        for (auto i=0; i<fNumCobo; ++i) { fBinYCobo[i] = fNumMCAA-2; fBinXCobo[i] = i+1; }
+        for (auto i=0; i<fNumAsad; ++i) { fBinYAsad[i] = fNumMCAA-1; fBinXAsad[i] = i+1; }
+        for (auto i=0; i<fNumAget; ++i) { fBinYAget[i] = fNumMCAA-0; fBinXAget[i] = i+1; }
         fHistMCAANumber = new TH2D("LKGCV_HistMCAANumber","",maxNumbr,0,maxNumbr,fNumMCAA,0,fNumMCAA);
         fHistMCAANumber2 = new TH2D("LKGCV_HistMCAANumber2","",maxNumbr,0,maxNumbr,fNumMCAA,0,fNumMCAA);
         //for (auto i=0; i<fNumMenu; ++i) { fBinXMenu[i] = fNumMCAA-3; fBinYMenu[i] = i+1; }
-        //for (auto i=0; i<fNumCoBo; ++i) { fBinXCoBo[i] = fNumMCAA-2; fBinYCoBo[i] = i+1; }
-        //for (auto i=0; i<fNumAsAd; ++i) { fBinXAsAd[i] = fNumMCAA-1; fBinYAsAd[i] = i+1; }
-        //for (auto i=0; i<fNumAGET; ++i) { fBinXAGET[i] = fNumMCAA-0; fBinYAGET[i] = i+1; }
+        //for (auto i=0; i<fNumCobo; ++i) { fBinXCobo[i] = fNumMCAA-2; fBinYCobo[i] = i+1; }
+        //for (auto i=0; i<fNumAsad; ++i) { fBinXAsad[i] = fNumMCAA-1; fBinYAsad[i] = i+1; }
+        //for (auto i=0; i<fNumAget; ++i) { fBinXAget[i] = fNumMCAA-0; fBinYAget[i] = i+1; }
         //fHistMCAANumber = new TH2D("LKGCV_HistMCAANumber","",fNumMCAA,0,fNumMCAA,maxNumbr,0,maxNumbr);
         //fHistMCAANumber -> GetXaxis() -> SetTickSize(0);
         //fHistMCAANumber -> GetXaxis() -> SetBinLabel(fBinXMenu[0],"");
-        //fHistMCAANumber -> GetXaxis() -> SetBinLabel(fBinXCoBo[0],"CoBo");
-        //fHistMCAANumber -> GetXaxis() -> SetBinLabel(fBinXAsAd[0],"AsAd");
-        //fHistMCAANumber -> GetXaxis() -> SetBinLabel(fBinXAGET[0],"AGET");
+        //fHistMCAANumber -> GetXaxis() -> SetBinLabel(fBinXCobo[0],"Cobo");
+        //fHistMCAANumber -> GetXaxis() -> SetBinLabel(fBinXAsad[0],"Asad");
+        //fHistMCAANumber -> GetXaxis() -> SetBinLabel(fBinXAget[0],"Aget");
         //fHistMCAANumber -> GetXaxis() -> SetLabelSize(0.08);
         //fHistMCAANumber -> GetYaxis() -> SetTickSize(0);
         //fHistMCAANumber -> GetYaxis() -> SetBinLabel(1,"All");
@@ -165,9 +164,9 @@ bool LKGETChannelViewer::Init()
     fHistMCAANumber -> SetStats(0);
     fHistMCAANumber -> GetYaxis() -> SetTickSize(0);
     fHistMCAANumber -> GetYaxis() -> SetBinLabel(fBinYMenu[0],"");
-    fHistMCAANumber -> GetYaxis() -> SetBinLabel(fBinYCoBo[0],"CoBo");
-    fHistMCAANumber -> GetYaxis() -> SetBinLabel(fBinYAsAd[0],"AsAd");
-    fHistMCAANumber -> GetYaxis() -> SetBinLabel(fBinYAGET[0],"AGET");
+    fHistMCAANumber -> GetYaxis() -> SetBinLabel(fBinYCobo[0],"Cobo");
+    fHistMCAANumber -> GetYaxis() -> SetBinLabel(fBinYAsad[0],"Asad");
+    fHistMCAANumber -> GetYaxis() -> SetBinLabel(fBinYAget[0],"Aget");
     fHistMCAANumber -> GetYaxis() -> SetLabelSize(0.08);
     fHistMCAANumber -> GetXaxis() -> SetTickSize(0);
     fHistMCAANumber -> GetXaxis() -> SetBinLabel(1,"All");
@@ -176,14 +175,14 @@ bool LKGETChannelViewer::Init()
     fHistMCAANumber -> GetXaxis() -> SetLabelSize(0.08);
     fHistMCAANumber -> SetMaximum(fFillMaximum);
     for (auto i=0; i<fNumMenu; ++i) fHistMCAANumber -> SetBinContent(fBinXMenu[i],fBinYMenu[i],1);
-    for (auto i=0; i<fNumCoBo; ++i) fHistMCAANumber -> SetBinContent(fBinXCoBo[i],fBinYCoBo[i],1);
-    for (auto i=0; i<fNumAsAd; ++i) fHistMCAANumber -> SetBinContent(fBinXAsAd[i],fBinYAsAd[i],1);
-    for (auto i=0; i<fNumAGET; ++i) fHistMCAANumber -> SetBinContent(fBinXAGET[i],fBinYAGET[i],1);
+    for (auto i=0; i<fNumCobo; ++i) fHistMCAANumber -> SetBinContent(fBinXCobo[i],fBinYCobo[i],1);
+    for (auto i=0; i<fNumAsad; ++i) fHistMCAANumber -> SetBinContent(fBinXAsad[i],fBinYAsad[i],1);
+    for (auto i=0; i<fNumAget; ++i) fHistMCAANumber -> SetBinContent(fBinXAget[i],fBinYAget[i],1);
     fHistMCAANumber2 -> SetMarkerSize(fBinTextSize);
     fHistMCAANumber2 -> SetBinContent(fBinXMenu[0],fBinYMenu[0],999);
-    for (auto i=0; i<fNumCoBo; ++i) fHistMCAANumber2 -> SetBinContent(fBinXCoBo[i],fBinYCoBo[i],i);
-    for (auto i=0; i<fNumAsAd; ++i) fHistMCAANumber2 -> SetBinContent(fBinXAsAd[i],fBinYAsAd[i],i);
-    for (auto i=0; i<fNumAGET; ++i) fHistMCAANumber2 -> SetBinContent(fBinXAGET[i],fBinYAGET[i],i);
+    for (auto i=0; i<fNumCobo; ++i) fHistMCAANumber2 -> SetBinContent(fBinXCobo[i],fBinYCobo[i],i);
+    for (auto i=0; i<fNumAsad; ++i) fHistMCAANumber2 -> SetBinContent(fBinXAsad[i],fBinYAsad[i],i);
+    for (auto i=0; i<fNumAget; ++i) fHistMCAANumber2 -> SetBinContent(fBinXAget[i],fBinYAget[i],i);
 
     fHistChanNumber = new TH2D("LKGCV_HistChanNumber","",fNXCN,0,fNXCN,fNYCN,0,fNYCN);
     fHistChanNumber -> SetStats(0);
@@ -216,7 +215,7 @@ bool LKGETChannelViewer::Init()
     fCvsMain -> Divide(2,2);
 
     fVPadMCAANumber = fCvsMain -> cd(1);
-    LKPadInteractiveManager::GetManager() -> Add(this,fVPadMCAANumber);
+    AddInteractivePad(fVPadMCAANumber);
     fHistMCAANumber -> Draw("col");
     fHistMCAANumber2 -> Draw("same text");
     //fVPadMCAANumber -> GetFrame() -> SetBit(TBox::kCannotMove);
@@ -250,7 +249,7 @@ bool LKGETChannelViewer::Init()
     */
 
     fVPadChanNumber = fCvsMain -> cd(2);
-    LKPadInteractiveManager::GetManager() -> Add(this,fVPadChanNumber);
+    AddInteractivePad(fVPadChanNumber);
     fHistChanNumber -> Draw("col");
     fHistChanNumber2 -> Draw("same text");
     //fVPadChanNumber -> GetFrame() -> SetBit(TBox::kCannotMove);
@@ -306,15 +305,15 @@ void LKGETChannelViewer::SelectAll(bool update)
     lk_info << endl;
 #endif
     ResetActive();
-    fCurrentCoBo = -1;
-    fCurrentAsAd = -1;
-    fCurrentAGET = -1;
+    fCurrentCobo = -1;
+    fCurrentAsad = -1;
+    fCurrentAget = -1;
     fCurrentChan = -1;
     for (auto iChannel=0; iChannel<fNumChannelsInEvent; ++iChannel) {
         auto channel = (GETChannel*) fChannelArray -> At(iChannel);
-        fActiveCoBo[channel->GetCobo()] = true;
-        fActiveAsAd[channel->GetAsad()] = true;
-        fActiveAGET[channel->GetAget()] = true;
+        fActiveCobo[channel->GetCobo()] = true;
+        fActiveAsad[channel->GetAsad()] = true;
+        fActiveAget[channel->GetAget()] = true;
         fActiveChan[channel->GetChan()] = true;
         fActiveAllChannels[iChannel] = true;
         fChannelIndex[channel->GetCobo()][channel->GetAsad()][channel->GetAget()][channel->GetChan()] = iChannel;
@@ -326,15 +325,15 @@ void LKGETChannelViewer::SelectAll(bool update)
 #endif
 }
 
-void LKGETChannelViewer::ResetActive(bool resetMenu, bool resetCoBo, bool resetAsAd, bool resetAGET, bool resetChan)
+void LKGETChannelViewer::ResetActive(bool resetMenu, bool resetCobo, bool resetAsad, bool resetAget, bool resetChan)
 {
 #ifdef DEBUG_LKGCV_FUNCTION
     lk_info << endl;
 #endif
     if (resetMenu) for (auto i=0; i<fNumMenu; ++i) fActiveMenu[i] = true;
-    if (resetCoBo) for (auto i=0; i<fNumCoBo; ++i) fActiveCoBo[i] = false;
-    if (resetAsAd) for (auto i=0; i<fNumAsAd; ++i) fActiveAsAd[i] = false;
-    if (resetAGET) for (auto i=0; i<fNumAGET; ++i) fActiveAGET[i] = false;
+    if (resetCobo) for (auto i=0; i<fNumCobo; ++i) fActiveCobo[i] = false;
+    if (resetAsad) for (auto i=0; i<fNumAsad; ++i) fActiveAsad[i] = false;
+    if (resetAget) for (auto i=0; i<fNumAget; ++i) fActiveAget[i] = false;
     if (resetChan) for (auto i=0; i<fNXCN*fNYCN; ++i) fActiveChan[i] = false;
     for (auto i=0; i<fNXCN*fNYCN; ++i) fChannelContainHits[i] = false;
     for (auto i=0; i<fNumChannelsInEvent; ++i) fActiveAllChannels[i] = false;
@@ -349,9 +348,9 @@ void LKGETChannelViewer::PrintActive() const
     lk_info << endl;
 #endif
     lk_info << endl;
-    e_info << "CoBo(" << right << fCurrentCoBo << "): "; for (auto i=0; i<fNumCoBo; ++i) if (fActiveCoBo[i]) e_cout << i << ", "; e_cout << endl;
-    e_info << "AsAd(" << right << fCurrentAsAd << "): "; for (auto i=0; i<fNumAsAd; ++i) if (fActiveAsAd[i]) e_cout << i << ", "; e_cout << endl;
-    e_info << "AGET(" << right << fCurrentAGET << "): "; for (auto i=0; i<fNumAGET; ++i) if (fActiveAGET[i]) e_cout << i << ", "; e_cout << endl;
+    e_info << "Cobo(" << right << fCurrentCobo << "): "; for (auto i=0; i<fNumCobo; ++i) if (fActiveCobo[i]) e_cout << i << ", "; e_cout << endl;
+    e_info << "Asad(" << right << fCurrentAsad << "): "; for (auto i=0; i<fNumAsad; ++i) if (fActiveAsad[i]) e_cout << i << ", "; e_cout << endl;
+    e_info << "Aget(" << right << fCurrentAget << "): "; for (auto i=0; i<fNumAget; ++i) if (fActiveAget[i]) e_cout << i << ", "; e_cout << endl;
     e_info << "Chan(" << right << fCurrentChan << "): "; for (auto i=0; i<fNumChan; ++i) if (fActiveChan[i]) e_cout << i << ", "; e_cout << endl;
 #ifdef DEBUG_LKGCV_FUNCTION
     lk_warning << endl;
@@ -399,9 +398,9 @@ void LKGETChannelViewer::ClickedMCAANumber(double xOnClick, double yOnClick)
 
     bool found = false;
     if (!found) for (auto i=0; i<fNumMenu; ++i) { if (fBinXMenu[i]==binx && fBinYMenu[i]==biny) { SelectMenu(i); found = true; break; } }
-    if (!found) for (auto i=0; i<fNumCoBo; ++i) { if (fBinXCoBo[i]==binx && fBinYCoBo[i]==biny) { SelectCoBo(i); found = true; break; } }
-    if (!found) for (auto i=0; i<fNumAsAd; ++i) { if (fBinXAsAd[i]==binx && fBinYAsAd[i]==biny) { SelectAsAd(i); found = true; break; } }
-    if (!found) for (auto i=0; i<fNumAGET; ++i) { if (fBinXAGET[i]==binx && fBinYAGET[i]==biny) { SelectAGET(i); found = true; break; } }
+    if (!found) for (auto i=0; i<fNumCobo; ++i) { if (fBinXCobo[i]==binx && fBinYCobo[i]==biny) { SelectCobo(i); found = true; break; } }
+    if (!found) for (auto i=0; i<fNumAsad; ++i) { if (fBinXAsad[i]==binx && fBinYAsad[i]==biny) { SelectAsad(i); found = true; break; } }
+    if (!found) for (auto i=0; i<fNumAget; ++i) { if (fBinXAget[i]==binx && fBinYAget[i]==biny) { SelectAget(i); found = true; break; } }
     if (!found) return;
 
     PrintActive();
@@ -433,17 +432,17 @@ void LKGETChannelViewer::UpdateMCAA()
     fHistMCAANumber -> Reset();
 
     for (auto i=0; i<fNumMenu; ++i) fHistMCAANumber -> SetBinContent(fBinXMenu[i],fBinYMenu[i],(fActiveMenu[i]?fFillActive:0));
-    for (auto i=0; i<fNumCoBo; ++i) fHistMCAANumber -> SetBinContent(fBinXCoBo[i],fBinYCoBo[i],(fActiveCoBo[i]?fFillActive:0));
-    for (auto i=0; i<fNumAsAd; ++i) fHistMCAANumber -> SetBinContent(fBinXAsAd[i],fBinYAsAd[i],(fActiveAsAd[i]?fFillActive:0));
-    for (auto i=0; i<fNumAGET; ++i) fHistMCAANumber -> SetBinContent(fBinXAGET[i],fBinYAGET[i],(fActiveAGET[i]?fFillActive:0));
+    for (auto i=0; i<fNumCobo; ++i) fHistMCAANumber -> SetBinContent(fBinXCobo[i],fBinYCobo[i],(fActiveCobo[i]?fFillActive:0));
+    for (auto i=0; i<fNumAsad; ++i) fHistMCAANumber -> SetBinContent(fBinXAsad[i],fBinYAsad[i],(fActiveAsad[i]?fFillActive:0));
+    for (auto i=0; i<fNumAget; ++i) fHistMCAANumber -> SetBinContent(fBinXAget[i],fBinYAget[i],(fActiveAget[i]?fFillActive:0));
     fHistMCAANumber -> SetBinContent(fBinXMenu[fCurrentMenu],fBinYMenu[fCurrentMenu],fFillSelect);
-    fHistMCAANumber -> SetBinContent(fBinXCoBo[fCurrentCoBo],fBinYCoBo[fCurrentCoBo],fFillSelect);
-    fHistMCAANumber -> SetBinContent(fBinXAsAd[fCurrentAsAd],fBinYAsAd[fCurrentAsAd],fFillSelect);
-    fHistMCAANumber -> SetBinContent(fBinXAGET[fCurrentAGET],fBinYAGET[fCurrentAGET],fFillSelect);
+    fHistMCAANumber -> SetBinContent(fBinXCobo[fCurrentCobo],fBinYCobo[fCurrentCobo],fFillSelect);
+    fHistMCAANumber -> SetBinContent(fBinXAsad[fCurrentAsad],fBinYAsad[fCurrentAsad],fFillSelect);
+    fHistMCAANumber -> SetBinContent(fBinXAget[fCurrentAget],fBinYAget[fCurrentAget],fFillSelect);
     if (fCurrentMenu>0&&!fActiveMenu[fCurrentMenu]) fHistMCAANumber -> SetBinContent(fBinXMenu[fCurrentMenu],fBinYMenu[fCurrentMenu],fFillSelBNA);
-    if (fCurrentCoBo>0&&!fActiveCoBo[fCurrentCoBo]) fHistMCAANumber -> SetBinContent(fBinXCoBo[fCurrentCoBo],fBinYCoBo[fCurrentCoBo],fFillSelBNA);
-    if (fCurrentAsAd>0&&!fActiveAsAd[fCurrentAsAd]) fHistMCAANumber -> SetBinContent(fBinXAsAd[fCurrentAsAd],fBinYAsAd[fCurrentAsAd],fFillSelBNA);
-    if (fCurrentAGET>0&&!fActiveAGET[fCurrentAGET]) fHistMCAANumber -> SetBinContent(fBinXAGET[fCurrentAGET],fBinYAGET[fCurrentAGET],fFillSelBNA);
+    if (fCurrentCobo>0&&!fActiveCobo[fCurrentCobo]) fHistMCAANumber -> SetBinContent(fBinXCobo[fCurrentCobo],fBinYCobo[fCurrentCobo],fFillSelBNA);
+    if (fCurrentAsad>0&&!fActiveAsad[fCurrentAsad]) fHistMCAANumber -> SetBinContent(fBinXAsad[fCurrentAsad],fBinYAsad[fCurrentAsad],fFillSelBNA);
+    if (fCurrentAget>0&&!fActiveAget[fCurrentAget]) fHistMCAANumber -> SetBinContent(fBinXAget[fCurrentAget],fBinYAget[fCurrentAget],fFillSelBNA);
     fVPadMCAANumber -> Modified();
     fVPadMCAANumber -> Update();
     fVPadMCAANumber -> cd();
@@ -555,7 +554,7 @@ void LKGETChannelViewer::DrawCurrentIndvChannels()
     if (fCurrentChan<0)
         return;
 
-    auto iChannel = fChannelIndex[fCurrentCoBo][fCurrentAsAd][fCurrentAGET][fCurrentChan];
+    auto iChannel = fChannelIndex[fCurrentCobo][fCurrentAsad][fCurrentAget][fCurrentChan];
     if (iChannel<0)
         return;
 
@@ -649,17 +648,17 @@ void LKGETChannelViewer::SelectMenu(int valMenu, bool update)
 #endif
 }
 
-void LKGETChannelViewer::SelectCoBo(int valCoBo, bool update)
+void LKGETChannelViewer::SelectCobo(int valCobo, bool update)
 {
-    lk_info << "CoBo-" << valCoBo << endl;
-    //if (valCoBo==fCurrentCoBo) return;
-    fCurrentCoBo = valCoBo;
-    fCurrentAsAd = -1;
-    fCurrentAGET = -1;
+    lk_info << "Cobo-" << valCobo << endl;
+    //if (valCobo==fCurrentCobo) return;
+    fCurrentCobo = valCobo;
+    fCurrentAsad = -1;
+    fCurrentAget = -1;
     fCurrentChan = -1;
-    fTitleMCAAChannels = Form("Cobo-%d",fCurrentCoBo);
+    fTitleMCAAChannels = Form("Cobo-%d",fCurrentCobo);
 
-    if (fActiveCoBo[fCurrentCoBo]==false) {
+    if (fActiveCobo[fCurrentCobo]==false) {
         lk_warning << fTitleMCAAChannels << " is not activated" << endl;
         //return;
     }
@@ -667,8 +666,8 @@ void LKGETChannelViewer::SelectCoBo(int valCoBo, bool update)
 
     for (auto iChannel=0; iChannel<fNumChannelsInEvent; ++iChannel) {
         auto channel = (GETChannel*) fChannelArray -> At(iChannel);
-        if (channel->GetCobo()!=fCurrentCoBo) continue;
-        fActiveAsAd[channel->GetAsad()] = true;
+        if (channel->GetCobo()!=fCurrentCobo) continue;
+        fActiveAsad[channel->GetAsad()] = true;
         fActiveAllChannels[iChannel] = true;
     }
 
@@ -678,16 +677,16 @@ void LKGETChannelViewer::SelectCoBo(int valCoBo, bool update)
 #endif
 }
 
-void LKGETChannelViewer::SelectAsAd(int valAsAd, bool update)
+void LKGETChannelViewer::SelectAsad(int valAsad, bool update)
 {
-    lk_info << "AsAd-" << valAsAd << endl;
-    //if (valAsAd==fCurrentAsAd) return;
-    fCurrentAsAd = valAsAd;
-    fCurrentAGET = -1;
+    lk_info << "Asad-" << valAsad << endl;
+    //if (valAsad==fCurrentAsad) return;
+    fCurrentAsad = valAsad;
+    fCurrentAget = -1;
     fCurrentChan = -1;
-    fTitleMCAAChannels = Form("Cobo-%d  AsAd-%d",fCurrentCoBo,fCurrentAsAd);
+    fTitleMCAAChannels = Form("Cobo-%d  Asad-%d",fCurrentCobo,fCurrentAsad);
 
-    if (fActiveAsAd[fCurrentAsAd]==false) {
+    if (fActiveAsad[fCurrentAsad]==false) {
         lk_warning << fTitleMCAAChannels << " is not activated" << endl;
         //return;
     }
@@ -695,9 +694,9 @@ void LKGETChannelViewer::SelectAsAd(int valAsAd, bool update)
 
     for (auto iChannel=0; iChannel<fNumChannelsInEvent; ++iChannel) {
         auto channel = (GETChannel*) fChannelArray -> At(iChannel);
-        if (channel->GetCobo()!=fCurrentCoBo) continue;
-        if (channel->GetAsad()!=fCurrentAsAd) continue;
-        fActiveAGET[channel->GetAget()] = true;
+        if (channel->GetCobo()!=fCurrentCobo) continue;
+        if (channel->GetAsad()!=fCurrentAsad) continue;
+        fActiveAget[channel->GetAget()] = true;
         fActiveAllChannels[iChannel] = true;
     }
 
@@ -707,15 +706,15 @@ void LKGETChannelViewer::SelectAsAd(int valAsAd, bool update)
 #endif
 }
 
-void LKGETChannelViewer::SelectAGET(int valAGET, bool update)
+void LKGETChannelViewer::SelectAget(int valAget, bool update)
 {
-    lk_info << "AGET-" << valAGET << endl;
-    //if (valAGET==fCurrentAGET) return;
-    fCurrentAGET = valAGET;
+    lk_info << "Aget-" << valAget << endl;
+    //if (valAget==fCurrentAget) return;
+    fCurrentAget = valAget;
     fCurrentChan = -1;
-    fTitleMCAAChannels = Form("Cobo-%d  AsAd-%d  AGET-%d",fCurrentCoBo,fCurrentAsAd,fCurrentAGET);
+    fTitleMCAAChannels = Form("Cobo-%d  Asad-%d  Aget-%d",fCurrentCobo,fCurrentAsad,fCurrentAget);
 
-    if (fActiveAGET[fCurrentAGET]==false) {
+    if (fActiveAget[fCurrentAget]==false) {
         lk_warning << fTitleMCAAChannels << " is not activated" << endl;
         //return;
     }
@@ -723,9 +722,9 @@ void LKGETChannelViewer::SelectAGET(int valAGET, bool update)
 
     for (auto iChannel=0; iChannel<fNumChannelsInEvent; ++iChannel) {
         auto channel = (GETChannel*) fChannelArray -> At(iChannel);
-        if (channel->GetCobo()!=fCurrentCoBo) continue;
-        if (channel->GetAsad()!=fCurrentAsAd) continue;
-        if (channel->GetAget()!=fCurrentAGET) continue;
+        if (channel->GetCobo()!=fCurrentCobo) continue;
+        if (channel->GetAsad()!=fCurrentAsad) continue;
+        if (channel->GetAget()!=fCurrentAget) continue;
         fActiveChan[channel->GetChan()] = true;
         fActiveAllChannels[iChannel] = true;
 
@@ -757,7 +756,7 @@ void LKGETChannelViewer::SelectChan(int valChan, bool update)
         lk_warning << fTitleIndvChannels << " is not activated" << endl;
         return;
     }
-    if (fCurrentCoBo<0||fCurrentAsAd<0||fCurrentAGET<0) {
+    if (fCurrentCobo<0||fCurrentAsad<0||fCurrentAget<0) {
         return;
     }
 

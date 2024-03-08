@@ -43,6 +43,9 @@ class LKEveTask : public LKTask
         void SetGraphAtt(TGraph2D *graph, TString branchName);
 
     private:
+        Bool_t fDrawEve3D = true;
+        Bool_t fDrawPlane = true;
+
         vector<Int_t> fSelTrkIDs;
         vector<Int_t> fIgnTrkIDs;
         vector<Int_t> fSelPntIDs;
@@ -68,7 +71,7 @@ class LKEveTask : public LKTask
         std::vector<TEveElement *> fEveElementList;
         std::vector<TEveElement *> fPermanentEveElementList;
 #else
-        TCanvas* fCanvas3D = nullptr;
+        TPad* fCanvas3D = nullptr;
         TH3D* fFrame3D = nullptr;
         TClonesArray *fGraphTrack3DArray = nullptr;
         TClonesArray *fGraphHit3DArray = nullptr;
