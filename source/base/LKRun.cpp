@@ -1144,6 +1144,9 @@ bool LKRun::ExecuteEvent(Long64_t eventID)
                 numEntriesMatter = false;
         }
     }
+    else if (eventID==-5) {
+        fCurrentEventID = fNumEntries-1;
+    }
     else {
         fCurrentEventID = eventID;
     }
