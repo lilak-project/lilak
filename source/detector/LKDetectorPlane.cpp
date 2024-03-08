@@ -642,7 +642,7 @@ bool LKDetectorPlane::PadNeighborChecker()
     return true;
 }
 
-void LKDetectorPlane::DrawHist()
+void LKDetectorPlane::DrawHist(Option_t *option)
 {
     FillDataToHist();
 

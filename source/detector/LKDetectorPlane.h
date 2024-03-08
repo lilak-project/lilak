@@ -75,9 +75,10 @@ class LKDetectorPlane : public TNamed, public LKGear
         virtual void Draw(Option_t *option = ""); ///< Implementation recommanded for event display. Draw event display to the canvas.
         virtual TH2* GetHist(Option_t *option = "-1") { return (TH2*) nullptr; }
         virtual void DrawFrame(Option_t *option = "") {}
-        virtual void DrawHist();
+        virtual void DrawHist(Option_t *option = "");
         virtual int GetNumCPads() { return 1; } ///< Get number of inner pads of canvas
         virtual TPad *GetCPad(int iPad) { return (TPad*) GetCanvas(); } ///< For grabbing inner pads of canvas
+        virtual TPad* Get3DEventPad() { return (TPad*) nullptr; } ///< If user wants to place 3D event display other than default canvas, this method should return corresponding TPad.
 
         virtual double PadDisplacement() const { return 5; } ///< Return average pad displacement to each other
         virtual bool IsInBoundary(double i, double j) { return true; } ///< Implementation recommanded. Return if position (i,j) is inside the effective detector plane boundary
