@@ -48,7 +48,7 @@ using namespace std;
  * ## [name] and group
  *  - [name] should not contain empty spaces.
  *  - [name] can set group using "/". ex) group/name
- *  - When adding another parameter file, start [name] with "<<". ex) <<, <<par_file, <</par_file
+ *  - To add additional parameter file, start [name] with "<". ex) <common_parameters   path/to/additional/config.mac
  *
  * ## [value]
  *  - [value] can be a single value or a list of values.

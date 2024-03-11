@@ -701,6 +701,11 @@ Int_t LKParameterContainer::AddLine(std::string ssline)
     if (ssline.find_first_not_of(" \t\n\v\f\r") == std::string::npos)
         return 0;
 
+    size_t endpos = ssline.find_last_not_of(" \t"); // Includes tabs as well
+    if (std::string::npos != endpos) {
+        ssline.erase(endpos+1);
+    }
+
     if (ssline.find("#") == 0) {
         TString line2 = TString(ssline);
         line2 = line2(1,line2.Sizeof()-2);

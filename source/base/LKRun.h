@@ -253,6 +253,7 @@ class LKRun : public LKTask
         Int_t   fDivision = -1;
 
         bool fInitialized = false;
+        bool fErrorInputFile = false;
 
         TString fDataPath = "";
         TString fInputVersion = "";

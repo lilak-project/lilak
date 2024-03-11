@@ -507,16 +507,26 @@ void LKRun::AddInputList(TString listFileName, TString treeName)
 void LKRun::AddInputFile(TString fileName, TString treeName)
 {
     //if (fInputFileName.IsNull()) fInputFileName = fileName;
-    fileName = LKRun::ConfigureDataPath(fileName,true,fDataPath);
-    fInputVersion = GetFileHash(fileName);
+    TString configuredName = LKRun::ConfigureDataPath(fileName,true,fDataPath);
+    if (configuredName.IsNull()) {
+        lk_error << "Input file " << fileName << " cannot be configured" << endl;
+        fErrorInputFile = true;
+        return;
+    }
+    fInputVersion = GetFileHash(configuredName);
     fInputFileNameArray.push_back(fileName);
     fInputTreeName = treeName;
 }
 
 void LKRun::AddFriend(TString fileName)
 {
-    fileName = LKRun::ConfigureDataPath(fileName,true,fDataPath);
-    fFriendFileNameArray.push_back(fileName);
+    TString configuredName = LKRun::ConfigureDataPath(fileName,true,fDataPath);
+    if (configuredName.IsNull()) {
+        lk_error << "Friend file " << fileName << " cannot be configured" << endl;
+        fErrorInputFile = true;
+        return;
+    }
+    fFriendFileNameArray.push_back(configuredName);
 }
 
 TChain *LKRun::GetFriendChain(Int_t iFriend) const { return ((TChain *) fFriendTrees -> At(iFriend)); }
@@ -528,16 +538,21 @@ bool LKRun::Init()
 
     lk_info << "Initializing" << endl;
 
+    if (fErrorInputFile) {
+        lk_error << "Input file cannot be configured!" << endl;
+        return false;
+    }
+
     Int_t idxInput = 1;
     if (fInputFileName.IsNull() && fInputFileNameArray.size() != 0) {
         fInputFileName = fInputFileNameArray[0];
         idxInput = 1;
     }
 
-    fPar -> CheckPar("LKRun/Name      run    # name of the run");
-    fPar -> CheckPar("LKRun/RunID     1      # run number");
-    fPar -> CheckPar("LKRun/Division  0      # division within the run [optional]");
-    fPar -> CheckPar("*LKRun/Tag      test   # tag (*: temporary parameter)");
+    fPar -> CheckPar("LKRun/Name      run    # name of the run (If input file is output of LILAK run, this parameter is inherited)");
+    fPar -> CheckPar("LKRun/RunID     1      # run number (If input file is output of LILAK run, this parameter is inherited)");
+    fPar -> CheckPar("LKRun/Division  0      # division within the run [optional] (If input file is output of LILAK run, this parameter is inherited)");
+    fPar -> CheckPar("*LKRun/Tag      test   # tag (*: temporary parameter) (This parameter should be set for using different tasks)");
 
     if (!fRunNameIsSet) {
         fPar -> UpdatePar(fRunName,  "LKRun/Name      run    # name of the run");
