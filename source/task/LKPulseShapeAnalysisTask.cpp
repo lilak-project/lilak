@@ -34,19 +34,14 @@ bool LKPulseShapeAnalysisTask::Init()
         fUsingDetectorPlane = true;
 
     fChannelArray = fRun -> GetBranchA("RawData");
-    fHitArrayCenter = fRun -> RegisterBranchA("Hit","LKHit",100);
-    fEventHeaderHolder = fRun -> KeepBranchA("EventHeader");
+    fHitArray = fRun -> RegisterBranchA("Hit","LKHit",100);
 
     return true;
 }
 
 void LKPulseShapeAnalysisTask::Exec(Option_t *option)
 {
-    fHitArrayCenter -> Clear("C");
-
-    //auto eventHeader = (LKEventHeader*) fEventHeaderHolder -> At(0);
-    //if (eventHeader->IsGoodEvent()==false)
-    //    return;
+    fHitArray -> Clear("C");
 
     int countHits = 0;
 
@@ -64,23 +59,10 @@ void LKPulseShapeAnalysisTask::Exec(Option_t *option)
         auto chan = channel -> GetChan();
         auto padID = channel -> GetChan2();
         auto data = channel -> GetWaveformY();
-        if (fUsingDetectorPlane) {
-            if (padID<0)
-            {
-                auto padID2 = fDetectorPlane -> FindPadID(cobo,asad,aget,chan);
-                padID = padID2;
-            }
-            if (padID<0)
-                continue;
-        }
+        if (fUsingDetectorPlane&&padID<0)
+            padID = fDetectorPlane -> FindPadID(cobo,asad,aget,chan);
 
-        for (auto tb=0; tb<512; ++tb)
-            fBuffer[tb] = double(data[tb]);
-        fChannelAnalyzer -> Analyze(fBuffer);
-
-        LKPad *pad = nullptr;
-        if (fUsingDetectorPlane)
-            pad = fDetectorPlane -> GetPad(padID);
+        fChannelAnalyzer -> Analyze(data);
 
         auto numRecoHits = fChannelAnalyzer -> GetNumHits();
         for (auto iHit=0; iHit<numRecoHits; ++iHit)
@@ -91,18 +73,21 @@ void LKPulseShapeAnalysisTask::Exec(Option_t *option)
             auto ndf       = fChannelAnalyzer -> GetNDF(iHit);
             auto pedestal  = fChannelAnalyzer -> GetPedestal();
 
-            if (fUsingDetectorPlane)
-                fDetectorPlane -> DriftElectronBack(pad, tb, fPosReco, fDriftLength);
-
-            LKHit* hit = (LKHit*) fHitArrayCenter -> ConstructedAt(countHits);
+            LKHit* hit = (LKHit*) fHitArray -> ConstructedAt(countHits);
             hit -> SetHitID(countHits);
             hit -> SetChannelID(channelID);
             hit -> SetPadID(padID);
-            hit -> SetPosition(fPosReco);
             hit -> SetPositionError(TVector3(0,0,0));
             hit -> SetCharge(amplitude);
             hit -> SetPedestal(pedestal);
             hit -> SetTb(tb);
+
+            if (fUsingDetectorPlane&&padID>=0) {
+                TVector3 posReco;
+                double driftLengthDummy;
+                fDetectorPlane -> DriftElectronBack(padID, tb, posReco, driftLengthDummy);
+                hit -> SetPosition(posReco);
+            }
 
             countHits++;
         }

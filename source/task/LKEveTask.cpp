@@ -234,11 +234,13 @@ void LKEveTask::DrawEve3D()
             auto plane = fDetectorSystem -> GetDetectorPlane(iPlane);
             TPad* padCustom = plane -> Get3DEventPad();
             if (padCustom!=nullptr)
+                lk_info << "Using " << plane -> GetName() << " canvas for 3d event display" << endl;
                 fCanvas3D = padCustom;
                 break;
         }
     }
     if (fCanvas3D==nullptr) {
+        lk_info << "Using default canvas for 3d event display" << endl;
         fCanvas3D = LKWindowManager::GetWindowManager() -> CanvasSquare("LKEveCanvas3D",0.6);
     }
 
@@ -259,9 +261,9 @@ void LKEveTask::DrawEve3D()
         fFrame3D -> SetStats(0);
         fGraphTrack3DArray = new TClonesArray("TGraph2DErrors",100);
         fGraphHit3DArray = new TClonesArray("TGraph2DErrors",100);
-        fCanvas3D -> cd();
-        fFrame3D -> Draw();
     }
+    fCanvas3D -> cd();
+    fFrame3D -> Draw();
 
     fGraphTrack3DArray -> Clear("C");
     fGraphHit3DArray -> Clear("C");
@@ -320,13 +322,17 @@ void LKEveTask::DrawEve3D()
             {
                 auto graphHit3D = (TGraph2DErrors*) fGraphHit3DArray -> ConstructedAt(countHitGraphs++);
                 graphHit3D -> Clear();
-                for (auto iHit=0; iHit<numObjects; ++iHit) {
+                for (auto iHit=0; iHit<numObjects; ++iHit)
+                {
                     auto hit = (LKHit *) branchA -> At(iHit);
                     if (!SelectHit(hit))
                         continue;
 
-                    LKVector3 pos(hit -> GetPosition());
-                    LKVector3 err(hit -> GetPositionError());
+                    auto pos3 = hit -> GetPosition();
+                    auto err3 = hit -> GetPositionError();
+
+                    LKVector3 pos(pos3);
+                    LKVector3 err(err3);
                     graphHit3D -> SetPoint(graphHit3D->GetN(),pos.At(axis1),pos.At(axis2),pos.At(axis3));
                     graphHit3D -> SetPointError(graphHit3D->GetN()-1,err.At(axis1),err.At(axis2),err.At(axis3));
                     //hit -> FillGraph3D(graphHit3D,LKVector3::kZ,LKVector3::kX,LKVector3::kY);
@@ -340,6 +346,8 @@ void LKEveTask::DrawEve3D()
             }
         }
     }
+    fCanvas3D -> Modified();
+    fCanvas3D -> Update();
 #endif
 }
 

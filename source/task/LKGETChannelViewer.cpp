@@ -215,6 +215,7 @@ bool LKGETChannelViewer::Init()
     fCvsMain -> Divide(2,2);
 
     fVPadMCAANumber = fCvsMain -> cd(1);
+    fVPadMCAANumber -> SetGrid();
     AddInteractivePad(fVPadMCAANumber);
     fHistMCAANumber -> Draw("col");
     fHistMCAANumber2 -> Draw("same text");
@@ -249,6 +250,7 @@ bool LKGETChannelViewer::Init()
     */
 
     fVPadChanNumber = fCvsMain -> cd(2);
+    fVPadChanNumber -> SetGrid();
     AddInteractivePad(fVPadChanNumber);
     fHistChanNumber -> Draw("col");
     fHistChanNumber2 -> Draw("same text");
@@ -285,7 +287,7 @@ void LKGETChannelViewer::Exec(Option_t*)
     fActiveAllChannels = new bool[fNumChannelsInEvent];
 
     auto currentEventID = fRun -> GetCurrentEventID();
-    fTitleMCAA = Form("%s (%d)", fRun->GetInputFile()->GetName(), currentEventID);
+    fTitleMCAA = Form("%s (event %lld)", fRun->GetInputFile()->GetName(), currentEventID);
     fHistMCAANumber -> SetTitle(fTitleMCAA);
 
     fHistMCAANumber2 -> SetBinContent(fBinXMenu[2],fBinYMenu[2],currentEventID+1);
