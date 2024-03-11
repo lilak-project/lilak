@@ -709,6 +709,12 @@ void LKDetectorPlane::DriftElectronBack(LKPad* pad, double tb, TVector3 &posReco
     driftLength = fTbToLength*tb;
 }
 
+void LKDetectorPlane::DriftElectronBack(int padID, double tb, TVector3 &posReco, double &driftLength)
+{
+    auto pad = GetPad(padID);
+    DriftElectronBack(pad, tb, posReco, driftLength);
+}
+
 double LKDetectorPlane::DriftElectronBack(double tb)
 {
     auto length = fTbToLength*tb+fPosition;

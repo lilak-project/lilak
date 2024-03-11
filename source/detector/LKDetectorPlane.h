@@ -102,6 +102,7 @@ class LKDetectorPlane : public TNamed, public LKGear
         /// @param posReco[out] Reconstructed position of electron(?) before drift.
         /// @param driftLength[out] Drift length of the electron from the reconstructed position.
         virtual void DriftElectronBack(LKPad* pad, double tb, TVector3 &posReco, double &driftLength);
+        virtual void DriftElectronBack(int padID, double tb, TVector3 &posReco, double &driftLength);
         /// Implementation recommanded.
         /// return drift length
         virtual double DriftElectronBack(double tb);
