@@ -1005,6 +1005,8 @@ Int_t LKRun::GetEntry(Long64_t entry, Int_t getall)
     for (Int_t iFriend = 0; iFriend < fNumFriends; iFriend++)
         GetFriendChain(iFriend) -> GetEntry(entry, getall);
 
+    fCurrentEventID = entry;
+
     return nByte;
 }
 
