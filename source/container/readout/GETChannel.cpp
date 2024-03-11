@@ -110,6 +110,13 @@ void GETChannel::FillHist(TH1D* hist)
         hist -> SetBinContent(i+1,fWaveformY[i]);
 }
 
+void GETChannel::FillGraph(TGraph* graph)
+{
+    graph -> Set(0);
+    for (Int_t i=0; i<512; ++i)
+        graph -> SetPoint(i,i,fWaveformY[i]);
+}
+
 TGraph *GETChannel::GetHitGraph()
 {
     if (fGraph==nullptr)

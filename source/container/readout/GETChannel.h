@@ -54,6 +54,7 @@ class GETChannel : public LKChannel
         virtual void Draw(Option_t *option="");
 
         void FillHist(TH1D* hist);
+        void FillGraph(TGraph* graph);
         TH1D *GetHist(TString name="");
         TGraph *GetHitGraph();
 
