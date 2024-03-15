@@ -33,8 +33,10 @@ class LKPhysicalPad : public LKChannel
         void SetTime(double time) { fTime = time; }
         void SetEnergy(double energy) { fEnergy = energy; }
         void SetPedestal(double pedestal) { fPedestal = pedestal; }
+        void SetNoiseAmp(double pedestal) { fNoiseAmp = pedestal; }
         void SetPosition(LKVector3 pos) { fPosition = pos; }
         void SetPosition(double i, double j) { fPosition.SetI(i); fPosition.SetJ(j); }
+        void SetSectionLayerRow(int section, int layer, int row) { fSection = section; fLayer = layer; fRow = row; }
         void SetSection(int section) { fSection = section; }
         void SetLayer(int layer) { fLayer = layer; }
         void SetRow(int row) { fRow = row; }
@@ -46,10 +48,12 @@ class LKPhysicalPad : public LKChannel
         int GetCoboID() const { return fCoboID; }
         int GetAsadID() const { return fAsadID; }
         int GetAgetID() const { return fAgetID; }
+        int GetChanID() const { return fChanID; }
         int GetChannelID() const { return fChanID; }
         double GetTime() const { return fTime; }
         double GetEnergy() const { return fEnergy; }
         double GetPedestal() const { return fPedestal; }
+        double GetNoiseAmp() const { return fNoiseAmp; }
         LKVector3 GetPosition() const { return fPosition; }
         double GetI() const { return fPosition.I(); }
         double GetJ() const { return fPosition.J(); }
@@ -67,15 +71,15 @@ class LKPhysicalPad : public LKChannel
         void AddPadCorner(double i, double j) { fPadCorners.push_back(TVector2(i,j)); }
         vector<TVector2> *GetPadCorners() { return &fPadCorners; }
 
-        void AddNeighborPad(LKPhysicalPad *pad) { fNeighborPadArray.push_back(pad); }
-        vector<LKPhysicalPad *> *GetNeighborPadArray() { return &fNeighborPadArray; }
-
         void AddHit(LKHit *hit) { fHitArray.push_back(hit); }
         int GetNumHits() const { return fHitArray.size(); }
         LKHit *GetHit(int idx) { return fHitArray.at(idx); }
         void ClearHits() { fHitArray.clear(); }
+        LKHit* PullOutNextFreeHit();
+        void PullOutHits(LKHitArray *hits);
+        void PullOutHits(vector<LKHit *> *hits);
 
-    private:
+    protected:
         int fPlaneID = 0;
         int fCoboID = -1;
         int fAsadID = -1;
@@ -88,11 +92,11 @@ class LKPhysicalPad : public LKChannel
         double fTime = -1;
         double fEnergy = -1;
         double fPedestal = -1;
+        double fNoiseAmp = -1;
 
         LKVector3 fPosition = LKVector3(LKVector3::kZ);
         vector<TVector2> fPadCorners;
 
-        vector<LKPhysicalPad *> fNeighborPadArray; //!
         vector<LKHit *> fHitArray; //!
         double fSortValue = -1; //!
 

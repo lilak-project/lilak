@@ -25,6 +25,7 @@ void LKPhysicalPad::Clear(Option_t *option)
     fTime = -1;
     fEnergy = -1;
     fPedestal = -1;
+    fNoiseAmp = -1;
 
     //fPosition;
     //fPadCorners;
@@ -39,7 +40,7 @@ void LKPhysicalPad::Print(Option_t *option) const
     e_info << "[LKPhysicalPad]" << endl;
     e_info << "- CAAC: " << fCoboID << " " << fAsadID << " " << fAgetID << " " << fChanID << endl;
     e_info << "- SLR : " << fSection << " " << fLayer << " " << fRow << endl;
-    e_info << "- TEP : " << fTime << " " << fEnergy << " " << fPedestal << endl;
+    e_info << "- TEPN: " << fTime << " " << fEnergy << " " << fPedestal << " " << fNoiseAmp << endl;
     e_info << "- Pos.: " << fPosition.I() << " " << fPosition.J() << endl;
     e_info << "- #Hit: " << fHitArray.size() << endl;
 }
@@ -50,4 +51,43 @@ int LKPhysicalPad::Compare(const TObject *obj) const
     if      (fSortValue < pad2 -> GetSortValue()) return +1; //Sort this pad earlier than pad2;
     else if (fSortValue > pad2 -> GetSortValue()) return -1; //Sort this pad latter  than pad;
     return 0; // no change
+}
+
+LKHit *LKPhysicalPad::PullOutNextFreeHit()
+{
+    Int_t numHits = fHitArray.size();
+    if (numHits==0)
+        return nullptr;
+
+    for (auto iHit=0; iHit<numHits; ++iHit) {
+        auto hit = fHitArray[iHit];
+        if (hit -> GetNumTrackCands()==0) {
+            fHitArray.erase(fHitArray.begin()+iHit);
+            return hit;
+        }
+    }
+
+    return nullptr;
+}
+
+void LKPhysicalPad::PullOutHits(LKHitArray *hits)
+{
+    Int_t numHits = fHitArray.size();
+    if (numHits==0)
+        return;
+
+    for (auto iHit=0; iHit<numHits; ++iHit)
+        hits -> AddHit(fHitArray[iHit]);
+    fHitArray.clear();
+}
+
+void LKPhysicalPad::PullOutHits(vector<LKHit *> *hits)
+{
+    Int_t numHits = fHitArray.size();
+    if (numHits==0)
+        return;
+
+    for (auto iHit=0; iHit<numHits; ++iHit)
+        hits -> push_back(fHitArray[iHit]);
+    fHitArray.clear();
 }

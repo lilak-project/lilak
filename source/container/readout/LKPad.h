@@ -1,174 +1,82 @@
 #ifndef LKPAD_HH
 #define LKPAD_HH
 
-#include "LKChannel.h"
+#include "LKPhysicalPad.h"
 #include "LKHit.h"
-#include "LKHitArray.h"
-#include "LKVector3.h"
 
-#include "TObject.h"
 #include "TH1D.h"
 #include "TVector2.h"
 
 #include <vector>
 using namespace std;
 
-class LKPad : public LKChannel
+class LKPad : public LKPhysicalPad
 {
     public:
         LKPad() { Clear(); }
         virtual ~LKPad() {}
 
-        virtual void Clear(Option_t *option = "");
-        virtual void Print(Option_t *option = "") const;
+        virtual void Clear(Option_t *option="");
+        virtual void Print(Option_t *option="") const;
+        virtual int  Compare(const TObject *obj) const;
+        virtual void Draw(Option_t *option="out:hit"); ///< in(raw), out(shaped), hit
+        void DrawHits();
 
-        /// option (default is "")
-        /// * ids : Add AsAd,AGET,Channel-IDs to main title
-        /// * mc: Draw MCID and line at corresponding tb
-        /// * out : Draw output buffer
-        /// * raw : Draw raw buffer
-        /// * in : Draw input buffer (not written by default)
-        /// * hit : Draw hit
-        virtual void Draw(Option_t *option = "ids mc out hit");
+        void SetPad(LKPad* padRef); // copy configuration (position, ids) from padRef
+        void CopyPadData(LKPad* padRef); // copy data from padRef
 
-        void DrawMCID(Option_t *option = "mc");
-        void DrawHit(Option_t *option = "hit");
+        void FillRawSigBuffer(int t, double val, int id=-1) { fActive = true; fRawSigBuffer[t] += val; }
+        void SetRawSigBuffer(double* buffer) { memcpy(fRawSigBuffer, buffer, sizeof(double)*512); }
+        void SetShapedBuffer(double* buffer) { memcpy(fShapedBuffer, buffer, sizeof(double)*512); }
+        double* GetRawSigBuffer() { return fRawSigBuffer; }
+        double* GetShapedBuffer() { return fShapedBuffer; }
 
-        virtual Bool_t IsSortable() const;
-        virtual Int_t Compare(const TObject *obj) const;
+        void SetBuffer(int* buffer) { for (auto tb=0; tb<512; ++tb) fShapedBuffer[tb] = buffer[tb]; }
+        void SetBuffer(double* buffer) { memcpy(fShapedBuffer, buffer, sizeof(double)*512); }
+        double* GetBuffer() { return fShapedBuffer; }
 
+        void SetActive(bool active=true) { fActive = active; }
+        bool IsActive() const { return fActive; }
 
-        void SetPad(LKPad* padRef); // copy from padRef
-        void CopyPadData(LKPad* padRef); // copy from padRef
+        void SetHist(TH1D *hist, Option_t *option="out:hit");
+        TH1D *GetHist(Option_t *option="");
 
-        void SetActive(bool active = true);
-        bool IsActive() const;
+        void AddNeighborPad(LKPad *pad) { fNeighborPadArray.push_back(pad); }
+        vector<LKPad *> *GetNeighborPadArray() { return &fNeighborPadArray; }
 
-        void SetPadID(Int_t id);
-        Int_t GetPadID() const;
-
-        void SetPlaneID(Int_t id);
-        Int_t GetPlaneID() const;
-
-        void SetCoboID(Int_t id);
-        Int_t GetCoboID() const;
-
-        void SetAsAdID(Int_t id);
-        Int_t GetAsAdID() const;
-
-        void SetAGETID(Int_t id);
-        Int_t GetAGETID() const;
-
-        void SetChannelID(Int_t id);
-        Int_t GetChannelID() const;
-
-        void SetBaseLine(Double_t baseLine);
-        Double_t GetBaseLine() const;
-
-        void SetNoiseAmplitude(Double_t gain);
-        Double_t GetNoiseAmplitude() const;
-
-        void SetPosition(LKVector3 pos);
-        void SetPosition(Double_t i, Double_t j);
-        void GetPosition(Double_t &i, Double_t &j) const;
-        LKVector3 GetPosition() const;
-        Double_t GetI() const;
-        Double_t GetJ() const;
-        Double_t GetK() const;
-        Double_t GetX() const;
-        Double_t GetY() const;
-        Double_t GetZ() const;
-
-        void AddPadCorner(Double_t i, Double_t j);
-        vector<TVector2> *GetPadCorners();
-
-        void SetSectionLayerRow(Int_t section, Int_t layer, Int_t row);
-        void GetSectionLayerRow(Int_t &section, Int_t &layer, Int_t &row) const;
-        Int_t GetSection() const;
-        Int_t GetRow() const;
-        Int_t GetLayer() const;
-
-        void FillBufferIn(Int_t idx, Double_t val, Int_t trackID = -1);
-        void SetBufferIn(Double_t *buffer);
-        Double_t *GetBufferIn();
-
-        void SetBufferRaw(Int_t *buffer);
-        void SetBufferRaw(Short_t *buffer);
-        Short_t *GetBufferRaw();
-
-        void SetBufferOut(Double_t *buffer);
-        Double_t *GetBufferOut();
-
-        void AddNeighborPad(LKPad *pad);
-        vector<LKPad *> *GetNeighborPadArray();
-
-        void AddHit(LKHit *hit);
-        Int_t GetNumHits() const;
-        LKHit *GetHit(Int_t idx);
-
-        void ClearHits();
-        LKHit *PullOutNextFreeHit();
-        void PullOutHits(vector<LKHit *> *hits);
-        void PullOutHits(LKHitArray *hist);
-
-        bool IsGrabed() const;
-        void Grab();
-        void LetGo();
-
-        /// option (default is "")
-        /// * ids : Add AsAd,AGET,Channel-IDs to main title
-        /// * mc: Draw MCID and line at corresponding tb
-        /// * out : Draw output buffer
-        /// * raw : Draw raw buffer
-        /// * in : Draw input buffer (not written by default)
-        /// * hit : Draw hit
-        void SetHist(TH1D *hist, Option_t *option = "ids mc out hit");
-        TH1D *GetHist(Option_t *option = "");
-
-        Int_t             GetNumMCIDs()      { return fMCIDArray.size(); }
-        vector<Int_t>    *GetMCIDArray()     { return &fMCIDArray; }
-        vector<Double_t> *GetMCWeightArray() { return &fMCWeightArray; }
-        vector<Double_t> *GetMCTbArray()     { return &fMCTbArray; }
-
-        void SetSortValue(Double_t value) { fSortValue = value; }
-        Double_t GetSortValue() { return fSortValue; }
+        bool IsGrabed() const { return fGrabed; }
+        void Grab() { fGrabed = true; }
+        void LetGo() { fGrabed = false; }
 
     private:
-        bool fActive = false;
+        bool    fActive = false; //!
+        bool    fGrabed = false; //!
 
-        Int_t fPlaneID = 0;
-        Int_t fCoboID = -1;
-        Int_t fAsAdID = -1;
-        Int_t fAGETID = -1;
-        Int_t fChannelID = -1;
-
-        Double_t fBaseLine = 0;
-        Double_t fNoiseAmp = 0;
-
-        LKVector3 fPosition = LKVector3(LKVector3::kZ);
-
-        vector<TVector2> fPadCorners; //!
-
-        Int_t fSection = -999;
-        Int_t fRow = -999;
-        Int_t fLayer = -999;
-
-        Double_t fBufferIn[512]; //!
-        Short_t  fBufferRaw[512];
-        Double_t fBufferOut[512];
+        double  fRawSigBuffer[512];
+        double  fShapedBuffer[512];
 
         vector<LKPad *> fNeighborPadArray; //!
-        vector<LKHit *> fHitArray; //!
+        TH1D*   fHist = nullptr; //!
 
-        vector<Int_t>    fMCIDArray;      ///< MC Track-ID
-        vector<Double_t> fMCWeightArray;  ///< Sum of weight of corresponding Track-ID
-        vector<Double_t> fMCTbArray;      ///< Tb of corresponding Track-ID
+        //int fPlaneID = 0;
+        //int fCoboID = -1;
+        //int fAsadID = -1;
+        //int fAgetID = -1;
+        //int fChanID = -1;
+        //int fSection = -1;
+        //int fLayer = -1;
+        //int fRow = -1;
+        //int fDataIndex = 1;
+        //double fTime = -1;
+        //double fEnergy = -1;
+        //double fPedestal = -1;
+        //LKVector3 fPosition = LKVector3(LKVector3::kZ);
+        //vector<TVector2> fPadCorners;
+        //vector<LKPhysicalPad *> fNeighborPadArray; //!
+        //vector<LKHit *> fHitArray; //!
+        //double fSortValue = -1; //!
 
-        bool fGrabed = false; //!
-
-        Double_t fSortValue = -999; //!
-
-        ClassDef(LKPad, 1)
+    ClassDef(LKPad, 1)
 };
 
 #endif
