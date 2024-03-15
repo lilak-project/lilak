@@ -528,8 +528,8 @@ void LKParameterContainer::Print(Option_t *option) const
         return;
     }
 
-    bool evaluatePar = true;
-    bool showLineComment = false;
+    bool evaluatePar = false;
+    bool showLineComment = true;
     bool showParComments = true;
     bool showLineIndex = true;
     bool printToScreen = true;
@@ -619,8 +619,9 @@ void LKParameterContainer::Print(Option_t *option) const
                 parComment = TString(" # ") + parComment;
         }
 
-             if (parIsTemporary)   parName = Form("%s%s","*",parName.Data());
+        if (parIsTemporary&&parIsMultiple) parName = Form("%s%s","*&",parName.Data());
         else if (parIsConditional) parName = Form("%s%s","@",parName.Data());
+        else if (parIsTemporary)   parName = Form("%s%s","*",parName.Data());
         else if (parIsMultiple)    parName = Form("%s%s","&",parName.Data());
 
         int nwidth = 20;
@@ -658,8 +659,8 @@ void LKParameterContainer::Print(Option_t *option) const
                 if (showLineIndex) e_list(parNumber) << left << setw(nwidth) << parName << " " << setw(vwidth) << parValue << " " << parComment << endl;
                 else               e_cout << left << setw(nwidth) << parName << " " << setw(vwidth) << parValue << " " << parComment << endl;
             }
-            //if (printToFile) fileOut << parNumber << ". " << left << setw(nwidth) << parName << " " << setw(vwidth) << parValue << " " << parComment << endl;
-            if (printToFile) fileOut << parameter->GetLine() << endl;
+            if (printToFile) fileOut << left << setw(nwidth) << parName << " " << setw(vwidth) << parValue << " " << parComment << endl;
+            //if (printToFile) fileOut << parameter->GetLine() << endl;
         }
 
         preGroup = parGroup;
@@ -918,6 +919,11 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
             if (name[0]=='*') {
                 name = name(1, name.Sizeof()-2);
                 parameterType = kParameterIsTemporary;
+                if (name[0]=='&') {
+                    name = name(1, name.Sizeof()-2);
+                    sendErrorIfAlreadyExist = false;
+                    parameterType = kParameterIsTemporaryAndMultiple;
+                }
                 continue;
             }
             else if (name[0]=='@') {
@@ -934,6 +940,10 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
                 name = name(1, name.Sizeof()-2);
                 parameterType = kParameterIsMultiple;
                 sendErrorIfAlreadyExist = false;
+                if (name[0]=='*') {
+                    name = name(1, name.Sizeof()-2);
+                    parameterType = kParameterIsTemporaryAndMultiple;
+                }
                 continue;
             }
             break;
@@ -1033,11 +1043,34 @@ LKParameterContainer* LKParameterContainer::CreateGroupContainer(TString nameGro
                 TString mainName = parameter -> GetMainName();
                 TString value = parameter -> GetValue();
                 groupContainer -> AddPar(mainName,value);
+                //groupContainer -> Add(parameter);
             }
         }
     }
 
     return groupContainer;
+}
+
+LKParameterContainer* LKParameterContainer::CreateMultiParContainer(TString parNameGiven)
+{
+    R__COLLECTION_READ_LOCKGUARD(ROOT::gCoreMutex);
+
+    auto multiParContainer = new LKParameterContainer();
+    multiParContainer -> SetName(parNameGiven);
+
+    TIter iterator(this);
+    LKParameter *parameter;
+    while ((parameter = dynamic_cast<LKParameter*>(iterator())))
+    {
+        if (parameter) {
+            auto parName = parameter -> GetName();
+            if (parName==parNameGiven) {
+                multiParContainer -> Add(parameter);
+            }
+        }
+    }
+
+    return multiParContainer;
 }
 
 Bool_t LKParameterContainer::CheckPar(TString name) const
@@ -1074,12 +1107,12 @@ LKParameter *LKParameterContainer::FindPar(TString givenName, bool terminateIfNu
         else               { justName  = givenName(0,index); break; }
     }
     while (1) {
-        if      (justName[0]=='<') justName = justName(1,justName.Sizeof()-2);
-        else if (justName[0]=='*') justName = justName(1,justName.Sizeof()-2);
-        else if (justName[0]=='@') justName = justName(1,justName.Sizeof()-2);
-        else if (justName[0]=='&') justName = justName(1,justName.Sizeof()-2);
-        else if (justName[0]=='!') justName = justName(1,justName.Sizeof()-2);
-        else if (justName[0]=='#') justName = justName(1,justName.Sizeof()-2);
+        if      (justName[0]=='<') { justName = justName(1,justName.Sizeof()-2); continue; }
+        else if (justName[0]=='*') { justName = justName(1,justName.Sizeof()-2); continue; }
+        else if (justName[0]=='@') { justName = justName(1,justName.Sizeof()-2); continue; }
+        else if (justName[0]=='&') { justName = justName(1,justName.Sizeof()-2); continue; }
+        else if (justName[0]=='!') { justName = justName(1,justName.Sizeof()-2); continue; }
+        else if (justName[0]=='#') { justName = justName(1,justName.Sizeof()-2); continue; }
         else
             break;
     }
@@ -1144,7 +1177,7 @@ void LKParameterContainer::SetCollectParameters(bool collect)
 void LKParameterContainer::PrintCollection(TString fileName)
 {
     if (fileName.IsNull())
-        fCollectedParameterContainer -> Print("!eval, line#, par#, !idx");
+        fCollectedParameterContainer -> Print("!eval line# par# !idx");
     else
         fCollectedParameterContainer -> Print(fileName);
 }

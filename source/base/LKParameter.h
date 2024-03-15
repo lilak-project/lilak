@@ -38,9 +38,9 @@ class LKParameter : public TNamed
 
         bool    IsStandard()    const { return (fType==0); }
         bool    IsLineComment() const { return (fType==1); }
-        bool    IsTemporary()   const { return (fType==2); }
+        bool    IsTemporary()   const { return (fType==2||fType==6); }
         bool    IsConditional() const { return (fType==3); }
-        bool    IsMultiple()    const { return (fType==4); }
+        bool    IsMultiple()    const { return (fType==4||fType==6); }
 
         bool    CheckTypeInt   (int i=-1) const;
         bool    CheckTypeLong  (int i=-1) const;

@@ -146,7 +146,7 @@ class LKParameterContainer : public TObjArray
          * - all : show all hidden parameters (not recommended to write file with this mode)
          * - raw : print from TObjArray::Print()
          */
-        virtual void Print(Option_t *option = "") const;
+        virtual void Print(Option_t *option="") const;
         void SaveAs(const char *filename, Option_t *option = "") const;
         LKParameterContainer *CloneParameterContainer(TString name="") const;
 
@@ -234,6 +234,7 @@ class LKParameterContainer : public TObjArray
         std::vector<double>  GetParVSize  (TString name) const { return GetParVDouble(name); }
 
         LKParameterContainer* CreateGroupContainer(TString nameGroup);
+        LKParameterContainer* CreateMultiParContainer(TString parNameGiven);
 
     protected:
         LKParameter *SetPar    (TString name, TString  raw, TString val, TString comment, int parameterType, bool rewriteParameter=false);
@@ -259,6 +260,7 @@ class LKParameterContainer : public TObjArray
         const int kParameterIsTemporary = 2;
         const int kParameterIsConditional = 3;
         const int kParameterIsMultiple = 4;
+        const int kParameterIsTemporaryAndMultiple = 6;
         //const int kRewriteParameter = 5;
 
     private:
