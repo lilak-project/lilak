@@ -14,8 +14,6 @@ set(BUILD_MFM_CONVERTER OFF CACHE INTERNAL "")
 set(BUILD_JSONCPP       OFF CACHE INTERNAL "")
 set(LILAK_PROJECT_LIST      CACHE INTERNAL "") # List of LILAK projects to build
 set(LILAK_PROJECT_MAIN      CACHE INTERNAL "")
-#set(GRUDIR "/usr/local/gru" CACHE INTERNAL "")
-#set(GETDIR "/usr/local/get" CACHE INTERNAL "")
 set(GRUDIR               "" CACHE INTERNAL "")
 set(GETDIR               "" CACHE INTERNAL "")
 
@@ -254,7 +252,8 @@ endif(BUILD_GEANT4_SIM)
 add_library(LILAK SHARED ${LILAK_LIB_LIST})
 
 if(BUILD_MFM_CONVERTER)
-    target_link_libraries(LILAK ${ROOT_LIBRARIES} Html Spectrum XMLIO GRU MultiFrame)
+    #target_link_libraries(LILAK ${ROOT_LIBRARIES} Html Spectrum XMLIO GRU MultiFrame)
+    target_link_libraries(LILAK ${ROOT_LIBRARIES} Html Spectrum XMLIO MultiFrame)
 else(BUILD_MFM_CONVERTER)
     target_link_libraries(LILAK ${ROOT_LIBRARIES})
 endif(BUILD_MFM_CONVERTER)
