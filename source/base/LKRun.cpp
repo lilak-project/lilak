@@ -249,7 +249,7 @@ void LKRun::Print(Option_t *option) const
     if (printParameters) {
         e_cout << endl;
         lk_info << "# Parameters" << endl;
-        fPar -> Print();
+        fPar -> Print("eval line# par# !idx");
     }
 
     if (printDetectors) {
@@ -543,22 +543,48 @@ bool LKRun::Init()
         return false;
     }
 
-    Int_t idxInput = 1;
-    if (fInputFileName.IsNull() && fInputFileNameArray.size() != 0) {
-        fInputFileName = fInputFileNameArray[0];
-        idxInput = 1;
-    }
-
     fPar -> CheckPar("LKRun/Name      run    # name of the run (If input file is output of LILAK run, this parameter is inherited)");
     fPar -> CheckPar("LKRun/RunID     1      # run number (If input file is output of LILAK run, this parameter is inherited)");
     fPar -> CheckPar("LKRun/Division  0      # division within the run [optional] (If input file is output of LILAK run, this parameter is inherited)");
-    fPar -> CheckPar("*LKRun/Tag      test   # tag (*: temporary parameter) (This parameter should be set for using different tasks)");
+    fPar -> CheckPar("*LKRun/Tag      tag    # tag (*: temporary parameter) (This parameter is meant to be different depending on added tasks)");
+    fPar -> CheckPar("&*LKRun/InputFile    path/to/input/data   # input file. Used if they are not added in the macro (multiple parameters are allowed)");
+    fPar -> CheckPar("&*LKRun/FriendFile   path/to/friend/data  # input friend file. Used if they are not added in the macro (multiple parameters are allowed)");
+
+    Int_t idxInput = 1;
+    if (fInputFileName.IsNull())
+    {
+        if (fInputFileNameArray.size()==0 && fPar->CheckPar("LKRun/InputFile")) {
+            LKParameterContainer* fileNameArray = fPar -> CreateMultiParContainer("LKRun/InputFile");
+            TIter next(fileNameArray);
+            LKParameter *parameter = nullptr;
+            while ((parameter = (LKParameter*) next())) {
+                auto fileName = parameter -> GetValue();
+                if (!fileName.IsNull())
+                    fInputFileNameArray.push_back(fileName);
+            }
+        }
+        if (fInputFileNameArray.size()>0) {
+            fInputFileName = fInputFileNameArray[0];
+            idxInput = 1;
+        }
+    }
+
+    if (fFriendFileNameArray.size()==0 && fPar->CheckPar("LKRun/FriendFile")) {
+        LKParameterContainer* fileNameArray = fPar -> CreateMultiParContainer("LKRun/FriendFile");
+        TIter next(fileNameArray);
+        LKParameter *parameter = nullptr;
+        while ((parameter = (LKParameter*) next())) {
+            auto fileName = parameter -> GetValue();
+            if (!fileName.IsNull())
+                fFriendFileNameArray.push_back(fileName);
+        }
+    }
 
     if (!fRunNameIsSet) {
-        fPar -> UpdatePar(fRunName,  "LKRun/Name      run    # name of the run");
-        fPar -> UpdatePar(fRunID,    "LKRun/RunID     1      # run number");
-        fPar -> UpdatePar(fDivision, "LKRun/Division  0      # division within the run [optional]");
-        fPar -> UpdatePar(fTag,      "*LKRun/Tag      test   # tag (*: temporary parameter)");
+        fPar -> UpdatePar(fRunName,  "LKRun/Name");
+        fPar -> UpdatePar(fRunID,    "LKRun/RunID");
+        fPar -> UpdatePar(fDivision, "LKRun/Division");
+        fPar -> UpdatePar(fTag,      "LKRun/Tag");
         if (fPar -> CheckPar("LKRun/Name"))
             fRunNameIsSet = true;
     }
