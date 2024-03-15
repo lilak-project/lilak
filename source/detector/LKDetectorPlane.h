@@ -138,7 +138,7 @@ class LKDetectorPlane : public TNamed, public LKGear
         void SetHitArray(TClonesArray *hitArray);
 
         /// Find pad corresponding to the position (i,j) and fill time-bin by amount of charge.
-        void FillBufferIn(double i, double j, double tb, double charge, int trackID = -1);
+        void FillPlane(double i, double j, double tb, double charge, int trackID = -1);
         void AddHit(LKHit *hit);
 
         virtual void ResetHitMap(); ///< For tracking use

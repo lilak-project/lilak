@@ -41,13 +41,13 @@ class LKDetector : public TNamed, public LKGear
 
         void SetRun(LKRun *run);
 
-        virtual bool GetEffectiveDimension(Double_t &x1, Double_t &y1, Double_t &z1, Double_t &x2, Double_t &y2, Double_t &z2) { return false; }
+        virtual bool GetEffectiveDimension(Double_t &x1, Double_t &y1, Double_t &z1, Double_t &x2, Double_t &y2, Double_t &z2);
 
         virtual LKChannelAnalyzer* GetChannelAnalyzer(int id=0);
 
     protected:
-        virtual bool BuildGeometry() = 0;
-        virtual bool BuildDetectorPlane() = 0;
+        virtual bool BuildGeometry() { return true; }
+        virtual bool BuildDetectorPlane() { return true; }
 
         TGeoManager *fGeoManager = nullptr;
 
@@ -57,6 +57,13 @@ class LKDetector : public TNamed, public LKGear
         LKDetectorSystem *fParent = nullptr;
 
         LKChannelAnalyzer* fChannelAnalyzer0 = nullptr;
+
+        double fX1;
+        double fX2;
+        double fY1;
+        double fY2;
+        double fZ1;
+        double fZ2;
 
     ClassDef(LKDetector, 1)
 };

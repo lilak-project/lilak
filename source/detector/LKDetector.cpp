@@ -27,9 +27,17 @@ void LKDetector::Print(Option_t *) const
 
 bool LKDetector::Init()
 {
+    fPar -> UpdatePar(fX1,"LKDetector/x1  -50  # effective range x min.");
+    fPar -> UpdatePar(fX2,"LKDetector/x2  +50  # effective range x max.");
+    fPar -> UpdatePar(fY1,"LKDetector/y1  -50  # effective range y min.");
+    fPar -> UpdatePar(fY2,"LKDetector/y2  +50  # effective range y max.");
+    fPar -> UpdatePar(fZ1,"LKDetector/z1  -50  # effective range z min.");
+    fPar -> UpdatePar(fZ2,"LKDetector/z2  +50  # effective range z max.");
+
     BuildDetectorPlane();
     for (auto iPlane = 0; iPlane < fNumPlanes; ++iPlane) {
         auto plane = (LKDetectorPlane *) fDetectorPlaneArray -> At(iPlane);
+        plane -> SetPar(fPar);
         plane -> Init();
     }
     return true;
@@ -50,7 +58,6 @@ void LKDetector::AddPlane(LKDetectorPlane *plane, Int_t planeID)
 {
     plane -> SetPlaneID(planeID);
     plane -> SetPar(fPar);
-    //plane -> Init();
     plane -> SetRank(fRank+1);
     plane -> SetDetector(this);
     if (fRun!=nullptr)
@@ -96,9 +103,19 @@ void LKDetector::SetRun(LKRun *run)
     fRun = run;
     for (auto iPlane = 0; iPlane < fNumPlanes; ++iPlane) {
         auto plane = (LKDetectorPlane *) fDetectorPlaneArray -> At(iPlane);
-        lk_debug << fRun << endl;
         plane -> SetRun(run);
     }
+}
+
+bool LKDetector::GetEffectiveDimension(Double_t &x1, Double_t &y1, Double_t &z1, Double_t &x2, Double_t &y2, Double_t &z2)
+{
+    x1 = fX1;
+    x2 = fX2;
+    y1 = fY1;
+    y2 = fY2;
+    z1 = fZ1;
+    z2 = fZ2;
+    return true;
 }
 
 LKChannelAnalyzer* LKDetector::GetChannelAnalyzer(int)

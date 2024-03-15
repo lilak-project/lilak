@@ -122,7 +122,7 @@ void LKDetectorPlane::AddHit(LKHit *hit)
         pad -> AddHit(hit);
 }
 
-void LKDetectorPlane::FillBufferIn(double i, double j, double tb, double val, int trackID)
+void LKDetectorPlane::FillPlane(double i, double j, double tb, double val, int trackID)
 {
     int id = FindPadID(i, j);
     if (id < 0)
@@ -130,7 +130,7 @@ void LKDetectorPlane::FillBufferIn(double i, double j, double tb, double val, in
 
     LKPad *pad = (LKPad *) fChannelArray -> At(id);
     if (pad != nullptr)
-        pad -> FillBufferIn(tb, val, trackID);
+        pad -> FillRawSigBuffer(tb, val, trackID);
 }
 
 void LKDetectorPlane::FillDataToHist()
@@ -179,17 +179,7 @@ void LKDetectorPlane::FillDataToHist()
         lk_info << "Filling output buffer to PadPlane" << endl;
         fH2Plane -> SetTitle("pad calibrated output distribution");
         while ((pad = (LKPad *) iterPads.Next())) {
-            auto buffer = pad -> GetBufferOut();
-            double val = *max_element(buffer,buffer+512);
-            if (val < 1) val = 0;
-            fH2Plane -> Fill(pad->GetI(),pad->GetJ(),val);
-        }
-    }
-    else if (optionString == "raw") {
-        lk_info << "Filling raw buffer PadPlane" << endl;
-        fH2Plane -> SetTitle("pad raw input distribution");
-        while ((pad = (LKPad *) iterPads.Next())) {
-            auto buffer = pad -> GetBufferRaw();
+            auto buffer = pad -> GetShapedBuffer();
             double val = *max_element(buffer,buffer+512);
             if (val < 1) val = 0;
             fH2Plane -> Fill(pad->GetI(),pad->GetJ(),val);
@@ -199,7 +189,7 @@ void LKDetectorPlane::FillDataToHist()
         lk_info << "Filling input buffer PadPlane" << endl;
         fH2Plane -> SetTitle("pad calibrated input distribution");
         while ((pad = (LKPad *) iterPads.Next())) {
-            auto buffer = pad -> GetBufferIn();
+            auto buffer = pad -> GetRawSigBuffer();
             double val = *max_element(buffer,buffer+512);
             if (val < 1) val = 0;
             fH2Plane -> Fill(pad->GetI(),pad->GetJ(),val);
@@ -458,8 +448,8 @@ bool LKDetectorPlane::PadMapChecker()
         auto row = pad -> GetRow();
         auto padID1 = FindPadID(section,layer,row);
         auto cobo = pad -> GetCoboID();
-        auto aget = pad -> GetAGETID();
-        auto asad = pad -> GetAsAdID();
+        auto aget = pad -> GetAgetID();
+        auto asad = pad -> GetAsadID();
         auto chan = pad -> GetChannelID();
         auto padID2 = FindPadID(cobo,asad,aget,chan);
 
@@ -472,8 +462,8 @@ bool LKDetectorPlane::PadMapChecker()
 
         if (padID2 != padID0) {
             auto pad2 = (LKPad *) fChannelArray -> At(padID2);
-            lk_warning << "Bad CAAC map! Pad:" << padID0 << " (" << pad -> GetCoboID() << "," << pad -> GetAGETID() << "," << pad -> GetAsAdID() << "," << pad -> GetChannelID() << ")"
-                                << " --> Pad:" << padID2 << " (" << pad2-> GetCoboID() << "," << pad2-> GetAGETID() << "," << pad2-> GetAsAdID() << "," << pad2-> GetChannelID() << ")" << endl;
+            lk_warning << "Bad CAAC map! Pad:" << padID0 << " (" << pad -> GetCoboID() << "," << pad -> GetAgetID() << "," << pad -> GetAsadID() << "," << pad -> GetChannelID() << ")"
+                                << " --> Pad:" << padID2 << " (" << pad2-> GetCoboID() << "," << pad2-> GetAgetID() << "," << pad2-> GetAsadID() << "," << pad2-> GetChannelID() << ")" << endl;
             ++countBadCAAC;
         }
     }
