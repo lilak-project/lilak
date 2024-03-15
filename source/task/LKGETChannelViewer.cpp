@@ -68,12 +68,10 @@ bool LKGETChannelViewer::Init()
     fChannelContainHits = new bool[fNXCN*fNYCN];
 
     fBinXMenu = new int[fNumMenu];
-    fBinXCobo = new int[fNumCobo];
     fBinXAsad = new int[fNumAsad];
     fBinXAget = new int[fNumAget];
 
     fBinYMenu = new int[fNumMenu];
-    fBinYCobo = new int[fNumCobo];
     fBinYAsad = new int[fNumAsad];
     fBinYAget = new int[fNumAget];
 
@@ -121,22 +119,27 @@ bool LKGETChannelViewer::Init()
     if (fNumMenu==0)
         fNumMCAA = 3;
 
-    if (fNumCobo==21&&fNumAsad==4&&fNumAget==4)
+    if (fNumCobo>20&&fNumCobo<=24)
     {
+        fNumCobo = 24;
+        fBinXCobo = new int[fNumCobo];
+        fBinYCobo = new int[fNumCobo];
         fBinYMenu[0] = 1; fBinXMenu[0] = 1;
-        fBinYMenu[1] = 1; fBinXMenu[1] = 6;
-        fBinYMenu[2] = 1; fBinXMenu[2] = 7;
-        for (auto i=0; i<7; ++i)        { fBinYCobo[i] = 2; fBinXCobo[i] = i+1; }
-        for (auto i=7; i<14; ++i)       { fBinYCobo[i] = 3; fBinXCobo[i] = i+1-7; }
-        for (auto i=14;i<21; ++i)       { fBinYCobo[i] = 4; fBinXCobo[i] = i+1-14; }
+        fBinYMenu[1] = 1; fBinXMenu[1] = 2;
+        fBinYMenu[2] = 1; fBinXMenu[2] = 3;
+        for (auto i=0; i<8;  ++i)       { fBinYCobo[i] = 2; fBinXCobo[i] = i+1; }
+        for (auto i=8; i<16; ++i)       { fBinYCobo[i] = 3; fBinXCobo[i] = i+1-8; }
+        for (auto i=16;i<24; ++i)       { fBinYCobo[i] = 4; fBinXCobo[i] = i+1-16; }
         for (auto i=0; i<fNumAsad; ++i) { fBinYAsad[i] = 5; fBinXAsad[i] = i+1; }
         for (auto i=0; i<fNumAget; ++i) { fBinYAget[i] = 6; fBinXAget[i] = i+1; }
 
-        fHistMCAANumber = new TH2D("LKGCV_HistMCAANumber","",7,0,7,6,0,6);
-        fHistMCAANumber2 = new TH2D("LKGCV_HistMCAANumber2","",7,0,7,6,0,6);
+        fHistMCAANumber  = new TH2D("LKGCV_HistMCAANumber","",8,0,8,6,0,6);
+        fHistMCAANumber2 = new TH2D("LKGCV_HistMCAANumber2","",8,0,8,6,0,6);
     }
     else
     {
+        fBinXCobo = new int[fNumCobo];
+        fBinYCobo = new int[fNumCobo];
         for (auto i=0; i<fNumMenu; ++i) { fBinYMenu[i] = fNumMCAA-3; fBinXMenu[i] = i+1; }
         for (auto i=0; i<fNumCobo; ++i) { fBinYCobo[i] = fNumMCAA-2; fBinXCobo[i] = i+1; }
         for (auto i=0; i<fNumAsad; ++i) { fBinYAsad[i] = fNumMCAA-1; fBinXAsad[i] = i+1; }
@@ -318,6 +321,9 @@ void LKGETChannelViewer::SelectAll(bool update)
         fActiveAget[channel->GetAget()] = true;
         fActiveChan[channel->GetChan()] = true;
         fActiveAllChannels[iChannel] = true;
+#ifdef DEBUG_LKGCV_FUNCTION
+        //lk_debug << channel->GetCobo() << " " << channel->GetAsad() << " " << channel->GetAget() << " " << channel->GetChan() << endl;
+#endif
         fChannelIndex[channel->GetCobo()][channel->GetAsad()][channel->GetAget()][channel->GetChan()] = iChannel;
     }
 

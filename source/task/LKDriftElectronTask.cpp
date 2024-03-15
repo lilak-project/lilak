@@ -161,7 +161,7 @@ void LKDriftElectronTask::Exec(Option_t *option)
                 xPlane = xPlane + xyc.X();
                 yPlane = yPlane + xyc.Y();
                 auto charge = xyc.Z();
-                padPlane -> FillBufferIn(xPlane, yPlane, tb, charge, trackID);
+                padPlane -> FillPlane(xPlane, yPlane, tb, charge, trackID);
             }
         }
         /////////////////////////////////////////////////////////////////

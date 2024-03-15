@@ -52,12 +52,12 @@ bool LKEveTask::Init()
 
     fPar -> UpdatePar(fDrawEve3D, "LKEveTask/drawEve3D      false    # draw 3d event display using ROOT EVE package and root geometry defined in detector class");
     fPar -> UpdatePar(fDrawPlane, "LKEveTask/drawPlane      true     # draw 2d planes using detector plane class");
-    fPar -> CheckPar("[BranchName]/lineStyle   1        # track line style of [BranchName]. [BranchName] should be replaced to the actual branch name");
-    fPar -> CheckPar("[BranchName]/lineWidth   1        # track line width of [BranchName]. [BranchName] should be replaced to the actual branch name");;
-    fPar -> CheckPar("[BranchName]/lineColor   kBlack   # track line color of [BranchName]. [BranchName] should be replaced to the actual branch name");;
-    fPar -> CheckPar("[BranchName]/markerStyle 20       # track marker style of [BranchName]. [BranchName] should be replaced to the actual branch name");
-    fPar -> CheckPar("[BranchName]/markerSize  1        # track marker size  of [BranchName]. [BranchName] should be replaced to the actual branch name");
-    fPar -> CheckPar("[BranchName]/markerColor kBlue    # track marker style of [BranchName]. [BranchName] should be replaced to the actual branch name");
+    fPar -> CheckPar("#[BranchName]/lineStyle   1        # track line style of [BranchName]. [BranchName] should be replaced to the actual branch name");
+    fPar -> CheckPar("#[BranchName]/lineWidth   1        # track line width of [BranchName]. [BranchName] should be replaced to the actual branch name");;
+    fPar -> CheckPar("#[BranchName]/lineColor   kBlack   # track line color of [BranchName]. [BranchName] should be replaced to the actual branch name");;
+    fPar -> CheckPar("#[BranchName]/markerStyle 20       # track marker style of [BranchName]. [BranchName] should be replaced to the actual branch name");
+    fPar -> CheckPar("#[BranchName]/markerSize  1        # track marker size  of [BranchName]. [BranchName] should be replaced to the actual branch name");
+    fPar -> CheckPar("#[BranchName]/markerColor kBlue    # track marker style of [BranchName]. [BranchName] should be replaced to the actual branch name");
 
     fNumSelectedBranches = fSelBranchNames.size();
     if (fNumSelectedBranches==0) {
