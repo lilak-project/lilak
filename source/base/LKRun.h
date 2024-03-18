@@ -76,6 +76,8 @@ class LKRun : public LKTask
         const char* GetRunName() const { return fRunName.Data(); }
         Int_t GetRunID() const { return fRunID; }
         Int_t GetDivision() const { return fDivision; }
+        TString GetTag() const { return fTag; }
+        TString MakeFullRunName() const;
 
         /// Set data directory path. Default directory : path/to/LILAK/data
         /// Data path will not be used if full path of the input/ouput file is given.
@@ -108,6 +110,7 @@ class LKRun : public LKTask
         void SetDivision(Int_t division) { fDivision = division; }
         void SetTag(TString tag) { fTag = tag; }
         void SetSplit(Int_t split, Long64_t numEventsInSplit) { fSplit = split; fNumEventsInSplit = numEventsInSplit; }
+        TString GetOutputFileName() const { return fOutputFileName; }
 
         void AlwaysPrintMessage() { fEventCountForMessage = 1; }
         void SetEventCountForMessage(Long64_t val) { fEventCountForMessage = val; }

@@ -23,6 +23,10 @@ LKEvePlane::LKEvePlane()
 LKEvePlane::LKEvePlane(const char *name, const char *title)
 : LKDetectorPlane(name,title)
 {
+    fGSelEventDisplay1 = new TGraph();
+    fGSelEventDisplay1 -> SetLineColor(kRed);
+    fGSelEventDisplay2 = new TGraph();
+    fGSelEventDisplay2 -> SetLineColor(kRed);
 }
 
 LKChannelAnalyzer* LKEvePlane::GetChannelAnalyzer(int id)
@@ -52,6 +56,8 @@ bool LKEvePlane::Init()
 {
     GetChannelAnalyzer();
 
+    fPar -> UpdatePar(fFigurePath,"LKEvePlane/FigurePath .");
+
     if (fRun!=nullptr)
     {
         fRawDataArray = fRun -> GetBranchA("RawData");
@@ -63,6 +69,8 @@ bool LKEvePlane::Init()
     fTbToLength = 1;
 
     fChannelGraphArray = new TClonesArray("TGraph",20);
+
+    SetPalette();
 
     return true;
 }
@@ -99,17 +107,16 @@ void LKEvePlane::UpdateEventDisplay1()
         return;
     fPadEventDisplay1 -> cd();
     fPadEventDisplay1 -> SetGrid();
-    if      (fEnergyMaxMode==0) { fHistEventDisplay1 -> SetMinimum(-1111); fHistEventDisplay1 -> SetMaximum(-1111); }
-    else if (fEnergyMaxMode==1) { fHistEventDisplay1 -> SetMinimum(0);     fHistEventDisplay1 -> SetMaximum(2500); }
-    else if (fEnergyMaxMode==2) { fHistEventDisplay1 -> SetMinimum(0);     fHistEventDisplay1 -> SetMaximum(4200); }
+    if      (fEnergyMax==0) { fHistEventDisplay1 -> SetMinimum(fEnergyMin); fHistEventDisplay1 -> SetMaximum(-1111); }
+    else if (fEnergyMax==1) { fHistEventDisplay1 -> SetMinimum(fEnergyMin);     fHistEventDisplay1 -> SetMaximum(4200); }
     else
     {
-        fHistEventDisplay1 -> SetMinimum(0);
-        fHistEventDisplay1 -> SetMaximum(fEnergyMaxMode);
-        if (fEnergyMaxMode>100)
+        fHistEventDisplay1 -> SetMinimum(fEnergyMin);
+        fHistEventDisplay1 -> SetMaximum(fEnergyMax);
+        if (fEnergyMax>100)
             gStyle -> SetNumberContours(100);
         else
-            gStyle -> SetNumberContours(fEnergyMaxMode);
+            gStyle -> SetNumberContours(fEnergyMax);
     }
     fHistEventDisplay1 -> Draw(fEventDisplayDrawOption);
     fEventDisplayDrawOption = "colz";
@@ -121,17 +128,16 @@ void LKEvePlane::UpdateEventDisplay2()
         return;
     fPadEventDisplay2 -> cd();
     fPadEventDisplay2 -> SetGrid();
-    if      (fEnergyMaxMode==0) { fHistEventDisplay2 -> SetMinimum(-1111); fHistEventDisplay2 -> SetMaximum(-1111); }
-    else if (fEnergyMaxMode==1) { fHistEventDisplay2 -> SetMinimum(0);     fHistEventDisplay2 -> SetMaximum(2500); }
-    else if (fEnergyMaxMode==2) { fHistEventDisplay2 -> SetMinimum(0);     fHistEventDisplay2 -> SetMaximum(4200); }
+    if      (fEnergyMax==0) { fHistEventDisplay2 -> SetMinimum(fEnergyMin); fHistEventDisplay2 -> SetMaximum(-1111); }
+    else if (fEnergyMax==1) { fHistEventDisplay2 -> SetMinimum(fEnergyMin);     fHistEventDisplay2 -> SetMaximum(4200); }
     else
     {
-        fHistEventDisplay2 -> SetMinimum(0);
-        fHistEventDisplay2 -> SetMaximum(fEnergyMaxMode);
-        if (fEnergyMaxMode>100)
+        fHistEventDisplay2 -> SetMinimum(fEnergyMin);
+        fHistEventDisplay2 -> SetMaximum(fEnergyMax);
+        if (fEnergyMax>100)
             gStyle -> SetNumberContours(100);
         else
-            gStyle -> SetNumberContours(fEnergyMaxMode);
+            gStyle -> SetNumberContours(fEnergyMax);
     }
     fHistEventDisplay2 -> Draw(fEventDisplayDrawOption);
     fEventDisplayDrawOption = "colz";
@@ -145,8 +151,8 @@ void LKEvePlane::UpdateChannelBuffer()
     auto pad = (LKPhysicalPad*) fChannelArray -> At(fSelPadID);
     if (pad==nullptr) {
         lk_error << "pad at " << fSelPadID << " is nullptr" << endl;
-        fPadChannelBuffer -> cd();
-        fHistChannelBuffer -> Draw();
+        //fPadChannelBuffer -> cd();
+        //fHistChannelBuffer -> Draw();
         return;
     }
 
@@ -166,44 +172,32 @@ void LKEvePlane::UpdateChannelBuffer()
     fGSelEventDisplay1 -> SetPoint(2,z2,x2);
     fGSelEventDisplay1 -> SetPoint(3,z2,x1);
     fGSelEventDisplay1 -> SetPoint(4,z1,x1);
-    fGSelEventDisplay1 -> SetLineColor(kGray+1);
     fGSelEventDisplay1 -> SetLineColor(kRed);
+    if (fPaletteNumber==0)
+        fGSelEventDisplay1 -> SetLineColor(kGreen);
     fGSelEventDisplay1 -> Draw("samel");
 
-    fSelRawDataIdx = pad -> GetDataIndex();
+    fSelRawDataID = pad -> GetDataIndex();
 
-    if (fRawDataArray!=nullptr&&fSelRawDataIdx>=0)
+    if (fRawDataArray!=nullptr&&fSelRawDataID>=0)
     {
-        auto channel = (GETChannel*) fRawDataArray -> At(fSelRawDataIdx);
-        if (fAccumulateChannel)
-            fHistChannelBuffer -> Reset();
-        else
-            channel -> FillHist(fHistChannelBuffer);
+        auto channel = (GETChannel*) fRawDataArray -> At(fSelRawDataID);
 
-        fPadChannelBuffer -> cd();
-        if (fAccumulateChannel)
-            fHistChannelBuffer -> SetMaximum(4200);
-        else {
-            if      (fEnergyMaxMode==0) fHistChannelBuffer -> SetMaximum(-1111);
-            else if (fEnergyMaxMode==1) fHistChannelBuffer -> SetMaximum(2500);
-            else if (fEnergyMaxMode==2) fHistChannelBuffer -> SetMaximum(4200);
-        }
-        auto cobo = channel -> GetCobo();
-        auto asad = channel -> GetAsad();
-        auto aget = channel -> GetAget();
-        auto chan = channel -> GetChan();
-        auto engy = channel -> GetEnergy();
-        auto time = channel -> GetTime();
-        auto pdst = channel -> GetPedestal();
-        TString title = Form("(CAAC) = (%d, %d, %d, %d)   |   (TEP)=(%.1f, %.1f, %.1f)", cobo, asad, aget, chan, time, engy, pdst);
-        fHistChannelBuffer -> SetTitle(title);
-        fHistChannelBuffer -> Draw();
-
-        if (fAccumulateChannel)
+        if (fAccumulateChannel==1)
         {
+            fHistChannelBuffer -> Reset();
+            fHistChannelBuffer -> SetMaximum(4200);
+            fPadChannelBuffer -> cd();
+            fHistChannelBuffer -> Draw();
+
             auto graph = (TGraph*) fChannelGraphArray -> ConstructedAt(fCountChannelGraph);
             channel -> FillGraph(graph);
             fCountChannelGraph++;
+            //fHistControlEvent2 -> SetBinContent(fBinCtrlAcmltCh, fCountChannelGraph);
+
+            TString title = Form("Choosen Channels (%d)",fCountChannelGraph);
+            fHistChannelBuffer -> SetTitle(title);
+
             double yMin=DBL_MAX, yMax=-DBL_MAX;
             for (auto iGraph=0; iGraph<fCountChannelGraph; ++iGraph)
             {
@@ -225,29 +219,89 @@ void LKEvePlane::UpdateChannelBuffer()
             fHistChannelBuffer -> SetMinimum(yMin);
             fHistChannelBuffer -> SetMaximum(yMax);
         }
-
-        if (fFitChannel)
+        else if (fAccumulateChannel==2&&fCountChannelGraph==0)
         {
-            fChannelAnalyzer -> Analyze(channel->GetWaveformY());
-            auto numHits = fChannelAnalyzer -> GetNumHits();
+            fHistChannelBuffer -> Reset();
+            fHistChannelBuffer -> SetMaximum(4200);
+            TString title = "All Channels";
+            fHistChannelBuffer -> SetTitle(title);
             fPadChannelBuffer -> cd();
-            auto graphPedestal = fChannelAnalyzer -> GetPedestalGraph();
-            graphPedestal -> SetLineColor(kOrange-3);
-            graphPedestal -> Draw("samel");
-            for (auto iHit=0; iHit<numHits; ++iHit)
+            fHistChannelBuffer -> Draw();
+
+            double yMin=DBL_MAX, yMax=-DBL_MAX;
+            auto numChannels = fRawDataArray -> GetEntries();
+            for (auto iRawData=0; iRawData<numChannels; ++iRawData)
             {
-                auto tbHit = fChannelAnalyzer -> GetTbHit(iHit);
-                auto amplitude = fChannelAnalyzer -> GetAmplitude(iHit);
-                auto pedestal = fChannelAnalyzer -> GetPedestal();
-                lk_info << iHit << ") (T,E,P) = (" << tbHit << ", " << amplitude << ", " << pedestal << ")" << endl;
-                auto graph = fChannelAnalyzer -> GetPulseGraph(tbHit,amplitude,pedestal);
-                graph -> SetLineColor(kBlue-4);
-                graph -> SetLineStyle(2);
-                graph -> Draw("samel");
+                auto channel = (GETChannel*) fRawDataArray -> At(iRawData);
+                auto graph = (TGraph*) fChannelGraphArray -> ConstructedAt(fCountChannelGraph);
+                channel -> FillGraph(graph);
+                fCountChannelGraph++;
+
+                graph -> Draw("plc samel");
+                double x0, y0;
+                auto n = graph -> GetN();
+                for (auto i=0; i<n; ++i) {
+                    graph -> GetPoint(i,x0,y0);
+                    if (yMin>y0) yMin = y0;
+                    if (yMax<y0) yMax = y0;
+                }
             }
-            fHistControlEvent2 -> SetBinContent(fBinCtrlFitChan, 1);
+            //fHistControlEvent2 -> SetBinContent(fBinCtrlAcmltCh, fCountChannelGraph);
+
+            double dy = 0.1*(yMax - yMin);
+            yMin = yMin - dy;
+            yMax = yMax + dy;
+            if (yMin<0) yMin = 0;
+            if (yMax>4200) yMax = 4200;
+            fHistChannelBuffer -> SetMinimum(yMin);
+            fHistChannelBuffer -> SetMaximum(yMax);
         }
-        fFitChannel = false;
+        else
+        {
+            channel -> FillHist(fHistChannelBuffer);
+            if      (fEnergyMax==0) fHistChannelBuffer -> SetMaximum(-1111);
+            else if (fEnergyMax==1) fHistChannelBuffer -> SetMaximum(4200);
+
+            auto cobo = channel -> GetCobo();
+            auto asad = channel -> GetAsad();
+            auto aget = channel -> GetAget();
+            auto chan = channel -> GetChan();
+            auto engy = channel -> GetEnergy();
+            auto time = channel -> GetTime();
+            auto pdst = channel -> GetPedestal();
+
+            TString title = Form("(PC) = (%d, %d)", fSelPadID, fSelRawDataID);
+            title = title + Form(", (i,j) = (%1.f, %1.f)", pad->GetI(), pad->GetJ());
+            title = title + Form(", (CAAC) = (%d, %d, %d, %d)", cobo, asad, aget, chan);
+            title = title + Form(", (TEP)=(%.1f, %.1f, %.1f)", time, engy, pdst);
+            fHistChannelBuffer -> SetTitle(title);
+
+            fPadChannelBuffer -> cd();
+            fHistChannelBuffer -> Draw();
+
+            if (fFitChannel)
+            {
+                fChannelAnalyzer -> Analyze(channel->GetWaveformY());
+                auto numHits = fChannelAnalyzer -> GetNumHits();
+                fPadChannelBuffer -> cd();
+                auto graphPedestal = fChannelAnalyzer -> GetPedestalGraph();
+                graphPedestal -> SetLineColor(kOrange-3);
+                graphPedestal -> Draw("samel");
+                for (auto iHit=0; iHit<numHits; ++iHit)
+                {
+                    auto tbHit = fChannelAnalyzer -> GetTbHit(iHit);
+                    auto amplitude = fChannelAnalyzer -> GetAmplitude(iHit);
+                    auto pedestal = fChannelAnalyzer -> GetPedestal();
+                    lk_info << iHit << ") (T,E,P) = (" << tbHit << ", " << amplitude << ", " << pedestal << ")" << endl;
+                    auto graph = fChannelAnalyzer -> GetPulseGraph(tbHit,amplitude,pedestal);
+                    graph -> SetLineColor(kBlue-4);
+                    graph -> SetLineStyle(2);
+                    graph -> Draw("samel");
+                }
+                //fHistControlEvent2 -> SetBinContent(fBinCtrlFitChan, 1);
+                //fFitChannel = false;
+            }
+        }
     }
     else {
         fPadChannelBuffer -> cd();
@@ -287,6 +341,37 @@ void LKEvePlane::UpdateControlEvent2()
         fHistControlEvent2 -> Draw("text");
 }
 
+void LKEvePlane::UpdateMenu()
+{
+    auto configureBin = [this](int currentMenu, int selectMenu, int xbin, TString name, double content) {
+        if (currentMenu!=selectMenu) return -99;
+        auto gbin = fHistControlEvent2 -> GetBin(xbin,1);
+        fHistControlEvent2 -> GetXaxis() -> SetBinLabel(xbin,name);
+        fHistControlEvent2 -> SetBinContent(gbin,content);
+        return gbin;
+    };
+
+    int binControlDummy;
+
+    fBinCtrlChgMenu = configureBin(fCurrentMenu, fCurrentMenu, 1, "Menu", fCurrentMenu);
+
+    fBinCtrlEngyMin = configureBin(fCurrentMenu, 0, 2, "E_{min}",  abs(fEnergyMin));
+    fBinCtrlEngyMax = configureBin(fCurrentMenu, 0, 3, "E_{max}",  fEnergyMax);
+    fBinCtrlFitChan = configureBin(fCurrentMenu, 0, 4, "Fit Ch.",  0);
+    fBinCtrlDrawACh = configureBin(fCurrentMenu, 0, 5, "All Ch.",  0);
+    fBinCtrlAcmltCh = configureBin(fCurrentMenu, 0, 6, "++Channel",0);
+    fBinCtrlAcmltEv = configureBin(fCurrentMenu, 0, 7, "++Event",  0);
+    binControlDummy = configureBin(fCurrentMenu, 0, 8, "",         0);
+
+    fBinCtrlPalette = configureBin(fCurrentMenu, 1, 2, "Palette",  0);
+    fBinCtrlSaveFig = configureBin(fCurrentMenu, 1, 3, "Save png", 0);
+    binControlDummy = configureBin(fCurrentMenu, 1, 4, "",         0);
+    binControlDummy = configureBin(fCurrentMenu, 1, 5, "",         0);
+    binControlDummy = configureBin(fCurrentMenu, 1, 6, "",         0);
+    binControlDummy = configureBin(fCurrentMenu, 1, 7, "",         0);
+    binControlDummy = configureBin(fCurrentMenu, 0, 7, "",         0);
+}
+
 TCanvas *LKEvePlane::GetCanvas(Option_t *option)
 {
     if (fCanvas==nullptr)
@@ -322,6 +407,7 @@ TCanvas *LKEvePlane::GetCanvas(Option_t *option)
         fCanvas -> Update();
 
         AddInteractivePad(fPadEventDisplay1);
+        AddInteractivePad(fPadEventDisplay2);
         AddInteractivePad(fPadChannelBuffer);
         AddInteractivePad(fPadControlEvent1);
         AddInteractivePad(fPadControlEvent2);
@@ -340,8 +426,6 @@ TH2D* LKEvePlane::GetHistEventDisplay1(Option_t *option)
         fHistEventDisplay1 -> SetStats(0);
         fHistEventDisplay1 -> GetXaxis() -> SetTickSize(0);
         fHistEventDisplay1 -> GetYaxis() -> SetTickSize(0);
-        fGSelEventDisplay1 = new TGraph();
-        fGSelEventDisplay1 -> SetLineColor(kRed);
     }
     return fHistEventDisplay1;
 }
@@ -356,8 +440,6 @@ TH2D* LKEvePlane::GetHistEventDisplay2(Option_t *option)
         fHistEventDisplay2 -> SetStats(0);
         fHistEventDisplay2 -> GetXaxis() -> SetTickSize(0);
         fHistEventDisplay2 -> GetYaxis() -> SetTickSize(0);
-        fGSelEventDisplay2 = new TGraph();
-        fGSelEventDisplay2 -> SetLineColor(kRed);
     }
     return fHistEventDisplay2;
 }
@@ -386,8 +468,12 @@ TH2D* LKEvePlane::GetHistControlEvent1()
         double binTextSize = 6.0;
         double ctrlLabelSize = 0.18;
 
-        fHistControlEvent1 = new TH2D("LKEvePlane_ControlEvent1","",7,0,7,1,0,1);
+        fHistControlEvent1 = new TH2D("LKEvePlane_ControlEvent1","",8,0,8,1,0,1);
         fHistControlEvent1 -> SetStats(0);
+        fHistControlEvent1 -> GetXaxis() -> SetTickSize(0);
+        fHistControlEvent1 -> GetYaxis() -> SetTickSize(0);
+        fHistControlEvent1 -> GetYaxis() -> SetBinLabel(1,"");
+        fHistControlEvent1 -> GetXaxis() -> SetLabelSize(ctrlLabelSize);
         fBinCtrlFrst = fHistControlEvent1 -> GetBin(1,1);
         fBinCtrlPr50 = fHistControlEvent1 -> GetBin(2,1);
         fBinCtrlPrev = fHistControlEvent1 -> GetBin(3,1);
@@ -395,10 +481,7 @@ TH2D* LKEvePlane::GetHistControlEvent1()
         fBinCtrlNext = fHistControlEvent1 -> GetBin(5,1);
         fBinCtrlNe50 = fHistControlEvent1 -> GetBin(6,1);
         fBinCtrlLast = fHistControlEvent1 -> GetBin(7,1);
-        fHistControlEvent1 -> GetXaxis() -> SetTickSize(0);
-        fHistControlEvent1 -> GetYaxis() -> SetTickSize(0);
-        fHistControlEvent1 -> GetYaxis() -> SetBinLabel(1,"");
-        fHistControlEvent1 -> GetXaxis() -> SetLabelSize(ctrlLabelSize);
+        fBinCtrlE500 = fHistControlEvent1 -> GetBin(8,1);
         fHistControlEvent1 -> GetXaxis() -> SetBinLabel(1,"First");
         fHistControlEvent1 -> GetXaxis() -> SetBinLabel(2,"-50");
         fHistControlEvent1 -> GetXaxis() -> SetBinLabel(3,"Prev.");
@@ -406,11 +489,18 @@ TH2D* LKEvePlane::GetHistControlEvent1()
         fHistControlEvent1 -> GetXaxis() -> SetBinLabel(5,"Next");
         fHistControlEvent1 -> GetXaxis() -> SetBinLabel(6,"+50");
         fHistControlEvent1 -> GetXaxis() -> SetBinLabel(7,"Last");
+        fHistControlEvent1 -> GetXaxis() -> SetBinLabel(8,"@E>=500");
         fHistControlEvent1 -> SetBinContent(fBinCtrlFrst,0);
         fHistControlEvent1 -> SetMarkerSize(binTextSize);
-        fHistControlEvent1 -> SetMinimum(0);
-        if (fRun!=nullptr)
+        if (fPaletteNumber==0)
+            fHistControlEvent1 -> SetMarkerColor(kBlack);
+        fHistControlEvent1 -> SetMinimum(fEnergyMin);
+        fHistControlEvent1 -> SetBinContent(fBinCtrlE500,500);
+        if (fRun!=nullptr) {
             fHistControlEvent1 -> SetBinContent(fBinCtrlLast,fRun->GetNumEvents()-1);
+            if (fPaletteNumber==0)
+                fHistControlEvent1 -> SetMaximum(2*fRun->GetNumEvents());
+        }
         else {
             fHistControlEvent1 -> SetBinContent(fBinCtrlLast,0);
         }
@@ -427,36 +517,42 @@ TH2D* LKEvePlane::GetHistControlEvent2()
         double binTextSize = 6.0;
         double ctrlLabelSize = 0.18;
 
-        fHistControlEvent2 = new TH2D("LKEvePlane_ControlEvent2","",7,0,7,1,0,1);
+        fHistControlEvent2 = new TH2D("LKEvePlane_ControlEvent2","",8,0,8,1,0,1);
         fHistControlEvent2 -> SetStats(0);
-        fBinCtrlZZZZZZZ = fHistControlEvent2 -> GetBin(1,1);
-        fBinCtrlEngyMax = fHistControlEvent2 -> GetBin(2,1);
-        fBinCtrlAcmltEv = fHistControlEvent2 -> GetBin(3,1);
-        fBinCtrlAcmltCh = fHistControlEvent2 -> GetBin(4,1);
-        fBinCtrlFitChan = fHistControlEvent2 -> GetBin(5,1);
-        fBinCtrlNEEL500 = fHistControlEvent2 -> GetBin(6,1);
-        fBinCtrlNEEL203 = fHistControlEvent2 -> GetBin(7,1);
         fHistControlEvent2 -> GetXaxis() -> SetTickSize(0);
         fHistControlEvent2 -> GetYaxis() -> SetTickSize(0);
         fHistControlEvent2 -> GetYaxis() -> SetBinLabel(1,"");
         fHistControlEvent2 -> GetXaxis() -> SetLabelSize(ctrlLabelSize);
-        fHistControlEvent2 -> GetXaxis() -> SetBinLabel(0,"");
-        fHistControlEvent2 -> GetXaxis() -> SetBinLabel(2,"E_{max}");  // fBinCtrlEngyMax
-        fHistControlEvent2 -> GetXaxis() -> SetBinLabel(3,"++Event");  // fBinCtrlAcmltEv
-        fHistControlEvent2 -> GetXaxis() -> SetBinLabel(4,"++Channel");// fBinCtrlAcmltCh
-        fHistControlEvent2 -> GetXaxis() -> SetBinLabel(5,"Fit Ch.");  // fBinCtrlFitChan
-        fHistControlEvent2 -> GetXaxis() -> SetBinLabel(6,"@E>=500");  // fBinCtrlNEEL500
-        fHistControlEvent2 -> GetXaxis() -> SetBinLabel(7,"@E>=2000"); // fBinCtrlNEEL203
-        fHistControlEvent2 -> SetBinContent(fBinCtrlZZZZZZZ, 0);
-        fHistControlEvent2 -> SetBinContent(fBinCtrlEngyMax, 0);
-        fHistControlEvent2 -> SetBinContent(fBinCtrlAcmltEv, 0);
-        fHistControlEvent2 -> SetBinContent(fBinCtrlAcmltCh, 0);
-        fHistControlEvent2 -> SetBinContent(fBinCtrlFitChan, 0);
-        fHistControlEvent2 -> SetBinContent(fBinCtrlNEEL500, 500);
-        fHistControlEvent2 -> SetBinContent(fBinCtrlNEEL203, 2000);
+        UpdateMenu();
+        //fBinCtrlChgMenu = fHistControlEvent2 -> GetBin(1,1);
+        //fBinCtrlEngyMin = fHistControlEvent2 -> GetBin(2,1);
+        //fBinCtrlEngyMax = fHistControlEvent2 -> GetBin(3,1);
+        //fBinCtrlFitChan = fHistControlEvent2 -> GetBin(4,1);
+        //fBinCtrlAcmltCh = fHistControlEvent2 -> GetBin(5,1);
+        //fBinCtrlAcmltEv = fHistControlEvent2 -> GetBin(6,1);
+        //fBinCtrlPalette = fHistControlEvent2 -> GetBin(7,1);
+        //fBinCtrlSaveFig = fHistControlEvent2 -> GetBin(8,1);
+        //fHistControlEvent2 -> GetXaxis() -> SetBinLabel(1,"Menu");
+        //fHistControlEvent2 -> GetXaxis() -> SetBinLabel(2,"E_{min}");
+        //fHistControlEvent2 -> GetXaxis() -> SetBinLabel(3,"E_{max}");
+        //fHistControlEvent2 -> GetXaxis() -> SetBinLabel(4,"Fit Ch.");
+        //fHistControlEvent2 -> GetXaxis() -> SetBinLabel(5,"++Ch (3)");
+        //fHistControlEvent2 -> GetXaxis() -> SetBinLabel(6,"++Event");
+        //fHistControlEvent2 -> GetXaxis() -> SetBinLabel(7,"Palette");
+        //fHistControlEvent2 -> GetXaxis() -> SetBinLabel(8,"Save");
+        //fHistControlEvent2 -> SetBinContent(fBinCtrlChgMenu, fCurrentMenu);
+        //fHistControlEvent2 -> SetBinContent(fBinCtrlEngyMin, abs(fEnergyMin));
+        //fHistControlEvent2 -> SetBinContent(fBinCtrlEngyMax, fEnergyMax);
+        //fHistControlEvent2 -> SetBinContent(fBinCtrlFitChan, 0);
+        //fHistControlEvent2 -> SetBinContent(fBinCtrlAcmltCh, 0);
+        //fHistControlEvent2 -> SetBinContent(fBinCtrlAcmltEv, 0);
+        //fHistControlEvent2 -> SetBinContent(fBinCtrlPalette, 0);
+        //fHistControlEvent2 -> SetBinContent(fBinCtrlSaveFig, 0);
         fHistControlEvent2 -> SetMarkerSize(binTextSize);
-        fHistControlEvent2 -> SetMinimum(0);
-        fHistControlEvent2 -> SetMaximum(3000);
+        if (fPaletteNumber==0)
+            fHistControlEvent2 -> SetMarkerColor(kBlack);
+        fHistControlEvent2 -> SetMinimum(fEnergyMin);
+        fHistControlEvent2 -> SetMaximum(20);
     }
 
     return fHistControlEvent2;
@@ -496,7 +592,7 @@ bool LKEvePlane::SetDataFromBranch()
         return false;
 
     fSelPadID = 0;
-    fSelRawDataIdx = 0;
+    fSelRawDataID = 0;
     double selEnergy = 0;
 
     auto numChannels = fRawDataArray -> GetEntries();
@@ -522,7 +618,7 @@ bool LKEvePlane::SetDataFromBranch()
         if (channel->GetEnergy()>selEnergy) {
             auto padID = FindPadID(cobo, asad, aget, chan);
             fSelPadID = padID;
-            fSelRawDataIdx = iRawData;
+            fSelRawDataID = iRawData;
             selEnergy = channel->GetEnergy();
         }
     }
@@ -562,7 +658,12 @@ void LKEvePlane::DriftElectronBack(int padID, double tb, TVector3 &posReco, doub
 
 void LKEvePlane::FillDataToHist(Option_t* option)
 {
-    GetHist();
+    FillDataToHistEventDisplay1(option);
+    FillDataToHistEventDisplay2(option);
+}
+
+void LKEvePlane::FillDataToHistEventDisplay1(Option_t *option)
+{
     if (fAccumulateEvents==0)
         fHistEventDisplay1 -> Reset();
 
@@ -582,10 +683,10 @@ void LKEvePlane::FillDataToHist(Option_t* option)
             if (caac>maxCAAC) maxCAAC = caac;
             fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),caac);
         }
-        fEnergyMaxMode = maxCAAC;
+        fEnergyMax = maxCAAC;
     }
     else if (optionString.Index("cobo")>=0) {
-        fEnergyMaxMode = 4;
+        fEnergyMax = 4;
         if (fAccumulateEvents==0) lk_info << "Filling cobo to plane" << endl;
         title = "cobo";
         TIter nextRawData(fChannelArray);
@@ -593,7 +694,7 @@ void LKEvePlane::FillDataToHist(Option_t* option)
             fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetCoboID());
     }
     else if (optionString.Index("asad")>=0) {
-        fEnergyMaxMode = 4;
+        fEnergyMax = 4;
         if (fAccumulateEvents==0) lk_info << "Filling asad to plane" << endl;
         title = "asad";
         TIter nextRawData(fChannelArray);
@@ -601,7 +702,7 @@ void LKEvePlane::FillDataToHist(Option_t* option)
             fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetAsadID());
     }
     else if (optionString.Index("aget")>=0) {
-        fEnergyMaxMode = 4;
+        fEnergyMax = 4;
         if (fAccumulateEvents==0) lk_info << "Filling aget to plane" << endl;
         title = "aget";
         TIter nextRawData(fChannelArray);
@@ -609,7 +710,7 @@ void LKEvePlane::FillDataToHist(Option_t* option)
             fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetAgetID());
     }
     else if (optionString.Index("chan")>=0) {
-        fEnergyMaxMode = 70;
+        fEnergyMax = 70;
         if (fAccumulateEvents==0) lk_info << "Filling chan to plane" << endl;
         title = "chan";
         TIter nextRawData(fChannelArray);
@@ -618,7 +719,7 @@ void LKEvePlane::FillDataToHist(Option_t* option)
     }
 
     else if (optionString.Index("section")>=0) {
-        fEnergyMaxMode = 100;
+        fEnergyMax = 100;
         if (fAccumulateEvents==0) lk_info << "Filling section to plane" << endl;
         title = "section";
         TIter nextRawData(fChannelArray);
@@ -626,7 +727,7 @@ void LKEvePlane::FillDataToHist(Option_t* option)
             fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetSection());
     }
     else if (optionString.Index("layer")>=0) {
-        fEnergyMaxMode = 100;
+        fEnergyMax = 100;
         if (fAccumulateEvents==0) lk_info << "Filling layer to plane" << endl;
         title = "layer";
         TIter nextRawData(fChannelArray);
@@ -634,7 +735,7 @@ void LKEvePlane::FillDataToHist(Option_t* option)
             fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetLayer());
     }
     else if (optionString.Index("row")>=0) {
-        fEnergyMaxMode = 100;
+        fEnergyMax = 100;
         if (fAccumulateEvents==0) lk_info << "Filling row to plane" << endl;
         title = "raw";
         TIter nextRawData(fChannelArray);
@@ -643,7 +744,7 @@ void LKEvePlane::FillDataToHist(Option_t* option)
     }
 
     else if (optionString.Index("padid")>=0) {
-        fEnergyMaxMode = 100;
+        fEnergyMax = 100;
         if (fAccumulateEvents==0) lk_info << "Filling pad id to plane" << endl;
         title = "id";
         TIter nextRawData(fChannelArray);
@@ -651,7 +752,7 @@ void LKEvePlane::FillDataToHist(Option_t* option)
             fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetPadID());
     }
     else if (optionString.Index("nhit")>=0) {
-        fEnergyMaxMode = 10;
+        fEnergyMax = 10;
         if (fAccumulateEvents==0) lk_info << "Filling number of hits to plane" << endl;
         title = "nhit";
         TIter nextRawData(fChannelArray);
@@ -708,10 +809,10 @@ void LKEvePlane::FillDataToHist(Option_t* option)
 
 void LKEvePlane::ExecMouseClickEventOnPad(TVirtualPad *pad, double xOnClick, double yOnClick)
 {
-    if (pad==fPadEventDisplay1) ClickedEventDisplay1(xOnClick, yOnClick);
-    if (pad==fPadEventDisplay2) ClickedEventDisplay2(xOnClick, yOnClick);
-    if (pad==fPadControlEvent1) ClickedControlEvent1(xOnClick, yOnClick);
-    if (pad==fPadControlEvent2) ClickedControlEvent2(xOnClick, yOnClick);
+    if (pad==fPadEventDisplay1) { ClickedEventDisplay1(xOnClick, yOnClick); fCountChangeOther++; }
+    if (pad==fPadEventDisplay2) { ClickedEventDisplay2(xOnClick, yOnClick); fCountChangeOther++; }
+    if (pad==fPadControlEvent2) { ClickedControlEvent2(xOnClick, yOnClick); fCountChangeOther++; }
+    if (pad==fPadControlEvent1) { ClickedControlEvent1(xOnClick, yOnClick); fCountChangeEvent++; fCountChangeOther = 0; }
 }
 
 void LKEvePlane::ClickedEventDisplay1(double xOnClick, double yOnClick)
@@ -763,17 +864,8 @@ void LKEvePlane::ClickedEventDisplay2(double xOnClick, double yOnClick)
 
     UpdateChannelBuffer();
 }
-
-void LKEvePlane::ClickedControlEvent1(double xOnClick, double yOnClick)
+void LKEvePlane::ClickedControlEvent1(int selectedBin)
 {
-    if (fHistControlEvent1==nullptr)
-        return;
-
-    if (fRun==nullptr)
-        return;
-
-    int selectedBin = fHistControlEvent1 -> FindBin(xOnClick, yOnClick);
-
     auto currentEventID = fRun -> GetCurrentEventID();
     auto lastEventID = fRun -> GetNumEvents() - 1;
 
@@ -802,7 +894,6 @@ void LKEvePlane::ClickedControlEvent1(double xOnClick, double yOnClick)
                 fAccumulateEvent2 = fRun -> GetCurrentEventID();
                 ++fAccumulateEvents;
             }
-            fHistControlEvent2 -> SetBinContent(fBinCtrlAcmltEv, fAccumulateEvents);
         }
     }
     else
@@ -810,37 +901,21 @@ void LKEvePlane::ClickedControlEvent1(double xOnClick, double yOnClick)
         if (selectedBin==fBinCtrlFrst) { lk_info << "First event" << endl; fRun -> ExecuteFirstEvent(); }
         if (selectedBin==fBinCtrlPr50) { lk_info << "Event -50"   << endl; fRun -> ExecuteEvent((currentEventID-50<0?0:currentEventID-50)); }
         if (selectedBin==fBinCtrlPrev) { lk_info << "Prev. event" << endl; fRun -> ExecutePreviousEvent(); }
-        if (selectedBin==fBinCtrlCurr) { return; }
+        if (selectedBin==fBinCtrlCurr) {}
         if (selectedBin==fBinCtrlNext) { lk_info << "Next event"  << endl; fRun -> ExecuteNextEvent(); }
         if (selectedBin==fBinCtrlNe50) { lk_info << "Event +50"   << endl; fRun -> ExecuteEvent((currentEventID+50>lastEventID?lastEventID:currentEventID+50)); }
         if (selectedBin==fBinCtrlLast) { lk_info << "Last event"  << endl; fRun -> ExecuteLastEvent(); }
     }
 
-    Draw();
-}
-
-void LKEvePlane::ClickedControlEvent2(double xOnClick, double yOnClick)
-{
-    if (fHistControlEvent2==nullptr)
-        return;
-
-    int selectedBin = fHistControlEvent2 -> FindBin(xOnClick, yOnClick);
-
-    Long64_t currentEventID;
-    Long64_t lastEventID;
-
-    if (selectedBin==fBinCtrlZZZZZZZ) { return; }
-    if (selectedBin==fBinCtrlNEEL500 || selectedBin==fBinCtrlNEEL203)
+    if (selectedBin==fBinCtrlE500)
     {
         if (fRun==nullptr)
             return;
 
-        currentEventID = fRun -> GetCurrentEventID();
+        auto currentEventID = fRun -> GetCurrentEventID();
         lastEventID = fRun -> GetNumEvents() - 1;
 
         double energyCut = 500;
-        if (selectedBin==fBinCtrlNEEL500) energyCut = 500;
-        else if (selectedBin==fBinCtrlNEEL203) energyCut = 2000;
 
         if (fRawDataArray==nullptr)
             return;
@@ -877,32 +952,62 @@ void LKEvePlane::ClickedControlEvent2(double xOnClick, double yOnClick)
             return;
         }
 
+        if (fAccumulateEvents>0) {
+            fAccumulateEvent2 = fRun -> GetCurrentEventID();
+            ++fAccumulateEvents;
+        }
         fRun -> ExecuteEvent(testEventID);
         lk_info << "Event with energy " << energyCut << " : " << currentEventID << endl;
     }
-    if (selectedBin==fBinCtrlEngyMax) {
-        if (fEnergyMaxMode==0) {
-            fEnergyMaxMode = 1;
-            fHistControlEvent2 -> SetBinContent(fBinCtrlEngyMax, 2500);
-            lk_info << "Set energy range automatic" << endl;
+
+    fHistControlEvent2 -> SetBinContent(fBinCtrlAcmltEv, fAccumulateEvents);
+
+    Draw();
+}
+
+void LKEvePlane::ClickedControlEvent2(int selectedBin)
+{
+    if (selectedBin==fBinCtrlChgMenu)
+    {
+        if      (fCurrentMenu==0) fCurrentMenu = 1;
+        else if (fCurrentMenu==1) fCurrentMenu = 0;
+        UpdateMenu();
+    }
+
+    Long64_t currentEventID;
+    Long64_t lastEventID;
+
+    if (selectedBin==fBinCtrlEngyMin) {
+        if (fEnergyMin==0) {
+            fEnergyMin = -1;
+            fHistControlEvent2 -> SetBinContent(fBinCtrlEngyMin, 1);
+            lk_info << "Set energy min to -1" << endl;
         }
-        else if (fEnergyMaxMode==1) {
-            fEnergyMaxMode = 2;
-            fHistControlEvent2 -> SetBinContent(fBinCtrlEngyMax, 4200);
-            lk_info << "Set energy range to 2500" << endl;
-        }
-        else //if (fEnergyMaxMode==2)
+        else
         {
-            fEnergyMaxMode = 0;
-            fHistControlEvent2 -> SetBinContent(fBinCtrlEngyMax, 0);
-            lk_info << "Set energy range to 4200" << endl;
+            fEnergyMin = 0;
+            fHistControlEvent2 -> SetBinContent(fBinCtrlEngyMin, 0);
+            lk_info << "Set energy min to 0" << endl;
         }
     }
-    if (selectedBin==fBinCtrlAcmltEv)
+    else if (selectedBin==fBinCtrlEngyMax) {
+        if (fEnergyMax==0) {
+            fEnergyMax = 1;
+            fHistControlEvent2 -> SetBinContent(fBinCtrlEngyMax, 1);
+            lk_info << "Set energy max to 4200" << endl;
+        }
+        else
+        {
+            fEnergyMax = 0;
+            fHistControlEvent2 -> SetBinContent(fBinCtrlEngyMax, 0);
+            lk_info << "Set energy range automatically" << endl;
+        }
+    }
+    else if (selectedBin==fBinCtrlAcmltEv)
     {
         if (fRun==nullptr)
             return;
-        currentEventID = fRun -> GetCurrentEventID();
+        auto currentEventID = fRun -> GetCurrentEventID();
         lastEventID = fRun -> GetNumEvents() - 1;
 
         if (fAccumulateEvents>0)
@@ -915,28 +1020,129 @@ void LKEvePlane::ClickedControlEvent2(double xOnClick, double yOnClick)
         fHistControlEvent2 -> SetBinContent(fBinCtrlAcmltEv, fAccumulateEvents);
         return;
     }
-    if (selectedBin==fBinCtrlAcmltCh)
+    else if (selectedBin==fBinCtrlPalette)
     {
-        if (fAccumulateChannel) {
-            fCountChannelGraph = 0;
-            fAccumulateChannel = false;
-            fHistControlEvent2 -> SetBinContent(fBinCtrlAcmltCh, 0);
+        fPaletteNumber++;
+        SetPalette();
+        fHistControlEvent2 -> SetBinContent(fBinCtrlPalette, fPaletteNumber);
+    }
+    else if (selectedBin==fBinCtrlAcmltCh)
+    {
+        fCountChannelGraph = 0;
+        if (fAccumulateChannel!=0&&fAccumulateChannel!=1) {
+            fAccumulateChannel = 1;
         }
-        else {
-            fCountChannelGraph = 0;
-            fAccumulateChannel = true;
+
+        if (fAccumulateChannel==0) {
+            fAccumulateChannel = 1;
             fHistControlEvent2 -> SetBinContent(fBinCtrlAcmltCh, 1);
+            fHistControlEvent2 -> SetBinContent(fBinCtrlDrawACh, 0);
+        }
+        else if (fAccumulateChannel==1) {
+            fAccumulateChannel = 0;
+            fHistControlEvent2 -> SetBinContent(fBinCtrlAcmltCh, 0);
+            fHistControlEvent2 -> SetBinContent(fBinCtrlDrawACh, 0);
         }
         UpdateChannelBuffer();
         return;
     }
-    if (selectedBin==fBinCtrlFitChan)
+    else if (selectedBin==fBinCtrlDrawACh)
     {
-        lk_info << "Fit channel" << endl;
-        fFitChannel = true;
+        fCountChannelGraph = 0;
+        if (fAccumulateChannel!=0&&fAccumulateChannel!=2) {
+            fAccumulateChannel = 2;
+        }
+
+        if (fAccumulateChannel==0) {
+            fAccumulateChannel = 2;
+            fHistControlEvent2 -> SetBinContent(fBinCtrlAcmltCh, 0);
+            fHistControlEvent2 -> SetBinContent(fBinCtrlDrawACh, 2);
+        }
+        else if (fAccumulateChannel==2) {
+            fAccumulateChannel = 0;
+            fHistControlEvent2 -> SetBinContent(fBinCtrlAcmltCh, 0);
+            fHistControlEvent2 -> SetBinContent(fBinCtrlDrawACh, 0);
+        }
         UpdateChannelBuffer();
+        return;
+    }
+    else if (selectedBin==fBinCtrlFitChan)
+    {
+        if (fFitChannel)
+        {
+            fFitChannel = false;
+            UpdateChannelBuffer();
+            return;
+        }
+        else {
+            lk_info << "Fit channel" << endl;
+            fFitChannel = true;
+            UpdateChannelBuffer();
+            return;
+        }
+    }
+    else if (selectedBin==fBinCtrlSaveFig)
+    {
+        TString fileName;
+        if (fRun!=nullptr)
+        {
+            fileName = fRun -> MakeFullRunName();
+            fileName = fileName + Form(".e%lld",fRun->GetCurrentEventID());
+            fileName = fileName + Form(".i%d",fCountChangeOther);
+            fileName = fileName + ".png";
+            fCanvas -> SaveAs(fFigurePath+"/"+fileName);
+        }
+        else {
+            fileName = "event_display";
+            fileName = fileName + Form(".e%lld",fCountChangeEvent);
+            fileName = fileName + Form(".i%d",fCountChangeOther);
+            fileName = fileName + ".png";
+            fCanvas -> SaveAs(fFigurePath+"/"+fileName);
+        }
         return;
     }
 
     Draw();
+}
+
+void LKEvePlane::ClickedControlEvent1(double xOnClick, double yOnClick)
+{
+    if (fHistControlEvent1==nullptr)
+        return;
+
+    if (fRun==nullptr)
+        return;
+
+    int selectedBin = fHistControlEvent1 -> FindBin(xOnClick, yOnClick);
+    ClickedControlEvent1(selectedBin);
+}
+
+void LKEvePlane::ClickedControlEvent2(double xOnClick, double yOnClick)
+{
+    if (fHistControlEvent2==nullptr)
+        return;
+
+    int selectedBin = fHistControlEvent2 -> FindBin(xOnClick, yOnClick);
+    ClickedControlEvent2(selectedBin);
+}
+
+void LKEvePlane::SetPalette()
+{
+    gStyle -> SetNumberContours(99);
+    if (fPaletteNumber>2) fPaletteNumber = 0;
+    if (fPaletteNumber==0) {
+        gStyle -> SetPalette(kColorPrintableOnGrey);
+        if (!fPaletteIsInverted) {
+            TColor::InvertPalette();
+            fPaletteIsInverted = true;
+        }
+    }
+    else {
+        if (fPaletteIsInverted) {
+            TColor::InvertPalette();
+            fPaletteIsInverted = false;
+        }
+        if (fPaletteNumber==1) { gStyle -> SetPalette(kBird); }
+        else if (fPaletteNumber==2) { gStyle -> SetPalette(kRainBow); }
+    }
 }

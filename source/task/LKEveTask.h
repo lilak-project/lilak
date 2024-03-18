@@ -71,6 +71,7 @@ class LKEveTask : public LKTask
         std::vector<TEveElement *> fEveElementList;
         std::vector<TEveElement *> fPermanentEveElementList;
 #else
+        LKDetectorPlane* fSelectedPlane = nullptr;
         TPad* fCanvas3D = nullptr;
         TH3D* fFrame3D = nullptr;
         TClonesArray *fGraphTrack3DArray = nullptr;

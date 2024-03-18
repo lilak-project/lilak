@@ -227,16 +227,21 @@ void LKEveTask::DrawEve3D()
     auto axis2 = LKVector3::kX;
     auto axis3 = LKVector3::kY;
 
+    if (fSelectedPlane!=nullptr)
+        fCanvas3D = fSelectedPlane -> Get3DEventPad();
+
     if (fCanvas3D==nullptr) {
         auto numPlanes = fDetectorSystem -> GetNumPlanes();
         for (auto iPlane = 0; iPlane < numPlanes; ++iPlane)
         {
             auto plane = fDetectorSystem -> GetDetectorPlane(iPlane);
-            TPad* padCustom = plane -> Get3DEventPad();
-            if (padCustom!=nullptr)
-                lk_info << "Using " << plane -> GetName() << " canvas for 3d event display" << endl;
-                fCanvas3D = padCustom;
+            TPad* padGiven = plane -> Get3DEventPad();
+            if (padGiven!=nullptr) {
+                fSelectedPlane = plane;
+                lk_info << "Using " << fSelectedPlane -> GetName() << " canvas for 3d event display" << endl;
+                fCanvas3D = padGiven;
                 break;
+            }
         }
     }
     if (fCanvas3D==nullptr) {
@@ -419,7 +424,7 @@ void LKEveTask::DrawDetectorPlanes()
     }
 
     // @todo palette is changed when drawing top node because of TGeoMan(?)
-    gStyle -> SetPalette(kBird);
+    //gStyle -> SetPalette(kBird);
 }
 
 void LKEveTask::ConfigureDetectorPlanes()

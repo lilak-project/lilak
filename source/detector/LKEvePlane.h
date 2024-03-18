@@ -38,7 +38,9 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         virtual void DriftElectronBack(int padID, double tb, TVector3 &posReco, double &driftLength);
 
         virtual bool SetDataFromBranch(); ///< Implementation recommanded. Set waveform and hit data from input tree branches to pads
-        virtual void FillDataToHist(Option_t *option = ""); ///< Implementation recommanded. Fill data to histograms.
+        virtual void FillDataToHist(Option_t *option=""); ///< Implementation recommanded. Fill data to histograms.
+        virtual void FillDataToHistEventDisplay1(Option_t *option="");
+        virtual void FillDataToHistEventDisplay2(Option_t *option="") {}
 
         TPad *GetPadEventDisplay1() { return fPadEventDisplay1; }
         TPad *GetPadEventDisplay2() { return fPadEventDisplay2; }
@@ -56,25 +58,29 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         virtual TH2D* GetHistControlEvent2();
 
         virtual void ExecMouseClickEventOnPad(TVirtualPad *pad, double xOnClick, double yOnClick);
-        void ClickedEventDisplay1(double xOnClick, double yOnClick);
-        void ClickedEventDisplay2(double xOnClick, double yOnClick);
-        void ClickedControlEvent1(double xOnClick, double yOnClick);
-        void ClickedControlEvent2(double xOnClick, double yOnClick);
+        virtual void ClickedEventDisplay1(double xOnClick, double yOnClick);
+        virtual void ClickedEventDisplay2(double xOnClick, double yOnClick);
+        virtual void ClickedControlEvent1(double xOnClick, double yOnClick);
+        virtual void ClickedControlEvent2(double xOnClick, double yOnClick);
+        virtual void ClickedControlEvent1(int selectedBin);
+        virtual void ClickedControlEvent2(int selectedBin);
+        void SetPalette();
 
-        void UpdateAll();
-        void UpdateEventDisplay1();
-        void UpdateEventDisplay2();
-        void UpdateChannelBuffer();
-        void UpdateControlEvent1();
-        void UpdateControlEvent2();
+        virtual void UpdateAll();
+        virtual void UpdateEventDisplay1();
+        virtual void UpdateEventDisplay2();
+        virtual void UpdateChannelBuffer();
+        virtual void UpdateControlEvent1();
+        virtual void UpdateControlEvent2();
+        virtual void UpdateMenu();
 
     public:
         virtual int FindPadID(int cobo, int asad, int aget, int chan);
         virtual LKPhysicalPad* FindPad(int cobo, int asad, int aget, int chan); ///< TODO
-        virtual int FindPadIDFromHistEventDisplay1Bin(int selectedBin) { return -1; }
-        virtual int FindPadIDFromHistEventDisplay2Bin(int selectedBin) { return -1; }
+        virtual int FindPadIDFromHistEventDisplay1Bin(int hbin) { return -1; }
+        virtual int FindPadIDFromHistEventDisplay2Bin(int hbin) { return -1; }
 
-    private:
+    protected:
         TClonesArray *fRawDataArray = nullptr;
         TClonesArray *fTrackArray = nullptr;
         TClonesArray *fHitArray = nullptr;
@@ -94,13 +100,17 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         TGraph* fGSelEventDisplay1 = nullptr;
         TGraph* fGSelEventDisplay2 = nullptr;
 
-        int fBinCtrlZZZZZZZ;
+        int fBinCtrlChgMenu;
+
+        int fBinCtrlEngyMin;
         int fBinCtrlEngyMax;
-        int fBinCtrlAcmltEv;
         int fBinCtrlFitChan;
+        int fBinCtrlDrawACh;
         int fBinCtrlAcmltCh;
-        int fBinCtrlNEEL500; ///< Next Event with Energy Larger than > 500
-        int fBinCtrlNEEL203; ///< Next Event with Energy Larger than > 2000
+        int fBinCtrlAcmltEv;
+
+        int fBinCtrlPalette;
+        int fBinCtrlSaveFig;
 
         int fBinCtrlFrst;
         int fBinCtrlPr50;
@@ -109,16 +119,29 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         int fBinCtrlNext;
         int fBinCtrlNe50;
         int fBinCtrlLast;
+        int fBinCtrlE500;
+
+        int fCurrentMenu = 0;
+
+        TString fFigurePath = ".";
+        Long64_t fCountChangeEvent = 0;
+        int fCountChangeOther = 0;
+        int fCountSaveFig = 0;
 
         int fSelPadID = 0; ///< Selected pad id by mouse click
-        int fSelRawDataIdx = 0; ///< Selected raw data by mouse click
+        int fSelRawDataID = 0; ///< Selected raw data by mouse click
 
-        int fEnergyMaxMode = 0; ///< 0 : auto, 1: 2500, 2; 4200, >2: fEnergyMaxMode = maximum value
+        int fPaletteNumber = 0;
+        bool fPaletteIsInverted = false;
+
+        int fEnergyMax = 1; ///< 0 : auto, 1; 4200, >2: fEnergyMax = maximum value
+        int fEnergyMin = -1; ///< 0 : auto, 1; -1
         bool fFitChannel = false; ///< for finding energy using fChannelAnalyzer
         Long64_t fAccumulateEvents = 0; ///< to accumulate event in event display
         Long64_t fAccumulateEvent1 = 0; ///< first accumulated event id
         Long64_t fAccumulateEvent2 = 0; ///< last  accumulated event id
-        bool fAccumulateChannel = false; ///< to accumulate channel waveform
+        int fNumAccumulateChannels = 0; ///< to accumulate channel waveform
+        int fAccumulateChannel = 0; ///< to accumulate channel waveform
         TClonesArray *fChannelGraphArray = nullptr; ///< array of accumulate channel graphs
         int fCountChannelGraph = 0; ///< count number of accumulate channels
 

@@ -198,20 +198,21 @@ bool LKRun::ConfigureRunFromFileName(TString inputName)
     return nameIsInFormat;
 }
 
+TString LKRun::MakeFullRunName() const
+{
+    auto runID = fRunID;
+    if (runID<0) runID = 0;
+    TString fileName = fRunName + Form("_%04d", runID);
+    if (fDivision >= 0) fileName = fileName + Form(".d%d",fDivision);
+    if (!fTag.IsNull()) fileName = fileName + Form(".%s",fTag.Data());
+    if (fSplit != -1)   fileName = fileName + Form(".s%d",fSplit);
+    return fileName;
+}
+
 TString LKRun::ConfigureFileName()
 {
-    if (fRunID<0) fRunID = 0;
-
-    TString fileName = fRunName + Form("_%04d", fRunID);
-
-    if (fDivision >= 0) fileName = fileName + Form(".D%d",fDivision);
-    if (!fTag.IsNull()) fileName = fileName + Form(".%s",fTag.Data());
-    if (fSplit != -1)   fileName = fileName + Form(".S%d",fSplit);
-
-    //fileName = fileName + Form(".%s",LILAK_MAINPROJECT_VERSION);
-
+    auto fileName = MakeFullRunName();
     fileName = LKRun::ConfigureDataPath(fileName,false,fDataPath);
-
     return fileName;
 }
 
