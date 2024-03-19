@@ -89,6 +89,7 @@ void LKEvePlane::Draw(Option_t *option)
     GetHist();
     SetDataFromBranch();
     FillDataToHist(fillOption);
+    SetPalette();
     UpdateAll();
 }
 
@@ -106,9 +107,8 @@ void LKEvePlane::UpdateEventDisplay1()
     if (fHistEventDisplay1==nullptr) 
         return;
     fPadEventDisplay1 -> cd();
-    fPadEventDisplay1 -> SetGrid();
     if      (fEnergyMax==0) { fHistEventDisplay1 -> SetMinimum(fEnergyMin); fHistEventDisplay1 -> SetMaximum(-1111); }
-    else if (fEnergyMax==1) { fHistEventDisplay1 -> SetMinimum(fEnergyMin);     fHistEventDisplay1 -> SetMaximum(4200); }
+    else if (fEnergyMax==1) { fHistEventDisplay1 -> SetMinimum(fEnergyMin); fHistEventDisplay1 -> SetMaximum(4200); }
     else
     {
         fHistEventDisplay1 -> SetMinimum(fEnergyMin);
@@ -127,7 +127,6 @@ void LKEvePlane::UpdateEventDisplay2()
     if (fHistEventDisplay2==nullptr) 
         return;
     fPadEventDisplay2 -> cd();
-    fPadEventDisplay2 -> SetGrid();
     if      (fEnergyMax==0) { fHistEventDisplay2 -> SetMinimum(fEnergyMin); fHistEventDisplay2 -> SetMaximum(-1111); }
     else if (fEnergyMax==1) { fHistEventDisplay2 -> SetMinimum(fEnergyMin);     fHistEventDisplay2 -> SetMaximum(4200); }
     else
@@ -156,7 +155,7 @@ void LKEvePlane::UpdateChannelBuffer()
         return;
     }
 
-    fHistControlEvent2 -> SetBinContent(fBinCtrlFitChan, 0);
+    //fHistControlEvent2 -> SetBinContent(fBinCtrlFitChan, 0);
 
     double z0 = pad -> GetI();
     double x0 = pad -> GetJ();
@@ -167,11 +166,25 @@ void LKEvePlane::UpdateChannelBuffer()
 
     fPadEventDisplay1 -> cd();
     fGSelEventDisplay1 -> Set(0);
-    fGSelEventDisplay1 -> SetPoint(0,z1,x1);
-    fGSelEventDisplay1 -> SetPoint(1,z1,x2);
-    fGSelEventDisplay1 -> SetPoint(2,z2,x2);
-    fGSelEventDisplay1 -> SetPoint(3,z2,x1);
-    fGSelEventDisplay1 -> SetPoint(4,z1,x1);
+
+    auto corners = pad -> GetPadCorners();
+    int numCorners = corners -> size();
+    if (numCorners>0)
+    {
+        for (auto iCorner=0; iCorner<numCorners+1; ++iCorner) {
+            auto iAt = iCorner;
+            if (iCorner==numCorners) iAt = 0;
+            TVector2 corner = corners->at(iAt);
+            fGSelEventDisplay1 -> SetPoint(fGSelEventDisplay1->GetN(),corner.X(),corner.Y());
+        }
+    }
+    else {
+        fGSelEventDisplay1 -> SetPoint(0,z1,x1);
+        fGSelEventDisplay1 -> SetPoint(1,z1,x2);
+        fGSelEventDisplay1 -> SetPoint(2,z2,x2);
+        fGSelEventDisplay1 -> SetPoint(3,z2,x1);
+        fGSelEventDisplay1 -> SetPoint(4,z1,x1);
+    }
     fGSelEventDisplay1 -> SetLineColor(kRed);
     if (fPaletteNumber==0)
         fGSelEventDisplay1 -> SetLineColor(kGreen);
@@ -223,8 +236,6 @@ void LKEvePlane::UpdateChannelBuffer()
         {
             fHistChannelBuffer -> Reset();
             fHistChannelBuffer -> SetMaximum(4200);
-            TString title = "All Channels";
-            fHistChannelBuffer -> SetTitle(title);
             fPadChannelBuffer -> cd();
             fHistChannelBuffer -> Draw();
 
@@ -255,6 +266,9 @@ void LKEvePlane::UpdateChannelBuffer()
             if (yMax>4200) yMax = 4200;
             fHistChannelBuffer -> SetMinimum(yMin);
             fHistChannelBuffer -> SetMaximum(yMax);
+
+            TString title = Form("All channels (%d)",numChannels);
+            fHistChannelBuffer -> SetTitle(title);
         }
         else
         {
@@ -355,7 +369,7 @@ void LKEvePlane::UpdateMenu()
 
     fBinCtrlChgMenu = configureBin(fCurrentMenu, fCurrentMenu, 1, "Menu", fCurrentMenu);
 
-    fBinCtrlEngyMin = configureBin(fCurrentMenu, 0, 2, "E_{min}",  abs(fEnergyMin));
+    fBinCtrlEngyMin = configureBin(fCurrentMenu, 0, 2, "E_{min}",  (fEnergyMin>=0?0:1));
     fBinCtrlEngyMax = configureBin(fCurrentMenu, 0, 3, "E_{max}",  fEnergyMax);
     fBinCtrlFitChan = configureBin(fCurrentMenu, 0, 4, "Fit Ch.",  0);
     fBinCtrlDrawACh = configureBin(fCurrentMenu, 0, 5, "All Ch.",  0);
@@ -369,29 +383,28 @@ void LKEvePlane::UpdateMenu()
     binControlDummy = configureBin(fCurrentMenu, 1, 5, "",         0);
     binControlDummy = configureBin(fCurrentMenu, 1, 6, "",         0);
     binControlDummy = configureBin(fCurrentMenu, 1, 7, "",         0);
-    binControlDummy = configureBin(fCurrentMenu, 0, 7, "",         0);
+    binControlDummy = configureBin(fCurrentMenu, 1, 8, "",         0);
 }
 
 TCanvas *LKEvePlane::GetCanvas(Option_t *option)
 {
     if (fCanvas==nullptr)
     {
-        double yc = 230./700;
         double y1 = 0;
-        double y2 = y1 + 0.5*(yc-0);
+        double y2 = y1 + 0.5*(fYCCanvas-0);
         double y3 = y2;
-        double y4 = y3 + 0.5*(yc-0);
-        fCanvas = LKWindowManager::GetWindowManager() -> CanvasResize("TTMicromegas",1200,700,0.9);
-        fPadEventDisplay1 = new TPad("LKEvePlanePad_EventDisplay1","",0,yc,0.5,1);
-        fPadEventDisplay1 -> SetMargin(0.12,0.15,0.1,0.1);
+        double y4 = y3 + 0.5*(fYCCanvas-0);
+        fCanvas = LKWindowManager::GetWindowManager() -> CanvasResize("TTMicromegas",fDXCanvas,fDYCanvas,0.95);
+        fPadEventDisplay1 = new TPad("LKEvePlanePad_EventDisplay1","",0,fYCCanvas,0.5,1);
+        fPadEventDisplay1 -> SetMargin(0.12,0.14,0.1,0.08);
         fPadEventDisplay1 -> SetNumber(1);
         fPadEventDisplay1 -> Draw();
-        fPadChannelBuffer = new TPad("LKEvePlanePad_channel","",0,0,0.5,yc);
-        fPadChannelBuffer -> SetMargin(0.12,0.05,0.20,0.12);
+        fPadChannelBuffer = new TPad("LKEvePlanePad_channel","",0,0,0.5,fYCCanvas);
+        fPadChannelBuffer -> SetMargin(0.12,0.05,0.20,0.10);
         fPadChannelBuffer -> SetNumber(2);
         fPadChannelBuffer -> Draw();
-        fPadEventDisplay2 = new TPad("LKEvePlanePad_EventDisplay2","",0.5,yc,1,1);
-        fPadEventDisplay2 -> SetMargin(0.12,0.15,0.1,0.1);
+        fPadEventDisplay2 = new TPad("LKEvePlanePad_EventDisplay2","",0.5,fYCCanvas,1,1);
+        fPadEventDisplay2 -> SetMargin(0.12,0.14,0.1,0.08);
         fPadEventDisplay2 -> SetNumber(3);
         fPadEventDisplay2 -> Draw();
         fPadControlEvent1 = new TPad("LKEvePlanePad_control","",0.5,y1,1,y2);
@@ -416,7 +429,7 @@ TCanvas *LKEvePlane::GetCanvas(Option_t *option)
     return fCanvas;
 }
 
-TH2D* LKEvePlane::GetHistEventDisplay1(Option_t *option)
+TH2* LKEvePlane::GetHistEventDisplay1(Option_t *option)
 {
     if (fHistEventDisplay1==nullptr)
     {
@@ -427,10 +440,10 @@ TH2D* LKEvePlane::GetHistEventDisplay1(Option_t *option)
         fHistEventDisplay1 -> GetXaxis() -> SetTickSize(0);
         fHistEventDisplay1 -> GetYaxis() -> SetTickSize(0);
     }
-    return fHistEventDisplay1;
+    return (TH2*) fHistEventDisplay1;
 }
 
-TH2D* LKEvePlane::GetHistEventDisplay2(Option_t *option)
+TH2* LKEvePlane::GetHistEventDisplay2(Option_t *option)
 {
     if (fHistEventDisplay2==nullptr)
     {
@@ -441,7 +454,7 @@ TH2D* LKEvePlane::GetHistEventDisplay2(Option_t *option)
         fHistEventDisplay2 -> GetXaxis() -> SetTickSize(0);
         fHistEventDisplay2 -> GetYaxis() -> SetTickSize(0);
     }
-    return fHistEventDisplay2;
+    return (TH2*) fHistEventDisplay2;
 }
 
 TH1D* LKEvePlane::GetHistChannelBuffer()
@@ -456,6 +469,7 @@ TH1D* LKEvePlane::GetHistChannelBuffer()
         fHistChannelBuffer -> GetYaxis() -> SetTitleOffset(1.0);
         fHistChannelBuffer -> GetXaxis() -> SetLabelSize(0.06);
         fHistChannelBuffer -> GetYaxis() -> SetLabelSize(0.06);
+        fHistChannelBuffer -> GetYaxis() -> SetNdivisions(505);
     }
     return fHistChannelBuffer;
 }
@@ -494,7 +508,7 @@ TH2D* LKEvePlane::GetHistControlEvent1()
         fHistControlEvent1 -> SetMarkerSize(binTextSize);
         if (fPaletteNumber==0)
             fHistControlEvent1 -> SetMarkerColor(kBlack);
-        fHistControlEvent1 -> SetMinimum(fEnergyMin);
+        fHistControlEvent1 -> SetMinimum(0);
         fHistControlEvent1 -> SetBinContent(fBinCtrlE500,500);
         if (fRun!=nullptr) {
             fHistControlEvent1 -> SetBinContent(fBinCtrlLast,fRun->GetNumEvents()-1);
@@ -551,8 +565,7 @@ TH2D* LKEvePlane::GetHistControlEvent2()
         fHistControlEvent2 -> SetMarkerSize(binTextSize);
         if (fPaletteNumber==0)
             fHistControlEvent2 -> SetMarkerColor(kBlack);
-        fHistControlEvent2 -> SetMinimum(fEnergyMin);
-        fHistControlEvent2 -> SetMaximum(20);
+        fHistControlEvent2 -> SetMinimum(0);
     }
 
     return fHistControlEvent2;
@@ -978,17 +991,20 @@ void LKEvePlane::ClickedControlEvent2(int selectedBin)
     Long64_t lastEventID;
 
     if (selectedBin==fBinCtrlEngyMin) {
-        if (fEnergyMin==0) {
+        if (fEnergyMin>=0) {
             fEnergyMin = -1;
             fHistControlEvent2 -> SetBinContent(fBinCtrlEngyMin, 1);
             lk_info << "Set energy min to -1" << endl;
         }
         else
         {
-            fEnergyMin = 0;
+            fEnergyMin = 1;
             fHistControlEvent2 -> SetBinContent(fBinCtrlEngyMin, 0);
             lk_info << "Set energy min to 0" << endl;
         }
+        UpdateEventDisplay1();
+        UpdateEventDisplay2();
+        UpdateChannelBuffer();
     }
     else if (selectedBin==fBinCtrlEngyMax) {
         if (fEnergyMax==0) {
@@ -1002,6 +1018,9 @@ void LKEvePlane::ClickedControlEvent2(int selectedBin)
             fHistControlEvent2 -> SetBinContent(fBinCtrlEngyMax, 0);
             lk_info << "Set energy range automatically" << endl;
         }
+        UpdateEventDisplay1();
+        UpdateEventDisplay2();
+        UpdateChannelBuffer();
     }
     else if (selectedBin==fBinCtrlAcmltEv)
     {
@@ -1009,7 +1028,6 @@ void LKEvePlane::ClickedControlEvent2(int selectedBin)
             return;
         auto currentEventID = fRun -> GetCurrentEventID();
         lastEventID = fRun -> GetNumEvents() - 1;
-
         if (fAccumulateEvents>0)
             fAccumulateEvents = 0;
         else {
@@ -1018,13 +1036,11 @@ void LKEvePlane::ClickedControlEvent2(int selectedBin)
             fAccumulateEvent2 = currentEventID;
         }
         fHistControlEvent2 -> SetBinContent(fBinCtrlAcmltEv, fAccumulateEvents);
-        return;
     }
     else if (selectedBin==fBinCtrlPalette)
     {
         fPaletteNumber++;
         SetPalette();
-        fHistControlEvent2 -> SetBinContent(fBinCtrlPalette, fPaletteNumber);
     }
     else if (selectedBin==fBinCtrlAcmltCh)
     {
@@ -1044,7 +1060,6 @@ void LKEvePlane::ClickedControlEvent2(int selectedBin)
             fHistControlEvent2 -> SetBinContent(fBinCtrlDrawACh, 0);
         }
         UpdateChannelBuffer();
-        return;
     }
     else if (selectedBin==fBinCtrlDrawACh)
     {
@@ -1064,22 +1079,17 @@ void LKEvePlane::ClickedControlEvent2(int selectedBin)
             fHistControlEvent2 -> SetBinContent(fBinCtrlDrawACh, 0);
         }
         UpdateChannelBuffer();
-        return;
     }
     else if (selectedBin==fBinCtrlFitChan)
     {
         if (fFitChannel)
-        {
             fFitChannel = false;
-            UpdateChannelBuffer();
-            return;
-        }
         else {
             lk_info << "Fit channel" << endl;
             fFitChannel = true;
-            UpdateChannelBuffer();
-            return;
         }
+        fHistControlEvent2 -> SetBinContent(fBinCtrlFitChan, (fFitChannel?1:0));
+        UpdateChannelBuffer();
     }
     else if (selectedBin==fBinCtrlSaveFig)
     {
@@ -1099,10 +1109,7 @@ void LKEvePlane::ClickedControlEvent2(int selectedBin)
             fileName = fileName + ".png";
             fCanvas -> SaveAs(fFigurePath+"/"+fileName);
         }
-        return;
     }
-
-    Draw();
 }
 
 void LKEvePlane::ClickedControlEvent1(double xOnClick, double yOnClick)
@@ -1144,5 +1151,14 @@ void LKEvePlane::SetPalette()
         }
         if (fPaletteNumber==1) { gStyle -> SetPalette(kBird); }
         else if (fPaletteNumber==2) { gStyle -> SetPalette(kRainBow); }
+    }
+
+    if (fHistControlEvent2!=nullptr)
+    {
+        fHistControlEvent2 -> SetBinContent(fBinCtrlPalette, fPaletteNumber);
+        if (fPaletteNumber==0)
+            fHistControlEvent2 -> SetMaximum(20);
+        else
+            fHistControlEvent2 -> SetMaximum(2);
     }
 }

@@ -51,8 +51,8 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
     public:
         virtual TPad* Get3DEventPad() { return (TPad*) nullptr; } // { return GetPadEventDisplay2(); }
 
-        virtual TH2D* GetHistEventDisplay1(Option_t *option = "-1");
-        virtual TH2D* GetHistEventDisplay2(Option_t *option = "-1");
+        virtual TH2* GetHistEventDisplay1(Option_t *option = "-1");
+        virtual TH2* GetHistEventDisplay2(Option_t *option = "-1");
         virtual TH1D* GetHistChannelBuffer();
         virtual TH2D* GetHistControlEvent1();
         virtual TH2D* GetHistControlEvent2();
@@ -91,8 +91,8 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         TPad* fPadControlEvent1 = nullptr;
         TPad* fPadControlEvent2 = nullptr;
 
-        TH2D* fHistEventDisplay1 = nullptr;
-        TH2D* fHistEventDisplay2 = nullptr;
+        TH2* fHistEventDisplay1 = nullptr;
+        TH2* fHistEventDisplay2 = nullptr;
         TH1D* fHistChannelBuffer = nullptr;
         TH2D* fHistControlEvent1 = nullptr;
         TH2D* fHistControlEvent2 = nullptr;
@@ -144,6 +144,10 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         int fAccumulateChannel = 0; ///< to accumulate channel waveform
         TClonesArray *fChannelGraphArray = nullptr; ///< array of accumulate channel graphs
         int fCountChannelGraph = 0; ///< count number of accumulate channels
+
+        double fDXCanvas = 1200;
+        double fDYCanvas = 700;
+        double fYCCanvas = 230./700;
 
         TString fEventDisplayDrawOption = "colz";
 
