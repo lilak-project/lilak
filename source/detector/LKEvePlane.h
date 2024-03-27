@@ -6,6 +6,8 @@
 #include "LKPhysicalPad.h"
 #include "TPad.h"
 
+typedef LKVector3::Axis axis_t;
+
 class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
 {
     public:
@@ -17,13 +19,16 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         virtual void Print(Option_t *option = "") const;
         virtual bool Init();
 
+        virtual axis_t GetAxis1(int iPad=0) const;
+        virtual axis_t GetAxis2(int iPad=0) const;
+
         virtual void Draw(Option_t *option = ""); ///< Implementation recommanded for event display. Draw event display to the canvas.
         virtual TCanvas *GetCanvas(Option_t *option = ""); ///< Implementation recommanded for event display.
         virtual TH2* GetHist(Option_t *option = "-1");
         virtual void DrawFrame(Option_t *option = "") {}
         virtual void DrawHist(Option_t *option = "");
-        virtual int GetNumCPads() { return 5; }
-        virtual TPad *GetCPad(int iPad) { return (TPad*) GetCanvas() -> cd(iPad); } ///< For grabbing inner pads of canvas
+        virtual int GetNumCPads() { return 2; }
+        virtual TPad *GetCPad(int iPad) { return (TPad*) GetCanvas() -> cd(iPad+1); } ///< For grabbing inner pads of canvas
 
         virtual double PadDisplacement() const { return 4; } ///< Return average pad displacement to each other
         virtual bool IsInBoundary(double i, double j) { return true; } ///< Implementation recommanded. Return if position (i,j) is inside the effective detector plane boundary TODO
@@ -73,6 +78,7 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         virtual void UpdateControlEvent1();
         virtual void UpdateControlEvent2();
         virtual void UpdateMenu();
+        virtual void UpdateFill(bool updateHist=true);
 
     public:
         virtual int FindPadID(int cobo, int asad, int aget, int chan);
@@ -107,10 +113,29 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         int fBinCtrlFitChan;
         int fBinCtrlDrawACh;
         int fBinCtrlAcmltCh;
+        int fBinCtrlFillAEv;
         int fBinCtrlAcmltEv;
 
+        int fBinFillElectID;
+        int fBinFillChACAAC;
+        int fBinFillRawPrev;
+        int fBinFillHitNHit;
+        int fBinDrawTrackGf;
         int fBinCtrlPalette;
-        int fBinCtrlSaveFig;
+        int fBinCtrlSavePng;
+        int fBinCtrlSaveRoo;
+
+        TString fFillOptionSelected = "preview";
+        const TString kFillZero = "";
+        const TString kFillCobo = "cobo";
+        const TString kFillAsad = "asad";
+        const TString kFillAget = "aget";
+        const TString kFillChan = "chan";
+        const TString kFillCAAC = "caac";
+        const TString kFillRawD = "raw";
+        const TString kFillPrev = "preview";
+        const TString kFillHits = "hit";
+        const TString kFillNHit = "nhits";
 
         int fBinCtrlFrst;
         int fBinCtrlPr50;
@@ -123,7 +148,10 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
 
         int fCurrentMenu = 0;
 
-        TString fFigurePath = ".";
+        int fCountSavePng = 0;
+        int fCountSaveRoo = 0;
+
+        TString fSavePath = "eve_data";
         Long64_t fCountChangeEvent = 0;
         int fCountChangeOther = 0;
         int fCountSaveFig = 0;
@@ -137,6 +165,7 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         int fEnergyMax = 1; ///< 0 : auto, 1; 4200, >2: fEnergyMax = maximum value
         int fEnergyMin = -1; ///< 0 : auto, 1; -1
         bool fFitChannel = false; ///< for finding energy using fChannelAnalyzer
+        bool fAccumulateAllEvents = false;
         Long64_t fAccumulateEvents = 0; ///< to accumulate event in event display
         Long64_t fAccumulateEvent1 = 0; ///< first accumulated event id
         Long64_t fAccumulateEvent2 = 0; ///< last  accumulated event id
@@ -150,6 +179,11 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         double fYCCanvas = 230./700;
 
         TString fEventDisplayDrawOption = "colz";
+
+        bool fReturnDraw = false;
+
+        axis_t fPadAxis1[2] = {LKVector3::kNon, LKVector3::kNon};
+        axis_t fPadAxis2[2] = {LKVector3::kNon, LKVector3::kNon};
 
     ClassDef(LKEvePlane, 1)
 };

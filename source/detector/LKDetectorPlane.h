@@ -56,10 +56,10 @@ class LKDetectorPlane : public TNamed, public LKGear
         int GetPlaneID() const { return fPlaneID; }
         virtual LKChannelAnalyzer* GetChannelAnalyzer(int id=0);
 
-        axis_t GetAxis1() const { return fAxis1; }
-        axis_t GetAxis2() const { return fAxis2; }
-        axis_t GetAxis3() const { return fAxis3; }
-        axis_t GetAxisDrift() const { return fAxisDrift; }
+        virtual axis_t GetAxis1(int iPad=0) const { return fAxis1; }
+        virtual axis_t GetAxis2(int iPad=0) const { return fAxis2; }
+        virtual axis_t GetAxis3() const { return fAxis3; }
+        virtual axis_t GetAxisDrift() const { return fAxisDrift; }
         double GetTbToLength() const { return fTbToLength; }
         double GetPosition() const { return fPosition; }
 

@@ -4,6 +4,7 @@ using namespace std;
 #include "LKEvePlane.h"
 #include "GETChannel.h"
 #include "TStyle.h"
+#include "TSystem.h"
 
 ClassImp(LKEvePlane)
 
@@ -56,7 +57,7 @@ bool LKEvePlane::Init()
 {
     GetChannelAnalyzer();
 
-    fPar -> UpdatePar(fFigurePath,"LKEvePlane/FigurePath .");
+    fPar -> UpdatePar(fSavePath,"LKEvePlane/FigurePath .");
 
     if (fRun!=nullptr)
     {
@@ -75,8 +76,29 @@ bool LKEvePlane::Init()
     return true;
 }
 
+axis_t LKEvePlane::GetAxis1(int iPad) const
+{
+    if (iPad!=0&&iPad!=1)
+        return fAxis1;
+    if (fPadAxis1[iPad]==LKVector3::kNon)
+        return fAxis1;
+    return fPadAxis1[iPad];
+}
+
+axis_t LKEvePlane::GetAxis2(int iPad) const
+{
+    if (iPad!=0&&iPad!=1)
+        return fAxis2;
+    if (fPadAxis2[iPad]==LKVector3::kNon)
+        return fAxis2;
+    return fPadAxis2[iPad];
+}
+
 void LKEvePlane::Draw(Option_t *option)
 {
+    if (fReturnDraw)
+        return;
+
     TString fillOption;
     TString optionString(option);
     int ic = optionString.Index(":");
@@ -113,10 +135,10 @@ void LKEvePlane::UpdateEventDisplay1()
     {
         fHistEventDisplay1 -> SetMinimum(fEnergyMin);
         fHistEventDisplay1 -> SetMaximum(fEnergyMax);
-        if (fEnergyMax>100)
-            gStyle -> SetNumberContours(100);
-        else
-            gStyle -> SetNumberContours(fEnergyMax);
+        //if (fEnergyMax>100)
+        //    gStyle -> SetNumberContours(100);
+        //else
+        //    gStyle -> SetNumberContours(fEnergyMax-fEnergyMin);
     }
     fHistEventDisplay1 -> Draw(fEventDisplayDrawOption);
     fEventDisplayDrawOption = "colz";
@@ -133,10 +155,10 @@ void LKEvePlane::UpdateEventDisplay2()
     {
         fHistEventDisplay2 -> SetMinimum(fEnergyMin);
         fHistEventDisplay2 -> SetMaximum(fEnergyMax);
-        if (fEnergyMax>100)
-            gStyle -> SetNumberContours(100);
-        else
-            gStyle -> SetNumberContours(fEnergyMax);
+        //if (fEnergyMax>100)
+        //    gStyle -> SetNumberContours(100);
+        //else
+        //    gStyle -> SetNumberContours(fEnergyMax-fEnergyMin);
     }
     fHistEventDisplay2 -> Draw(fEventDisplayDrawOption);
     fEventDisplayDrawOption = "colz";
@@ -299,7 +321,7 @@ void LKEvePlane::UpdateChannelBuffer()
                 auto numHits = fChannelAnalyzer -> GetNumHits();
                 fPadChannelBuffer -> cd();
                 auto graphPedestal = fChannelAnalyzer -> GetPedestalGraph();
-                graphPedestal -> SetLineColor(kOrange-3);
+                graphPedestal -> SetLineColor(kAzure+10);//Orange-3);
                 graphPedestal -> Draw("samel");
                 for (auto iHit=0; iHit<numHits; ++iHit)
                 {
@@ -310,7 +332,7 @@ void LKEvePlane::UpdateChannelBuffer()
                     auto graph = fChannelAnalyzer -> GetPulseGraph(tbHit,amplitude,pedestal);
                     graph -> SetLineColor(kBlue-4);
                     graph -> SetLineStyle(2);
-                    graph -> Draw("samel");
+                    graph -> Draw("samelx");
                 }
                 //fHistControlEvent2 -> SetBinContent(fBinCtrlFitChan, 1);
                 //fFitChannel = false;
@@ -371,19 +393,21 @@ void LKEvePlane::UpdateMenu()
 
     fBinCtrlEngyMin = configureBin(fCurrentMenu, 0, 2, "E_{min}",  (fEnergyMin>=0?0:1));
     fBinCtrlEngyMax = configureBin(fCurrentMenu, 0, 3, "E_{max}",  fEnergyMax);
-    fBinCtrlFitChan = configureBin(fCurrentMenu, 0, 4, "Fit Ch.",  0);
-    fBinCtrlDrawACh = configureBin(fCurrentMenu, 0, 5, "All Ch.",  0);
-    fBinCtrlAcmltCh = configureBin(fCurrentMenu, 0, 6, "++Channel",0);
-    fBinCtrlAcmltEv = configureBin(fCurrentMenu, 0, 7, "++Event",  0);
-    binControlDummy = configureBin(fCurrentMenu, 0, 8, "",         0);
+    fBinCtrlFitChan = configureBin(fCurrentMenu, 0, 4, "Fit Ch.",  (fFitChannel?1:0));
+    fBinCtrlDrawACh = configureBin(fCurrentMenu, 0, 5, "All Ch.",  (fAccumulateChannel==2?2:0));
+    fBinCtrlAcmltCh = configureBin(fCurrentMenu, 0, 6, "++Channel",(fAccumulateChannel==1?1:0));
+    fBinCtrlFillAEv = configureBin(fCurrentMenu, 0, 7, "All Evt.", (fAccumulateAllEvents?1:0));
+    fBinCtrlAcmltEv = configureBin(fCurrentMenu, 0, 8, "++Event",  (fAccumulateEvents?1:0));
 
-    fBinCtrlPalette = configureBin(fCurrentMenu, 1, 2, "Palette",  0);
-    fBinCtrlSaveFig = configureBin(fCurrentMenu, 1, 3, "Save png", 0);
-    binControlDummy = configureBin(fCurrentMenu, 1, 4, "",         0);
-    binControlDummy = configureBin(fCurrentMenu, 1, 5, "",         0);
-    binControlDummy = configureBin(fCurrentMenu, 1, 6, "",         0);
-    binControlDummy = configureBin(fCurrentMenu, 1, 7, "",         0);
-    binControlDummy = configureBin(fCurrentMenu, 1, 8, "",         0);
+    fBinFillRawPrev = configureBin(fCurrentMenu, 1, 2, "Raw/Prev", 0);
+    fBinFillHitNHit = configureBin(fCurrentMenu, 1, 3, "Hit/#Hit", 0);
+    fBinFillElectID = configureBin(fCurrentMenu, 1, 4, "Co/As/Ag", 0);
+    fBinFillChACAAC = configureBin(fCurrentMenu, 1, 5, "Ch/CAAC",  0);
+    fBinCtrlPalette = configureBin(fCurrentMenu, 1, 6, "Palette",  fPaletteNumber);
+    fBinCtrlSavePng = configureBin(fCurrentMenu, 1, 7, "Save png", 0);
+    fBinCtrlSaveRoo = configureBin(fCurrentMenu, 1, 8, "Save root",0);
+
+    UpdateFill(false);
 }
 
 TCanvas *LKEvePlane::GetCanvas(Option_t *option)
@@ -399,14 +423,14 @@ TCanvas *LKEvePlane::GetCanvas(Option_t *option)
         fPadEventDisplay1 -> SetMargin(0.12,0.14,0.1,0.08);
         fPadEventDisplay1 -> SetNumber(1);
         fPadEventDisplay1 -> Draw();
-        fPadChannelBuffer = new TPad("LKEvePlanePad_channel","",0,0,0.5,fYCCanvas);
-        fPadChannelBuffer -> SetMargin(0.12,0.05,0.20,0.10);
-        fPadChannelBuffer -> SetNumber(2);
-        fPadChannelBuffer -> Draw();
         fPadEventDisplay2 = new TPad("LKEvePlanePad_EventDisplay2","",0.5,fYCCanvas,1,1);
         fPadEventDisplay2 -> SetMargin(0.12,0.14,0.1,0.08);
-        fPadEventDisplay2 -> SetNumber(3);
+        fPadEventDisplay2 -> SetNumber(2);
         fPadEventDisplay2 -> Draw();
+        fPadChannelBuffer = new TPad("LKEvePlanePad_channel","",0,0,0.5,fYCCanvas);
+        fPadChannelBuffer -> SetMargin(0.12,0.05,0.20,0.10);
+        fPadChannelBuffer -> SetNumber(3);
+        fPadChannelBuffer -> Draw();
         fPadControlEvent1 = new TPad("LKEvePlanePad_control","",0.5,y1,1,y2);
         fPadControlEvent1 -> SetMargin(0.02,0.02,0.30,0.02);
         fPadControlEvent1 -> SetNumber(4);
@@ -538,30 +562,6 @@ TH2D* LKEvePlane::GetHistControlEvent2()
         fHistControlEvent2 -> GetYaxis() -> SetBinLabel(1,"");
         fHistControlEvent2 -> GetXaxis() -> SetLabelSize(ctrlLabelSize);
         UpdateMenu();
-        //fBinCtrlChgMenu = fHistControlEvent2 -> GetBin(1,1);
-        //fBinCtrlEngyMin = fHistControlEvent2 -> GetBin(2,1);
-        //fBinCtrlEngyMax = fHistControlEvent2 -> GetBin(3,1);
-        //fBinCtrlFitChan = fHistControlEvent2 -> GetBin(4,1);
-        //fBinCtrlAcmltCh = fHistControlEvent2 -> GetBin(5,1);
-        //fBinCtrlAcmltEv = fHistControlEvent2 -> GetBin(6,1);
-        //fBinCtrlPalette = fHistControlEvent2 -> GetBin(7,1);
-        //fBinCtrlSaveFig = fHistControlEvent2 -> GetBin(8,1);
-        //fHistControlEvent2 -> GetXaxis() -> SetBinLabel(1,"Menu");
-        //fHistControlEvent2 -> GetXaxis() -> SetBinLabel(2,"E_{min}");
-        //fHistControlEvent2 -> GetXaxis() -> SetBinLabel(3,"E_{max}");
-        //fHistControlEvent2 -> GetXaxis() -> SetBinLabel(4,"Fit Ch.");
-        //fHistControlEvent2 -> GetXaxis() -> SetBinLabel(5,"++Ch (3)");
-        //fHistControlEvent2 -> GetXaxis() -> SetBinLabel(6,"++Event");
-        //fHistControlEvent2 -> GetXaxis() -> SetBinLabel(7,"Palette");
-        //fHistControlEvent2 -> GetXaxis() -> SetBinLabel(8,"Save");
-        //fHistControlEvent2 -> SetBinContent(fBinCtrlChgMenu, fCurrentMenu);
-        //fHistControlEvent2 -> SetBinContent(fBinCtrlEngyMin, abs(fEnergyMin));
-        //fHistControlEvent2 -> SetBinContent(fBinCtrlEngyMax, fEnergyMax);
-        //fHistControlEvent2 -> SetBinContent(fBinCtrlFitChan, 0);
-        //fHistControlEvent2 -> SetBinContent(fBinCtrlAcmltCh, 0);
-        //fHistControlEvent2 -> SetBinContent(fBinCtrlAcmltEv, 0);
-        //fHistControlEvent2 -> SetBinContent(fBinCtrlPalette, 0);
-        //fHistControlEvent2 -> SetBinContent(fBinCtrlSaveFig, 0);
         fHistControlEvent2 -> SetMarkerSize(binTextSize);
         if (fPaletteNumber==0)
             fHistControlEvent2 -> SetMarkerColor(kBlack);
@@ -680,14 +680,22 @@ void LKEvePlane::FillDataToHistEventDisplay1(Option_t *option)
     if (fAccumulateEvents==0)
         fHistEventDisplay1 -> Reset();
 
+    Long64_t currentEventID = 0;
+    if (fRun!=nullptr)
+        currentEventID = fRun -> GetCurrentEventID();
+
     TString optionString(option);
+    if (!fFillOptionSelected.IsNull())
+        optionString = fFillOptionSelected;
+    if (optionString.IsNull())
+        optionString = "preview";
     optionString.ToLower();
+    lk_info << "Filling " << optionString << " (" << currentEventID << ")" << endl;
 
     LKPhysicalPad *pad = nullptr;
     TString title;
 
-    if (optionString.Index("caac")>=0) {
-        if (fAccumulateEvents==0) lk_info << "Filling caac to plane" << endl;
+    if (optionString.Index("caac")==0) {
         title = "caac";
         int maxCAAC = 0;
         TIter nextRawData(fChannelArray);
@@ -698,83 +706,73 @@ void LKEvePlane::FillDataToHistEventDisplay1(Option_t *option)
         }
         fEnergyMax = maxCAAC;
     }
-    else if (optionString.Index("cobo")>=0) {
+    else if (optionString.Index("cobo")==0) {
         fEnergyMax = 4;
-        if (fAccumulateEvents==0) lk_info << "Filling cobo to plane" << endl;
         title = "cobo";
         TIter nextRawData(fChannelArray);
         while ((pad = (LKPhysicalPad *) nextRawData()))
             fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetCoboID());
     }
-    else if (optionString.Index("asad")>=0) {
+    else if (optionString.Index("asad")==0) {
         fEnergyMax = 4;
-        if (fAccumulateEvents==0) lk_info << "Filling asad to plane" << endl;
         title = "asad";
         TIter nextRawData(fChannelArray);
         while ((pad = (LKPhysicalPad *) nextRawData()))
             fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetAsadID());
     }
-    else if (optionString.Index("aget")>=0) {
+    else if (optionString.Index("aget")==0) {
         fEnergyMax = 4;
-        if (fAccumulateEvents==0) lk_info << "Filling aget to plane" << endl;
         title = "aget";
         TIter nextRawData(fChannelArray);
         while ((pad = (LKPhysicalPad *) nextRawData()))
             fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetAgetID());
     }
-    else if (optionString.Index("chan")>=0) {
+    else if (optionString.Index("chan")==0) {
         fEnergyMax = 70;
-        if (fAccumulateEvents==0) lk_info << "Filling chan to plane" << endl;
         title = "chan";
         TIter nextRawData(fChannelArray);
         while ((pad = (LKPhysicalPad *) nextRawData()))
             fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetChannelID());
     }
 
-    else if (optionString.Index("section")>=0) {
+    else if (optionString.Index("section")==0) {
         fEnergyMax = 100;
-        if (fAccumulateEvents==0) lk_info << "Filling section to plane" << endl;
         title = "section";
         TIter nextRawData(fChannelArray);
         while ((pad = (LKPhysicalPad *) nextRawData()))
             fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetSection());
     }
-    else if (optionString.Index("layer")>=0) {
+    else if (optionString.Index("layer")==0) {
         fEnergyMax = 100;
-        if (fAccumulateEvents==0) lk_info << "Filling layer to plane" << endl;
         title = "layer";
         TIter nextRawData(fChannelArray);
         while ((pad = (LKPhysicalPad *) nextRawData()))
             fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetLayer());
     }
-    else if (optionString.Index("row")>=0) {
+    else if (optionString.Index("row")==0) {
         fEnergyMax = 100;
-        if (fAccumulateEvents==0) lk_info << "Filling row to plane" << endl;
-        title = "raw";
+        title = "row";
         TIter nextRawData(fChannelArray);
         while ((pad = (LKPhysicalPad *) nextRawData()))
             fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetRow());
     }
 
-    else if (optionString.Index("padid")>=0) {
+    else if (optionString.Index("padid")==0) {
         fEnergyMax = 100;
-        if (fAccumulateEvents==0) lk_info << "Filling pad id to plane" << endl;
         title = "id";
         TIter nextRawData(fChannelArray);
         while ((pad = (LKPhysicalPad *) nextRawData()))
             fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetPadID());
     }
-    else if (optionString.Index("nhit")>=0) {
+    else if (optionString.Index("nhits")==0) {
         fEnergyMax = 10;
-        if (fAccumulateEvents==0) lk_info << "Filling number of hits to plane" << endl;
-        title = "nhit";
+        title = "nhits";
         TIter nextRawData(fChannelArray);
         while ((pad = (LKPhysicalPad *) nextRawData()))
             fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetNumHits());
     }
-    else if (optionString.Index("hit")>=0&&fHitArray!=nullptr)
+    else if (optionString.Index("hit")==0&&fHitArray!=nullptr)
     {
-        if (fAccumulateEvents==0) lk_info << "Filling hit to plane" << endl;
         title = "Hit";
         TIter nextHit(fHitArray);
         LKHit* hit = nullptr;
@@ -787,23 +785,49 @@ void LKEvePlane::FillDataToHistEventDisplay1(Option_t *option)
             fHistEventDisplay1 -> Fill(i,j,energy);
         }
     }
-    //else if (optionString.Index("raw")>=0&&fRawDataArray!=nullptr)
-    else if (fRawDataArray!=nullptr)
+    else if (optionString.Index("preview")==0)
     {
-        if (fAccumulateEvents==0) lk_info << "Filling raw data to plane" << endl;
-        title = "Raw Data";
-        TIter nextRawData(fChannelArray);
-        while (pad = (LKPhysicalPad*) nextRawData())
+        if (fRawDataArray!=nullptr)
         {
-            auto idx = pad -> GetDataIndex();
-            if (idx<0)
-                continue;
-            auto channel = (GETChannel*) fRawDataArray -> At(idx);
-            auto i = pad -> GetI();
-            auto j = pad -> GetJ();
-            auto energy = channel -> GetEnergy();
-            fHistEventDisplay1 -> Fill(i,j,energy);
+            title = "Preview Data";
+            TIter nextRawData(fChannelArray);
+            while (pad = (LKPhysicalPad*) nextRawData())
+            {
+                auto idx = pad -> GetDataIndex();
+                if (idx<0)
+                    continue;
+                auto channel = (GETChannel*) fRawDataArray -> At(idx);
+                auto i = pad -> GetI();
+                auto j = pad -> GetJ();
+                auto energy = channel -> GetEnergy();
+                fHistEventDisplay1 -> Fill(i,j,energy);
+            }
         }
+        else
+            lk_error << "Raw-data array is null" << endl;
+    }
+    else if (optionString.Index("raw")==0)
+    {
+        if (fRawDataArray!=nullptr)
+        {
+            title = "Raw Data";
+            TIter nextRawData(fChannelArray);
+            while (pad = (LKPhysicalPad*) nextRawData())
+            {
+                auto idx = pad -> GetDataIndex();
+                if (idx<0)
+                    continue;
+                auto channel = (GETChannel*) fRawDataArray -> At(idx);
+                auto i = pad -> GetI();
+                auto j = pad -> GetJ();
+                auto buffer = channel -> GetWaveformY();
+                double energy = 0.;
+                for (auto tb=0; tb<512; ++tb) energy += buffer[tb];
+                fHistEventDisplay1 -> Fill(i,j,energy);
+            }
+        }
+        else
+            lk_error << "Raw-data array is null" << endl;
     }
 
     if (fRun!=nullptr) {
@@ -811,12 +835,12 @@ void LKEvePlane::FillDataToHistEventDisplay1(Option_t *option)
         if (inputFile!=nullptr)
         {
             if (fAccumulateEvents==0)
-                fHistEventDisplay1 -> SetTitle(Form("%s (event %lld)", inputFile->GetName(), fRun->GetCurrentEventID()));
+                fHistEventDisplay1 -> SetTitle(Form("%s (event %lld) [%s]", inputFile->GetName(), currentEventID, optionString.Data()));
             else
-                fHistEventDisplay1 -> SetTitle(Form("%s (event %lld - %lld)", inputFile->GetName(), fAccumulateEvent1, fAccumulateEvent2));
+                fHistEventDisplay1 -> SetTitle(Form("%s (event %lld - %lld) [%s]", inputFile->GetName(), fAccumulateEvent1, fAccumulateEvent2, optionString.Data()));
         }
         else
-            fHistEventDisplay1 -> SetTitle(Form("%s (event %lld)", fRun->GetRunName(), fRun->GetCurrentEventID()));
+            fHistEventDisplay1 -> SetTitle(Form("%s (event %lld) [%s]", fRun->GetRunName(), currentEventID, optionString.Data()));
     }
 }
 
@@ -877,6 +901,7 @@ void LKEvePlane::ClickedEventDisplay2(double xOnClick, double yOnClick)
 
     UpdateChannelBuffer();
 }
+
 void LKEvePlane::ClickedControlEvent1(int selectedBin)
 {
     auto currentEventID = fRun -> GetCurrentEventID();
@@ -930,52 +955,54 @@ void LKEvePlane::ClickedControlEvent1(int selectedBin)
 
         double energyCut = 500;
 
-        if (fRawDataArray==nullptr)
-            return;
-
-        auto testEventID = currentEventID;
-        while (currentEventID<=lastEventID+1)
+        if (fRawDataArray!=nullptr)
         {
-            testEventID++;
-            lk_info << "Testing " << testEventID << endl;
-
-            //fRun -> ExecuteNextEvent();
-            fRun -> GetEvent(testEventID);
-
-            bool foundEvent = false;
-            auto numChannels = fRawDataArray -> GetEntries();
-            for (auto iRawData=0; iRawData<numChannels; ++iRawData)
+            auto testEventID = currentEventID;
+            while (currentEventID<=lastEventID+1)
             {
-                auto channel = (GETChannel*) fRawDataArray -> At(iRawData);
-                if (channel->GetEnergy()>energyCut) {
-                    foundEvent = true;
-                    break;
+                testEventID++;
+                lk_info << "Testing " << testEventID << endl;
+
+                fRun -> GetEvent(testEventID);
+
+                bool foundEvent = false;
+                auto numChannels = fRawDataArray -> GetEntries();
+                for (auto iRawData=0; iRawData<numChannels; ++iRawData)
+                {
+                    auto channel = (GETChannel*) fRawDataArray -> At(iRawData);
+                    if (channel->GetEnergy()>energyCut) {
+                        foundEvent = true;
+                        break;
+                    }
                 }
+                if (foundEvent)
+                    break;
+
+                if (testEventID>=lastEventID)
+                    break;
             }
-            if (foundEvent)
-                break;
 
-            if (testEventID>=lastEventID)
-                break;
-        }
-        //if (testEventID==lastEventID)
-        if (testEventID==lastEventID+1)
-        {
-            lk_error << "No event with energy " << energyCut << endl;
-            return;
-        }
+            //if (testEventID==lastEventID)
+            if (testEventID==lastEventID+1)
+            {
+                lk_error << "No event with energy " << energyCut << endl;
+                return;
+            }
 
-        if (fAccumulateEvents>0) {
-            fAccumulateEvent2 = fRun -> GetCurrentEventID();
-            ++fAccumulateEvents;
+            if (fAccumulateEvents>0) {
+                fAccumulateEvent2 = fRun -> GetCurrentEventID();
+                ++fAccumulateEvents;
+            }
+            fRun -> ExecuteEvent(testEventID);
+            lk_info << "Event with energy " << energyCut << " : " << currentEventID << endl;
         }
-        fRun -> ExecuteEvent(testEventID);
-        lk_info << "Event with energy " << energyCut << " : " << currentEventID << endl;
+        else
+            lk_error << "Raw-Data Array is null" << endl;
     }
 
     fHistControlEvent2 -> SetBinContent(fBinCtrlAcmltEv, fAccumulateEvents);
 
-    Draw();
+    //Draw();
 }
 
 void LKEvePlane::ClickedControlEvent2(int selectedBin)
@@ -1022,12 +1049,38 @@ void LKEvePlane::ClickedControlEvent2(int selectedBin)
         UpdateEventDisplay2();
         UpdateChannelBuffer();
     }
+    else if (selectedBin==fBinCtrlFillAEv)
+    {
+        if (fRun==nullptr)
+            return;
+
+        if (fAccumulateAllEvents) {
+            fAccumulateAllEvents = false;
+            Draw();
+            fHistControlEvent2 -> SetBinContent(fBinCtrlFillAEv, 0);
+            if (fAccumulateEvents>0)
+                ClickedControlEvent2(fBinCtrlAcmltEv);
+        }
+        else {
+            fAccumulateAllEvents = true;
+            if (fAccumulateEvents>0) ClickedControlEvent2(fBinCtrlAcmltEv);
+            ClickedControlEvent1(fBinCtrlFrst);
+            ClickedControlEvent2(fBinCtrlAcmltEv);
+            ClickedControlEvent1(fBinCtrlLast);
+            fHistControlEvent2 -> SetBinContent(fBinCtrlFillAEv, 1);
+        }
+    }
     else if (selectedBin==fBinCtrlAcmltEv)
     {
         if (fRun==nullptr)
             return;
         auto currentEventID = fRun -> GetCurrentEventID();
         lastEventID = fRun -> GetNumEvents() - 1;
+        if (fAccumulateEvents<0) {
+            fAccumulateEvents = 0;
+            fHistControlEvent2 -> SetBinContent(fBinCtrlFillAEv, 0);
+        }
+
         if (fAccumulateEvents>0)
             fAccumulateEvents = 0;
         else {
@@ -1036,11 +1089,6 @@ void LKEvePlane::ClickedControlEvent2(int selectedBin)
             fAccumulateEvent2 = currentEventID;
         }
         fHistControlEvent2 -> SetBinContent(fBinCtrlAcmltEv, fAccumulateEvents);
-    }
-    else if (selectedBin==fBinCtrlPalette)
-    {
-        fPaletteNumber++;
-        SetPalette();
     }
     else if (selectedBin==fBinCtrlAcmltCh)
     {
@@ -1091,7 +1139,50 @@ void LKEvePlane::ClickedControlEvent2(int selectedBin)
         fHistControlEvent2 -> SetBinContent(fBinCtrlFitChan, (fFitChannel?1:0));
         UpdateChannelBuffer();
     }
-    else if (selectedBin==fBinCtrlSaveFig)
+    else if (selectedBin==fBinFillElectID)
+    {
+        if      (fFillOptionSelected==kFillZero) fFillOptionSelected = kFillCobo;
+        else if (fFillOptionSelected==kFillCobo) fFillOptionSelected = kFillAsad;
+        else if (fFillOptionSelected==kFillAsad) fFillOptionSelected = kFillAget;
+        else if (fFillOptionSelected==kFillAget) fFillOptionSelected = kFillZero;
+        else fFillOptionSelected = kFillCobo;
+        UpdateFill();
+    }
+    else if (selectedBin==fBinFillChACAAC)
+    {
+        if      (fFillOptionSelected==kFillZero) fFillOptionSelected = kFillChan;
+        else if (fFillOptionSelected==kFillChan) fFillOptionSelected = kFillCAAC;
+        else if (fFillOptionSelected==kFillCAAC) fFillOptionSelected = kFillZero;
+        else fFillOptionSelected = kFillChan;
+        UpdateFill();
+    }
+    else if (selectedBin==fBinFillRawPrev)
+    {
+        if      (fFillOptionSelected==kFillZero) fFillOptionSelected = kFillRawD;
+        else if (fFillOptionSelected==kFillRawD) fFillOptionSelected = kFillPrev;
+        else if (fFillOptionSelected==kFillPrev) fFillOptionSelected = kFillZero;
+        else fFillOptionSelected = kFillRawD;
+        UpdateFill();
+    }
+    else if (selectedBin==fBinFillHitNHit)
+    {
+        if      (fFillOptionSelected==kFillZero) fFillOptionSelected = kFillHits;
+        else if (fFillOptionSelected==kFillHits) fFillOptionSelected = kFillNHit;
+        else if (fFillOptionSelected==kFillNHit) fFillOptionSelected = kFillZero;
+        else fFillOptionSelected = kFillHits;
+        UpdateFill();
+    }
+    else if (selectedBin==fBinDrawTrackGf)
+    {
+        lk_warning << "This method will be updated in the feature" << endl;
+        UpdateFill();
+    }
+    else if (selectedBin==fBinCtrlPalette)
+    {
+        fPaletteNumber++;
+        SetPalette();
+    }
+    else if (selectedBin==fBinCtrlSavePng)
     {
         TString fileName;
         if (fRun!=nullptr)
@@ -1100,15 +1191,90 @@ void LKEvePlane::ClickedControlEvent2(int selectedBin)
             fileName = fileName + Form(".e%lld",fRun->GetCurrentEventID());
             fileName = fileName + Form(".i%d",fCountChangeOther);
             fileName = fileName + ".png";
-            fCanvas -> SaveAs(fFigurePath+"/"+fileName);
+            fileName = fSavePath + "/" + fileName;
         }
         else {
             fileName = "event_display";
             fileName = fileName + Form(".e%lld",fCountChangeEvent);
             fileName = fileName + Form(".i%d",fCountChangeOther);
             fileName = fileName + ".png";
-            fCanvas -> SaveAs(fFigurePath+"/"+fileName);
+            fileName = fSavePath + "/" + fileName;
         }
+        if (!fSavePath.IsNull()&&fSavePath!="."&&fSavePath!="./")
+            gSystem -> Exec(TString("mkdir -p ") + fSavePath);
+        lk_info << "Writting " << fileName << endl;
+        fCanvas -> SaveAs(fileName);
+        fCountSavePng++;
+    }
+
+    else if (selectedBin==fBinCtrlSaveRoo)
+    {
+        TString fileName;
+        if (fRun!=nullptr)
+        {
+            fileName = fRun -> MakeFullRunName();
+            fileName = fileName + Form(".e%lld",fRun->GetCurrentEventID());
+            fileName = fileName + Form(".i%d",fCountChangeOther);
+            fileName = fileName + ".eve_obj.root";
+            fileName = fSavePath + "/" + fileName;
+        }
+        else {
+            fileName = "event_display";
+            fileName = fileName + Form(".e%lld",fCountChangeEvent);
+            fileName = fileName + Form(".i%d",fCountChangeOther);
+            fileName = fileName + ".eve_obj.root";
+            fileName = fSavePath + "/" + fileName;
+        }
+        if (!fSavePath.IsNull()&&fSavePath!="."&&fSavePath!="./")
+            gSystem -> Exec(TString("mkdir -p ") + fSavePath);
+
+        lk_info << "Writting " << fileName << endl;
+        auto file = new TFile(fileName,"recreate");
+        fCanvas -> Write("canvas");
+        auto pad = (LKPhysicalPad*) fChannelArray -> At(fSelPadID);
+        if (pad!=nullptr) {
+            file -> cd();
+            pad -> Write("pad");
+            auto selRawDataID = pad -> GetDataIndex();
+            if (fRawDataArray!=nullptr&&selRawDataID>=0) {
+                auto channel = (GETChannel*) fRawDataArray -> At(fSelRawDataID);
+                channel -> Write("channel");
+            }
+        }
+        fCountSaveRoo++;
+    }
+}
+
+void LKEvePlane::UpdateFill(bool updateHist)
+{
+    fHistControlEvent2 -> SetBinContent(fBinFillElectID, 0);
+    fHistControlEvent2 -> SetBinContent(fBinFillRawPrev, 0);
+    fHistControlEvent2 -> SetBinContent(fBinFillHitNHit, 0);
+    fHistControlEvent2 -> SetBinContent(fBinFillChACAAC, 0);
+    if      (fFillOptionSelected==kFillCobo) fHistControlEvent2 -> SetBinContent(fBinFillElectID,1);
+    else if (fFillOptionSelected==kFillAsad) fHistControlEvent2 -> SetBinContent(fBinFillElectID,2);
+    else if (fFillOptionSelected==kFillAget) fHistControlEvent2 -> SetBinContent(fBinFillElectID,3);
+    else if (fFillOptionSelected==kFillChan) fHistControlEvent2 -> SetBinContent(fBinFillChACAAC,1);
+    else if (fFillOptionSelected==kFillCAAC) fHistControlEvent2 -> SetBinContent(fBinFillChACAAC,2);
+    else if (fFillOptionSelected==kFillRawD) fHistControlEvent2 -> SetBinContent(fBinFillRawPrev,1);
+    else if (fFillOptionSelected==kFillPrev) fHistControlEvent2 -> SetBinContent(fBinFillRawPrev,2);
+    else if (fFillOptionSelected==kFillHits) fHistControlEvent2 -> SetBinContent(fBinFillHitNHit,1);
+    else if (fFillOptionSelected==kFillNHit) fHistControlEvent2 -> SetBinContent(fBinFillHitNHit,2);
+
+    if (updateHist)
+    {
+        if (fFillOptionSelected==kFillRawD||fFillOptionSelected==kFillPrev||fFillOptionSelected==kFillHits) {
+            if (fEnergyMax>0)
+                ClickedControlEvent2(fBinCtrlEngyMax);
+        }
+        else {
+            if (fEnergyMin>=0)
+                ClickedControlEvent2(fBinCtrlEngyMin);
+        }
+
+        FillDataToHist();
+        UpdateEventDisplay1();
+        UpdateEventDisplay2();
     }
 }
 
@@ -1135,7 +1301,7 @@ void LKEvePlane::ClickedControlEvent2(double xOnClick, double yOnClick)
 
 void LKEvePlane::SetPalette()
 {
-    gStyle -> SetNumberContours(99);
+    gStyle -> SetNumberContours(100);
     if (fPaletteNumber>2) fPaletteNumber = 0;
     if (fPaletteNumber==0) {
         gStyle -> SetPalette(kColorPrintableOnGrey);
@@ -1156,9 +1322,13 @@ void LKEvePlane::SetPalette()
     if (fHistControlEvent2!=nullptr)
     {
         fHistControlEvent2 -> SetBinContent(fBinCtrlPalette, fPaletteNumber);
-        if (fPaletteNumber==0)
+        if (fPaletteNumber==0) {
             fHistControlEvent2 -> SetMaximum(20);
-        else
+            fHistControlEvent1 -> SetMaximum(2*fRun->GetNumEvents());
+        }
+        else {
             fHistControlEvent2 -> SetMaximum(2);
+            fHistControlEvent1 -> SetMaximum(fRun->GetNumEvents());
+        }
     }
 }
