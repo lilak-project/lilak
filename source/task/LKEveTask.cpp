@@ -365,9 +365,8 @@ void LKEveTask::DrawDetectorPlanes()
         auto plane = fDetectorSystem -> GetDetectorPlane(iPlane);
         lk_info << "Drawing " << plane -> GetName() << endl;
 
-        auto cvs = (TCanvas *) fCvsDetectorPlaneArray -> At(iPlane);
-
-        cvs -> cd();
+        //auto cvs = (TCanvas *) fCvsDetectorPlaneArray -> At(iPlane);
+        //cvs -> cd();
         plane -> Draw();
 
         auto axis1 = plane -> GetAxis1();
@@ -414,6 +413,9 @@ void LKEveTask::DrawDetectorPlanes()
                                 continue;
 
                             plane -> GetCPad(iPad);
+                            axis1 = plane -> GetAxis1(iPad);
+                            axis2 = plane -> GetAxis2(iPad);
+                            //lk_debug << branchName << " " << iPlane << " " << iPad << " " << axis1 << " " << axis2 << endl;
                             tracklet -> TrajectoryOnPlane(axis1,axis2) -> Draw("samel"); // @todo
                         }
                     }

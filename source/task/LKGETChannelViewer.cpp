@@ -608,7 +608,7 @@ void LKGETChannelViewer::DrawCurrentIndvChannels()
             //lk_debug << iChannel << " " << channel->GetCobo() << " " << channel->GetAsad() << " " << channel->GetAget() << " " << channel->GetChan() << endl;
         }
         if (hit->GetChannelID()==iChannel) {
-            auto graph = fChannelAnalyzer -> GetPeakGraph(hit->GetTb(), hit->GetCharge(), hit->GetPedestal());
+            auto graph = fChannelAnalyzer -> GetPulseGraph(hit->GetTb(), hit->GetCharge(), hit->GetPedestal());
             graph -> SetLineColor(kRed-4);
             graph -> Draw("samel");
             countHits++;
