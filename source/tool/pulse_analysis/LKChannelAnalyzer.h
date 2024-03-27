@@ -272,8 +272,7 @@ class LKChannelAnalyzer : public LKPadInteractive
         const int    kPulseFittingMode = 1;
         const int    kSigAtMaximumMode = 2;
         const int    kSigAtThrshldMode = 3;
-        //int          fAnalyzerMode = kSigAtMaximumMode;
-        int          fAnalyzerMode = kSigAtThrshldMode;
+        int          fAnalyzerMode = kSigAtMaximumMode;
 
         LKPulse*     fPulse = nullptr; ///< Pulse pointer
         double       fBufferOrigin[512]; ///< Copied buffer from data
