@@ -160,6 +160,8 @@ class LKChannelAnalyzer : public LKPadInteractive
         void Draw(Option_t *option="");
 
         /// Set pulse function and related parameter from pulse data file created from LKPulseAnalyzer
+        void SetSigAtMaximum() { fAnalyzerMode = kSigAtMaximumMode; }
+        void SetSigAtThrshld() { fAnalyzerMode = kSigAtThrshldMode; }
         void SetPulse(const char* fileName);
         LKPulse* GetPulse() const  { return fPulse; }
         TString GetPulseFileName() const { return fPulseFileName; }
@@ -177,8 +179,9 @@ class LKChannelAnalyzer : public LKPadInteractive
 
         void Analyze(int* data);
         void Analyze(double* data);
-        void AnalyzePulseFinding(double* data);
-        void AnalyzePeakFinding(double* data);
+        void AnalyzePulseFitting();
+        void AnalyzeSigAtMaximum();
+        void AnalyzeSigAtThrshld();
 
         /**
          * Find pedestal and subtract it from the buffer.
@@ -243,13 +246,17 @@ class LKChannelAnalyzer : public LKPadInteractive
 
         double* GetBuffer() { return fBuffer; }
 
-        TGraphErrors *FillPulseGraph(TGraphErrors* graph, double tb0, double amplitude, double pedestal=0);
-        TGraph *FillPeakGraph(TGraph* graph, double tb0, double amplitude, double pedestal=0);
-        TGraph *FillPedestalGraph(TGraph *graph, double tb1=0, double tb2=512);
+        TGraph*       FillPedestalGraph    (TGraph*       graph, double tb1=0, double tb2=512);
+        TGraphErrors* FillPulseGraph       (TGraphErrors* graph, double tb0, double amplitude, double pedestal=0);
+        TGraphErrors* FillGraphPulseFitting(TGraphErrors* graph, double tb0, double amplitude, double pedestal=0);
+        TGraphErrors* FillGraphSigAtMaximum(TGraphErrors* graph, double tb0, double amplitude, double pedestal=0);
+        TGraphErrors* FillGraphSigAtThrshld(TGraphErrors* graph, double tb0, double amplitude, double pedestal=0);
 
-        TGraphErrors *GetPulseGraph(double tb0, double amplitude, double pedestal=0);
-        TGraph *GetPeakGraph(double tb0, double amplitude, double pedestal=0);
-        TGraph *GetPedestalGraph(double tb1=0, double tb2=512);
+        TGraph*       GetPedestalGraph    (double tb1=0, double tb2=512);
+        TGraphErrors* GetPulseGraph       (double tb0, double amplitude, double pedestal=0);
+        TGraphErrors* GetGraphPulseFitting(double tb0, double amplitude, double pedestal=0);
+        TGraphErrors* GetGraphSigAtMaximum(double tb0, double amplitude, double pedestal=0);
+        TGraphErrors* GetGraphSigAtThrshld(double tb0, double amplitude, double pedestal=0);
 
         void ClearGraphArray() { if (fGraphArray!=nullptr) fGraphArray -> Clear("C"); fNumGraphs = 0; }
 
@@ -262,7 +269,11 @@ class LKChannelAnalyzer : public LKPadInteractive
         TH2D* fHistFitPanel = nullptr;
 
     private:
-        bool         fPulseFitMode = false;
+        const int    kPulseFittingMode = 1;
+        const int    kSigAtMaximumMode = 2;
+        const int    kSigAtThrshldMode = 3;
+        //int          fAnalyzerMode = kSigAtMaximumMode;
+        int          fAnalyzerMode = kSigAtThrshldMode;
 
         LKPulse*     fPulse = nullptr; ///< Pulse pointer
         double       fBufferOrigin[512]; ///< Copied buffer from data
@@ -281,6 +292,7 @@ class LKChannelAnalyzer : public LKPadInteractive
         double       fStddevSample[20] = {0.};
         double       fPedestal = 0; ///< pedestal level of current channel
         double       fPedestalErrorRefSampleCut = 10;
+        const double fCVCut = 0.2; ///< stdDev/mean cut for collecting samples used for calculating pedestal.
 
         // tb
         int          fTbMax = 512; ///< Maximum TB in buffer. Must be set with SetTbMax()
