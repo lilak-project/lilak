@@ -28,6 +28,8 @@
 #include "LKParameterContainer.h"
 #include "LKChannelAnalyzer.h"
 
+class LKTask;
+
 using namespace std;
 
 class WaveForms {
@@ -129,6 +131,8 @@ class LKFrameBuilder : public mfm::FrameBuilder
         Int_t fGETEventIdx;
         Int_t fGETTimeStamp;
         Int_t fGETD2PTime;
+
+        Long64_t fCountEvents = 0;
 
         LKChannelAnalyzer* fChannelAnalyzer;
 };

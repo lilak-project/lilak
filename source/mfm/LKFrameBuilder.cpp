@@ -14,8 +14,10 @@ using namespace std;
 #include "LKFrameBuilder.h"
 #include "LKEventHeader.h"
 #include "GETChannel.h"
+#include "LKMFMConversionTask.h"
 
 //#define DEBUG_LKFRAMEBUILDER
+//#define DEBUG_UNPACKFRAME_CUT 459961344
 
 LKFrameBuilder::LKFrameBuilder()
 {
@@ -29,6 +31,7 @@ LKFrameBuilder::~LKFrameBuilder()
 void LKFrameBuilder::processFrame(mfm::Frame &frame)
 {
 #ifdef DEBUG_LKFRAMEBUILDER
+    lk_debug << endl;
     lk_info << endl;
 #endif
     if (frame.header().isBlobFrame())
@@ -46,15 +49,20 @@ void LKFrameBuilder::processFrame(mfm::Frame &frame)
     }
     else
     {
+#ifdef DEBUG_LKFRAMEBUILDER
+        lk_debug << fCountEvents << endl;
+#endif
         ValidateEvent(frame);
         Event(frame);
         fMotherTask -> SignalNextEvent();
+        ++fCountEvents;
     }
 }
 
 void LKFrameBuilder::SetPar(LKParameterContainer* par)
 {
 #ifdef DEBUG_LKFRAMEBUILDER
+    lk_debug << endl;
     lk_info << endl;
 #endif
     fPar = par;
@@ -81,6 +89,7 @@ void LKFrameBuilder::SetPar(LKParameterContainer* par)
 bool LKFrameBuilder::Init()
 {
 #ifdef DEBUG_LKFRAMEBUILDER
+    lk_debug << endl;
     lk_info << endl;
 #endif
     Bool_t missingEssentials = false;
@@ -111,19 +120,11 @@ bool LKFrameBuilder::Init()
     fCountPrint = 0;
     fMutantCounter = 0;
 
-    if (fAsadIsTriggered==nullptr)
-    {
-        fAsadIsTriggered = new Int_t*[fMaxCobo];
-        for (Int_t i=0; i<fMaxCobo; i++) {
-            fAsadIsTriggered[i] = new Int_t[fMaxAsad];
-            for (Int_t j=0; j<fMaxAsad; j++)
-                fAsadIsTriggered[i][j] = 0;
-        }
-    }
-    else {
-        for (Int_t i=0; i<fMaxCobo; i++)
-            for (Int_t j=0; j<fMaxAsad; j++)
-                fAsadIsTriggered[i][j] = 0;
+    fAsadIsTriggered = new Int_t*[fMaxCobo];
+    for (Int_t i=0; i<fMaxCobo; i++) {
+        fAsadIsTriggered[i] = new Int_t[fMaxAsad];
+        for (Int_t j=0; j<fMaxAsad; j++)
+            fAsadIsTriggered[i][j] = 0;
     }
 
     mfm::FrameDictionary::instance().addFormats(fFrameFormat.Data());
@@ -138,6 +139,7 @@ bool LKFrameBuilder::Init()
 void LKFrameBuilder::InitWaveforms()
 {
 #ifdef DEBUG_LKFRAMEBUILDER
+    lk_debug << endl;
     lk_info << endl;
 #endif
     fWaveforms = new WaveForms();
@@ -160,6 +162,7 @@ void LKFrameBuilder::InitWaveforms()
 void LKFrameBuilder::ResetWaveforms()
 {
 #ifdef DEBUG_LKFRAMEBUILDER
+    lk_debug << endl;
     lk_info << endl;
 #endif
     for(Int_t i=0;i<fMaxAsad;i++){
@@ -190,6 +193,7 @@ void LKFrameBuilder::ResetWaveforms()
 void LKFrameBuilder::ValidateEvent(mfm::Frame& frame)
 {
 #ifdef DEBUG_LKFRAMEBUILDER
+    lk_debug << endl;
     lk_info << endl;
 #endif
     if(frame.header().isLayeredFrame())
@@ -241,6 +245,7 @@ void LKFrameBuilder::ValidateEvent(mfm::Frame& frame)
 void LKFrameBuilder::ValidateFrame(mfm::Frame& frame)
 {
 #ifdef DEBUG_LKFRAMEBUILDER
+    lk_debug << endl;
     lk_info << endl;
 #endif
     /*
@@ -316,6 +321,7 @@ void LKFrameBuilder::ValidateFrame(mfm::Frame& frame)
 void LKFrameBuilder::Event(mfm::Frame& frame)
 {
 #ifdef DEBUG_LKFRAMEBUILDER
+    lk_debug << endl;
     lk_info << endl;
 #endif
     fWaveforms->frameIdx = 0;
@@ -362,8 +368,10 @@ void LKFrameBuilder::Event(mfm::Frame& frame)
 
 void LKFrameBuilder::UnpackFrame(mfm::Frame& frame)
 {
-#ifdef DEBUG_LKFRAMEBUILDER
-    lk_info << endl;
+#ifdef DEBUG_UNPACKFRAME_CUT
+//#ifdef DEBUG_LKFRAMEBUILDER
+    if (((LKMFMConversionTask*)fMotherTask)->GetFileBuffer()>DEBUG_UNPACKFRAME_CUT)
+        lk_debug << endl;
 #endif
     Int_t prevWEventIdx = fCurrEventIdx;
     UInt_t coboIdx = frame.headerField("coboIdx").value<UInt_t>();
@@ -371,7 +379,9 @@ void LKFrameBuilder::UnpackFrame(mfm::Frame& frame)
     UInt_t itemSize = frame.headerField("itemSize").value<UInt_t>();
     UInt_t frameSize = frame.headerField("frameSize").value<UInt_t>();
     fCurrEventIdx = (Int_t)frame.headerField("eventIdx").value<UInt_t>();
-#ifdef DEBUG_LKFRAMEBUILDER
+#ifdef DEBUG_UNPACKFRAME_CUT
+//#ifdef DEBUG_LKFRAMEBUILDER
+    if (((LKMFMConversionTask*)fMotherTask)->GetFileBuffer()>DEBUG_UNPACKFRAME_CUT)
     lk_debug << "UnpackFrame Cobo=" << coboIdx << " Asad=" << asadIdx << " itemSize=" << itemSize << " frameSize=" << frameSize << endl;
 #endif
     if(fIsFirstEvent) {
@@ -418,8 +428,9 @@ void LKFrameBuilder::UnpackFrame(mfm::Frame& frame)
 
     if(frame.header().frameType() == 1u)
     {
-#ifdef DEBUG_LKFRAMEBUILDER
-    lk_info << "frame type 1u" << endl;
+#ifdef DEBUG_UNPACKFRAME_CUT
+    if (((LKMFMConversionTask*)fMotherTask)->GetFileBuffer()>DEBUG_UNPACKFRAME_CUT)
+        lk_debug << "frame type 1u" << endl;
 #endif
         mfm::Item item = frame.itemAt(0u);
         mfm::Field field = item.field("");
@@ -437,12 +448,23 @@ void LKFrameBuilder::UnpackFrame(mfm::Frame& frame)
                 fWaveforms->decayIdx = 0;
             }
         }else{
+#ifdef DEBUG_UNPACKFRAME_CUT
+            if (((LKMFMConversionTask*)fMotherTask)->GetFileBuffer()>DEBUG_UNPACKFRAME_CUT)
+                lk_debug << fAsadIsTriggered << " " << coboIdx << " " << asadIdx << endl;
+#endif
             fAsadIsTriggered[coboIdx][asadIdx]=0;
             fWaveforms->decayIdx = 0;
         }
-        //lk_info << "Type:" << frame.header().frameType() << " " <<  fCurrEventIdx << "  " << frameSize << " " << coboIdx << " " << asadIdx << " " << fWaveforms->frameIdx << " " << fWaveforms->decayIdx << " " << frame.itemCount() << endl;
+#ifdef DEBUG_UNPACKFRAME_CUT
+        if (((LKMFMConversionTask*)fMotherTask)->GetFileBuffer()>DEBUG_UNPACKFRAME_CUT)
+            lk_debug << "Type:" << frame.header().frameType() << " " <<  fCurrEventIdx << "  " << frameSize << " " << coboIdx << " " << asadIdx << " " << fWaveforms->frameIdx << " " << fWaveforms->decayIdx << " " << frame.itemCount() << endl;
+#endif
         Int_t lastaget=-1;
         for(UInt_t i=0; i<frame.itemCount(); i++) {
+#ifdef DEBUG_UNPACKFRAME_CUT
+            if (((LKMFMConversionTask*)fMotherTask)->GetFileBuffer()>DEBUG_UNPACKFRAME_CUT)
+                lk_debug << ">>>> " << i << endl;
+#endif
             item = frame.itemAt(i);
             field = item.field(field);
             agetIdxField = field.bitField(agetIdxField);
@@ -452,27 +474,42 @@ void LKFrameBuilder::UnpackFrame(mfm::Frame& frame)
 
             UInt_t agetIdx = agetIdxField.value<UInt_t>();
             //if(agetIdx==lastaget) break;
-            lastaget=agetIdx;
+            lastaget = agetIdx;
+
+#ifdef DEBUG_UNPACKFRAME_CUT
+            if (((LKMFMConversionTask*)fMotherTask)->GetFileBuffer()>DEBUG_UNPACKFRAME_CUT)
+                lk_debug << ">>>> " << i << " agetIdx " << agetIdx << endl;
+#endif
             if(agetIdx<0 || agetIdx>3) return;
             UInt_t chanIdx = chanIdxField.value<UInt_t>();
+            if (chanIdx>67) continue;
             UInt_t buckIdx = buckIdxField.value<UInt_t>();
             UInt_t sampleValue = sampleValueField.value<UInt_t>();
 
             fWaveforms->coboIdx = coboIdx;
             fWaveforms->asadIdx = asadIdx;
+#ifdef DEBUG_UNPACKFRAME_CUT
+            if (((LKMFMConversionTask*)fMotherTask)->GetFileBuffer()>DEBUG_UNPACKFRAME_CUT)
+                lk_debug << ">>>> " << i << " chanIdx " << chanIdx << endl;
+#endif
 
             {
                 fWaveforms->hasSignal[asadIdx*fMaxAget+agetIdx][chanIdx] = true;
                 fWaveforms->hasHit[asadIdx*fMaxAget+agetIdx] = true;
                 fWaveforms->waveform[asadIdx*fMaxAget+agetIdx][chanIdx][buckIdx] = sampleValue;
             }
+#ifdef DEBUG_UNPACKFRAME_CUT
+            if (((LKMFMConversionTask*)fMotherTask)->GetFileBuffer()>DEBUG_UNPACKFRAME_CUT)
+                lk_debug << ">>>> " << i << " chanIdx " << chanIdx << endl;
+#endif
         }
 
     }
     else if (frame.header().frameType() == 2u)
     {
-#ifdef DEBUG_LKFRAMEBUILDER
-        lk_info << "frame type 2u" << endl;
+#ifdef DEBUG_UNPACKFRAME_CUT
+        if (((LKMFMConversionTask*)fMotherTask)->GetFileBuffer()>DEBUG_UNPACKFRAME_CUT)
+            lk_debug << "frame type 2u" << endl;
 #endif
         if(fSet2PMode){
             if(fAsadIsTriggered[coboIdx][asadIdx]>0){
@@ -531,11 +568,16 @@ void LKFrameBuilder::UnpackFrame(mfm::Frame& frame)
         lk_info << "Frame type " << frame.header().frameType() << " not found" << endl;
         return;
     }
+#ifdef DEBUG_UNPACKFRAME_CUT
+    if (((LKMFMConversionTask*)fMotherTask)->GetFileBuffer()>DEBUG_UNPACKFRAME_CUT)
+        lk_debug << "end" << endl;
+#endif
 }
 
 void LKFrameBuilder::decodeCoBoTopologyFrame(mfm::Frame& frame)
 { 
 #ifdef DEBUG_LKFRAMEBUILDER
+    lk_debug << endl;
     lk_info << endl;
 #endif
     if (frame.header().frameType() == 0x7){
@@ -556,6 +598,7 @@ void LKFrameBuilder::decodeCoBoTopologyFrame(mfm::Frame& frame)
 void LKFrameBuilder::decodeMuTanTFrame(mfm::Frame & frame)
 {
 #ifdef DEBUG_LKFRAMEBUILDER
+    lk_debug << endl;
     lk_info << endl;
 #endif
     fMutantCounter++;
@@ -654,6 +697,7 @@ void LKFrameBuilder::decodeMuTanTFrame(mfm::Frame & frame)
 void LKFrameBuilder::WriteChannels()
 {
 #ifdef DEBUG_LKFRAMEBUILDER
+    lk_debug << endl;
     lk_info << endl;
 #endif
     UInt_t frameIdx = fWaveforms->frameIdx;

@@ -17,6 +17,8 @@ class LKMFMConversionTask : public LKTask
         LKFrameBuilder* fFrameBuilder;
         bool fContinueEvent = false;
 
+        Long64_t fFilebuffer;
+
     public:
         LKMFMConversionTask();
         virtual ~LKMFMConversionTask() {};
@@ -26,6 +28,8 @@ class LKMFMConversionTask : public LKTask
         bool EndOfRun();
         void SignalNextEvent();
         bool IsEventTrigger() { return true; }
+
+        Long64_t GetFileBuffer() const { return fFilebuffer; }
 
     ClassDef(LKMFMConversionTask, 1)
 };

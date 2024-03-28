@@ -7,6 +7,9 @@ using namespace std;
 //#include "GSpectra.h"
 //#include "GNetServerRoot.h"
 
+//#define DEBUG_MFM_CONVERSION_TASK
+#define DEBUG_EVENT_POINT_BUFFER
+
 LKMFMConversionTask::LKMFMConversionTask()
 :LKTask("LKMFMConversionTask","")
 {
@@ -42,6 +45,10 @@ bool LKMFMConversionTask::Init()
 
 void LKMFMConversionTask::Exec(Option_t*)
 {
+#ifdef DEBUG_MFM_CONVERSION_TASK
+    //lk_debug << "file stream : " << fFileStream << " " << matrixSize << endl;
+    lk_debug << fFileStream.eof() << endl;
+#endif
     if (fFileStream.eof()) {
         lk_warning << "end of MFM file!" << endl;
         fRun -> SignalEndOfRun();
@@ -52,18 +59,39 @@ void LKMFMConversionTask::Exec(Option_t*)
     int countAddDataChunk = 0;
 
     char *buffer = (char *) malloc (matrixSize);
+#ifdef DEBUG_MFM_CONVERSION_TASK
+    lk_debug << "read buffer with " << matrixSize << endl;
+#endif
 
-    int filebuffer = 0;
+    fFilebuffer = 0;
     while (!fFileStream.eof() && fContinueEvent)
     {
+#ifdef DEBUG_MFM_CONVERSION_TASK
+        lk_debug << "read " << matrixSize << endl;
+#endif
         fFileStream.read(buffer,matrixSize);
-        filebuffer += matrixSize;
+        fFilebuffer += matrixSize;
+#ifdef DEBUG_MFM_CONVERSION_TASK
+        lk_debug << "file buffer " << fFilebuffer << endl;
+#endif
 
+#ifdef DEBUG_MFM_CONVERSION_TASK
+        lk_debug << fFileStream.eof() << ", " << fFileStream.gcount() << endl;
+#endif
         if(!fFileStream.eof()) {
+#ifdef DEBUG_MFM_CONVERSION_TASK
+            lk_debug << fFilebuffer/matrixSize << endl;
+#endif
             // addDataChunk ////////////////////////////////////////////////////////////////////////////////
             try {
+#ifdef DEBUG_MFM_CONVERSION_TASK
+            lk_debug << fFilebuffer/matrixSize << endl;
+#endif
                 ++countAddDataChunk;
                 fFrameBuilder -> addDataChunk(buffer,buffer+matrixSize);
+#ifdef DEBUG_MFM_CONVERSION_TASK
+                lk_debug << endl;
+#endif
             }catch (const std::exception& e){
                 lk_debug << "Error occured from " << countAddDataChunk << "-th addDataChunk()" << endl;
                 e_cout << e.what() << endl;
@@ -72,6 +100,9 @@ void LKMFMConversionTask::Exec(Option_t*)
             ////////////////////////////////////////////////////////////////////////////////////////////////
         }
         else if(fFileStream.gcount()>0) {
+#ifdef DEBUG_MFM_CONVERSION_TASK
+            lk_debug << endl;
+#endif
             // addDataChunk ////////////////////////////////////////////////////////////////////////////////
             try {
                 ++countAddDataChunk;
@@ -94,5 +125,8 @@ bool LKMFMConversionTask::EndOfRun()
 
 void LKMFMConversionTask::SignalNextEvent()
 {
+#ifdef DEBUG_EVENT_POINT_BUFFER
+    lk_info << "New event! at file buffer: " << fFilebuffer << endl;
+#endif
     fContinueEvent = fRun -> ExecuteNextEvent();
 }
