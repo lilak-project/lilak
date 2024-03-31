@@ -251,14 +251,14 @@ bool LKHelixTrack::Fit()
     return true;
 }
 
-bool LKHelixTrack::FitPlane()
+LKGeoPlane LKHelixTrack::FitPlane()
 {
     auto plane = fHitArray.FitPlane();
     if (plane.GetRMS() > 0) {
         SetIsPlane();
         SetPlaneNormal(plane.GetNormal());
         SetRMS(plane.GetRMS());
-        return true;
+        return plane;
     }
 
     auto line = fHitArray.FitLine();
@@ -266,10 +266,10 @@ bool LKHelixTrack::FitPlane()
         SetIsLine();
         SetLineDirection(line.Direction());
         SetRMS(line.GetRMS());
-        return true;
+        return plane;
     }
 
-    return false;
+    return plane;
 }
 
 void LKHelixTrack::SortHits(bool increasing)
@@ -287,16 +287,7 @@ void LKHelixTrack::SortHits(bool increasing)
 
 void LKHelixTrack::SortHitsByTimeOrder() { SortHits(fIsPositiveChargeParticle); }
 
-void LKHelixTrack::FinalizeHits()
-{
-    TIter next(&fHitArray);
-    LKHit *hit;
-    while ((hit = (LKHit *) next()))
-        hit -> SetTrackID(fTrackID);
-
-    //PropagateMC();
-}
-
+/*
 void LKHelixTrack::SetFitStatus(LKFitStatus value)  { fFitStatus = value; }
 void LKHelixTrack::SetIsBad()          { fFitStatus = LKHelixTrack::kBad; }
 void LKHelixTrack::SetIsLine()         { fFitStatus = LKHelixTrack::kLine; }
@@ -323,6 +314,7 @@ bool LKHelixTrack::IsLine()  const        { return fFitStatus == kLine  ? true :
 bool LKHelixTrack::IsPlane() const        { return fFitStatus == kPlane ? true : false; }
 bool LKHelixTrack::IsHelix() const        { return fFitStatus == kHelix ? true : false; }
 bool LKHelixTrack::IsGenfitTrack() const  { return fFitStatus == kGenfitTrack ? true : false; }
+*/
 
 /**
  * LINE
@@ -375,13 +367,13 @@ void LKHelixTrack::SetAlphaHead(Double_t alpha)           { fH = alpha; }
 void LKHelixTrack::SetAlphaTail(Double_t alpha)           { fT = alpha; }
 void LKHelixTrack::SetReferenceAxis(LKVector3::Axis ref)  { fA = ref; }
 
-TVector3 LKHelixTrack::GetMean()         const { return fHitArray.GetMean(); }
+//TVector3 LKHelixTrack::GetMean()         const { return fHitArray.GetMean(); }
 Double_t LKHelixTrack::GetHelixCenterI() const { return fI; }
 Double_t LKHelixTrack::GetHelixCenterJ() const { return fJ; }
 Double_t LKHelixTrack::GetHelixRadius()  const { return fR; }
 Double_t LKHelixTrack::GetKInitial()     const { return fK; }
 Double_t LKHelixTrack::GetAlphaSlope()   const { return fS; }
-Double_t LKHelixTrack::GetChargeSum()    const { return fHitArray.GetW(); }
+//Double_t LKHelixTrack::GetChargeSum()    const { return fHitArray.GetW(); }
 LKVector3::Axis LKHelixTrack::GetReferenceAxis() const { return fA; }
 
 void LKHelixTrack::SetIsPositiveChargeParticle(Bool_t val)  { fIsPositiveChargeParticle = val; }
@@ -889,8 +881,7 @@ LKHelixTrack::ExtrapolateByMap(TVector3 p, TVector3 &q, TVector3 &m) const
     return alpha * fR / CosDip(); 
 }
 
-    Double_t 
-LKHelixTrack::Continuity(Double_t &totalLength, Double_t &continuousLength)
+double LKHelixTrack::Continuity(double &totalLength, double &continuousLength, double distCut)
 {
     Int_t numHits = fHitArray.GetNumHits();
     if (numHits < 2) 
@@ -908,7 +899,7 @@ LKHelixTrack::Continuity(Double_t &totalLength, Double_t &continuousLength)
         auto length = std::abs(current.Z()-before.Z());
 
         total += length;
-        if (length < 25)
+        if (length < distCut)
             continuous += length;
 
         before = current;
@@ -918,13 +909,6 @@ LKHelixTrack::Continuity(Double_t &totalLength, Double_t &continuousLength)
     continuousLength = continuous;
 
     return continuous/total;
-}
-
-    Double_t 
-LKHelixTrack::Continuity()
-{
-    Double_t l1, l2;
-    return Continuity(l1, l2);
 }
 
 /*

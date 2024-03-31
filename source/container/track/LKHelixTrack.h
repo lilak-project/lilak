@@ -19,42 +19,17 @@ typedef LKVector3::Axis axis_t;
 
 class LKHelixTrack : public LKTracklet, public LKGeoHelix
 {
-    public:
-        LKHelixTrack();
-        LKHelixTrack(Int_t id);
-        virtual ~LKHelixTrack() {};
-
-        enum LKFitStatus : int {
-            kNone = -1,
-            kBad = 0,
-            kLine = 1,
-            kPlane = 2,
-            kHelix = 3,
-            kGenfitTrack = 4
-        };
-
     private:
         Int_t    fGenfitID;        ///< GENFIT Track ID
         Double_t fGenfitMomentum;  ///< Momentum reconstructed by GENFIT
 
-        LKFitStatus fFitStatus;  ///< One of kBad, kHelix and kLine.
-
-        //Double_t fIHelixCenter;  ///< i-component of the helix center
-        //Double_t fJHelixCenter;  ///< j-component of the helix center
-        //Double_t fHelixRadius;   ///< Radius of the helix
-        //Double_t fKInitial;      ///< k-position at angle alpha = 0
-        //Double_t fAlphaSlope;    ///< k = fAlphaSlope * alpha + fKInitial
-        //Double_t fRMSW;          ///< width RMS of the fit
-        //Double_t fRMSH;          ///< height RMS of the fit
-        //Double_t fAlphaHead;     ///< Head position alpha
-        //Double_t fAlphaTail;     ///< Last position alpha
-
         Bool_t fIsPositiveChargeParticle;
-
         std::vector<Double_t> fdEdxArray;  ///< dE/dx array;
 
-        //LKHitArray fHitArray; //!
-        //vector<Int_t> fHitIDArray;
+    public:
+        LKHelixTrack();
+        LKHelixTrack(Int_t id);
+        virtual ~LKHelixTrack() {};
 
     public:
         virtual void Clear(Option_t *option = "");
@@ -71,28 +46,10 @@ class LKHelixTrack : public LKTracklet, public LKGeoHelix
 #endif
 
         virtual bool Fit();
-        virtual bool FitPlane();
+        virtual LKGeoPlane FitPlane();
 
-        void SortHits(bool increasing = true);
+        virtual void SortHits(bool increasing = true);
         void SortHitsByTimeOrder();
-
-        void FinalizeHits();
-        void FinalizeClusters();
-
-        void SetFitStatus(LKFitStatus value);
-        void SetIsBad();
-        void SetIsLine();
-        void SetIsPlane();
-        void SetIsHelix();
-        void SetIsGenfitTrack();
-
-        LKFitStatus GetFitStatus() const;
-        TString GetFitStatusString() const;
-        bool IsBad() const;
-        bool IsLine() const;
-        bool IsPlane() const;
-        bool IsHelix() const;
-        bool IsGenfitTrack() const;
 
         /*
          * LINE
@@ -119,13 +76,13 @@ class LKHelixTrack : public LKTracklet, public LKGeoHelix
         void SetAlphaTail(Double_t alpha);
         void SetReferenceAxis(LKVector3::Axis ref);
 
-        TVector3 GetMean() const; // mean value of hit positions
+        //TVector3 GetMean() const; // mean value of hit positions
         Double_t GetHelixCenterJ() const;
         Double_t GetHelixCenterI() const;
         Double_t GetHelixRadius() const;
         Double_t GetKInitial() const;
         Double_t GetAlphaSlope() const;
-        Double_t GetChargeSum() const;
+        //Double_t GetChargeSum() const;
         LKVector3::Axis GetReferenceAxis() const;
 
         /*
@@ -310,10 +267,8 @@ class LKHelixTrack : public LKTracklet, public LKGeoHelix
          * @param continuousLength  calculated length of continuos region.
          * @param totalLength       calculated total length of the track.
          */
-        Double_t Continuity(Double_t &totalLength, Double_t &continuousLength);
-
-        /** Same as Continuity(Double_t&, Double_t&) but no length outputs. */
-        Double_t Continuity();
+        virtual double Continuity(double &totalLength, double &continuousLength, double distCut=25);
+        //Double_t Continuity(Double_t &totalLength, Double_t &continuousLength);
 
         virtual TVector3 Momentum(Double_t B = 0.5) const;       ///< Momentum of track (B = 0.5 by default)
         virtual TVector3 PositionAtHead() const;                 ///< Position at head of helix
