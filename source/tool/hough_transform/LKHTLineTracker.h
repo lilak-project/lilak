@@ -165,6 +165,7 @@ class LKHoughWFInverse : public LKHTWeightingFunction {
          for (...) {
              tracker -> AddImagePoint(x, xerror, y, yerror, weight);
          }
+         tracker -> SetCorrelateBoxBand();
          tracker -> Transform();
          auto paramPoint = tracker -> FindNextMaximumParamPoint();
          track = tracker -> FitTrackWithParamPoint(paramPoint);
@@ -199,6 +200,12 @@ class LKHTLineTracker : public LKPadInteractive
         double GetMaxWeightingDistance(double distance) const { return fMaxWeightingDistance; }
         TObjArray* GetHitArray() { return fHitArray; }
         TObjArray* GetSelectedHitArray() { return fSelectedHitArray; }
+
+        /**
+         * Add 2-dimensional histogram to set image space range and add data for each bin.
+         * Users do not need to call SetImageSpaceRange when using this method.
+         */
+        void AddHistogram(TH2* hist);
 
         void SetTransformCenter(double x, double y) { fTransformCenter = TVector3(x,y,0); }
         void SetImageSpaceRange(int nx, double x1, double x2, int ny, double y1, double y2);
@@ -283,6 +290,7 @@ class LKHTLineTracker : public LKPadInteractive
         void Draw(TVirtualPad* padImage, TVirtualPad* padParam, LKParamPointRT* paramPoint) { Draw(padImage, padParam, paramPoint, ""); }
         void Draw(TVirtualPad* padImage, TVirtualPad* padParam, TString option) { Draw(padImage, padParam, (LKParamPointRT*)nullptr, option); }
         void Draw(TVirtualPad* padImage, TVirtualPad* padParam) { Draw(padImage, padParam, (LKParamPointRT*)nullptr, ""); }
+        void Draw(TString option="");
 
         //TGraph* GetGraphPathToMaxWeight() { return fGraphPathToMaxWeight; }
 
@@ -316,6 +324,10 @@ class LKHTLineTracker : public LKPadInteractive
         TClonesArray*   fImagePointArray = nullptr;
         LKImagePoint*   fImagePoint = nullptr;
         LKParamPointRT* fParamPoint = nullptr;
+
+        bool fClickedPadImage = true;
+        LKParamPointRT* fClickSelectedParamPoint = nullptr;
+        TGraph*         fGraphClickFitted = nullptr;
 
         int           fNumLinearTracks = 0;
         TClonesArray* fTrackArray = nullptr;

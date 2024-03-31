@@ -1,6 +1,7 @@
 #include <climits>
 #include "TObjString.h"
 #include "LKHTLineTracker.h"
+#include "LKWindowManager.h"
 
 ClassImp(LKHTLineTracker);
 
@@ -79,6 +80,33 @@ void LKHTLineTracker::ClearPoints()
     fNumImagePoints = 0;
     fImagePointArray -> Clear("C");
     fProcess = kClearPoints;
+}
+
+void LKHTLineTracker::AddHistogram(TH2* hist)
+{
+    auto nx = hist -> GetXaxis() -> GetNbins();
+    auto x1 = hist -> GetXaxis() -> GetXmin();
+    auto x2 = hist -> GetXaxis() -> GetXmax();
+    auto ny = hist -> GetYaxis() -> GetNbins();
+    auto y1 = hist -> GetYaxis() -> GetXmin();
+    auto y2 = hist -> GetYaxis() -> GetXmax();
+    SetImageSpaceRange(nx,x1,x2,ny,y1,y2);
+
+    auto numBins = hist -> GetNcells();
+    int binX, binY, binZ;
+    for (auto bin=0; bin<numBins; ++bin)
+    {
+        auto weight = hist -> GetBinContent(bin);
+        if (weight>0)
+        {
+            hist -> GetBinXYZ(bin,binX,binY,binZ);
+            auto x1 = hist -> GetXaxis() -> GetBinLowEdge(binX);
+            auto x2 = hist -> GetXaxis() -> GetBinUpEdge(binX);
+            auto y1 = hist -> GetYaxis() -> GetBinLowEdge(binY);
+            auto y2 = hist -> GetYaxis() -> GetBinUpEdge(binY);
+            AddImagePointBox(x1,y1,x2,y2,weight);
+        }
+    }
 }
 
 void LKHTLineTracker::Print(Option_t *option) const
@@ -301,6 +329,12 @@ LKParamPointRT* LKHTLineTracker::GetParamPoint(int ir, int it)
 
 void LKHTLineTracker::Transform()
 {
+    if (fWeightingFunction==nullptr)
+    {
+        e_warning << "Weighting function is null. Choosing default weighting function" << endl;
+        SetCorrelateBoxBand();
+    }
+
     for (auto it=0; it<fNumBinsParamSpace[1]; ++it)
     {
         double theta0 = fRangeParamSpace[1][0] + (it+0.5)*fBinSizeParamSpace[1];
@@ -407,7 +441,6 @@ void LKHTLineTracker::Transform()
 void LKHTLineTracker::DeTransformSelectedPoints()
 {
     auto numSelectedHits = fSelectedHitArray -> GetEntries();
-    //e_debug << "numSelectedHits: " << numSelectedHits << endl;
 
     for (auto it=0; it<fNumBinsParamSpace[1]; ++it)
     {
@@ -452,7 +485,6 @@ void LKHTLineTracker::DeTransformSelectedPoints()
                         fIdxSelectedR = ir;
                         fIdxSelectedT = it;
                         fParamData[ir][it] = fParamData[ir][it] - weight;
-                        //e_debug << fParamData[ir][it] << " " << weight << endl;
                     }
                 }
             }
@@ -530,7 +562,7 @@ LKParamPointRT* LKHTLineTracker::FindNextMaximumParamPoint()
         }
     }
 #ifdef DEBUG_SAME_MAX
-    e_debug << "max value is " << maxValue << endl;
+    lk_debug << "max value is " << maxValue << endl;
     int countMaxValue = 0;
     for (auto ir=0; ir<fNumBinsParamSpace[0]; ++ir) {
         for (auto it=0; it<fNumBinsParamSpace[1]; ++it) {
@@ -538,7 +570,7 @@ LKParamPointRT* LKHTLineTracker::FindNextMaximumParamPoint()
                 countMaxValue++;
         }
     }
-    e_debug << "count same max value : " << countMaxValue << " (" << maxValue << ")" << endl;
+    lk_debug << "count same max value : " << countMaxValue << " (" << maxValue << ")" << endl;
 #endif
     if (fIdxSelectedR<0) {
         fParamPoint -> SetPoint(fTransformCenter[0],fTransformCenter[1],-1,0,-1,0,-1);
@@ -637,7 +669,6 @@ void LKHTLineTracker::SelectPoints(LKParamPointRT* paramPoint, double weightCut)
 
     fSelectedHitArray -> Clear();
     fSelectedImagePointIdxs.clear();
-    //e_debug << fNumImagePoints << endl;
     for (int iImage=0; iImage<fNumImagePoints; ++iImage)
     {
         auto imagePoint = GetImagePoint(iImage);
@@ -664,7 +695,6 @@ void LKHTLineTracker::SelectPoints(LKParamPointRT* paramPoint, double weightCut)
 
 void LKHTLineTracker::RemoveSelectedPoints()
 {
-    //e_debug << fImagePointArray -> GetEntriesFast() << endl;
     //DeTransformSelectedPoints();
 
     for (int iImage : fSelectedImagePointIdxs)
@@ -680,7 +710,6 @@ void LKHTLineTracker::RemoveSelectedPoints()
     fHitArray -> Compress();
 
     fNumImagePoints = fImagePointArray -> GetEntriesFast();
-    //e_debug << fNumImagePoints << endl;
 
     fProcess = kRemovePoints;
 }
@@ -712,13 +741,11 @@ LKLinearTrack* LKHTLineTracker::FitTrackWithParamPoint(LKParamPointRT* paramPoin
     }
 
     if (fLineFitter->GetNumPoints()<fCutNumTrackHits) {
-        //e_debug << "return because " << fLineFitter->GetNumPoints() << " < " << fCutNumTrackHits << endl;
         return track;
     }
 
     bool fitted = fLineFitter -> FitLine();
     if (fitted==false) {
-        //e_debug << "return from fitter" << endl;
         return track;
     }
 
@@ -769,13 +796,11 @@ LKLinearTrack* LKHTLineTracker::FitTrack3DWithParamPoint(LKParamPointRT* paramPo
         fLineFitter -> AddPoint(hit->X(),hit->Y(),hit->Z(),hit->W());
 
     if (fLineFitter->GetNumPoints()<fCutNumTrackHits) {
-        //e_debug << "return because " << fLineFitter->GetNumPoints() << " < " << fCutNumTrackHits << endl;
         return track;
     }
 
     bool fitted = fLineFitter -> FitLine();
     if (fitted==false) {
-        //e_debug << "return from fitter" << endl;
         return track;
     }
 
@@ -921,11 +946,13 @@ void LKHTLineTracker::Draw(TVirtualPad* padImage, TVirtualPad* padParam, LKParam
     if (option.IsNull())
         option = ":samepx:colz";
 
+    TString option0,option1="samepx",option2="colz";
+
     option.ReplaceAll(":"," : ");
     auto options = option.Tokenize(":");
-    TString option0 = (((TObjString*)options->At(0))->GetString());
-    TString option1 = (((TObjString*)options->At(1))->GetString());
-    TString option2 = (((TObjString*)options->At(2))->GetString());
+    option0 = (((TObjString*)options->At(0))->GetString());
+    if (options->GetEntries()>1) option1 = (((TObjString*)options->At(1))->GetString());
+    if (options->GetEntries()>2) option2 = (((TObjString*)options->At(2))->GetString());
     option0 = option0.ReplaceAll(" ","");
     option1 = option1.ReplaceAll(" ","");
     option2 = option2.ReplaceAll(" ","");
@@ -933,16 +960,20 @@ void LKHTLineTracker::Draw(TVirtualPad* padImage, TVirtualPad* padParam, LKParam
     fPadImage = (TPad *) padImage -> cd();
     fPadParam = (TPad *) padParam -> cd();
 
+    AddInteractivePad(fPadImage);
     AddInteractivePad(fPadParam);
 
     fPadImage -> cd();
     fHistImage = GetHistImageSpace(Form("histImageSpace_%d",fPadInteractiveID));
-    if (option0.IsNull())
+    if (option0.IsNull()) {
         fHistImage -> Reset();
-    fHistImage -> Draw(option0);
-
-    auto graph = GetDataGraphImageSapce();
-    graph -> Draw(option1);
+        fHistImage -> Draw();
+        auto graph = GetDataGraphImageSapce();
+        graph -> Draw(option1);
+    }
+    else {
+        fHistImage -> Draw(option0);
+    }
 
     fPadParam -> cd();
     fHistParam = GetHistParamSpace(Form("histParamSpace_%d",fPadInteractiveID));
@@ -952,48 +983,71 @@ void LKHTLineTracker::Draw(TVirtualPad* padImage, TVirtualPad* padParam, LKParam
         ExecMouseClickEventOnPad(fPadParam,paramPoint->GetT0(),paramPoint->GetR0());
 }
 
+void LKHTLineTracker::Draw(TString option)
+{
+    auto cvs = LKWindowManager::GetWindowManager() -> CanvasResize("",100,50,0.6);
+    cvs -> Divide(2,1);
+    Draw(cvs->cd(1), cvs->cd(2),option);
+}
+
 void LKHTLineTracker::ExecMouseClickEventOnPad(TVirtualPad *pad, double xOnClick, double yOnClick)
 {
-    if (pad!=fPadParam) {
-        e_error << pad << " " << fPadParam << endl; 
+    if (pad==fPadParam)
+    {
+        if (fGraphClicked==nullptr) {
+            fGraphClicked = new TGraph();
+            fGraphClicked -> SetLineColor(kRed);
+            fGraphClicked -> SetLineWidth(2);
+        }
+
+        int selectedBin = fHistParam -> FindBin(xOnClick, yOnClick);
+        int binx, biny, binz;
+        fHistParam -> GetBinXYZ(selectedBin, binx, biny, binz);
+        auto x1 = fHistParam -> GetXaxis() -> GetBinLowEdge(binx);
+        auto x2 = fHistParam -> GetXaxis() -> GetBinUpEdge(binx);
+        auto y1 = fHistParam -> GetYaxis() -> GetBinLowEdge(biny);
+        auto y2 = fHistParam -> GetYaxis() -> GetBinUpEdge(biny);
+
+        fGraphClicked -> SetPoint(0,x1,y1);
+        fGraphClicked -> SetPoint(1,x1,y2);
+        fGraphClicked -> SetPoint(2,x2,y2);
+        fGraphClicked -> SetPoint(3,x2,y1);
+        fGraphClicked -> SetPoint(4,x1,y1);
+
+        fPadParam -> cd();
+        fGraphClicked -> Draw("samel");
+
+        if (fGraphBand==nullptr)
+            fGraphBand = new TGraph();
+        fPadImage -> cd();
+        fClickSelectedParamPoint = GetParamPoint(biny-1,binx-1);
+        fClickSelectedParamPoint -> Print();
+        fClickSelectedParamPoint -> GetBandInImageSpace(fGraphBand, fRangeImageSpace[0][0], fRangeImageSpace[0][1], fRangeImageSpace[1][0], fRangeImageSpace[1][1]);
+        fGraphBand -> SetLineStyle(2);
+        fGraphBand -> SetLineColor(kAzure-4);
+        fGraphBand -> Draw("samel");
+
+        auto graph2 = GetSelectedDataGraph(fClickSelectedParamPoint);
+        if (graph2->GetN()>0)
+            graph2 -> Draw("samepx");
+
+        fClickedPadImage = false;
+    }
+    else if (pad==fPadImage)
+    {
+        if (fClickSelectedParamPoint==nullptr) return;
+        if (fClickedPadImage) return;
+        fClickedPadImage = true;
+        auto track = FitTrackWithParamPoint(fClickSelectedParamPoint);
+        if (fGraphClickFitted!=nullptr)
+            fGraphClickFitted -> Set(0);
+        fGraphClickFitted = track -> ProjectionOnPlane(LKVector3::kX,LKVector3::kY);
+        //fGraphClickFitted -> SetLineColor(kGreen);
+        fGraphClickFitted -> Draw("samel");
+    }
+    else
+    {
+        e_error << "Pad " << pad << " is not one of pad-param:" << fPadParam << " or pad-image:" << fPadImage << endl; 
         return;
     }
-
-    if (fGraphClicked==nullptr) {
-        fGraphClicked = new TGraph();
-        fGraphClicked -> SetLineColor(kRed);
-        fGraphClicked -> SetLineWidth(2);
-    }
-
-    int selectedBin = fHistParam -> FindBin(xOnClick, yOnClick);
-    int binx, biny, binz;
-    fHistParam -> GetBinXYZ(selectedBin, binx, biny, binz);
-    auto x1 = fHistParam -> GetXaxis() -> GetBinLowEdge(binx);
-    auto x2 = fHistParam -> GetXaxis() -> GetBinUpEdge(binx);
-    auto y1 = fHistParam -> GetYaxis() -> GetBinLowEdge(biny);
-    auto y2 = fHistParam -> GetYaxis() -> GetBinUpEdge(biny);
-
-    fGraphClicked -> SetPoint(0,x1,y1);
-    fGraphClicked -> SetPoint(1,x1,y2);
-    fGraphClicked -> SetPoint(2,x2,y2);
-    fGraphClicked -> SetPoint(3,x2,y1);
-    fGraphClicked -> SetPoint(4,x1,y1);
-
-    fPadParam -> cd();
-    fGraphClicked -> Draw("samel");
-
-    if (fGraphBand==nullptr)
-        fGraphBand = new TGraph();
-    fPadImage -> cd();
-    auto paramPoint = GetParamPoint(biny-1,binx-1);
-    paramPoint -> Print();
-    paramPoint -> GetBandInImageSpace(fGraphBand, fRangeImageSpace[0][0], fRangeImageSpace[0][1], fRangeImageSpace[1][0], fRangeImageSpace[1][1]);
-    fGraphBand -> SetLineStyle(2);
-    //fGraphBand -> SetLineColor(kBlue-4);
-    fGraphBand -> SetLineColor(kAzure-4);
-    fGraphBand -> Draw("samel");
-
-    auto graph2 = GetSelectedDataGraph(paramPoint);
-    if (graph2->GetN()>0)
-        graph2 -> Draw("samepx");
 }
