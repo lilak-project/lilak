@@ -8,7 +8,6 @@ using namespace std;
 //#include "GNetServerRoot.h"
 
 //#define DEBUG_MFM_CONVERSION_TASK
-#define DEBUG_EVENT_POINT_BUFFER
 
 LKMFMConversionTask::LKMFMConversionTask()
 :LKTask("LKMFMConversionTask","")
@@ -43,12 +42,10 @@ bool LKMFMConversionTask::Init()
     return true;
 }
 
-void LKMFMConversionTask::Exec(Option_t*)
+void LKMFMConversionTask::Run(Long64_t numEvents)
 {
-#ifdef DEBUG_MFM_CONVERSION_TASK
-    //lk_debug << "file stream : " << fFileStream << " " << matrixSize << endl;
-    lk_debug << fFileStream.eof() << endl;
-#endif
+    fNumEvents = numEvents;
+
     if (fFileStream.eof()) {
         lk_warning << "end of MFM file!" << endl;
         fRun -> SignalEndOfRun();
@@ -59,39 +56,21 @@ void LKMFMConversionTask::Exec(Option_t*)
     int countAddDataChunk = 0;
 
     char *buffer = (char *) malloc (matrixSize);
-#ifdef DEBUG_MFM_CONVERSION_TASK
-    lk_debug << "read buffer with " << matrixSize << endl;
-#endif
 
-    fFilebuffer = 0;
-    while (!fFileStream.eof() && fContinueEvent)
+    fFileBuffer = 0;
+    fFileEventLast = 0;
+
+    while (!fFileStream.eof() && fContinueEvent && fSignalEndOfRun)
     {
-#ifdef DEBUG_MFM_CONVERSION_TASK
-        lk_debug << "read " << matrixSize << endl;
-#endif
-        fFileStream.read(buffer,matrixSize);
-        fFilebuffer += matrixSize;
-#ifdef DEBUG_MFM_CONVERSION_TASK
-        lk_debug << "file buffer " << fFilebuffer << endl;
-#endif
 
-#ifdef DEBUG_MFM_CONVERSION_TASK
-        lk_debug << fFileStream.eof() << ", " << fFileStream.gcount() << endl;
-#endif
+        fFileStream.read(buffer,matrixSize);
+        fFileBuffer += matrixSize;
+
         if(!fFileStream.eof()) {
-#ifdef DEBUG_MFM_CONVERSION_TASK
-            lk_debug << fFilebuffer/matrixSize << endl;
-#endif
             // addDataChunk ////////////////////////////////////////////////////////////////////////////////
             try {
-#ifdef DEBUG_MFM_CONVERSION_TASK
-            lk_debug << fFilebuffer/matrixSize << endl;
-#endif
                 ++countAddDataChunk;
                 fFrameBuilder -> addDataChunk(buffer,buffer+matrixSize);
-#ifdef DEBUG_MFM_CONVERSION_TASK
-                lk_debug << endl;
-#endif
             }catch (const std::exception& e){
                 lk_debug << "Error occured from " << countAddDataChunk << "-th addDataChunk()" << endl;
                 e_cout << e.what() << endl;
@@ -100,9 +79,6 @@ void LKMFMConversionTask::Exec(Option_t*)
             ////////////////////////////////////////////////////////////////////////////////////////////////
         }
         else if(fFileStream.gcount()>0) {
-#ifdef DEBUG_MFM_CONVERSION_TASK
-            lk_debug << endl;
-#endif
             // addDataChunk ////////////////////////////////////////////////////////////////////////////////
             try {
                 ++countAddDataChunk;
@@ -125,8 +101,16 @@ bool LKMFMConversionTask::EndOfRun()
 
 void LKMFMConversionTask::SignalNextEvent()
 {
-#ifdef DEBUG_EVENT_POINT_BUFFER
-    lk_info << "New event! at file buffer: " << fFilebuffer << endl;
-#endif
+    fCountEvents++;
+
+    lk_info << "New event! at file buffer: " << fFileBuffer << endl;
+    auto eventHeader = (LKEventHeader *) fEventHeaderArray -> At(0);
+    eventHeader -> SetBufferStart(fFileEventLast);
+    eventHeader -> SetBufferSize(fFileBuffer-fFileEventLast);
+    fFileEventLast = fFileBuffer - matrixSize;
+
     fContinueEvent = fRun -> ExecuteNextEvent();
+
+    if (fNumEvents>0 && fCountEvents>=fNumEvents)
+        fSignalEndOfRun = true;
 }

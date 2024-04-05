@@ -722,7 +722,7 @@ void LKFrameBuilder::WriteChannels()
                 if (coboIdx>=0)
                 {
                     auto channel = (GETChannel *) fChannelArray -> ConstructedAt(fCountChannels);
-                    channel -> SetID(fCountChannels);
+                    channel -> SetChannelID(fCountChannels);
                     channel -> SetFrameNo(frameIdx);
                     channel -> SetDecayNo(decayIdx);
                     channel -> SetCobo(coboIdx);
