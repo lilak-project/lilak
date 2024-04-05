@@ -169,7 +169,7 @@ void LKEvePlane::UpdateChannelBuffer()
     if (fHistChannelBuffer==nullptr) 
         return;
 
-    auto pad = (LKPhysicalPad*) fChannelArray -> At(fSelPadID);
+    auto pad = (LKPad*) fChannelArray -> At(fSelPadID);
     if (pad==nullptr) {
         lk_error << "pad at " << fSelPadID << " is nullptr" << endl;
         //fPadChannelBuffer -> cd();
@@ -217,6 +217,8 @@ void LKEvePlane::UpdateChannelBuffer()
     if (fRawDataArray!=nullptr&&fSelRawDataID>=0)
     {
         auto channel = (GETChannel*) fRawDataArray -> At(fSelRawDataID);
+        //channel -> Print();
+        //channel -> GetBuffer().Print();
 
         if (fAccumulateChannel==1)
         {
@@ -596,9 +598,9 @@ void LKEvePlane::DrawHist(Option_t *option)
 
 bool LKEvePlane::SetDataFromBranch()
 {
-    LKPhysicalPad *pad = nullptr;
+    LKPad *pad = nullptr;
     TIter next(fChannelArray);
-    while (pad = (LKPhysicalPad*) next())
+    while (pad = (LKPad*) next())
         pad -> SetDataIndex(-1);
 
     if (fRawDataArray==nullptr)
@@ -644,20 +646,20 @@ int LKEvePlane::FindPadID(int cobo, int asad, int aget, int chan)
     return padID;
 }
 
-LKPhysicalPad* LKEvePlane::FindPad(int cobo, int asad, int aget, int chan)
+LKPad* LKEvePlane::FindPad(int cobo, int asad, int aget, int chan)
 {
-    LKPhysicalPad *pad = nullptr;
+    LKPad *pad = nullptr;
     auto padID = FindPadID(cobo, asad, aget, chan);
     if (padID>=0) {
-        pad = (LKPhysicalPad*) fChannelArray -> At(padID);
+        pad = (LKPad*) fChannelArray -> At(padID);
         return pad;
     }
-    return (LKPhysicalPad*) nullptr;
+    return (LKPad*) nullptr;
 }
 
 void LKEvePlane::DriftElectronBack(int padID, double tb, TVector3 &posReco, double &driftLength)
 {
-    auto pad = (LKPhysicalPad*) fChannelArray -> At(padID);
+    auto pad = (LKPad*) fChannelArray -> At(padID);
     LKVector3 pos(fAxis3);
     pos.SetI(pad->GetI());
     pos.SetJ(pad->GetJ());
@@ -692,14 +694,14 @@ void LKEvePlane::FillDataToHistEventDisplay1(Option_t *option)
     optionString.ToLower();
     lk_info << "Filling " << optionString << " (" << currentEventID << ")" << endl;
 
-    LKPhysicalPad *pad = nullptr;
+    LKPad *pad = nullptr;
     TString title;
 
     if (optionString.Index("caac")==0) {
         title = "caac";
         int maxCAAC = 0;
         TIter nextRawData(fChannelArray);
-        while ((pad = (LKPhysicalPad *) nextRawData())) {
+        while ((pad = (LKPad *) nextRawData())) {
             auto caac = pad -> GetCAAC();
             if (caac>maxCAAC) maxCAAC = caac;
             fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),caac);
@@ -710,50 +712,50 @@ void LKEvePlane::FillDataToHistEventDisplay1(Option_t *option)
         fEnergyMax = 4;
         title = "cobo";
         TIter nextRawData(fChannelArray);
-        while ((pad = (LKPhysicalPad *) nextRawData()))
-            fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetCoboID());
+        while ((pad = (LKPad *) nextRawData()))
+            fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetCobo());
     }
     else if (optionString.Index("asad")==0) {
         fEnergyMax = 4;
         title = "asad";
         TIter nextRawData(fChannelArray);
-        while ((pad = (LKPhysicalPad *) nextRawData()))
-            fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetAsadID());
+        while ((pad = (LKPad *) nextRawData()))
+            fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetAsad());
     }
     else if (optionString.Index("aget")==0) {
         fEnergyMax = 4;
         title = "aget";
         TIter nextRawData(fChannelArray);
-        while ((pad = (LKPhysicalPad *) nextRawData()))
-            fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetAgetID());
+        while ((pad = (LKPad *) nextRawData()))
+            fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetAget());
     }
     else if (optionString.Index("chan")==0) {
         fEnergyMax = 70;
         title = "chan";
         TIter nextRawData(fChannelArray);
-        while ((pad = (LKPhysicalPad *) nextRawData()))
-            fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetChannelID());
+        while ((pad = (LKPad *) nextRawData()))
+            fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetChan());
     }
 
     else if (optionString.Index("section")==0) {
         fEnergyMax = 100;
         title = "section";
         TIter nextRawData(fChannelArray);
-        while ((pad = (LKPhysicalPad *) nextRawData()))
+        while ((pad = (LKPad *) nextRawData()))
             fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetSection());
     }
     else if (optionString.Index("layer")==0) {
         fEnergyMax = 100;
         title = "layer";
         TIter nextRawData(fChannelArray);
-        while ((pad = (LKPhysicalPad *) nextRawData()))
+        while ((pad = (LKPad *) nextRawData()))
             fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetLayer());
     }
     else if (optionString.Index("row")==0) {
         fEnergyMax = 100;
         title = "row";
         TIter nextRawData(fChannelArray);
-        while ((pad = (LKPhysicalPad *) nextRawData()))
+        while ((pad = (LKPad *) nextRawData()))
             fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetRow());
     }
 
@@ -761,14 +763,14 @@ void LKEvePlane::FillDataToHistEventDisplay1(Option_t *option)
         fEnergyMax = 100;
         title = "id";
         TIter nextRawData(fChannelArray);
-        while ((pad = (LKPhysicalPad *) nextRawData()))
+        while ((pad = (LKPad *) nextRawData()))
             fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetPadID());
     }
     else if (optionString.Index("nhits")==0) {
         fEnergyMax = 10;
         title = "nhits";
         TIter nextRawData(fChannelArray);
-        while ((pad = (LKPhysicalPad *) nextRawData()))
+        while ((pad = (LKPad *) nextRawData()))
             fHistEventDisplay1 -> Fill(pad->GetI(),pad->GetJ(),pad->GetNumHits());
     }
     else if (optionString.Index("hit")==0&&fHitArray!=nullptr)
@@ -791,7 +793,7 @@ void LKEvePlane::FillDataToHistEventDisplay1(Option_t *option)
         {
             title = "Preview Data";
             TIter nextRawData(fChannelArray);
-            while (pad = (LKPhysicalPad*) nextRawData())
+            while (pad = (LKPad*) nextRawData())
             {
                 auto idx = pad -> GetDataIndex();
                 if (idx<0)
@@ -812,7 +814,7 @@ void LKEvePlane::FillDataToHistEventDisplay1(Option_t *option)
         {
             title = "Raw Data";
             TIter nextRawData(fChannelArray);
-            while (pad = (LKPhysicalPad*) nextRawData())
+            while (pad = (LKPad*) nextRawData())
             {
                 auto idx = pad -> GetDataIndex();
                 if (idx<0)
@@ -866,7 +868,7 @@ void LKEvePlane::ClickedEventDisplay1(double xOnClick, double yOnClick)
 
     fSelPadID = padID;
 
-    auto pad = (LKPhysicalPad*) fChannelArray -> At(fSelPadID);
+    auto pad = (LKPad*) fChannelArray -> At(fSelPadID);
     if (pad==nullptr) {
         lk_error << "pad at " << fSelPadID << " is nullptr" << endl;
         return;
@@ -891,7 +893,7 @@ void LKEvePlane::ClickedEventDisplay2(double xOnClick, double yOnClick)
 
     fSelPadID = padID;
 
-    auto pad = (LKPhysicalPad*) fChannelArray -> At(fSelPadID);
+    auto pad = (LKPad*) fChannelArray -> At(fSelPadID);
     if (pad==nullptr) {
         lk_error << "pad at " << fSelPadID << " is nullptr" << endl;
         return;
@@ -1231,7 +1233,7 @@ void LKEvePlane::ClickedControlEvent2(int selectedBin)
         lk_info << "Writting " << fileName << endl;
         auto file = new TFile(fileName,"recreate");
         fCanvas -> Write("canvas");
-        auto pad = (LKPhysicalPad*) fChannelArray -> At(fSelPadID);
+        auto pad = (LKPad*) fChannelArray -> At(fSelPadID);
         if (pad!=nullptr) {
             file -> cd();
             pad -> Write("pad");

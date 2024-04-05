@@ -3,7 +3,7 @@
 
 #include "LKDetectorPlane.h"
 #include "LKPadInteractive.h"
-#include "LKPhysicalPad.h"
+#include "LKPad.h"
 #include "TPad.h"
 
 typedef LKVector3::Axis axis_t;
@@ -82,7 +82,7 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
 
     public:
         virtual int FindPadID(int cobo, int asad, int aget, int chan);
-        virtual LKPhysicalPad* FindPad(int cobo, int asad, int aget, int chan); ///< TODO
+        virtual LKPad* FindPad(int cobo, int asad, int aget, int chan); ///< TODO
         virtual int FindPadIDFromHistEventDisplay1Bin(int hbin) { return -1; }
         virtual int FindPadIDFromHistEventDisplay2Bin(int hbin) { return -1; }
 

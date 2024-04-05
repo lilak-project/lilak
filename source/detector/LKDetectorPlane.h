@@ -6,6 +6,7 @@
 #include "LKGear.h"
 #include "LKRun.h"
 #include "LKPad.h"
+#include "LKHit.h"
 #include "LKHitArray.h"
 #include "LKChannelAnalyzer.h"
 
