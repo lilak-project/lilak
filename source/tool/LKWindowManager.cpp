@@ -130,10 +130,21 @@ Double_t LKWindowManager::SetRatio(Double_t ratio, Double_t defaultValue)
     return ratio;
 }
 
-TCanvas *LKWindowManager::NewCanvas(TString name, const char *title, Int_t x, Int_t y, Int_t width, Int_t height)
+TString LKWindowManager::ConfigureName(TString name)
 {
+    if (!name.IsNull())
+        return name;
+    name = Form("lkcvs_%d",fCountCanvases);
+    return name;
+}
+
+TCanvas *LKWindowManager::NewCanvas(TString name, TString title, Int_t x, Int_t y, Int_t width, Int_t height)
+{
+    name = ConfigureName(name);
+    title = ConfigureName(title);
     auto cvs = new TCanvas(name,name, fXCurrentCanvas,fYCurrentCanvas,width,height);
     cvs -> SetMargin(0.11,0.05,0.12,0.05);
+    ++fCountCanvases;
     return cvs;
 }
 

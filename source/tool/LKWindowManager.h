@@ -46,7 +46,8 @@ class LKWindowManager : public TObject
         Double_t SetRatio(Double_t ratio, Double_t defaultValue=1);
         void UpdateNextCanvasPosition();
         void FixCanvasPosition() { fFixCanvasPosition = true; }
-        TCanvas *NewCanvas(TString name, const char *title, Int_t x, Int_t y, Int_t width, Int_t height);
+        TString ConfigureName(TString name);
+        TCanvas *NewCanvas(TString name, TString title, Int_t x, Int_t y, Int_t width, Int_t height);
 
         /**
          * mode = 0 (kDefault)    : default canvas with fWDefault x fHDefault (600 x 450).
@@ -70,6 +71,8 @@ class LKWindowManager : public TObject
 
     private:
         static LKWindowManager* fInstance;
+
+        int          fCountCanvases = 0;
 
         Int_t        fXCurrentDisplay = -1; /// relative width  position of current display from main display
         Int_t        fYCurrentDisplay = -1; /// relative height position of current display from main display
