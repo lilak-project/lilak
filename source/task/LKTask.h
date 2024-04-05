@@ -28,6 +28,7 @@ class LKTask : public TTask, public LKGear
         bool EndOfRunTasks();
         virtual bool EndOfRun();
 
+        virtual void Run(Long64_t numEvents = -1) {}
         virtual bool IsEventTrigger() { return false; };
         virtual void SignalNextEvent() {};
 

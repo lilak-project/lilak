@@ -1078,7 +1078,8 @@ void LKRun::Run(Long64_t numEvents)
         // -------------------------------------------------------------------------------------------
         // EventTrigger should call LKRun::ExecuteNextEvent() when ever event start, from Exec() method.
         // Return from the Exec() method when all events has been executed.
-        fEventTrigger -> Exec("");
+        //fEventTrigger -> Exec("");
+        fEventTrigger -> Run(numEvents);
         // -------------------------------------------------------------------------------------------
         LKRun::EndOfRun();
     }

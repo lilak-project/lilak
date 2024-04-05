@@ -41,7 +41,7 @@ class LKRun : public LKTask
         LKRun() : LKRun("run",-1,-1,"") {}
         virtual ~LKRun() {};
 
-        static void PrintLILAK();              ///< Print compiled LILAK information
+        static void PrintLILAK(); ///< Print compiled LILAK information
 
         /**
          * ## options
