@@ -49,15 +49,15 @@ void LKPulseShapeAnalysisTask::Exec(Option_t *option)
     for (int iChannel = 0; iChannel < numChannel; ++iChannel)
     {
         auto channel = (GETChannel *) fChannelArray -> At(iChannel);
-        auto channelID = channel -> GetID();
+        auto channelID = channel -> GetChannelID();
         if (channelID<0)
             channelID = iChannel;
         auto chDetType = channel -> GetDetType();
+        auto padID = channel -> GetPadID();
         auto cobo = channel -> GetCobo();
         auto asad = channel -> GetAsad();
         auto aget = channel -> GetAget();
         auto chan = channel -> GetChan();
-        auto padID = channel -> GetChan2();
         auto data = channel -> GetWaveformY();
         if (fUsingDetectorPlane&&padID<0)
             padID = fDetectorPlane -> FindPadID(cobo,asad,aget,chan);
