@@ -13,15 +13,21 @@ class LKEventHeader : public LKContainer
         virtual void Print(Option_t *option="") const;
         virtual void Copy(TObject &object) const;
 
-        Int_t  GetEventNumber() const  { return fEventNumber; }
-        Bool_t IsGoodEvent()    const  { return fIsGoodEvent; }
+        void SetEventNumber(int eventNumber) { fEventNumber = eventNumber; }
+        void SetIsGoodEvent(bool isGoodEvent) { fIsGoodEvent = isGoodEvent; }
+        void SetBufferStart(Long64_t buffer) { fBufferStart = buffer; }
+        void SetBufferSize(int size) { fBufferSize = size; }
 
-        void SetEventNumber(Int_t eventNumber) { fEventNumber = eventNumber; }
-        void SetIsGoodEvent(Bool_t isGoodEvent) { fIsGoodEvent = isGoodEvent; }
+        bool IsGoodEvent() const { return fIsGoodEvent; }
+        int GetEventNumber() const { return fEventNumber; }
+        Long64_t GetBufferStart() const { return fBufferStart; }
+        int GetBufferSize() const { return fBufferSize; }
 
     protected:
-        Int_t   fEventNumber = -1;
-        Bool_t  fIsGoodEvent = false;
+        bool fIsGoodEvent = false;
+        int fEventNumber = -1;
+        Long64_t fBufferStart = -1;
+        int fBufferSize = -1;
 
     ClassDef(LKEventHeader,1);
 };

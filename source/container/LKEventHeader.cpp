@@ -13,6 +13,8 @@ void LKEventHeader::Clear(Option_t *option)
     LKContainer::Clear(option);
     fIsGoodEvent = false;
     fEventNumber = -1;
+    fBufferStart = -1;
+    fBufferSize = -1;
 }
 
 void LKEventHeader::Print(Option_t *option) const
@@ -26,4 +28,6 @@ void LKEventHeader::Copy(TObject &object) const
     auto objCopy = (LKEventHeader &) object;
     objCopy.SetIsGoodEvent(fIsGoodEvent);
     objCopy.SetEventNumber(fEventNumber);
+    objCopy.SetBufferStart(fBufferStart);
+    objCopy.SetBufferSize(fBufferSize);
 }

@@ -14,16 +14,32 @@ class LKChannel : public LKContainer
         virtual ~LKChannel() {}
 
         virtual void Clear(Option_t *option = "");
-        //virtual void Print(Option_t *option = "") const;
         virtual void Copy(TObject &obj) const;
+        virtual void Print(Option_t *option = "") const;
 
-        void  SetID(Int_t id);
-        Int_t GetID() const;
+        void SetChannelID(int value) { fChannelID = value; }
+        void SetPadID(int value) { fPadID = value; }
+        void SetTime(double value) { fTime = value; }
+        void SetEnergy(double value) { fEnergy = value; }
+        void SetPedestal(double value) { fPedestal = value; }
+        void SetNoiseScale(double value) { fNoiseScale = value; }
+
+        int GetChannelID() const { return fChannelID; }
+        int GetPadID() const { return fPadID; }
+        double GetTime() const { return fTime; }
+        double GetEnergy() const { return fEnergy; }
+        double GetPedestal() const { return fPedestal; }
+        double GetNoiseScale() const { return fNoiseScale; }
 
     protected:
-        Int_t fID = -1;
+        int fChannelID = -1;
+        int fPadID = -1;
+        double fTime = -1;
+        double fEnergy = -1;
+        double fPedestal = -1;
+        double fNoiseScale = -1;
 
-        ClassDef(LKChannel, 1)
+    ClassDef(LKChannel, 2)
 };
 
 #endif

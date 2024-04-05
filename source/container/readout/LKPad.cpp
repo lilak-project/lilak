@@ -1,30 +1,46 @@
 #include "LKLogger.h"
 #include "LKPad.h"
+
+#include "TLine.h"
+#include "TText.h"
+#include "TF1.h"
+
+#include <iomanip>
+#include <iostream>
 using namespace std;
 
 ClassImp(LKPad)
 
 void LKPad::Clear(Option_t *option)
 {
-    LKPhysicalPad::Clear(option);
+    GETChannel::Clear(option);
 
-    fActive = false;
-    fGrabed = false;
+    fBufferShaped.Clear();
 
-    memset(fRawSigBuffer, 0, sizeof(double)*512);
-    memset(fShapedBuffer, 0, sizeof(double)*512);
+    fPlaneID = 0;
+    fSection = -1;
+    fLayer = -1;
+    fRow = -1;
+    fDataIndex = 1;
+
+    fPosition = LKVector3(LKVector3::kZ);
+    fPadCorners.clear();
+
+    fSortValue = -1; //!
+    fActive = false; //!
+    fGrabed = false; //!
+    vector<LKPad *> fNeighborPadArray; //!
 }
 
 void LKPad::Print(Option_t *option) const
 {
-    e_info << "[LKPad]" << endl;
-    e_info << "- CAAC: " << fCoboID << " " << fAsadID << " " << fAgetID << " " << fChanID << endl;
-    e_info << "- SLR : " << fSection << " " << fLayer << " " << fRow << endl;
-    e_info << "- TEPN: " << fTime << " " << fEnergy << " " << fPedestal << " " << fNoiseAmp << endl;
+    if (TString(option).Index("!title")<0)
+        e_info << "[LKPad]" << endl;
+    GETChannel::Print("!title");
+    fBufferShaped.Print();
+    e_info << "- PSLR: " << fPlaneID << " " << fSection << " " << fLayer << " " << fRow << endl;
     e_info << "- Pos.: " << fPosition.I() << " " << fPosition.J() << endl;
-    e_info << "- #Hit: " << fHitArray.size() << endl;
     e_info << "- A/G : " << fActive << " / " << fGrabed << endl;
-    e_info << "- #Hit: " << fHitArray.size() << endl;
     e_info << "- #Nb : " << fNeighborPadArray.size() << endl;
 }
 
@@ -37,7 +53,7 @@ void LKPad::Draw(Option_t *option)
 TH1D *LKPad::GetHist(Option_t *option)
 {
     if (fHist==nullptr)
-        fHist = new TH1D(Form("Pad%03d",fID),"",512,0,512);
+        fHist = new TH1D(Form("Pad%03d",fChannelID),"",512,0,512);
     SetHist(fHist, option);
 
     return fHist;
@@ -50,13 +66,13 @@ void LKPad::SetHist(TH1D *hist, Option_t *option)
     TString optionString(option);
     optionString.ToLower();
 
-    TString name = Form("ID%d_CAAC%d_%d_%d_%2d",fID,fCoboID,fAsadID,fAgetID,fChanID);
-    TString ttle = Form("ID=%d, CAAC=(%d, %d, %d, %2d)",fID,fCoboID,fAsadID,fAgetID,fChanID);
+    TString name = Form("ID%d_CAAC%d_%d_%d_%2d",fChannelID,fCobo,fAsad,fAget,fChan);
+    TString ttle = Form("ID=%d, CAAC=(%d, %d, %d, %2d)",fChannelID,fCobo,fAsad,fAget,fChan);
+
+    if      (optionString.Index("out")>=0) { fBufferShaped.FillHist(hist); }
+    else if (optionString.Index("in" )>=0) { fBufferRawSig.FillHist(hist); }
+
     hist -> SetNameTitle(name,ttle+";tb;y");
-
-    if      (optionString.Index("out")>=0) { for (auto tb=0; tb<512; tb++) hist -> SetBinContent(tb+1, fShapedBuffer[tb]); }
-    else if (optionString.Index("in" )>=0) { for (auto tb=0; tb<512; tb++) hist -> SetBinContent(tb+1, fRawSigBuffer[tb]); }
-
     hist -> SetMinimum(0);
     hist -> SetMaximum(4200);
 }
@@ -117,27 +133,36 @@ int LKPad::Compare(const TObject *obj) const
 
 void LKPad::SetPad(LKPad *padRef)
 {
-    fID        = padRef -> GetPadID();
+    fChannelID  = padRef -> GetChannelID();
+    fPadID      = padRef -> GetPadID();
+    fTime       = padRef -> GetTime();
+    fEnergy     = padRef -> GetEnergy();
+    fPedestal   = padRef -> GetPedestal();
+    fNoiseScale = padRef -> GetNoiseScale();
+
     fPlaneID   = padRef -> GetPlaneID();
-    fCoboID    = padRef -> GetCoboID();
-    fAsadID    = padRef -> GetAsadID();
-    fAgetID    = padRef -> GetAgetID();
-    fChanID    = padRef -> GetChanID();
-    fPosition  = padRef -> GetPosition();
+    fCobo      = padRef -> GetCobo();
+    fAsad      = padRef -> GetAsad();
+    fAget      = padRef -> GetAget();
+    fChan      = padRef -> GetChan();
+
     fSection   = padRef -> GetSection();
     fRow       = padRef -> GetRow();
     fLayer     = padRef -> GetLayer();
+    fDataIndex = padRef -> GetDataIndex();
+
+    fPosition  = padRef -> GetPosition();
 }
 
 void LKPad::CopyPadData(LKPad* padRef)
 {
     SetActive(padRef->IsActive());
 
-    SetRawSigBuffer(padRef->GetRawSigBuffer());
-    SetShapedBuffer(padRef->GetShapedBuffer());
+    SetBufferRawSig(padRef->GetBufferRawSig());
+    SetBufferShaped(padRef->GetBufferShaped());
 
     fTime = padRef -> GetTime();
     fEnergy = padRef -> GetEnergy();
     fPedestal = padRef -> GetPedestal();
-    fNoiseAmp = padRef -> GetNoiseAmp();
+    fNoiseScale = padRef -> GetNoiseScale();
 }
