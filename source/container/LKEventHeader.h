@@ -15,18 +15,18 @@ class LKEventHeader : public LKContainer
 
         void SetEventNumber(int eventNumber) { fEventNumber = eventNumber; }
         void SetIsGoodEvent(bool isGoodEvent) { fIsGoodEvent = isGoodEvent; }
-        void SetBufferStart(Long64_t buffer) { fBufferStart = buffer; }
+        void SetBufferStart(size_t buffer) { fBufferStart = buffer; }
         void SetBufferSize(int size) { fBufferSize = size; }
 
         bool IsGoodEvent() const { return fIsGoodEvent; }
         int GetEventNumber() const { return fEventNumber; }
-        Long64_t GetBufferStart() const { return fBufferStart; }
+        size_t GetBufferStart() const { return fBufferStart; }
         int GetBufferSize() const { return fBufferSize; }
 
     protected:
         bool fIsGoodEvent = false;
         int fEventNumber = -1;
-        Long64_t fBufferStart = -1;
+        size_t fBufferStart = -1;
         int fBufferSize = -1;
 
     ClassDef(LKEventHeader,1);

@@ -3,6 +3,7 @@ using namespace std;
 
 #include "LKMFMConversionTask.h"
 #include "GETChannel.h"
+#include "LKEventHeader.h"
 
 //#include "GSpectra.h"
 //#include "GNetServerRoot.h"
@@ -58,9 +59,9 @@ void LKMFMConversionTask::Run(Long64_t numEvents)
     char *buffer = (char *) malloc (matrixSize);
 
     fFileBuffer = 0;
-    fFileEventLast = 0;
+    fFileBufferLast = 0;
 
-    while (!fFileStream.eof() && fContinueEvent && fSignalEndOfRun)
+    while (!fFileStream.eof() && fContinueEvent)
     {
 
         fFileStream.read(buffer,matrixSize);
@@ -102,15 +103,16 @@ bool LKMFMConversionTask::EndOfRun()
 void LKMFMConversionTask::SignalNextEvent()
 {
     fCountEvents++;
+    int bufferSize = fFileBuffer - fFileBufferLast;
 
-    lk_info << "New event! at file buffer: " << fFileBuffer << endl;
+    lk_info << "New event! at file buffer: " << fFileBuffer << " (" << bufferSize << ")" << endl;
     auto eventHeader = (LKEventHeader *) fEventHeaderArray -> At(0);
-    eventHeader -> SetBufferStart(fFileEventLast);
-    eventHeader -> SetBufferSize(fFileBuffer-fFileEventLast);
-    fFileEventLast = fFileBuffer - matrixSize;
+    eventHeader -> SetBufferStart(fFileBufferLast);
+    eventHeader -> SetBufferSize(bufferSize);
+    fFileBufferLast = fFileBuffer - matrixSize;
 
     fContinueEvent = fRun -> ExecuteNextEvent();
 
     if (fNumEvents>0 && fCountEvents>=fNumEvents)
-        fSignalEndOfRun = true;
+        fContinueEvent = false;
 }

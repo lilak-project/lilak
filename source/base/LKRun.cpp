@@ -253,7 +253,7 @@ void LKRun::Print(Option_t *option) const
     if (printParameters) {
         e_cout << endl;
         lk_info << "# Parameters" << endl;
-        fPar -> Print("eval line# par# !idx");
+        fPar -> Print("eval !line# par# idx");
     }
 
     if (printTasks) {
