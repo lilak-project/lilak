@@ -85,8 +85,8 @@ LKHit *GETChannel::PullOutNextFreeHit()
 
     for (auto iHit=0; iHit<numHits; ++iHit) {
         auto hit = fHitArray.GetHit(iHit);
-        if (hit -> GetNumTrackCands()==0) {
-            fHitArray.RemoveAt(iHit);
+        if (hit->GetNumTrackCands()==0) {
+            fHitArray.RemoveHit(iHit);
             return hit;
         }
     }
@@ -100,8 +100,9 @@ void GETChannel::PullOutHits(LKHitArray *hits)
     if (numHits==0)
         return;
 
-    for (auto iHit=0; iHit<numHits; ++iHit)
+    for (auto iHit=0; iHit<numHits; ++iHit) {
         hits -> AddHit(fHitArray.GetHit(iHit));
+    }
     fHitArray.Clear();
 }
 

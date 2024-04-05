@@ -45,12 +45,13 @@ class LKRun : public LKTask
 
         /**
          * ## options
-         * - all : Print all (below)
-         * - gen : Print general information
-         * - par : Print parameter information
-         * - out : Print output information
-         * - in  : Print input information
-         * - det : Print detector information
+         * - all  : Print all (below)
+         * - gen  : Print general information
+         * - par  : Print parameter information
+         * - out  : Print output information
+         * - in   : Print input information
+         * - det  : Print detector information
+         * - task : Print detector information
          */
         void Print(Option_t *option="all") const;
 

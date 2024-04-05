@@ -114,11 +114,13 @@ void LKHitArray::Print(Option_t *option) const
         e_info << "[LKHitArray]" << endl;
     e_info << "- Number of hits: " << fN << endl;
     e_info << "- Charge sum: " << fW << endl;
-    e_info << "- <x>=" << fEX << ", <y>=" << fEY << ", <z>=" << fEZ << endl;
-    e_info << "- s_x=" << GetVarianceX() << ", s_y=" << GetVarianceY() << ", s_z=" << GetVarianceZ() << endl;
-    e_info << "- Mat. A=|" << setw(15) << fEXX << setw(15) << fEXY << setw(15) << fEZX << "|" << endl;
-    e_info << "         |" << setw(15) << fEXY << setw(15) << fEYY << setw(15) << fEYZ << "|" << endl;
-    e_info << "         |" << setw(15) << fEZX << setw(15) << fEYZ << setw(15) << fEZZ << "|" << endl;
+    if (opts.Index("ana")>0) {
+        e_info << "- <x>=" << fEX << ", <y>=" << fEY << ", <z>=" << fEZ << endl;
+        e_info << "- s_x=" << GetVarianceX() << ", s_y=" << GetVarianceY() << ", s_z=" << GetVarianceZ() << endl;
+        e_info << "- Mat. A=|" << setw(15) << fEXX << setw(15) << fEXY << setw(15) << fEZX << "|" << endl;
+        e_info << "         |" << setw(15) << fEXY << setw(15) << fEYY << setw(15) << fEYZ << "|" << endl;
+        e_info << "         |" << setw(15) << fEZX << setw(15) << fEYZ << setw(15) << fEZZ << "|" << endl;
+    }
 
     if (opts.Index("hit")>=0) {
         TIter next(this);
@@ -750,6 +752,7 @@ bool LKHitArray::RemoveHit(Int_t iHit)
 {
     auto hit = GetHit(iHit);
     RemoveAt(iHit);
+    Compress();
     return Subtract(hit->GetX(), hit->GetY(), hit->GetZ(), hit->GetCharge());
 }
 
@@ -762,6 +765,7 @@ bool LKHitArray::RemoveHit(LKHit* hit)
         auto id0 = hit0 -> GetHitID();
         if (id0 == id) {
             RemoveAt(iHit);
+            --fN;
             return Subtract(hit->GetX(), hit->GetY(), hit->GetZ(), hit->GetCharge());
         }
     }

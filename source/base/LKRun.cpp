@@ -228,6 +228,7 @@ void LKRun::Print(Option_t *option) const
     bool printOutputs = false;
     bool printInputs = false;
     bool printDetectors = false;
+    bool printTasks = true;
 
     if (printOptions.Index("all")>=0) {
         printGeneral = true;
@@ -235,6 +236,7 @@ void LKRun::Print(Option_t *option) const
         printOutputs = true;
         printInputs = true;
         printDetectors = true;
+        printTasks = true;
         printOptions.ReplaceAll("all","");
     }
     if (printOptions.Index("gen")>=0) { printGeneral = true;    printOptions.ReplaceAll("gen",""); }
@@ -242,6 +244,7 @@ void LKRun::Print(Option_t *option) const
     if (printOptions.Index("out")>=0) { printOutputs = true;    printOptions.ReplaceAll("out",""); }
     if (printOptions.Index("in" )>=0) { printInputs = true;     printOptions.ReplaceAll("in", ""); }
     if (printOptions.Index("det")>=0) { printDetectors = true;  printOptions.ReplaceAll("det",""); }
+    if (printOptions.Index("task")>=0) { printTasks = true;     printOptions.ReplaceAll("task",""); }
 
     e_cout << endl;
 
@@ -251,6 +254,15 @@ void LKRun::Print(Option_t *option) const
         e_cout << endl;
         lk_info << "# Parameters" << endl;
         fPar -> Print("eval line# par# !idx");
+    }
+
+    if (printTasks) {
+        e_cout << endl;
+        lk_cout << "List of tasks" << endl;
+        TIter next(fTasks);
+        TTask *task;
+        while((task=(TTask*)next()))
+            lk_debug << task->ClassName() << endl;
     }
 
     if (printDetectors) {

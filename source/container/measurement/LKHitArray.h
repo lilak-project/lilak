@@ -53,7 +53,7 @@ class LKHitArray : public TObjArray
         void SortByLayer(bool sortEarlierIfSmaller=true);
 
         virtual void Clear(Option_t *option = "C");
-        virtual void Print(Option_t *option = "at") const;
+        virtual void Print(Option_t *option = "") const;
         virtual void Copy (TObject &object) const;
 
         void MoveHitsTo(LKHitArray *hitArray);
