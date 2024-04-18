@@ -29,6 +29,7 @@ class LKTask : public TTask, public LKGear
         virtual bool EndOfRun();
 
         virtual void Run(Long64_t numEvents = -1) {}
+        virtual void RunOnline() {}
         virtual bool IsEventTrigger() { return false; };
         virtual void SignalNextEvent() {};
 

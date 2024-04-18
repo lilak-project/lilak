@@ -14,13 +14,18 @@ class LKMFMConversionTask : public LKTask
         size_t const matrixSize = 512;
         ifstream fFileStream;
 
+        string fWatcherIP;
+        uint16_t fWatcherPort;
+
         LKFrameBuilder* fFrameBuilder;
         bool fContinueEvent = false;
         Long64_t fNumEvents = -1;
-        Long64_t fCountEvents = -1;
+        Long64_t fCountEvents = 0;
 
         size_t fFileBuffer;
         size_t fFileBufferLast;
+
+        bool fRunOnline = false;
 
     public:
         LKMFMConversionTask();
@@ -29,6 +34,7 @@ class LKMFMConversionTask : public LKTask
         bool Init();
         void Exec(Option_t*) {}
         void Run(Long64_t numEvents=-1);
+        void RunOnline();
         bool EndOfRun();
         void SignalNextEvent();
         bool IsEventTrigger() { return true; }

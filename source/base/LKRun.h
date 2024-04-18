@@ -210,6 +210,7 @@ class LKRun : public LKTask
         void Run(Long64_t startID, Long64_t endID); ///< Run in range: from startID to endID
         bool RunEvent(Long64_t eventID=-2); ///< Run event of eventID
         bool RunSelectedEvent(TString selection); ///< Find event that matches the given selection and run. The selection is set from first call of RunSelectedEvent.
+        void RunOnline();
         //void RunSplit(Long64_t eventID);
 
         /**
