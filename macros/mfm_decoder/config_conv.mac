@@ -1,0 +1,12 @@
+LKRun/Name           test  # name of the run
+LKRun/DataPath       ./
+
+persistency/FrameHeader true
+persistency/RawData     true
+
+LKMFMConversionTask/InputFileName   /home/ejungwoo/data/atomx/run_0058.dat.28-02-24_11h26m56s
+
+LKFrameBuilder/MaxCobo              4   # maximum number of CoBo
+LKFrameBuilder/MaxAsad              4   # maximum number of AsAd in one CoBo
+LKFrameBuilder/MaxAget              4   # maximum number of AGET in one AsAd
+LKFrameBuilder/MaxChannels          68  # maximum number of channels in AGET
