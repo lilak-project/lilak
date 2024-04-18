@@ -81,11 +81,13 @@ bool LKHTTrackingTask::Init()
         return false;
     }
 
-    std::vector<TString> hitBranchNameArray = fPar -> GetParVString("LKHTTrackingTask/hit_branch_name  Hit");
+    std::vector<TString> hitBranchNameArray;
+    if (fPar -> CheckPar("LKHTTrackingTask/hit_branch_name Hit"))
+        hitBranchNameArray = fPar -> GetParVString("LKHTTrackingTask/hit_branch_name");
     if (hitBranchNameArray.size()==0)
         hitBranchNameArray.push_back(TString("Hit"));
     for (auto hitBranchName : hitBranchNameArray) {
-        lk_debug << "hit branch " << hitBranchName << endl;
+        lk_info << "hit branch: " << hitBranchName << endl;
         fHitArray[fCountHitBranches] = nullptr;
         fHitArray[fCountHitBranches] = fRun -> GetBranchA(hitBranchName);
         ++fCountHitBranches;
@@ -127,13 +129,11 @@ void LKHTTrackingTask::Exec(Option_t *option)
         fTracker0 -> Transform();
         auto paramPoint0 = fTracker0 -> FindNextMaximumParamPoint();
         fTrackTemp = fTracker0 -> FitTrack3DWithParamPoint(paramPoint0);
-        if (fTrackTemp->GetQuality()>0)
-        {
-            auto track = (LKLinearTrack*) fTrackArray -> ConstructedAt(fNumTracks++);
-            fTrackTemp -> Copy(*track);
-            LKHit* hit;
-            TIter next0(track->GetHitArray()); while ((hit = (LKHit*)next0())) track -> AddHit(hit);
-        }
+
+        auto track = (LKLinearTrack*) fTrackArray -> ConstructedAt(fNumTracks);
+        track -> CopyFrom(fTrackTemp);
+        track -> SetTrackID(fNumTracks);
+        fNumTracks++;
     }
     else {
         // 2D -------------------------------------------------------------------------------------------
@@ -155,20 +155,14 @@ void LKHTTrackingTask::Exec(Option_t *option)
         fTracker1 -> Transform();
         auto paramPoint0 = fTracker0 -> FindNextMaximumParamPoint();
         auto paramPoint1 = fTracker1 -> FindNextMaximumParamPoint();
-
         auto track0 = fTracker0 -> FitTrackWithParamPoint(paramPoint0);
         auto track1 = fTracker1 -> FitTrackWithParamPoint(paramPoint1);
-
-        fTrackTemp -> Clear();
         fTrackTemp -> Create3DTrack(track0, fAxisConf0, track1, fAxisConf1);
-        if (fTrackTemp->GetQuality()>0)
-        {
-            auto track = (LKLinearTrack*) fTrackArray -> ConstructedAt(fNumTracks++);
-            fTrackTemp -> Copy(*track);
-            LKHit* hit;
-            TIter next0(track0->GetHitArray()); while ((hit = (LKHit*)next0())) track -> AddHit(hit);
-            TIter next1(track1->GetHitArray()); while ((hit = (LKHit*)next1())) track -> AddHit(hit);
-        }
+
+        auto track = (LKLinearTrack*) fTrackArray -> ConstructedAt(fNumTracks);
+        track -> CopyFrom(fTrackTemp);
+        track -> SetTrackID(fNumTracks);
+        fNumTracks++;
     }
 
     for (auto iTrack=0; iTrack<fNumTracks; ++iTrack)
@@ -176,9 +170,11 @@ void LKHTTrackingTask::Exec(Option_t *option)
         auto track = (LKLinearTrack*) fTrackArray -> At(iTrack);
         track -> SetTrackID(iTrack);
         LKGeoBox box(0.5*(fX2+fX1),0.5*(fY2+fY1),0.5*(fZ2+fZ1),fX2-fX1,fY2-fY1,fZ2-fZ1);
+        //box.Print();
         TVector3 point1, point2;
         box.GetCrossingPoints(*track,point1,point2);
         track -> SetTrack(point1, point2);
+        track -> Print();
     }
 
     lk_info << "Found " << fNumTracks << " tracks" << endl;
