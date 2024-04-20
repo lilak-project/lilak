@@ -138,8 +138,7 @@ void LKTracklet::SetEveElement(TEveElement *element, double scale)
         line -> SetLineColor(kGray);
 
     auto dr = 0.02;
-    if (dr < 5./TrackLength())
-        dr = 5./TrackLength();
+    //if (dr < 5./TrackLength()) dr = 5./TrackLength();
 
     for (double r = 0.; r < 1.0001; r += dr) {
         auto pos = scale*ExtrapolateByRatio(r);
@@ -183,7 +182,7 @@ TGraphErrors *LKTracklet::TrajectoryOnPlane(LKDetectorPlane *plane, double scale
 
 void LKTracklet::FillTrajectory(TGraphErrors* graphTrack, LKVector3::Axis axis1, LKVector3::Axis axis2, bool (*fisout)(TVector3 pos))
 {
-    for (double r = 0.; r < 1.; r += 0.05) {
+    for (double r = 0.; r < 1.001; r += 0.05) {
         auto pos = LKVector3(ExtrapolateByRatio(r),LKVector3::kZ);
         if (fisout(pos)) break;
         graphTrack -> SetPoint(graphTrack->GetN(), pos.At(axis1), pos.At(axis2));
@@ -198,7 +197,7 @@ void LKTracklet::FillTrajectory(TGraphErrors* graphTrack, LKVector3::Axis axis1,
 
 void LKTracklet::FillTrajectory3D(TGraph2DErrors* graphTrack3D, LKVector3::Axis axis1, LKVector3::Axis axis2, LKVector3::Axis axis3, bool (*fisout)(TVector3 pos))
 {
-    for (double r = 0.; r < 1.; r += 0.05) {
+    for (double r = 0.; r < 1.001; r += 0.05) {
         auto pos = LKVector3(ExtrapolateByRatio(r),LKVector3::kZ);
         if (fisout(pos)) break;
         graphTrack3D -> SetPoint(graphTrack3D->GetN(), pos.At(axis1), pos.At(axis2), pos.At(axis3));

@@ -139,10 +139,10 @@ class LKTracklet : public LKContainer
         virtual TGraphErrors *TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3::Axis axis2, bool (*fisout)(TVector3 pos), double scale=1);
         virtual TGraphErrors *TrajectoryOnPlane(LKVector3::Axis axis1, LKVector3::Axis axis2, double scale=1);
         virtual TGraphErrors *TrajectoryOnPlane(LKDetectorPlane *plane, double scale=1);
-        void FillTrajectory(TGraphErrors* graphTrack, LKVector3::Axis axis1, LKVector3::Axis axis2, bool (*fisout)(TVector3 pos));
-        void FillTrajectory(TGraphErrors* graphTrack, LKVector3::Axis axis1, LKVector3::Axis axis2);
-        void FillTrajectory3D(TGraph2DErrors* graphTrack3D, LKVector3::Axis axis1, LKVector3::Axis axis2, LKVector3::Axis axis3, bool (*fisout)(TVector3 pos));
-        void FillTrajectory3D(TGraph2DErrors* graphTrack3D, LKVector3::Axis axis1, LKVector3::Axis axis2, LKVector3::Axis axis3);
+        virtual void FillTrajectory(TGraphErrors* graphTrack, LKVector3::Axis axis1, LKVector3::Axis axis2, bool (*fisout)(TVector3 pos));
+        virtual void FillTrajectory(TGraphErrors* graphTrack, LKVector3::Axis axis1, LKVector3::Axis axis2);
+        virtual void FillTrajectory3D(TGraph2DErrors* graphTrack3D, LKVector3::Axis axis1, LKVector3::Axis axis2, LKVector3::Axis axis3, bool (*fisout)(TVector3 pos));
+        virtual void FillTrajectory3D(TGraph2DErrors* graphTrack3D, LKVector3::Axis axis1, LKVector3::Axis axis2, LKVector3::Axis axis3);
         //virtual TGraph *CrossSectionOnPlane(TVector3, TVector3, double) { return (TGraph *) nullptr; }
 
         /**

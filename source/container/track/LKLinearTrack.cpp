@@ -275,7 +275,7 @@ void LKLinearTrack::Print(Option_t *option) const
         else if (numHits<numHitIDs) hitStatus = " (just hit-ids)";
         else hitStatus = " (?)";
     }
-    e_info << "Track-" << fTrackID << " : "
+    e_info << "Track(" << fTrackID << ") : "
            << "(" << fX1 << ", " << fY1 << ", " << fZ1 << ") -> ("
                   << fX2 << ", " << fY2 << ", " << fZ2 << "), "
            << GetNumHits() << " hits" << hitStatus << endl;
@@ -386,6 +386,26 @@ TGraphErrors *LKLinearTrack::TrajectoryOnPlane(LKDetectorPlane *plane, Double_t 
     return TrajectoryOnPlane(plane->GetAxis1(), plane->GetAxis2(), scale);
 }
 */
+
+void LKLinearTrack::FillTrajectory(TGraphErrors* graphTrack, LKVector3::Axis axis1, LKVector3::Axis axis2, bool (*fisout)(TVector3 pos))
+{
+    for (double r : {0.,1.})
+    {
+        auto pos = LKVector3(ExtrapolateByRatio(r),LKVector3::kZ);
+        if (fisout(pos)) break;
+        graphTrack -> SetPoint(graphTrack->GetN(), pos.At(axis1), pos.At(axis2));
+    }
+}
+
+void LKLinearTrack::FillTrajectory3D(TGraph2DErrors* graphTrack3D, LKVector3::Axis axis1, LKVector3::Axis axis2, LKVector3::Axis axis3, bool (*fisout)(TVector3 pos))
+{
+    for (double r : {0.,1.})
+    {
+        auto pos = LKVector3(ExtrapolateByRatio(r),LKVector3::kZ);
+        if (fisout(pos)) break;
+        graphTrack3D -> SetPoint(graphTrack3D->GetN(), pos.At(axis1), pos.At(axis2), pos.At(axis3));
+    }
+}
 
 TGraph *LKLinearTrack::ProjectionOnPlane(axis_t axis1, axis_t axis2, Double_t scale)
 {
