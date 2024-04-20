@@ -181,6 +181,7 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         TString fEventDisplayDrawOption = "colz";
 
         bool fReturnDraw = false;
+        bool fBranchIsSet = false;
 
         axis_t fPadAxis1[2] = {LKVector3::kNon, LKVector3::kNon};
         axis_t fPadAxis2[2] = {LKVector3::kNon, LKVector3::kNon};

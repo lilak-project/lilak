@@ -40,6 +40,10 @@ LKChannelAnalyzer* LKEvePlane::GetChannelAnalyzer(int id)
         fChannelAnalyzer -> SetThreshold(threshold);
         fChannelAnalyzer -> Print();
     }
+
+    fPar -> UpdatePar(fFillOptionSelected,"LKEvePlane/fillOption hit");
+    fFillOptionSelected.ToLower();
+
     return fChannelAnalyzer;
 }
 
@@ -58,13 +62,6 @@ bool LKEvePlane::Init()
     GetChannelAnalyzer();
 
     fPar -> UpdatePar(fSavePath,"LKEvePlane/FigurePath .");
-
-    if (fRun!=nullptr)
-    {
-        fRawDataArray = fRun -> GetBranchA("RawData");
-        fHitArray = fRun -> GetBranchA("Hit");
-        fTrackArray = fRun -> GetBranchA("Track");
-    }
 
     fPosition = 0;
     fTbToLength = 1;
@@ -150,7 +147,7 @@ void LKEvePlane::UpdateEventDisplay2()
         return;
     fPadEventDisplay2 -> cd();
     if      (fEnergyMax==0) { fHistEventDisplay2 -> SetMinimum(fEnergyMin); fHistEventDisplay2 -> SetMaximum(-1111); }
-    else if (fEnergyMax==1) { fHistEventDisplay2 -> SetMinimum(fEnergyMin);     fHistEventDisplay2 -> SetMaximum(4200); }
+    else if (fEnergyMax==1) { fHistEventDisplay2 -> SetMinimum(fEnergyMin); fHistEventDisplay2 -> SetMaximum(4200); }
     else
     {
         fHistEventDisplay2 -> SetMinimum(fEnergyMin);
@@ -598,6 +595,14 @@ void LKEvePlane::DrawHist(Option_t *option)
 
 bool LKEvePlane::SetDataFromBranch()
 {
+    if (!fBranchIsSet && fRun!=nullptr)
+    {
+        fRawDataArray = fRun -> GetBranchA("RawData");
+        fHitArray = fRun -> GetBranchA("Hit");
+        fTrackArray = fRun -> GetBranchA("Track");
+        fBranchIsSet = true;
+    }
+
     LKPad *pad = nullptr;
     TIter next(fChannelArray);
     while (pad = (LKPad*) next())
@@ -783,6 +788,7 @@ void LKEvePlane::FillDataToHistEventDisplay1(Option_t *option)
             auto pos = hit -> GetPosition(fAxisDrift);
             auto i = pos.I();
             auto j = pos.J();
+            //if (1) j = hit -> GetTb();
             auto energy = hit -> GetCharge();
             fHistEventDisplay1 -> Fill(i,j,energy);
         }
