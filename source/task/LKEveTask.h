@@ -14,6 +14,11 @@
 #include "LKDetectorSystem.h"
 #include "LKDetector.h"
 
+#include "TGraph.h"
+#include "TGraph2D.h"
+#include "TGraphErrors.h"
+#include "TGraph2DErrors.h"
+
 class LKEveTask : public LKTask
 { 
     public:
@@ -77,6 +82,7 @@ class LKEveTask : public LKTask
         TClonesArray *fGraphTrack3DArray = nullptr;
         TClonesArray *fGraphHit3DArray = nullptr;
 #endif
+        TClonesArray *fGraphTrack2DArray = nullptr;
 
         Double_t fEveScale = 1;
 

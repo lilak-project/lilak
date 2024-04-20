@@ -358,6 +358,10 @@ void LKEveTask::DrawEve3D()
 
 void LKEveTask::DrawDetectorPlanes()
 {
+    if (fGraphTrack2DArray==nullptr)
+        fGraphTrack2DArray = new TClonesArray("TGraphErrors",100);
+    fGraphTrack2DArray -> Clear("C");
+
     lk_info << endl;
     auto numPlanes = fDetectorSystem -> GetNumPlanes();
     for (auto iPlane = 0; iPlane < numPlanes; ++iPlane)
@@ -403,7 +407,6 @@ void LKEveTask::DrawDetectorPlanes()
 
                 if (isTracklet)
                 {
-                    if (iPlane==0&&iPad==0) lk_info << numObjects << " tracks found!" << endl;
                     auto trackletSample = (LKTracklet *) objSample;
                     if (trackletSample -> DoDrawOnDetectorPlane())
                     {
@@ -412,11 +415,15 @@ void LKEveTask::DrawDetectorPlanes()
                             if (!SelectTrack(tracklet))
                                 continue;
 
-                            plane -> GetCPad(iPad);
+                            auto cpad = plane -> GetCPad(iPad);
                             axis1 = plane -> GetAxis1(iPad);
                             axis2 = plane -> GetAxis2(iPad);
-                            //lk_debug << branchName << " " << iPlane << " " << iPad << " " << axis1 << " " << axis2 << endl;
-                            tracklet -> TrajectoryOnPlane(axis1,axis2) -> Draw("samel"); // @todo
+                            auto trajectory2D = (TGraphErrors*) fGraphTrack2DArray -> ConstructedAt(fGraphTrack2DArray->GetEntries());
+                            trajectory2D -> Set(0);
+                            tracklet -> FillTrajectory(trajectory2D,axis1,axis2);
+                            trajectory2D -> SetLineColor(kRed);
+                            SetGraphAtt(trajectory2D,branchName);
+                            trajectory2D -> Draw("samel"); // @todo
                         }
                     }
                 }
