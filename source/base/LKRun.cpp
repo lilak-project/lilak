@@ -1106,6 +1106,24 @@ void LKRun::Run(Long64_t numEvents)
     }
 }
 
+void LKRun::RunOnline()
+{
+    e_cout << endl;
+
+    if (!StartOfRun())
+        return;
+
+    if (fUsingEventTrigger) {
+        fCurrentEventID = -1;
+        fEventTrigger -> RunOnline();
+        LKRun::EndOfRun();
+    }
+    else {
+        lk_error << "RunOnline must run with event trigger" << endl;
+        Terminate(this);
+    }
+}
+
 void LKRun::Run(Long64_t startID, Long64_t endID)
 {
     if (startID > endID || startID < 0 || endID > fNumEntries - 1) {
