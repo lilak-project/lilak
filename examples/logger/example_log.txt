@@ -1,0 +1,36 @@
+
+info> lk_logger(file_name) start logger with "file_name"
+info> lk_set_message(false) turn off all LILAK logger messages
+info> lk_set_plane(true) change all messages into plane style messages except for debug logger
+
+info> lk_set_cout(false)    turn off all e_cout    and lk_cout    messages
+info> lk_set_info(false)    turn off all e_info    and lk_info    messages
+info> lk_set_warning(false) turn off all e_warning and lk_warning messages
+info> lk_set_strong(false)  turn off all e_strong  and lk_strong  messages
+info> lk_set_error(false)   turn off all e_error   and lk_error   messages
+info> lk_set_test(false)    turn off all e_test    and lk_test    messages
+info> lk_set_list(false)    turn off all e_list    and lk_list    messages
+info> lk_set_debug(false)   turn off all e_debug   and lk_debug   messages
+
+e_cout prints with no format
+info> e_info : informative messgae
+warn> e_warning : warning messgae (program do not have to stop)
+error> e_error : error message (program is likely to stop)
+
+   0 e_list(0) : message for list
+   1 e_list(1) : message for list
+   2 e_list(2) : message for list
+   3 e_list(3) : message for list
+...
+
+test> e_test : test message
+LOOK> e_strong : strong message
++50  /home/ejungwoo/lilak/examples/logger/run_logger.C # e_debug and lk_debug print file path and line number
+
+lk_* loggers print out fName and function name
+[name::run_logger] lk_cout
+[name::run_logger] info> lk_info
+[name::run_logger] warn> lk_warning
+[name::run_logger] error> lk_error
+[name::run_logger] test> lk_test
+[name::run_logger] LOOK> lk_strong

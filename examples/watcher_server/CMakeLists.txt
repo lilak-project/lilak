@@ -9,4 +9,4 @@ set(CMAKE_CXX_STANDARD 20)
 
 set(SRCFILES server.cc)
 
-add_executable(watcherServer.exe ${SRCFILES})
+add_executable(watcher_server.exe ${SRCFILES})
