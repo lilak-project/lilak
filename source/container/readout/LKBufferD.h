@@ -5,10 +5,6 @@
 #include "TH1D.h"
 #include "TGraph.h"
 
-/**
- * LKBufferD
- */
-
 class LKBufferD : public TObject
 {
     public:
@@ -51,8 +47,8 @@ class LKBufferD : public TObject
         bool fEmpty = true;
         double fArray[512];
 
-        TH1D *fHist; //!
-        TGraph *fGraph; //!
+        TH1D *fHist = nullptr; //!
+        TGraph *fGraph = nullptr; //!
 
     ClassDef(LKBufferD,1);
 };

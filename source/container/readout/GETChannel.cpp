@@ -45,7 +45,9 @@ void GETChannel::Draw(Option_t *option)
 
 TH1D *GETChannel::GetHist(TString name)
 {
-    auto hist = fBufferRawSig.GetHist();
+    if (name.IsNull())
+        name = Form("hist_GET%d",GetCAAC());
+    auto hist = fBufferRawSig.GetHist(name);
     hist -> SetTitle(Form("%d %d %d %d", fCobo, fAsad, fAget, fChan));
     return hist;
 }

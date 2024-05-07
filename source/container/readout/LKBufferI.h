@@ -47,8 +47,8 @@ class LKBufferI : public TObject
         bool fEmpty = true;
         int fArray[512];
 
-        TH1D *fHist; //!
-        TGraph *fGraph; //!
+        TH1D *fHist = nullptr; //!
+        TGraph *fGraph = nullptr; //!
 
     ClassDef(LKBufferI,1);
 };
