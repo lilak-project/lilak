@@ -124,6 +124,7 @@ class LKHit : public LKContainer
         Int_t GetLayer() const { return fLayer; }
         Int_t GetRow() const { return fRow; }
         Double_t GetSortValue() const { return fSortValue; }
+        Double_t WeightPositionError() const;
 
         TVector3 GetMean()          const { return fHitArray.GetMean();          }
         TVector3 GetVariance()      const { return fHitArray.GetVariance();      }

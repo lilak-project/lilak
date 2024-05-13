@@ -21,25 +21,33 @@ using namespace std;
 class LKHTWeightingFunction
 {
     public:
-        LKHTWeightingFunction() {}
+        LKHTWeightingFunction() {
+            //e_info << "Initializing default LKHTWeightingFunction" << endl;
+        }
         ~LKHTWeightingFunction() {}
         virtual double EvalFromPoints(LKImagePoint* imagePoint, LKParamPointRT* paramPoint) {
             auto distance = paramPoint -> DistanceToImagePoint(0, imagePoint);
             auto error = imagePoint -> GetError();
-            return EvalFromDistance(distance,error,imagePoint->fWeight);
+            return EvalFromDistance(distance,error,imagePoint->fWeightHT);
         }
         virtual double EvalFromDistance(double distance, double error, double pointWeight) { return 1; }
 };
 class LKHoughWFConst : public LKHTWeightingFunction {
     public:
-        LKHoughWFConst() {}
+        LKHoughWFConst() {
+            e_info << "Initializing LKHoughWFConst" << endl;
+            e_info << "  - Hough transform weight is always 1" << endl;
+        }
         ~LKHoughWFConst() {}
         double EvalFromPoints(LKImagePoint* imagePoint, LKParamPointRT* paramPoint) { return 1; }
         double EvalFromDistance(double distance, double error, double pointWeight) { return 1; }
 };
 class LKHoughWFLinear : public LKHTWeightingFunction {
     public:
-        LKHoughWFLinear() {}
+        LKHoughWFLinear() {
+            e_info << "Initializing LKHoughWFLinear" << endl;
+            e_info << "  - Hough transform weight is 1 - (dist/error/2)" << endl;
+        }
         ~LKHoughWFLinear() {}
         double EvalFromDistance(double distance, double error, double pointWeight) {
             double weight = (1 - distance/error/2);
@@ -50,11 +58,27 @@ class LKHoughWFLinear : public LKHTWeightingFunction {
 };
 class LKHoughWFInverse : public LKHTWeightingFunction {
     public:
-        LKHoughWFInverse() {}
+        LKHoughWFInverse() {
+            e_info << "Initializing LKHoughWFInverse" << endl;
+            e_info << "  - Hough transform weight is error/(dist+error)" << endl;
+        }
         ~LKHoughWFInverse() {}
         double EvalFromDistance(double distance, double error, double pointWeight) {
             double weight = (error)/(distance+error);
             return weight;
+        }
+};
+class LKHoughWFGivenWeight : public LKHTWeightingFunction {
+    public:
+        LKHoughWFGivenWeight() {
+            e_info << "Initializing LKHoughWFGivenWeight" << endl;
+            e_info << "  - Hough transform weight is same as given fit weight" << endl;
+            e_info << "  - For LKHit input, weighting is 1./[position-error] (LKHit::WeightPositionError)" << endl;
+            e_info << "  - !!! Please check that hit position error is set !!!" << endl;
+        }
+        ~LKHoughWFGivenWeight() {}
+        virtual double EvalFromPoints(LKImagePoint* imagePoint, LKParamPointRT*) {
+            return imagePoint->fWeightHT;
         }
 };
 
@@ -159,7 +183,7 @@ class LKHoughWFInverse : public LKHTWeightingFunction {
     @code{.cpp}
     {
          auto tracker = new LKHTLineTracker();
-         tracker -> SetTransformCenter(TVector3(0,0,0));
+         tracker -> SetTransformCenter(0,0);
          tracker -> SetImageSpaceRange(120, -150, 150, 120, 0, 500);
          tracker -> SetParamSpaceBins(numBinsR, numBinsT);
          for (...) {
@@ -211,12 +235,12 @@ class LKHTLineTracker : public LKPadInteractive
         void SetImageSpaceRange(int nx, double x1, double x2, int ny, double y1, double y2);
         void SetParamSpaceBins(int nr, int nt);
         void SetParamSpaceRange(int nr, double r2, double r1, int nt, double t1, double t2);
-        void AddImagePoint(double x, double xError, double y, double yError, double weight);
-        void AddImagePointBox(double x1, double y1, double x2, double y2, double weight);
+        void AddImagePoint(double x, double xError, double y, double yError, double weightHT=1, double weightFit=-1);
+        void AddImagePointBox(double x1, double y1, double x2, double y2, double weightHT=1, double weightFit=-1);
         void SetImageData(double** imageData);
         void SetWeightCutTrackFit(double value) { fWeightCutTrackFit = value; }
 
-        void AddHit(LKHit* hit, LKVector3::Axis a1, LKVector3::Axis a2);
+        void AddHit(LKHit* hit, LKVector3::Axis a1, LKVector3::Axis a2, double weightHT=1);
 
         TString GetCorrelatorName() const {
             TString correlatorName;
@@ -251,9 +275,11 @@ class LKHTLineTracker : public LKPadInteractive
         void SetMaxWeightingDistance(double distance) { fMaxWeightingDistance = distance; }
         void SetCutNumTrackHits(double value) { fCutNumTrackHits = value; }
 
-        void SetWFConst()   { fWeightingFunction = new LKHoughWFConst(); }
-        void SetWFLinear()  { fWeightingFunction = new LKHoughWFLinear(); }
-        void SetWFInverse() { fWeightingFunction = new LKHoughWFInverse(); }
+        void SetWFConst()       { fWeightingFunction = new LKHoughWFConst(); }
+        void SetWFLinear()      { fWeightingFunction = new LKHoughWFLinear(); }
+        void SetWFInverse()     { fWeightingFunction = new LKHoughWFInverse(); }
+        void SetWFGivenWeight() { fWeightingFunction = new LKHoughWFGivenWeight(); }
+
         void SetWeightingFunction(LKHTWeightingFunction* wf) { fWeightingFunction = wf; }
 
         LKImagePoint* GetImagePoint(int i);
@@ -278,7 +304,7 @@ class LKHTLineTracker : public LKPadInteractive
         LKParamPointRT* ReinitializeFromLastParamPoint();
         void RetransformFromLastParamPoint();
 
-        TGraphErrors *GetDataGraphImageSapce();
+        TGraphErrors *GetDataGraphImageSpace();
         TGraphErrors *GetSelectedDataGraph(LKParamPointRT* paramPoint);
         TH2D* GetHistImageSpace(TString name="", TString title="");
         TH2D* GetHistParamSpace(TString name="", TString title="");

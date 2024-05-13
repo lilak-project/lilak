@@ -262,6 +262,17 @@ void LKHit::RemoveHit(LKHit *hit)
     fW = fHitArray.GetW();
 }
 
+Double_t LKHit::WeightPositionError() const
+{
+    double position_error = sqrt(fDX*fDX+fDY*fDY+fDZ*fDZ);
+    if (position_error<1.e-10) {
+        e_error << "Position error is " << position_error << " Return weight 1" << endl;
+        return 1.;
+    }
+    double weight = 1./position_error;
+    return weight;
+}
+
 std::vector<Int_t> *LKHit::GetTrackCandArray() { return &fTrackCandArray; }
 Int_t LKHit::GetNumTrackCands() { return fTrackCandArray.size(); }
 Int_t LKHit::GetTrackCand(Int_t id) { return fTrackCandArray.at(id); }

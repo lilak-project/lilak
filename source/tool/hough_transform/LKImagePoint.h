@@ -14,7 +14,7 @@ class LKImagePoint : public TObject
 {
     public:
         LKImagePoint();
-        LKImagePoint(double x1, double y1, double x2, double y2, double w=0);
+        LKImagePoint(double x1, double y1, double x2, double y2, double wh=1, double wf=1);
         virtual ~LKImagePoint() { ; }
 
         void Clear(Option_t *option="");
@@ -27,15 +27,17 @@ class LKImagePoint : public TObject
         double GetY0() const  { return fY0; }
         double GetY1() const  { return fY1; }
         double GetY2() const  { return fY2; }
-        double GetWeight() const  { return fWeight; }
+        double GetWeightHT() const  { return fWeightHT; }
+        double GetWeightFit() const  { return fWeightFit; }
 
         TVector3 GetCenter() const;
         TVector3 GetCorner(int i) const;
 
-        void SetPoint(double x1, double y1, double x2, double y2, double w=0) { SetX(x1,x2); SetY(y1,y2); fWeight = w; }
+        void SetPoint(double x1, double y1, double x2, double y2, double wh=1, double wf=1) { SetX(x1,x2); SetY(y1,y2); fWeightHT = wh; fWeightFit = wf; }
         void SetX(double x1, double x2) { fX0 = .5*(x1+x2); fX1 = x1; fX2 = x2; }
         void SetY(double y1, double y2) { fY0 = .5*(y1+y2); fY1 = y1; fY2 = y2; }
-        void SetWeight(double weight) { fWeight = weight; }
+        void SetWeightHT(double weight) { fWeightHT = weight; }
+        void SetWeightFit(double weight) { fWeightFit = weight; }
 
         double GetCenterX() const;
         double GetCenterY() const;
@@ -52,7 +54,8 @@ class LKImagePoint : public TObject
         double       fY0;
         double       fY1;
         double       fY2;
-        double       fWeight;
+        double       fWeightHT;
+        double       fWeightFit;
 
     ClassDef(LKImagePoint,1);
 };

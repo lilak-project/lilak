@@ -2,6 +2,7 @@
 #include "TObjString.h"
 #include "LKHTLineTracker.h"
 #include "LKWindowManager.h"
+#include "LKGeoBox.h"
 
 ClassImp(LKHTLineTracker);
 
@@ -133,28 +134,28 @@ void LKHTLineTracker::SetCorrelatePointBand()
 {
     fCorrelateType = kCorrelatePointBand;
     if (fWeightingFunction==nullptr)
-        fWeightingFunction = new LKHoughWFConst();
+        LKHoughWFGivenWeight();
 }
 
 void LKHTLineTracker::SetCorrelateBoxLine()
 {
     fCorrelateType = kCorrelateBoxLine;
     if (fWeightingFunction==nullptr)
-        fWeightingFunction = new LKHoughWFConst();
+        LKHoughWFGivenWeight();
 }
 
 void LKHTLineTracker::SetCorrelateBoxRibbon()
 {
     fCorrelateType = kCorrelateBoxRibbon;
     if (fWeightingFunction==nullptr)
-        fWeightingFunction = new LKHoughWFConst();
+        LKHoughWFGivenWeight();
 }
 
 void LKHTLineTracker::SetCorrelateBoxBand()
 {
     fCorrelateType = kCorrelateBoxBand;
     if (fWeightingFunction==nullptr)
-        fWeightingFunction = new LKHoughWFConst();
+        LKHoughWFGivenWeight();
 }
 
 void LKHTLineTracker::SetImageSpaceRange(int nx, double x1, double x2, int ny, double y1, double y2)
@@ -250,7 +251,7 @@ void LKHTLineTracker::SetParamSpaceRange(int nr, double r1, double r2, int nt, d
     fInitializedParamData = true;
 }
 
-void LKHTLineTracker::AddHit(LKHit* hit, LKVector3::Axis a1, LKVector3::Axis a2)
+void LKHTLineTracker::AddHit(LKHit* hit, LKVector3::Axis a1, LKVector3::Axis a2, double weightHT)
 {
     fA1 = a1;
     fA2 = a2;
@@ -258,25 +259,27 @@ void LKHTLineTracker::AddHit(LKHit* hit, LKVector3::Axis a1, LKVector3::Axis a2)
     ++fNumHits;
     auto pos = LKVector3(hit -> GetPosition());
     auto err = LKVector3(hit -> GetDPosition());
-    AddImagePoint(pos.At(fA1), err.At(fA1), pos.At(fA2), err.At(fA2), hit->W());
+    AddImagePoint(pos.At(fA1), err.At(fA1), pos.At(fA2), err.At(fA2), weightHT, hit->WeightPositionError());
 }
 
-void LKHTLineTracker::AddImagePoint(double x, double xError, double y, double yError, double weight)
+void LKHTLineTracker::AddImagePoint(double x, double xError, double y, double yError, double weightHT, double weightFit)
 {
+    if (weightFit<0) weightFit = weightHT;
     double x1 = x-xError;
     double x2 = x+xError;
     double y1 = y-yError;
     double y2 = y+yError;
     auto imagePoint = (LKImagePoint*) fImagePointArray -> ConstructedAt(fNumImagePoints);
-    imagePoint -> SetPoint(x1,y1,x2,y2,weight);
+    imagePoint -> SetPoint(x1,y1,x2,y2,weightHT,weightFit);
     ++fNumImagePoints;
     fProcess = kAddPoints;
 }
 
-void LKHTLineTracker::AddImagePointBox(double x1, double y1, double x2, double y2, double weight)
+void LKHTLineTracker::AddImagePointBox(double x1, double y1, double x2, double y2, double weightHT, double weightFit)
 {
+    if (weightFit<0) weightFit = weightHT;
     auto imagePoint = (LKImagePoint*) fImagePointArray -> ConstructedAt(fNumImagePoints);
-    imagePoint -> SetPoint(x1,y1,x2,y2,weight);
+    imagePoint -> SetPoint(x1,y1,x2,y2,weightHT,weightFit);
     ++fNumImagePoints;
     fProcess = kAddPoints;
 }
@@ -732,12 +735,12 @@ LKLinearTrack* LKHTLineTracker::FitTrackWithParamPoint(LKParamPointRT* paramPoin
     for (int iImage : fSelectedImagePointIdxs) {
         auto imagePoint = GetImagePoint(iImage);
         auto weight = fWeightingFunction -> EvalFromPoints(imagePoint,paramPoint);
-        fLineFitter -> PreAddPoint(imagePoint->fX0,imagePoint->fY0,0,imagePoint->fWeight);
+        fLineFitter -> PreAddPoint(imagePoint->fX0,imagePoint->fY0,0,imagePoint->fWeightFit);
     }
     for (int iImage : fSelectedImagePointIdxs) {
         auto imagePoint = GetImagePoint(iImage);
         auto weight = fWeightingFunction -> EvalFromPoints(imagePoint,paramPoint);
-        fLineFitter -> AddPoint(imagePoint->fX0,imagePoint->fY0,0,imagePoint->fWeight);
+        fLineFitter -> AddPoint(imagePoint->fX0,imagePoint->fY0,0,imagePoint->fWeightFit);
     }
 
     if (fLineFitter->GetNumPoints()<fCutNumTrackHits) {
@@ -789,11 +792,11 @@ LKLinearTrack* LKHTLineTracker::FitTrack3DWithParamPoint(LKParamPointRT* paramPo
     TIter next(fSelectedHitArray);
     LKHit *hit = nullptr;
     while (hit = (LKHit *) next())
-        fLineFitter -> PreAddPoint(hit->X(),hit->Y(),hit->Z(),hit->W());
+        fLineFitter -> PreAddPoint(hit->X(),hit->Y(),hit->Z(),hit->WeightPositionError());
 
     next.Reset();
     while (hit = (LKHit *) next())
-        fLineFitter -> AddPoint(hit->X(),hit->Y(),hit->Z(),hit->W());
+        fLineFitter -> AddPoint(hit->X(),hit->Y(),hit->Z(),hit->WeightPositionError());
 
     if (fLineFitter->GetNumPoints()<fCutNumTrackHits) {
         return track;
@@ -872,18 +875,33 @@ TH2D* LKHTLineTracker::GetHistImageSpace(TString name, TString title)
 {
     if (name.IsNull()) name = "histImageSpace";
     TString correlatorName = GetCorrelatorName();
-    if (title.IsNull()) title = Form("%s (%dx%d), TC (x,y) = (%.2f, %.2f);x;y", correlatorName.Data(), fNumBinsParamSpace[0], fNumBinsParamSpace[1], fTransformCenter[0],fTransformCenter[1]);
-    auto hist = new TH2D(name,title, fNumBinsImageSpace[0],fRangeImageSpace[0][0],fRangeImageSpace[0][1],fNumBinsImageSpace[1],fRangeImageSpace[1][0],fRangeImageSpace[1][1]);
+    if (title.IsNull()) title = Form("%s (%dx%d), TC (x,y) = (%.2f, %.2f);x;y", correlatorName.Data(), fNumBinsParamSpace[0], fNumBinsParamSpace[1], fTransformCenter[0], fTransformCenter[1]);
+
+    bool needNewHistogram = false;
+    if (fHistImage!=nullptr) {
+        if (fHistImage->GetXaxis()->GetNbins()!=fNumBinsImageSpace[0] ) needNewHistogram = true;
+        if (fHistImage->GetXaxis()->GetXmin() !=fRangeImageSpace[0][0]) needNewHistogram = true;
+        if (fHistImage->GetXaxis()->GetXmax() !=fRangeImageSpace[0][1]) needNewHistogram = true;
+        if (fHistImage->GetXaxis()->GetNbins()!=fNumBinsImageSpace[1] ) needNewHistogram = true;
+        if (fHistImage->GetXaxis()->GetXmin() !=fRangeImageSpace[1][0]) needNewHistogram = true;
+        if (fHistImage->GetXaxis()->GetXmax() !=fRangeImageSpace[1][1]) needNewHistogram = true;
+    }
+    else
+        needNewHistogram = true;
+
+    if (needNewHistogram)
+        fHistImage = new TH2D(name,title, fNumBinsImageSpace[0],fRangeImageSpace[0][0],fRangeImageSpace[0][1],fNumBinsImageSpace[1],fRangeImageSpace[1][0],fRangeImageSpace[1][1]);
+
     for (auto iPoint=0; iPoint<fNumImagePoints; ++iPoint) {
         auto imagePoint = (LKImagePoint*) fImagePointArray -> At(iPoint);
-        hist -> Fill(imagePoint->GetCenterX(), imagePoint->GetCenterY(), imagePoint->fWeight);
+        fHistImage -> Fill(imagePoint->GetCenterX(), imagePoint->GetCenterY(), imagePoint->fWeightHT);
     }
-    hist -> GetXaxis() -> SetTitleOffset(1.25);
-    hist -> GetYaxis() -> SetTitleOffset(1.60);
-    return hist;
+    fHistImage -> GetXaxis() -> SetTitleOffset(1.25);
+    fHistImage -> GetYaxis() -> SetTitleOffset(1.60);
+    return fHistImage;
 }
 
-TGraphErrors* LKHTLineTracker::GetDataGraphImageSapce()
+TGraphErrors* LKHTLineTracker::GetDataGraphImageSpace()
 {
     if (fGraphImageData==nullptr) {
         fGraphImageData = new TGraphErrors();
@@ -941,10 +959,14 @@ TH2D* LKHTLineTracker::GetHistParamSpace(TString name, TString title)
     return hist;
 }
 
-void LKHTLineTracker::Draw(TVirtualPad* padImage, TVirtualPad* padParam, LKParamPointRT* paramPoint, TString option)
+void LKHTLineTracker::Draw(TVirtualPad* padImage, TVirtualPad* padParam, LKParamPointRT* paramPoint, TString option) // draw
 {
+    TString optionDefault = "graph:samep:colz";
+    e_info << "LKHTLineTracker::Draw option : \"[image-space is (graph/hist)]:[image-space draw option]:[parameter-space draw option]\"" << endl;
+    e_info << "  Default option is : " << optionDefault << endl;
+    e_info << "  Given option is : " << option << endl;
     if (option.IsNull())
-        option = ":samepx:colz";
+        option = optionDefault;
 
     TString option0,option1="samepx",option2="colz";
 
@@ -965,22 +987,24 @@ void LKHTLineTracker::Draw(TVirtualPad* padImage, TVirtualPad* padParam, LKParam
 
     fPadImage -> cd();
     fHistImage = GetHistImageSpace(Form("histImageSpace_%d",fPadInteractiveID));
-    if (option0.IsNull()) {
+    if (option0=="graph") {
         fHistImage -> Reset();
         fHistImage -> Draw();
-        auto graph = GetDataGraphImageSapce();
+        auto graph = GetDataGraphImageSpace();
         graph -> Draw(option1);
     }
     else {
-        fHistImage -> Draw(option0);
+        fHistImage -> Draw(option1);
     }
 
     fPadParam -> cd();
     fHistParam = GetHistParamSpace(Form("histParamSpace_%d",fPadInteractiveID));
     fHistParam -> Draw(option2);
 
-    if (paramPoint!=nullptr)
+    if (paramPoint!=nullptr) {
         ExecMouseClickEventOnPad(fPadParam,paramPoint->GetT0(),paramPoint->GetR0());
+        ExecMouseClickEventOnPad(fPadImage,fHistImage->GetXaxis()->GetBinCenter(1),fHistImage->GetYaxis()->GetBinCenter(1));
+    }
 }
 
 void LKHTLineTracker::Draw(TString option)
@@ -1039,8 +1063,11 @@ void LKHTLineTracker::ExecMouseClickEventOnPad(TVirtualPad *pad, double xOnClick
         if (fClickedPadImage) return;
         fClickedPadImage = true;
         auto track = FitTrackWithParamPoint(fClickSelectedParamPoint);
+        track -> Print();
         if (fGraphClickFitted!=nullptr)
             fGraphClickFitted -> Set(0);
+        LKGeoBox rangeBox((fRangeImageSpace[0][0]+fRangeImageSpace[0][1])/2., (fRangeImageSpace[1][0]+fRangeImageSpace[1][1])/2, 0, fRangeImageSpace[0][1]-fRangeImageSpace[0][0], fRangeImageSpace[1][1]-fRangeImageSpace[1][0], 100);
+        track -> SetRange(&rangeBox);
         fGraphClickFitted = track -> ProjectionOnPlane(LKVector3::kX,LKVector3::kY);
         //fGraphClickFitted -> SetLineColor(kGreen);
         fGraphClickFitted -> Draw("samel");

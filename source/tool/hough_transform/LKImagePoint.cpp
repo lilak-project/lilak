@@ -7,10 +7,10 @@ LKImagePoint::LKImagePoint()
     Clear();
 }
 
-LKImagePoint::LKImagePoint(double x1, double y1, double x2, double y2, double w)
+LKImagePoint::LKImagePoint(double x1, double y1, double x2, double y2, double wh, double wf)
 {
     Clear();
-    SetPoint(x1,y1,x2,y2,w);
+    SetPoint(x1,y1,x2,y2,wh,wf);
 }
 
 void LKImagePoint::Clear(Option_t *option)
@@ -22,7 +22,8 @@ void LKImagePoint::Clear(Option_t *option)
     fY0 = 0;
     fY1 = 0;
     fY2 = 0;
-    fWeight = 0;
+    fWeightHT = 0;
+    fWeightFit = 0;
 }
 
 void LKImagePoint::Print(Option_t *option) const
@@ -33,7 +34,8 @@ void LKImagePoint::Print(Option_t *option) const
     e_info << "fX2 : " << fX2 << std::endl;
     e_info << "fY1 : " << fY1 << std::endl;
     e_info << "fY2 : " << fY2 << std::endl;
-    e_info << "fWeight : " << fWeight << std::endl;
+    e_info << "fWeightHT : " << fWeightHT << std::endl;
+    e_info << "fWeightFit : " << fWeightFit << std::endl;
 }
 
 void LKImagePoint::Copy(TObject &object) const
@@ -43,7 +45,8 @@ void LKImagePoint::Copy(TObject &object) const
     auto objCopy = (LKImagePoint &) object;
     objCopy.SetX(fX1,fX2);
     objCopy.SetY(fY1,fY2);
-    objCopy.SetWeight(fWeight);
+    objCopy.SetWeightHT(fWeightHT);
+    objCopy.SetWeightFit(fWeightFit);
 }
 
 TVector3 LKImagePoint::GetCorner(int i) const
