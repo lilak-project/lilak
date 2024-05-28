@@ -74,7 +74,7 @@ class LKHoughWFGivenWeight : public LKHTWeightingFunction {
             e_info << "Initializing LKHoughWFGivenWeight" << endl;
             e_info << "  - Hough transform weight is same as given fit weight" << endl;
             e_info << "  - For LKHit input, weighting is 1./[position-error] (LKHit::WeightPositionError)" << endl;
-            e_info << "  - !!! Please check that hit position error is set !!!" << endl;
+            e_info << "  - !!! Please check if hit position error is set !!!" << endl;
         }
         ~LKHoughWFGivenWeight() {}
         virtual double EvalFromPoints(LKImagePoint* imagePoint, LKParamPointRT*) {

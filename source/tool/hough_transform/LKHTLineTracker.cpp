@@ -134,28 +134,28 @@ void LKHTLineTracker::SetCorrelatePointBand()
 {
     fCorrelateType = kCorrelatePointBand;
     if (fWeightingFunction==nullptr)
-        LKHoughWFGivenWeight();
+        SetWFGivenWeight();
 }
 
 void LKHTLineTracker::SetCorrelateBoxLine()
 {
     fCorrelateType = kCorrelateBoxLine;
     if (fWeightingFunction==nullptr)
-        LKHoughWFGivenWeight();
+        SetWFGivenWeight();
 }
 
 void LKHTLineTracker::SetCorrelateBoxRibbon()
 {
     fCorrelateType = kCorrelateBoxRibbon;
     if (fWeightingFunction==nullptr)
-        LKHoughWFGivenWeight();
+        SetWFGivenWeight();
 }
 
 void LKHTLineTracker::SetCorrelateBoxBand()
 {
     fCorrelateType = kCorrelateBoxBand;
     if (fWeightingFunction==nullptr)
-        LKHoughWFGivenWeight();
+        SetWFGivenWeight();
 }
 
 void LKHTLineTracker::SetImageSpaceRange(int nx, double x1, double x2, int ny, double y1, double y2)

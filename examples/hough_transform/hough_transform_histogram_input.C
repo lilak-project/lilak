@@ -36,7 +36,7 @@ void hough_transform_histogram_input()
     tracker -> AddHistogram(hist);
     tracker -> SetParamSpaceBins(50,50);
     tracker -> Transform();
-    tracker -> Draw(cvs->cd(1),cvs->cd(2),"colz::colz");
+    tracker -> Draw(cvs->cd(1),cvs->cd(2),"hist:colz:colz");
 
     e_cout << endl;
     e_info << "Click parameter-space bin to draw band in image-space!" << endl;
