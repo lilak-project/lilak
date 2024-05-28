@@ -47,7 +47,7 @@ TH1D* LKBufferI::GetHist(TString name)
     return fHist;
 }
 
-void LKBufferI::FillHist(TH1D* hist)
+void LKBufferI::FillHist(TH1* hist)
 {
     for (int i=0; i<512; ++i)
         hist -> SetBinContent(i+1,fArray[i]);

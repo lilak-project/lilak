@@ -16,7 +16,7 @@ class LKBufferD : public TObject
 
         void Draw(Option_t *option="");
         virtual void FillGraph(TGraph* graph);
-        virtual void FillHist(TH1D* hist);
+        virtual void FillHist(TH1* hist);
         virtual TGraph* GetGraph();
         virtual TH1D *GetHist(TString name="");
 

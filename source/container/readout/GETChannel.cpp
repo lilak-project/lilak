@@ -52,7 +52,7 @@ TH1D *GETChannel::GetHist(TString name)
     return hist;
 }
 
-void GETChannel::FillHist(TH1D* hist)
+void GETChannel::FillHist(TH1* hist)
 {
     hist -> Reset();
     hist -> SetTitle(Form("%d %d %d %d", fCobo, fAsad, fAget, fChan));
