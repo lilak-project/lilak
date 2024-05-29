@@ -19,10 +19,15 @@ bool LKChannelAnalyzer::Init()
 
 void LKChannelAnalyzer::SetPulse(const char* fileName)
 {
-    fAnalyzerMode = kPulseFittingMode;
-
     fPulseFileName = fileName;
     fPulse = new LKPulse(fPulseFileName);
+    if (fPulse->IsGood()==false) {
+        e_error << "Pulse is not initialized correctly. Using default mode kSigAtMaximumMode" << endl;
+        return;
+    }
+
+    fAnalyzerMode = kPulseFittingMode;
+
     if (fDataIsInverted)
         fPulse -> SetInverted();
 
@@ -149,10 +154,20 @@ void LKChannelAnalyzer::Print(Option_t *option) const
 
 void LKChannelAnalyzer::Draw(Option_t *option)
 {
-    auto legend = new TLegend(0.8, 0.8, 0.98, 0.98);
+    TLegend* legend = nullptr;
 
-    if (fHistBuffer==nullptr)
-        fHistBuffer = new TH1D("hist_chana_buffer",";tb",fTbMax,0,fTbMax);
+    if (fNumHits>0 && GetTbHit(0)>fTbMax/2.)
+        legend = new TLegend(0.15, 0.65, 0.40, 0.90);
+    else
+        legend = new TLegend(0.70, 0.65, 0.95, 0.90);
+
+    if (fHistBuffer==nullptr) {
+        if      (fAnalyzerMode==kPulseFittingMode)   fHistBuffer = new TH1D("hbuffer_PulseAit",";tb",fTbMax,0,fTbMax);
+        else if (fAnalyzerMode==kSigAtMaximumMode)   fHistBuffer = new TH1D("hbuffer_SigAtMax",";tb",fTbMax,0,fTbMax);
+        else if (fAnalyzerMode==kSigAtThresholdMode) fHistBuffer = new TH1D("hbuffer_SigAtThr",";tb",fTbMax,0,fTbMax);
+        else
+            return;
+    }
 
     for (auto tb=0; tb<fTbMax; ++tb)
         fHistBuffer -> SetBinContent(tb+1,fBufferOrigin[tb]);
@@ -174,9 +189,10 @@ void LKChannelAnalyzer::Draw(Option_t *option)
             x2 = x2 - fNumTbSample + fNumTbSampleLast;
         auto line = new TLine(x1,y,x2,y);
         line -> SetLineStyle(2);
-        line -> SetLineColor(kBlack);
+        line -> SetLineColor(kGreen+1);
+        //line -> SetLineColor(kBlack);
         if (fUsedSample[iSample])
-            line -> SetLineStyle(1);
+            line -> SetLineStyle(10);
         line -> Draw("samel");
         if (iSample==0)
             legend -> AddEntry(line,"PD-sample","l");
@@ -226,9 +242,18 @@ TGraphErrors* LKChannelAnalyzer::GetPulseGraph(double tbHit, double amplitude, d
     return (TGraphErrors*) nullptr;
 }
 
+void LKChannelAnalyzer::Analyze(TH1D* hist)
+{
+    double buffer[fTbMax];
+    double *bufferh = hist -> GetArray();
+    for (auto i=0; i<fTbMax; ++i)
+        buffer[i] = bufferh[i+1];
+    Analyze(buffer);
+}
+
 void LKChannelAnalyzer::Analyze(int* data)
 {
-    double buffer[512];
+    double buffer[fTbMax];
     for (auto tb=0; tb<fTbMax; ++tb)
         buffer[tb] = (double)data[tb];
     Analyze(buffer);
@@ -1061,8 +1086,8 @@ TGraphErrors* LKChannelAnalyzer::FillGraphSigAtThreshold(TGraphErrors* graph, do
     graph -> Set(0);
     graph -> SetPoint(0,tb0-5,pedestal);
     graph -> SetPoint(1,tb0  ,pedestal);
-    graph -> SetPoint(2,tb0  ,amplitude+pedestal);
-    graph -> SetPoint(3,tb0+5,amplitude+pedestal);
+    graph -> SetPoint(2,tb0  ,fThreshold+pedestal);
+    graph -> SetPoint(3,tb0+5,fThreshold+pedestal);
     graph -> SetPoint(4,tb0+5,pedestal);
     graph -> SetLineColor(kRed);
     graph -> SetMarkerColor(kRed);

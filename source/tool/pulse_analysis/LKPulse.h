@@ -13,7 +13,6 @@
 class LKPulse : public TObject
 {
     public:
-        LKPulse();
         LKPulse(const char *fileName);
         virtual ~LKPulse() { ; }
 
@@ -53,7 +52,11 @@ class LKPulse : public TObject
 
         void SetInverted() { fInversion = -1; }
 
+        bool IsGood() const { return fPulseIsGood; }
+
     private:
+        bool fPulseIsGood = false;
+
         int fNumPoints = 0;
         TGraphErrors* fGraphPulse = nullptr;
         TGraph*       fGraphError = nullptr;

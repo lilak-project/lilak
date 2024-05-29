@@ -7,14 +7,14 @@ using namespace std;
 
 ClassImp(LKPulse);
 
-LKPulse::LKPulse()
-{
-    ;
-}
-
 LKPulse::LKPulse(const char *fileName)
 {
     auto file = new TFile(fileName);
+    if (file->IsOpen()==false) {
+        e_error << fileName << " is invalid file!" << endl;
+        fPulseIsGood = false;
+        return;
+    }
 
     fGraphPulse = (TGraphErrors *) file -> Get("pulse");
     fGraphError = (TGraph*) file -> Get("error");
@@ -47,6 +47,7 @@ LKPulse::LKPulse(const char *fileName)
             fInversion = 1;
     }
 
+    fPulseIsGood = true;
     file -> Close();
 }
 

@@ -17,7 +17,7 @@ LKPulseAnalyzer::LKPulseAnalyzer(const char* name, const char *path)
 
 bool LKPulseAnalyzer::Init()
 {
-    TString analyzerName = Form("%s/pulseSummary_%s.root",fPath.Data(),fName.Data());
+    TString analyzerName = Form("%s/pulse_summary_%s.root",fPath.Data(),fName.Data());
     analyzerName.ReplaceAll("//","/");
     fFile = new TFile(analyzerName,"recreate");
     fTree = new TTree("pulse","");
@@ -739,7 +739,7 @@ TFile* LKPulseAnalyzer::WriteReferencePulse(int tbOffsetFromHead, int tbOffsetFr
     if (fHistAverage==nullptr)
         return (TFile*) nullptr;
 
-    TString fileName = Form("%s/pulseReference_%s.root",fPath.Data(),fName.Data());
+    TString fileName = Form("%s/pulse_reference_%s.root",fPath.Data(),fName.Data());
     fileName.ReplaceAll("//","/");
     auto file = new TFile(fileName,"recreate");
     e_info << "Writting " << fileName << " (" << fCountGoodChannels << " channels)" << endl;

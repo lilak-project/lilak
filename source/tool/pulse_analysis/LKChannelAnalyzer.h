@@ -178,6 +178,7 @@ class LKChannelAnalyzer : public LKPadInteractive
         double GetNDF(int i) const        { return fFitParameterArray[i].fNDF; }
         double GetWidth(int i) const      { return fFitParameterArray[i].fWidth; }
 
+        void Analyze(TH1D* hist);
         void Analyze(int* data);
         void Analyze(double* data);
         void AnalyzePulseFitting();
