@@ -44,15 +44,15 @@ bool LKPulseAnalyzer::Init()
     //fHistPedestalPry = new TH1D(Form("histPedestalPry_%s",fName.Data()),Form("[%s]  Pedestal preliminary;pedestal;count",fName.Data()),105,0,4200);
     //fHistHeightWidth = new TH2D(Form("histHeightWidth_%s",fName.Data()),Form("[%s];height;width",fName.Data()),210,0,4200,100,0,100);
     //fHistPedestalResidual = new TH1D(Form("histPedestalResidual_%s",fName.Data()),Form("[%s] pedestal residual;y;",fName.Data()),160,-40,40);
-    fHistWidth = new TH1D(Form("histWidth_%s",fName.Data()),"",200,0,200);
-    fHistHeight = new TH1D(Form("histHeight_%s",fName.Data()),"",105,0,4200);
-    fHistPulseTb = new TH1D(Form("histPulseTb_%s",fName.Data()),"",128,0,512);
-    fHistPedestal = new TH1D(Form("histPedestal_%s",fName.Data()),"",200,0,1000);
-    fHistReusedData = new TH1D(Form("histReusedData_%s",fName.Data()),";tb;y",fTbRange2,-100,fTbRange2-100);
-    fHistAccumulate = new TH2D(Form("histAccumulate_%s",fName.Data()),";tb;y",fTbRange2,-100,fTbRange2-100,150,-.25,1.25);
-    fHistPedestalPry = new TH1D(Form("histPedestalPry_%s",fName.Data()),"",105,0,4200);
-    fHistHeightWidth = new TH2D(Form("histHeightWidth_%s",fName.Data()),"",210,0,4200,100,0,100);
-    fHistPedestalResidual = new TH1D(Form("histPedestalResidual_%s",fName.Data()),"",160,-40,40);
+    fHistWidth            = new TH1D(Form("histWidth_%s",fName.Data()),           "Width;",          200,0,200);
+    fHistHeight           = new TH1D(Form("histHeight_%s",fName.Data()),          "Height;",         105,0,4200);
+    fHistPulseTb          = new TH1D(Form("histPulseTb_%s",fName.Data()),         "PulseTb;",        128,0,512);
+    fHistPedestal         = new TH1D(Form("histPedestal_%s",fName.Data()),        "Pedestal;",       200,0,1000);
+    fHistReusedData       = new TH1D(Form("histReusedData_%s",fName.Data()),      "ReusedData;tb;y", fTbRange2,-100,fTbRange2-100);
+    fHistAccumulate       = new TH2D(Form("histAccumulate_%s",fName.Data()),      "Accumulate;tb;y", fTbRange2,-100,fTbRange2-100,150,-.25,1.25);
+    fHistPedestalPry      = new TH1D(Form("histPedestalPry_%s",fName.Data()),     "PedestalPry;",    105,0,4200);
+    fHistHeightWidth      = new TH2D(Form("histHeightWidth_%s",fName.Data()),     "HeightWidth;",    210,0,4200,100,0,100);
+    fHistPedestalResidual = new TH1D(Form("histPedestalResidual_%s",fName.Data()),"PedestalResidual",160,-40,40);
     fHistAccumulate -> SetStats(0);
     Clear();
     return true;
@@ -132,12 +132,15 @@ void LKPulseAnalyzer::AddChannel(int *data, int channelID)
         else if (fPreValue>=fThreshold && fCurValue<fThreshold) {
             fValueIsAboveThreshold = false;
             fHistWidth -> Fill(fCountTbWhileAbove);
-            if (fCountTbWhileAbove>=fPulseWidthAtThresholdMin && fCountTbWhileAbove<fPulseWidthAtThresholdMax)
+            if (fCountTbWhileAbove>=fPulseWidthAtThresholdMin && fCountTbWhileAbove<fPulseWidthAtThresholdMax) {
                 fCountPulse++;
-            else if (fCountTbWhileAbove>fPulseWidthAtThresholdMax)
+            }
+            else if (fCountTbWhileAbove>fPulseWidthAtThresholdMax) {
                 fCountWidePulse++;
-            else
+            }
+            else {
                 fFirstPulseTb = -1;
+            }
         }
         else {
             fPedestalPry += fCurValue;
@@ -183,7 +186,6 @@ void LKPulseAnalyzer::AddChannel(int *data, int channelID)
         if (fFixPedestal>-999) fPedestal = fFixPedestal;
         fHistPedestal -> Fill(fPedestal);
         fPedestalPry = fPedestal;
-
 
         if (fFirstPulseTb>fPulseTbMin && fFirstPulseTb<fPulseTbMax)
         {
@@ -245,9 +247,10 @@ void LKPulseAnalyzer::DumpChannel(Option_t *option)
     ofstream file_out(fileName);
     e_info << fileName << endl;
 
-    if (TString(option)=="raw")
+    if (TString(option)=="raw") {
         for (auto tb=0; tb<fTbRange2; ++tb)
             file_out << fChannelData[tb] << endl;
+    }
     else {
         for (auto tb=0; tb<fTbRange2; ++tb)
             file_out << fChannelData[tb] - fPedestal << endl;
@@ -262,21 +265,26 @@ TFile* LKPulseAnalyzer::WriteTree()
     return fFile;
 }
 
-bool LKPulseAnalyzer::DrawChannel()
+bool LKPulseAnalyzer::DrawChannel(TVirtualPad* pad)
 {
     auto hist = new TH1D(Form("channel_%s_%d",fName.Data(),fCountHistChannel),Form("%s %d;tb;y",fName.Data(),fChannelID),fTbRange2,0,fTbRange2);
     for (auto tb=0; tb<fTbRange2; ++tb)
         hist -> SetBinContent(tb+1,fChannelData[tb]);
 
     bool cvsIsNew = false;
-    if (fCountChannelPad==0) {
-        cvsIsNew = true;
-        fCvsGroup = new TCanvas(Form("cvsGroup_%s_%d",fName.Data(),fCountCvsGroup),"",fWGroup,fHGroup);
-        fCvsGroup -> Divide(fXGroup,fYGroup);
-        fCountCvsGroup++;
-    }
+    if (pad==nullptr)
+    {
+        if (fCountChannelPad==0) {
+            cvsIsNew = true;
+            fCvsGroup = new TCanvas(Form("cvsGroup_%s_%d",fName.Data(),fCountCvsGroup),"",fWGroup,fHGroup);
+            fCvsGroup -> Divide(fXGroup,fYGroup);
+            fCountCvsGroup++;
+        }
 
-    fCvsGroup -> cd(fCountChannelPad+1);
+        fCvsGroup -> cd(fCountChannelPad+1);
+    }
+    else
+        pad -> cd();
 
     if (fIsCollected) {
         double dy = fMaxValue - fPedestal;
@@ -339,7 +347,7 @@ void LKPulseAnalyzer::MakeHistAverage()
 
     for (auto tb=0; tb<fTbRange2; ++tb)
         fHistAverage -> SetBinContent(tb+1,fAverageData[tb]/fCountGoodChannels);
-    fHistAverage -> SetTitle(Form("[%s] %d channels",fName.Data(),fCountGoodChannels));
+    //fHistAverage -> SetTitle(Form("[%s] %d channels",fName.Data(),fCountGoodChannels));
     fHistAverage -> SetStats(0);
 }
 
@@ -404,7 +412,7 @@ TCanvas* LKPulseAnalyzer::DrawAccumulate(TVirtualPad *pad)
     fCvsAccumulate -> SetLogz();
     fHistAccumulate -> SetMinimum(1);
     fHistAccumulate -> Draw("colz");
-    fHistAccumulate -> SetTitle(Form("[%s] %d channels",fName.Data(),fCountGoodChannels));
+    //fHistAccumulate -> SetTitle(Form("[%s] %d channels",fName.Data(),fCountGoodChannels));
 
     {
         GetReferencePulse();
@@ -436,7 +444,7 @@ void LKPulseAnalyzer::MakeAccumulatePY()
         for (auto tBin=1; tBin<=fTbRange2; ++tBin)
         {
             auto hist = fHistAccumulate -> ProjectionY(Form("%s_px_ybin%d",fHistAccumulate->GetName(),tBin), tBin, tBin);
-            hist -> SetTitle(Form("[%s] xbin-%d",fName.Data(),tBin));
+            //hist -> SetTitle(Form("[%s] xbin-%d",fName.Data(),tBin));
             auto mean = hist -> GetMean();
             auto sd = hist -> GetStdDev();
             hist -> GetXaxis() -> SetRangeUser(mean-5*sd, mean+5*sd);
@@ -496,7 +504,7 @@ TCanvas* LKPulseAnalyzer::DrawReference(TVirtualPad *pad)
 
     if (fHistReference==nullptr)
         fHistReference = new TH2D(Form("histReference_%s",fName.Data()),";tb;y",100,0,50,140,-0.2,1.2);
-    fHistReference -> SetTitle(Form("[%s] %d channels",fName.Data(),fCountGoodChannels));
+    //fHistReference -> SetTitle(Form("[%s] %d channels",fName.Data(),fCountGoodChannels));
     fHistReference -> Reset("ICES");
     fHistReference -> SetStats(0);
 
@@ -537,8 +545,8 @@ TGraphErrors *LKPulseAnalyzer::GetReferencePulse(int tbOffsetFromHead, int tbOff
     if (fGraphReference==nullptr)
     {
         fGraphReference = new TGraphErrors();
-        fGraphReference -> Clear();
-        fGraphReference -> Set(0);
+        //fGraphReference -> Clear();
+        //fGraphReference -> Set(0);
         fGraphReference -> SetMarkerStyle(20);
         fGraphReference -> SetMarkerSize(0.4);
 
@@ -560,31 +568,34 @@ TGraphErrors *LKPulseAnalyzer::GetReferencePulse(int tbOffsetFromHead, int tbOff
         fGraphReferenceM100 -> SetMarkerStyle(20);
         fGraphReferenceM100 -> SetMarkerSize(0.4);
 
-        vector<int> idxBG;
-        vector<int> idxAll;
-        //for (auto iPY=20;  iPY<70;  ++iPY) idxBG.push_back(iPY);
-        //for (auto iPY=180; iPY<280; ++iPY) idxBG.push_back(iPY);
-        //for (auto iPY=0;   iPY<20;  ++iPY) idxAll.push_back(iPY);
-        //for (auto iPY=70;  iPY<180; ++iPY) idxAll.push_back(iPY);
-        //for (auto iPY=280; iPY<350; ++iPY) idxAll.push_back(iPY);
-        for (auto iPY=fRefRange1; iPY<fRefRange2; ++iPY) idxBG.push_back(iPY);
-        for (auto iPY=fRefRange3; iPY<fRefRange4; ++iPY) idxBG.push_back(iPY);
-        for (auto iPY=0;          iPY<fRefRange1; ++iPY) idxAll.push_back(iPY);
-        for (auto iPY=fRefRange2; iPY<fRefRange3; ++iPY) idxAll.push_back(iPY);
-        for (auto iPY=fRefRange4; iPY<fTbRange2;  ++iPY) idxAll.push_back(iPY);
-
-        for (auto iPY : idxBG)
+        if (1)
         {
-            auto hist = (TH1D*) fHistArray -> At(iPY);
-            if (fHistYFluctuation==nullptr)
-                fHistYFluctuation = (TH1D*) hist -> Clone(Form("histYFluctuation_%s",fName.Data()));
-            else
-                fHistYFluctuation -> Add(hist);
-        }
+            vector<int> idxBG;
+            vector<int> idxAll;
+            //for (auto iPY=20;  iPY<70;  ++iPY) idxBG.push_back(iPY);
+            //for (auto iPY=180; iPY<280; ++iPY) idxBG.push_back(iPY);
+            //for (auto iPY=0;   iPY<20;  ++iPY) idxAll.push_back(iPY);
+            //for (auto iPY=70;  iPY<180; ++iPY) idxAll.push_back(iPY);
+            //for (auto iPY=280; iPY<350; ++iPY) idxAll.push_back(iPY);
+            for (auto iPY=fRefRange1; iPY<fRefRange2; ++iPY) idxBG.push_back(iPY);
+            for (auto iPY=fRefRange3; iPY<fRefRange4; ++iPY) idxBG.push_back(iPY);
+            for (auto iPY=0;          iPY<fRefRange1; ++iPY) idxAll.push_back(iPY);
+            for (auto iPY=fRefRange2; iPY<fRefRange3; ++iPY) idxAll.push_back(iPY);
+            for (auto iPY=fRefRange4; iPY<fTbRange2;  ++iPY) idxAll.push_back(iPY);
 
-        fBackGroundLevel = fHistPedestal -> GetMean();
-        fBackGroundError = fHistPedestalResidual -> GetStdDev();
-        fFluctuationLevel = fHistYFluctuation -> GetStdDev();
+            for (auto iPY : idxBG)
+            {
+                auto hist = (TH1D*) fHistArray -> At(iPY);
+                if (fHistYFluctuation==nullptr)
+                    fHistYFluctuation = (TH1D*) hist -> Clone(Form("histYFluctuation_%s",fName.Data()));
+                else
+                    fHistYFluctuation -> Add(hist);
+            }
+
+            fBackGroundLevel = fHistPedestal -> GetMean();
+            fBackGroundError = fHistPedestalResidual -> GetStdDev();
+            fFluctuationLevel = fHistYFluctuation -> GetStdDev();
+        }
 
         //if (fTbAtRefFloor2<0)
         {
@@ -602,8 +613,6 @@ TGraphErrors *LKPulseAnalyzer::GetReferencePulse(int tbOffsetFromHead, int tbOff
             auto bin0 = fTbAtRefFloor1;
             auto bin1 = fTbAtRefFloor1 - tbOffsetFromHead;
             auto bin2 = fTbAtRefFloor2 + tbOffsetFromTail;
-            lk_debug << fTbAtRefFloor1 << " " << fTbAtRefFloor2 << endl;
-            lk_debug << bin0 << " " << bin1 << " " << bin2 << endl;
 
             int iPoint = 0;
             double xRef = 0;
@@ -625,8 +634,6 @@ TGraphErrors *LKPulseAnalyzer::GetReferencePulse(int tbOffsetFromHead, int tbOff
             auto bin0 = int(fTbAtRefFloor1) + 100;
             auto bin1 = int(fTbAtRefFloor1) + 100 - tbOffsetFromHead;
             auto bin2 = int(fTbAtRefFloor2) + 100 + tbOffsetFromTail;
-            //lk_debug << fTbAtRefFloor1 << " " << fTbAtRefFloor2 << endl;
-            //lk_debug << bin0 << " " << bin1 << " " << bin2 << endl;
             fPulseRefTbMin = bin1-bin0;
             fPulseRefTbMax = bin2-bin0;
 

@@ -2,7 +2,7 @@
 #define LKCHANNELANALYZER_HH
 
 //#define DEBUG_CHANA_FINDPED
-//#define DEBUG_CHANA_FINDPEAK
+//#define DEBUG_CHANA_FINDPEAK 500
 //#define DEBUG_CHANA_ANALYZE
 //#define DEBUG_CHANA_FITPULSE
 //#define DEBUG_CHANA_FITAMPLITUDE
@@ -161,7 +161,7 @@ class LKChannelAnalyzer : public LKPadInteractive
 
         /// Set pulse function and related parameter from pulse data file created from LKPulseAnalyzer
         void SetSigAtMaximum() { fAnalyzerMode = kSigAtMaximumMode; }
-        void SetSigAtThrshld() { fAnalyzerMode = kSigAtThrshldMode; }
+        void SetSigAtThreshold() { fAnalyzerMode = kSigAtThresholdMode; }
         void SetPulse(const char* fileName);
         LKPulse* GetPulse() const  { return fPulse; }
         TString GetPulseFileName() const { return fPulseFileName; }
@@ -176,12 +176,13 @@ class LKChannelAnalyzer : public LKPadInteractive
         double GetAmplitude(int i) const  { return fFitParameterArray[i].fAmplitude; }
         double GetChi2NDF(int i) const    { return fFitParameterArray[i].fChi2NDF; }
         double GetNDF(int i) const        { return fFitParameterArray[i].fNDF; }
+        double GetWidth(int i) const      { return fFitParameterArray[i].fWidth; }
 
         void Analyze(int* data);
         void Analyze(double* data);
         void AnalyzePulseFitting();
         void AnalyzeSigAtMaximum();
-        void AnalyzeSigAtThrshld();
+        void AnalyzeSigAtThreshold();
 
         /**
          * Find pedestal and subtract it from the buffer.
@@ -231,6 +232,7 @@ class LKChannelAnalyzer : public LKPadInteractive
         double GetScaleTbStep() const { return fScaleTbStep; }
         double GetTbStepCut() const { return fTbStepCut; }
 
+        void SetTbRange(int tbStart, int tbMax) { fTbStart = tbStart; fTbMax = tbMax; }
         void SetTbMax(int tbMax) { fTbMax = tbMax; }
         void SetTbStart(int tbStart) { fTbStart = tbStart; }
         void SetTbStartCut(int tbStartCut) { fTbStartCut = tbStartCut; }
@@ -250,13 +252,13 @@ class LKChannelAnalyzer : public LKPadInteractive
         TGraphErrors* FillPulseGraph       (TGraphErrors* graph, double tb0, double amplitude, double pedestal=0);
         TGraphErrors* FillGraphPulseFitting(TGraphErrors* graph, double tb0, double amplitude, double pedestal=0);
         TGraphErrors* FillGraphSigAtMaximum(TGraphErrors* graph, double tb0, double amplitude, double pedestal=0);
-        TGraphErrors* FillGraphSigAtThrshld(TGraphErrors* graph, double tb0, double amplitude, double pedestal=0);
+        TGraphErrors* FillGraphSigAtThreshold(TGraphErrors* graph, double tb0, double amplitude, double pedestal=0);
 
         TGraph*       GetPedestalGraph    (double tb1=0, double tb2=512);
         TGraphErrors* GetPulseGraph       (double tb0, double amplitude, double pedestal=0);
         TGraphErrors* GetGraphPulseFitting(double tb0, double amplitude, double pedestal=0);
         TGraphErrors* GetGraphSigAtMaximum(double tb0, double amplitude, double pedestal=0);
-        TGraphErrors* GetGraphSigAtThrshld(double tb0, double amplitude, double pedestal=0);
+        TGraphErrors* GetGraphSigAtThreshold(double tb0, double amplitude, double pedestal=0);
 
         void ClearGraphArray() { if (fGraphArray!=nullptr) fGraphArray -> Clear("C"); fNumGraphs = 0; }
 
@@ -271,7 +273,7 @@ class LKChannelAnalyzer : public LKPadInteractive
     private:
         const int    kPulseFittingMode = 1;
         const int    kSigAtMaximumMode = 2;
-        const int    kSigAtThrshldMode = 3;
+        const int    kSigAtThresholdMode = 3;
         int          fAnalyzerMode = kSigAtMaximumMode;
 
         LKPulse*     fPulse = nullptr; ///< Pulse pointer
@@ -334,8 +336,9 @@ class LKChannelAnalyzer : public LKPadInteractive
 #ifdef DEBUG_CHANA_FINDPEAK
     public:
         int fNumGraphFP = 0;
-        TMultiGraph* dMGraphFP = nullptr;
-        TClonesArray* dGraphFPArray = nullptr;
+        TGraph* dGraphA = nullptr; // ascending
+        TMultiGraph* dMGraphFP = nullptr; // find peak multi-graph
+        TClonesArray* dGraphFPArray = nullptr; // find peak graph array
 #endif
 
 #ifdef DEBUG_CHANA_FITPULSE

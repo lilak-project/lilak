@@ -101,10 +101,10 @@
  *       ana -> SetTbRange(0,350);
  *       ana -> SetThreshold(200);
  *       ana -> SetPulseHeightCuts(500,4000);
- *       ana -> SetPulseWidthCuts(20,40);
+ *       ana -> SetPulseWidthCuts(4,20);
  *       ana -> SetPulseTbCuts(100,300);
  *       ana -> SetInvertChannel(false);
- *       ana -> SetFixPedestal(false);
+ *       ana -> SetFixPedestal(0);
  *       ana -> SetPedestalTBRange(20,70,180,280);
  *
  *       for (...) {
@@ -174,7 +174,7 @@ class LKPulseAnalyzer : public TObject
         }
         void SetFixPedestal(double value) { fFixPedestal = value; }
         void SetFloorRatio(double value) { fFloorRatio = value; }
-        void SetPedesetalTBRange(int range1, int range2, int range3, int range4) {
+        void SetPedestalTBRange(int range1, int range2, int range3, int range4) {
             fRefRange1 = range1;
             fRefRange2 = range2;
             fRefRange3 = range3;
@@ -198,6 +198,7 @@ class LKPulseAnalyzer : public TObject
         double GetBackGroundError() const  { return fBackGroundError; }
         double GetFluctuationLevel() const  { return fFluctuationLevel*fYMax; }
 
+        void AddChannel(double *data) { int buffer[512]; for (auto tb=fTbRange1; tb<fTbRange2; ++tb) buffer[tb] = (int)data[tb]; AddChannel(buffer,-1); }
         void AddChannel(int *data) { AddChannel(data,-1); }
         void AddChannel(int *data, int event, int cobo, int asad, int aget, int channel);
         void AddChannel(int *data, int channelID);
@@ -205,7 +206,7 @@ class LKPulseAnalyzer : public TObject
         void DumpChannel(Option_t *option="");
         TFile* WriteTree();
 
-        bool DrawChannel();
+        bool DrawChannel(TVirtualPad* pad=(TVirtualPad*)nullptr);
         void MakeAccumulatePY();
         void MakeHistAverage();
         TCanvas* DrawAverage(TVirtualPad* pad=(TVirtualPad*)nullptr);
@@ -242,7 +243,7 @@ class LKPulseAnalyzer : public TObject
 
         // single channel cuts
         int          fTbRange1 = 0;     ///< All analysis will be using TB range from fTbRange1 to fTbRange2. Must be set with SetTbRange()
-        int          fTbRange2 = 350;   ///< All analysis will be using TB range from fTbRange1 to fTbRange2. Must be set with SetTbRange()
+        int          fTbRange2 = 512;   ///< All analysis will be using TB range from fTbRange1 to fTbRange2. Must be set with SetTbRange()
         int          fYMax = 4096;      ///< Maximum dynamic range, maximum y value. Must be set with SetYMax()
         int          fThreshold = 1000; ///< [1st cut] Pulse heigth from pedestal should be larger than this value to proceed next cut, comparing pulse width. Must be set with SetThreshold()
         int          fPulseWidthAtThresholdMin = 4;  ///< [2nd cut] Pulse width at threshold should be between fPulseWidthAtThresholdMin and fPulseWidthAtThresholdMax to proceed to next cut. 
