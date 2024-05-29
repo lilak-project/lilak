@@ -262,7 +262,7 @@ void LKRun::Print(Option_t *option) const
         TIter next(fTasks);
         TTask *task;
         while((task=(TTask*)next()))
-            lk_debug << task->ClassName() << endl;
+            lk_info << task->ClassName() << endl;
     }
 
     if (printDetectors) {

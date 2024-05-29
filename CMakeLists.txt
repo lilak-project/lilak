@@ -146,7 +146,7 @@ if(BUILD_GEANT4_SIM)
 endif(BUILD_GEANT4_SIM)
 
 foreach(_directory ${LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF})
-    message(STATUS "source    directory : " ${_directory})
+    message(STATUS "source directory : " ${_directory})
     include_directories(${_directory})
     string(REPLACE / _ _name ${_directory})
     list(APPEND LILAK_SOURCE_NAME_LIST_X ${_name})

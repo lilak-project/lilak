@@ -112,6 +112,7 @@ def input_options(options,question="Type option number(s) to Add. Type <Enter> i
             print(f"    {idxalp}) {key}")
     return list_chosen_key
 
+first_lilak_configuration = False
 if os.path.exists(build_option_file_name):
     with open(build_option_file_name, "r") as f:
         for line in f:
@@ -132,96 +133,101 @@ if os.path.exists(build_option_file_name):
                 if line.find("#")>0:
                     line, comment = line[:line.find("#")].strip(), line[line.find("#")+1:].strip()
                 project_list.append(line)
+else:
+    first_lilak_configuration = True
 
 confirm = 0
 while True:
 ### Loading configuration
-    print_h("Loading configuration from", build_option_file_name)
-    print()
-    for key, value in build_options.items():
-        print(f"   {key} = {value}")
-    print()
-    print_project_list()
-    print()
-    if confirm==0:
-        confirm = input_e0("Use above options? <Enter/0>: ")
+    if first_lilak_configuration:
+        print_h("First LILAK configuration!")
+    else:
+        print_h("Loading configuration from", build_option_file_name)
+        print()
+        for key, value in build_options.items():
+            print(f"   {key} = {value}")
+        print()
+        print_project_list()
+        print()
+        if confirm==0:
+            confirm = input_e0("Use above options? <Enter/0>: ")
 ### using previous build options
-    if confirm==1:
-        print()
-        print("saving options to", build_option_file_name)
-        with open(build_option_file_name, "w") as f:
-            for key, value in build_options.items():
-                vonoff = "ON" if value==1 else "OFF"
-                f.write(f"set({key} {vonoff} CACHE INTERNAL \"\")\n")
-            project_all = ""
+        if confirm==1:
+            print()
+            print("saving options to", build_option_file_name)
+            with open(build_option_file_name, "w") as f:
+                for key, value in build_options.items():
+                    vonoff = "ON" if value==1 else "OFF"
+                    f.write(f"set({key} {vonoff} CACHE INTERNAL \"\")\n")
+                project_all = ""
+                for project_name in project_list:
+                    project_all = project_all+'\n    '+project_name
+                f.write("\nset(LILAK_PROJECT_LIST ${LILAK_PROJECT_LIST}")
+                f.write(f"{project_all}")
+                f.write('\n    CACHE INTERNAL ""\n)')
+                f.write(f'\n\nset(GRUDIR {GRU_dir} CACHE INTERNAL "")')
+                f.write(f'\nset(GETDIR {GET_dir} CACHE INTERNAL "")')
+                if main_project!="lilak":
+                    f.write(f'\n\nset(LILAK_PROJECT_MAIN {main_project} CACHE INTERNAL "")')
+
+            top_common_dir = f"{lilak_path}/common/"
+            print()
+            for item in os.listdir(top_common_dir):
+                item_path = os.path.join(top_common_dir, item)
+                if os.path.islink(item_path):
+                    #print(f"Removing existing link: {item_path}")
+                    os.remove(item_path)
             for project_name in project_list:
-                project_all = project_all+'\n    '+project_name
-            f.write("\nset(LILAK_PROJECT_LIST ${LILAK_PROJECT_LIST}")
-            f.write(f"{project_all}")
-            f.write('\n    CACHE INTERNAL ""\n)')
-            f.write(f'\n\nset(GRUDIR {GRU_dir} CACHE INTERNAL "")')
-            f.write(f'\nset(GETDIR {GET_dir} CACHE INTERNAL "")')
-            if main_project!="lilak":
-                f.write(f'\n\nset(LILAK_PROJECT_MAIN {main_project} CACHE INTERNAL "")')
+                projct_path = os.path.join(lilak_path,project_name)
+                ls_directory = os.listdir(projct_path)
+                if "common" in ls_directory:
+                    proj_common_dir = f"{projct_path}/common/"
+                    ls_proj_common = os.listdir(proj_common_dir)
+                    for file1 in sorted(os.listdir(proj_common_dir)):
+                        src_file = os.path.join(proj_common_dir, file1)
+                        dest_link = os.path.join(top_common_dir, file1)
+                        if os.path.exists(dest_link) or os.path.islink(dest_link):
+                            print(f"link already exists: {dest_link}")
+                            continue
+                        else:
+                            print(f"linking {dest_link}")
+                            os.symlink(src_file, dest_link)
+                            #print(f"Link created for {src_file} -> {dest_link}")
+            print()
+            for project_name in project_list:
+                projct_path = os.path.join(lilak_path,project_name)
+                project_cmake_file_name = os.path.join(projct_path, "CMakeLists.txt")
+                with open(project_cmake_file_name, "w") as f:
+                    print("creating", project_cmake_file_name)
+                    ls_project = os.listdir(project_name)
+                    f.write("set(LILAK_SOURCE_DIRECTORY_LIST ${LILAK_SOURCE_DIRECTORY_LIST}\n")
+                    for directory_name in ls_project:
+                        if directory_name in list_prj_subdir_link:
+                            f.write("    ${CMAKE_CURRENT_SOURCE_DIR}/"+directory_name+"\n")
+                    f.write('    CACHE INTERNAL ""\n)\n\n')
 
-        top_common_dir = f"{lilak_path}/common/"
-        print()
-        for item in os.listdir(top_common_dir):
-            item_path = os.path.join(top_common_dir, item)
-            if os.path.islink(item_path):
-                #print(f"Removing existing link: {item_path}")
-                os.remove(item_path)
-        for project_name in project_list:
-            projct_path = os.path.join(lilak_path,project_name)
-            ls_directory = os.listdir(projct_path)
-            if "common" in ls_directory:
-                proj_common_dir = f"{projct_path}/common/"
-                ls_proj_common = os.listdir(proj_common_dir)
-                for file1 in sorted(os.listdir(proj_common_dir)):
-                    src_file = os.path.join(proj_common_dir, file1)
-                    dest_link = os.path.join(top_common_dir, file1)
-                    if os.path.exists(dest_link) or os.path.islink(dest_link):
-                        print(f"link already exists: {dest_link}")
-                        continue
-                    else:
-                        print(f"linking {dest_link}")
-                        os.symlink(src_file, dest_link)
-                        #print(f"Link created for {src_file} -> {dest_link}")
-        print()
-        for project_name in project_list:
-            projct_path = os.path.join(lilak_path,project_name)
-            project_cmake_file_name = os.path.join(projct_path, "CMakeLists.txt")
-            with open(project_cmake_file_name, "w") as f:
-                print("creating", project_cmake_file_name)
-                ls_project = os.listdir(project_name)
-                f.write("set(LILAK_SOURCE_DIRECTORY_LIST ${LILAK_SOURCE_DIRECTORY_LIST}\n")
-                for directory_name in ls_project:
-                    if directory_name in list_prj_subdir_link:
-                        f.write("    ${CMAKE_CURRENT_SOURCE_DIR}/"+directory_name+"\n")
-                f.write('    CACHE INTERNAL ""\n)\n\n')
+                    f.write("set(LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF ${LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF}\n")
 
-                f.write("set(LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF ${LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF}\n")
+                    for directory_name in ls_project:
+                        if directory_name in list_prj_subdir_xlink:
+                            f.write("    ${CMAKE_CURRENT_SOURCE_DIR}/"+directory_name+"\n")
+                            break
+                    f.write('    CACHE INTERNAL ""\n)\n\n')
 
-                for directory_name in ls_project:
-                    if directory_name in list_prj_subdir_xlink:
-                        f.write("    ${CMAKE_CURRENT_SOURCE_DIR}/"+directory_name+"\n")
-                        break
-                f.write('    CACHE INTERNAL ""\n)\n\n')
+                    for directory_name in ls_project:
+                        if directory_name in list_sub_packages:
+                            f.write("set(LILAK_"+directory_name.upper()+"_SOURCE_DIRECDTORY_LIST ${LILAK_"+directory_name.upper()+"_SOURCE_DIRECDTORY_LIST}\n")
+                            f.write("    ${CMAKE_CURRENT_SOURCE_DIR}/"+directory_name+"\n")
+                            f.write('    CACHE INTERNAL ""\n)\n\n')
 
-                for directory_name in ls_project:
-                    if directory_name in list_sub_packages:
-                        f.write("set(LILAK_"+directory_name.upper()+"_SOURCE_DIRECDTORY_LIST ${LILAK_"+directory_name.upper()+"_SOURCE_DIRECDTORY_LIST}\n")
-                        f.write("    ${CMAKE_CURRENT_SOURCE_DIR}/"+directory_name+"\n")
-                        f.write('    CACHE INTERNAL ""\n)\n\n')
-
-                # executables
-                f.write("""file(GLOB MACROS_FOR_EXECUTABLE_PROCESS ${CMAKE_CURRENT_SOURCE_DIR}/macros*/*.cc)
+                    # executables
+                    f.write("""file(GLOB MACROS_FOR_EXECUTABLE_PROCESS ${CMAKE_CURRENT_SOURCE_DIR}/macros*/*.cc)
 
 set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
     ${MACROS_FOR_EXECUTABLE_PROCESS}
     CACHE INTERNAL ""
 )""")
-        break
+            break
 
 ### for new build options
     print_h("Build options")
@@ -274,7 +280,7 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
         break
 
 ### main project
-    if True:
+    if False:
         print_h("Select main project")
         print()
         main_project = "lilak"
@@ -300,6 +306,7 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
             else:
                 print(f"Project must be one in the list!")
     confirm = 1
+    first_lilak_configuration = False
 
 
 print_h("Building lilak")
