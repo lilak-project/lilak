@@ -18,7 +18,7 @@ LKDetector::LKDetector(const char *name, const char *title)
 
 void LKDetector::Print(Option_t *) const
 {
-    lk_info << fTitle << endl;
+    lk_info << fName << " " << fTitle << endl;
     for (auto iPlane = 0; iPlane < fNumPlanes; ++iPlane) {
         auto plane = (LKDetectorPlane *) fDetectorPlaneArray -> At(iPlane);
         plane -> Print();
@@ -27,18 +27,19 @@ void LKDetector::Print(Option_t *) const
 
 bool LKDetector::Init()
 {
-    fPar -> UpdatePar(fX1,"LKDetector/x1  -50  # effective range x min.");
-    fPar -> UpdatePar(fX2,"LKDetector/x2  +50  # effective range x max.");
-    fPar -> UpdatePar(fY1,"LKDetector/y1  -50  # effective range y min.");
-    fPar -> UpdatePar(fY2,"LKDetector/y2  +50  # effective range y max.");
-    fPar -> UpdatePar(fZ1,"LKDetector/z1  -50  # effective range z min.");
-    fPar -> UpdatePar(fZ2,"LKDetector/z2  +50  # effective range z max.");
+    fPar -> UpdateBinning(fName+"/binning_x  64,  -128, -128  # binning, range throuh x-axis", fNX, fX1, fX2);
+    fPar -> UpdateBinning(fName+"/binning_y  512, 0,    -512  # binning, range throuh y-axis", fNY, fY2, fY1);
+    fPar -> UpdateBinning(fName+"/binning_z  72,  0,     288  # binning, range throuh z-axis", fNZ, fZ1, fZ2);
 
     BuildDetectorPlane();
     for (auto iPlane = 0; iPlane < fNumPlanes; ++iPlane) {
         auto plane = (LKDetectorPlane *) fDetectorPlaneArray -> At(iPlane);
         plane -> SetPar(fPar);
-        plane -> Init();
+        bool planeIsInitialized = plane -> Init();
+        if (planeIsInitialized==false) {
+            lk_error << "Error while initializing " << plane -> GetName() << endl;
+            return false;
+        }
     }
     return true;
 }
@@ -60,6 +61,7 @@ void LKDetector::AddPlane(LKDetectorPlane *plane, Int_t planeID)
     plane -> SetPar(fPar);
     plane -> SetRank(fRank+1);
     plane -> SetDetector(this);
+    plane -> SetDetectorName(fName);
     if (fRun!=nullptr)
         plane -> SetRun(fRun);
     fDetectorPlaneArray -> Add(plane);
@@ -105,6 +107,13 @@ void LKDetector::SetRun(LKRun *run)
         auto plane = (LKDetectorPlane *) fDetectorPlaneArray -> At(iPlane);
         plane -> SetRun(run);
     }
+}
+
+bool LKDetector::IsInBoundary(Double_t x, Double_t y, Double_t z)
+{
+    if (x>=fX1 && x<=fX2 && y>=fY1 && y<=fY2 && z>=fZ1 && z<=fZ2)
+        return true;
+    return false;
 }
 
 bool LKDetector::GetEffectiveDimension(Double_t &x1, Double_t &y1, Double_t &z1, Double_t &x2, Double_t &y2, Double_t &z2)

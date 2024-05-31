@@ -30,7 +30,7 @@ class LKDetector : public TNamed, public LKGear
         void SetGeoManager(TGeoManager *);
         void SetTransparency(Int_t transparency);
 
-        virtual bool IsInBoundary(Double_t x, Double_t y, Double_t z) { return true; }
+        virtual bool IsInBoundary(Double_t x, Double_t y, Double_t z);
 
         void AddPlane(LKDetectorPlane *plane, Int_t planeID=0);
         Int_t GetNumPlanes();
@@ -46,8 +46,8 @@ class LKDetector : public TNamed, public LKGear
         virtual LKChannelAnalyzer* GetChannelAnalyzer(int id=0);
 
     protected:
-        virtual bool BuildGeometry() { return true; }
-        virtual bool BuildDetectorPlane() { return true; }
+        virtual bool BuildGeometry() { return false; }
+        virtual bool BuildDetectorPlane() { return false; }
 
         TGeoManager *fGeoManager = nullptr;
 
@@ -58,12 +58,18 @@ class LKDetector : public TNamed, public LKGear
 
         LKChannelAnalyzer* fChannelAnalyzer0 = nullptr;
 
+        int fNX;
         double fX1;
         double fX2;
-        double fY1;
+
+        int fNY;
         double fY2;
+        double fY1;
+
+        int fNZ;
         double fZ1;
         double fZ2;
+
 
     ClassDef(LKDetector, 1)
 };

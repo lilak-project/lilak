@@ -49,7 +49,9 @@ bool LKDetectorSystem::Init()
     LKDetector *detector;
     while ((detector = (LKDetector *) next())) {
         SetDetector(detector);
-        detector -> Init();
+        bool detIsInitialized = detector -> Init();
+        if (detIsInitialized==false)
+            return false;
         title = title + ", " + detector -> GetName();
     }
     top = fGeoManager -> GetTopVolume();

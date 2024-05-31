@@ -11,19 +11,17 @@ ClassImp(LKEvePlane)
 LKEvePlane::LKEvePlane()
 : LKDetectorPlane("LKEvePlane","")
 {
-    fName = "LKEvePlane";
+}
 
+LKEvePlane::LKEvePlane(const char *name, const char *title)
+: LKDetectorPlane(name,title)
+{
     fAxis1 = LKVector3::kZ;
     fAxis2 = LKVector3::kX;
     fAxis3 = LKVector3::kY;
     fAxisDrift = LKVector3::kY;
 
     fChannelAnalyzer = nullptr;
-}
-
-LKEvePlane::LKEvePlane(const char *name, const char *title)
-: LKDetectorPlane(name,title)
-{
     fGSelEventDisplay1 = new TGraph();
     fGSelEventDisplay1 -> SetLineColor(kRed);
     fGSelEventDisplay2 = new TGraph();
@@ -36,12 +34,12 @@ LKChannelAnalyzer* LKEvePlane::GetChannelAnalyzer(int id)
     {
         fChannelAnalyzer = new LKChannelAnalyzer();
         double threshold = 300;
-        fPar -> UpdatePar(threshold,"LKEvePlane/Threshold  300  # threshold for default peak finding method");
+        fPar -> UpdatePar(threshold,fName+"/EveThreshold  300  # threshold for default peak finding method");
         fChannelAnalyzer -> SetThreshold(threshold);
         fChannelAnalyzer -> Print();
     }
 
-    fPar -> UpdatePar(fFillOptionSelected,"LKEvePlane/fillOption hit");
+    fPar -> UpdatePar(fFillOptionSelected,fName+"/fillOption hit");
     fFillOptionSelected.ToLower();
 
     return fChannelAnalyzer;
@@ -61,7 +59,7 @@ bool LKEvePlane::Init()
 {
     GetChannelAnalyzer();
 
-    fPar -> UpdatePar(fSavePath,"LKEvePlane/FigurePath .");
+    fPar -> UpdatePar(fSavePath,fName+"/FigurePath .");
 
     fPosition = 0;
     fTbToLength = 1;
@@ -103,6 +101,8 @@ void LKEvePlane::Draw(Option_t *option)
         fillOption = optionString(0,ic);
         fEventDisplayDrawOption = optionString(ic+1,optionString.Sizeof()-ic-2);
     }
+    lk_info << "Fill option is " << fillOption << endl;
+    lk_info << "Eve draw option is " << fEventDisplayDrawOption << endl;
 
     GetCanvas();
     GetHist();
@@ -788,9 +788,9 @@ void LKEvePlane::FillDataToHistEventDisplay1(Option_t *option)
             auto pos = hit -> GetPosition(fAxisDrift);
             auto i = pos.I();
             auto j = pos.J();
-            //if (1) j = hit -> GetTb();
             auto energy = hit -> GetCharge();
             fHistEventDisplay1 -> Fill(i,j,energy);
+            //lk_debug << i << " " << j << " " << energy << endl;
         }
     }
     else if (optionString.Index("preview")==0)
@@ -932,15 +932,18 @@ void LKEvePlane::ClickedControlEvent1(int selectedBin)
             Long64_t testEventTo = currentEventID + 50;
             if ((selectedBin==fBinCtrlNe50 && (currentEventID+50>lastEventID)) || (selectedBin==fBinCtrlLast))
                 testEventTo = lastEventID;
+            //testEventTo = 2;
             lk_info << "Accumulating events: " << currentEventID+1 << " - " << testEventTo << " (" << testEventTo-currentEventID << ")" << endl;
             for (Long64_t eventID=currentEventID+1; eventID<=testEventTo; ++eventID) {
                 fRun -> GetEvent(eventID);
                 SetDataFromBranch();
                 FillDataToHist();
-                fAccumulateEvent2 = fRun -> GetCurrentEventID();
                 ++fAccumulateEvents;
             }
+            fAccumulateEvent2 = fRun -> GetCurrentEventID();
         }
+        UpdateEventDisplay1();
+        UpdateEventDisplay2();
     }
     else
     {
@@ -1094,7 +1097,7 @@ void LKEvePlane::ClickedControlEvent2(int selectedBin)
         else {
             fAccumulateEvents = 1;
             fAccumulateEvent1 = currentEventID;
-            fAccumulateEvent2 = currentEventID;
+            fAccumulateEvent2 = lastEventID;
         }
         fHistControlEvent2 -> SetBinContent(fBinCtrlAcmltEv, fAccumulateEvents);
     }
@@ -1329,14 +1332,17 @@ void LKEvePlane::SetPalette()
 
     if (fHistControlEvent2!=nullptr)
     {
+        auto numEvents = 100;
+        if (fRun!=nullptr)
+            numEvents = fRun -> GetNumEvents();
         fHistControlEvent2 -> SetBinContent(fBinCtrlPalette, fPaletteNumber);
         if (fPaletteNumber==0) {
             fHistControlEvent2 -> SetMaximum(20);
-            fHistControlEvent1 -> SetMaximum(2*fRun->GetNumEvents());
+            fHistControlEvent1 -> SetMaximum(2*numEvents);
         }
         else {
             fHistControlEvent2 -> SetMaximum(2);
-            fHistControlEvent1 -> SetMaximum(fRun->GetNumEvents());
+            fHistControlEvent1 -> SetMaximum(numEvents);
         }
     }
 }

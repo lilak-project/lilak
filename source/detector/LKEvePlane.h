@@ -31,7 +31,7 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         virtual TPad *GetCPad(int iPad) { return (TPad*) GetCanvas() -> cd(iPad+1); } ///< For grabbing inner pads of canvas
 
         virtual double PadDisplacement() const { return 4; } ///< Return average pad displacement to each other
-        virtual bool IsInBoundary(double i, double j) { return true; } ///< Implementation recommanded. Return if position (i,j) is inside the effective detector plane boundary TODO
+        virtual bool IsInBoundary(double i, double j) { return false; } ///< Implementation recommanded. Return if position (i,j) is inside the effective detector plane boundary TODO
         virtual TVector3 GlobalToLocalAxis(TVector3 posGlobal) { return TVector3(); } ///< Implementation recommanded. Convert global position to local detector plane position TODO
         virtual TVector3 LocalToGlobalAxis(TVector3 posLocal) { return TVector3(); } ///< Implementation recommanded. Convert local position to global detector plane position TODO
 
@@ -125,7 +125,7 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         int fBinCtrlSavePng;
         int fBinCtrlSaveRoo;
 
-        TString fFillOptionSelected = "preview";
+        TString fFillOptionSelected = "";
         const TString kFillZero = "";
         const TString kFillCobo = "cobo";
         const TString kFillAsad = "asad";

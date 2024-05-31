@@ -27,6 +27,7 @@ class LKDetectorPlane : public TNamed, public LKGear
     protected:
         LKDetector *fDetector = nullptr;
         LKChannelAnalyzer* fChannelAnalyzer = nullptr;
+        TString fDetName;
 
         int fPlaneID = -1; ///< Detector plane id
         axis_t fAxis1 = LKVector3::kNon; ///< Axis-1 lying in plane. Must be set by input parameter.
@@ -53,6 +54,7 @@ class LKDetectorPlane : public TNamed, public LKGear
         virtual ~LKDetectorPlane() {};
 
         void SetDetector(LKDetector *detector) { fDetector = detector; }
+        void SetDetectorName(TString name) { fDetName = name; }
         void SetPlaneID(int id) { fPlaneID = id; }
         int GetPlaneID() const { return fPlaneID; }
         virtual LKChannelAnalyzer* GetChannelAnalyzer(int id=0);
@@ -107,6 +109,7 @@ class LKDetectorPlane : public TNamed, public LKGear
         /// Implementation recommanded.
         /// return drift length
         virtual double DriftElectronBack(double tb);
+        virtual TVector3 GetPositionError(int padID) { return TVector3(1,1,1); }
 
 
     public:
