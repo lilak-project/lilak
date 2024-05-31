@@ -81,6 +81,8 @@ class LKHit : public LKContainer
         void SetAlpha(Double_t a) { fAlpha = a; }
         void SetPositionError(TVector3 dpos) { fDX = dpos.X(); fDY = dpos.Y(); fDZ = dpos.Z(); }
         void SetPositionError(Double_t dx, Double_t dy, Double_t dz) { fDX = dx; fDY = dy; fDZ = dz; }
+        void SetPosError(TVector3 dpos) { SetPositionError(dpos); }
+        void SetPosError(Double_t dx, Double_t dy, Double_t dz) { SetPositionError(dx, dy, dz); }
         void SetXError(Double_t dx) { fDX = dx; }
         void SetYError(Double_t dy) { fDY = dy; }
         void SetZError(Double_t dz) { fDZ = dz; }

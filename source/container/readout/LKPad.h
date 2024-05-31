@@ -43,6 +43,8 @@ class LKPad : public GETChannel
         void SetPlaneID(int id) { fPlaneID = id; }
         void SetPosition(LKVector3 pos) { fPosition = pos; }
         void SetPosition(double i, double j) { fPosition.SetI(i); fPosition.SetJ(j); }
+        void SetPosError(LKVector3 err) { fPosError = err; }
+        void SetPosError(double i, double j) { fPosError.SetI(i); fPosError.SetJ(j); }
         void SetSectionLayerRow(int section, int layer, int row) { fSection = section; fLayer = layer; fRow = row; }
         void SetSection(int section) { fSection = section; }
         void SetLayer(int layer) { fLayer = layer; }
@@ -58,6 +60,13 @@ class LKPad : public GETChannel
         double GetX() const { return fPosition.X(); }
         double GetY() const { return fPosition.Y(); }
         double GetZ() const { return fPosition.Z(); }
+        LKVector3 GetPosError() const { return fPosError; }
+        double GetIError() const { return fPosError.I(); }
+        double GetJError() const { return fPosError.J(); }
+        double GetKError() const { return fPosError.K(); }
+        double GetXError() const { return fPosError.X(); }
+        double GetYError() const { return fPosError.Y(); }
+        double GetZError() const { return fPosError.Z(); }
         int GetSection() const { return fSection; }
         int GetLayer() const { return fLayer; }
         int GetRow() const { return fRow; }
@@ -95,6 +104,7 @@ class LKPad : public GETChannel
         int      fDataIndex = 1;
 
         LKVector3 fPosition = LKVector3(LKVector3::kZ);
+        LKVector3 fPosError = LKVector3(LKVector3::kZ);
         vector<TVector2> fPadCorners;
 
         double  fSortValue = -1; //!
