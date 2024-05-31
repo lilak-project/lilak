@@ -13,11 +13,11 @@ bool LKHTTrackingTask::Init()
 {
     lk_info << "Initializing LKHTTrackingTask" << std::endl;
 
-    fPar -> UpdateBinning("LKHTTrackingTask/x_binning  #100 -100 100", fNX, fX1, fX2);
-    fPar -> UpdateBinning("LKHTTrackingTask/y_binning  #100 -100 100", fNY, fY1, fY2);
-    fPar -> UpdateBinning("LKHTTrackingTask/z_binning  #100 -100 100", fNZ, fZ1, fZ2);
-    fPar -> UpdateBinning("LKHTTrackingTask/r_binning  #100  0 0  # 0 0 will set range automatically", fNR, fR1, fR2);
-    fPar -> UpdateBinning("LKHTTrackingTask/t_binning  #100  0 0  # 0 0 will set range automatically", fNT, fT1, fT2);
+    fPar -> UpdateBinning("LKHTTrackingTask/binning_x  #100 -100 100", fNX, fX1, fX2);
+    fPar -> UpdateBinning("LKHTTrackingTask/binning_y  #100 -100 100", fNY, fY1, fY2);
+    fPar -> UpdateBinning("LKHTTrackingTask/binning_z  #100 -100 100", fNZ, fZ1, fZ2);
+    fPar -> UpdateBinning("LKHTTrackingTask/binning_r  #100  0 0  # 0 0 will set range automatically", fNR, fR1, fR2);
+    fPar -> UpdateBinning("LKHTTrackingTask/binning_t  #100  0 0  # 0 0 will set range automatically", fNT, fT1, fT2);
     if (fPar -> CheckPar("LKHTTrackingTask/transform_center  0 0 0"))
         fPar -> UpdateV3("LKHTTrackingTask/transform_center  0 0 0", fTCX, fTCY, fTCZ);
     else {

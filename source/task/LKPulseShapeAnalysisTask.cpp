@@ -84,9 +84,12 @@ void LKPulseShapeAnalysisTask::Exec(Option_t *option)
 
             if (fUsingDetectorPlane&&padID>=0) {
                 TVector3 posReco;
+                TVector3 posError;
                 double driftLengthDummy;
                 fDetectorPlane -> DriftElectronBack(padID, tb, posReco, driftLengthDummy);
+                posError = fDetectorPlane -> GetPositionError(padID);
                 hit -> SetPosition(posReco);
+                hit -> SetPositionError(posError);
             }
 
             countHits++;
