@@ -20,6 +20,9 @@ class LKParameter : public TNamed
         virtual void Clear(Option_t *option = "");
         virtual void Print(Option_t *option = "") const;
 
+        virtual Bool_t IsSortable() const { return true; }
+        virtual Int_t Compare(const TObject *obj) const;
+
         void SetLineComment(TString comment);
         void SetPar(TString name, TString raw, TString value, TString comment, int parameterType);
         void SetValue(TString value);

@@ -72,7 +72,7 @@ void LKParameterContainer::SaveAs(const char *fileName, Option_t *) const
 {
     TString fileName0(fileName);
     if (fileName0.Index(".") < 0)
-        fileName0 = fileName0 + ".par";
+        fileName0 = fileName0 + ".mac";
     Print(fileName0);
 }
 
@@ -162,6 +162,7 @@ void LKParameterContainer::ReplaceVariables(TString &valInput)
         else if (parName2=="lilak_hostname") replaceTo = LILAK_HOSTNAME;
         else if (parName2=="lilak_username") replaceTo = LILAK_USERNAME;
         else if (parName2=="lilak_hostuser") replaceTo = LILAK_HOSTUSER;
+        else if (parName2=="lilak_home"    ) replaceTo = LILAK_PATH;
         else if (parName2=="lilak_path"    ) replaceTo = LILAK_PATH;
         else if (parName2=="lilak_version" ) replaceTo = LILAK_VERSION;
         else if (parName2=="lilak_data"    ) replaceTo = TString(LILAK_PATH)+"/data/";
@@ -629,8 +630,8 @@ void LKParameterContainer::Print(Option_t *option) const
         else if (parName.Sizeof()>50) nwidth = 60;
         else if (parName.Sizeof()>40) nwidth = 50;
         else if (parName.Sizeof()>30) nwidth = 40;
-        else if (parName.Sizeof()>20) nwidth = 30;
-        else                          nwidth = 20;
+        //else if (parName.Sizeof()>20) nwidth = 30;
+        else                          nwidth = 30;
 
         int vwidth = 5;
              if (parValue.Sizeof()>60) vwidth = 70;
@@ -646,6 +647,8 @@ void LKParameterContainer::Print(Option_t *option) const
             if (printToScreen) e_cout << endl;
             if (printToFile)   fileOut << endl;
         }
+        if (preGroup!=parGroup && printToFile)
+            fileOut << endl;
 
         if (isLineComment && showLineComment) {
             if (showLineComment) {
@@ -1176,8 +1179,9 @@ void LKParameterContainer::SetCollectParameters(bool collect)
 
 void LKParameterContainer::PrintCollection(TString fileName)
 {
+    fCollectedParameterContainer -> Sort();
     if (fileName.IsNull())
         fCollectedParameterContainer -> Print("!eval line# par# !idx");
     else
-        fCollectedParameterContainer -> Print(fileName);
+        fCollectedParameterContainer -> SaveAs(fileName);
 }

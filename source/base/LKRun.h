@@ -257,6 +257,7 @@ class LKRun : public LKTask
         Int_t   fRunID = -1;
         Int_t   fDivision = -1;
 
+        bool fRunInit = false;
         bool fInitialized = false;
         bool fErrorInputFile = false;
 

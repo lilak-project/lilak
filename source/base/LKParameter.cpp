@@ -80,6 +80,26 @@ void LKParameter::Print(Option_t *option) const
     e_cout << GetLine() << std::endl;
 }
 
+Int_t LKParameter::Compare(const TObject *obj) const
+{
+    auto parameter = (LKParameter *) obj;
+
+    const int sortEarlier = 1;
+    const int sortLatter = -1;
+    const int sortSame = 0;
+
+    TString compareGroup = parameter -> GetGroup();
+    if (compareGroup=="LKRun") {
+        if (fGroup=="LKRun")
+            return sortSame;
+        else
+            return sortEarlier;
+    }
+    if (compareGroup<fGroup) return sortEarlier;
+    if (compareGroup>fGroup) return sortLatter;
+    return sortSame;
+}
+
 bool LKParameter::CheckTypeInt(int idx) const
 {
     TString value = ((idx>=0) ? fValue : fValueArray[idx]);

@@ -546,6 +546,10 @@ TChain *LKRun::GetFriendChain(Int_t iFriend) const { return ((TChain *) fFriendT
 
 bool LKRun::Init()
 {
+    if (fRunInit==true)
+        return fInitialized;
+    fRunInit = true;
+
     if (fInitialized)
         fInitialized = false;
 
@@ -554,6 +558,12 @@ bool LKRun::Init()
     if (fErrorInputFile) {
         lk_error << "Input file cannot be configured!" << endl;
         return false;
+    }
+
+    if (fDataPath.IsNull()) {
+        if (fPar -> CheckPar("LKRun/DataPath {lilak_data} # path to the output. Using {lilak_data} will save output to lilak/data/")) {
+            fDataPath = fPar -> GetParString("LKRun/DataPath");
+        }
     }
 
     fPar -> CheckPar("LKRun/Name      run    # name of the run (If input file is output of LILAK run, this parameter is inherited)");
@@ -601,10 +611,6 @@ bool LKRun::Init()
         if (fPar -> CheckPar("LKRun/Name"))
             fRunNameIsSet = true;
     }
-    if (fDataPath.IsNull())
-        if (fPar -> CheckPar("LKRun/DataPath {lilak_data} # path to the output. Using {lilak_data} will save output to lilak/data/")) {
-            fDataPath = fPar -> GetParString("LKRun/DataPath");
-        }
 
     if (!fInputFileName.IsNull()) {
         e_cout << endl;
@@ -732,11 +738,15 @@ bool LKRun::Init()
         lk_warning << "Input file is not set!" << endl;
     }
 
-    if (fDetectorSystem -> GetEntries() != 0) {
+    if (fDetectorSystem->GetEntries()!=0)
+    {
         fDetectorSystem -> SetRun(this);
-        //fDetectorSystem -> AddParameterContainer(fPar);
         fDetectorSystem -> SetPar(fPar);
-        fDetectorSystem -> Init();
+        bool detIsInitialized = fDetectorSystem -> Init();
+        if (detIsInitialized==false) {
+            lk_error << "Error while initializing detectors" << endl;
+            return false;
+        }
         fDetectorSystem -> SetTransparency(80);
         fDetectorSystem -> Print();
     }
@@ -856,6 +866,8 @@ bool LKRun::Init()
         lk_info << "Initialized!" << endl;
         return fInitialized;
     }
+
+    fPar -> Sort();
 
     return fInitialized;
 }
@@ -1141,7 +1153,8 @@ void LKRun::Run(Long64_t startID, Long64_t endID)
 bool LKRun::RunEvent(Long64_t eventID)
 {
     SetNumPrintMessage(fNumEntries);
-    StartOfRun(fNumEntries);
+    if (!StartOfRun(fNumEntries))
+        return false;
     return ExecuteEvent(eventID);
 }
 
@@ -1154,7 +1167,8 @@ bool LKRun::RunSelectedEvent(TString selection)
         }
         fSelectionString = selection;
         SetNumPrintMessage(fNumEntries);
-        StartOfRun(fNumEntries);
+        if (!StartOfRun(fNumEntries))
+            return false;
         lk_info << "Selection : " << fSelectionString << endl;
         lk_info << "RunSelectedEvent() will call single event that matches the selected condition." << endl;
         lk_info << "This method may be called repeatedly, however, the selection cannot be changed." << endl;
@@ -1197,7 +1211,8 @@ bool LKRun::ExecuteEvent(Long64_t eventID)
     if (!fRunHasStarted&&eventID==-3)
         fCurrentEventID = -1;
 
-    StartOfRun();
+    if (!StartOfRun())
+        return false;
 
     bool numEntriesMatter = true;
 
@@ -1297,7 +1312,7 @@ void LKRun::ClearArrays()
 bool LKRun::StartOfRun(Long64_t numEvents)
 {
     if (fRunHasStarted)
-        return false;
+        return true;
 
     if (fInitialized == false) {
         lk_info << "LKRun is not initialized!" << endl;
