@@ -28,10 +28,16 @@ class LKTask : public TTask, public LKGear
         bool EndOfRunTasks();
         virtual bool EndOfRun();
 
+    public:
+        virtual bool IsEventTrigger() { return false; };
         virtual void Run(Long64_t numEvents = -1) {}
         virtual void RunOnline() {}
-        virtual bool IsEventTrigger() { return false; };
         virtual void SignalNextEvent() {};
+
+        virtual void AddTriggerInputFile(TString fileName, TString opt) {}
+
+    private:
+        vector<TString> fTriggerInputFileNameArray; ///< for event trigger task
 
     ClassDef(LKTask, 1)
 };
