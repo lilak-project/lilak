@@ -1,0 +1,334 @@
+#include "LKMisc.h"
+#include <cfloat>
+#include "TMath.h"
+
+//#define DEBUG_MISC_FWHM
+//#define DEBUG_MISC_FINDPED
+
+ClassImp(LKMisc);
+
+LKMisc* LKMisc::fInstance = nullptr;
+
+LKMisc* LKMisc::GetMisc() {
+    if (fInstance == nullptr)
+        fInstance = new LKMisc();
+    return fInstance;
+}
+
+LKMisc::LKMisc() {
+    fInstance = this;
+}
+
+double LKMisc::FWHM(double *buffer, int length)
+{
+    int xPeak = 0;
+    double amplitude = -DBL_MAX;
+    for (auto x=0; x<length; ++x) {
+        if (amplitude<buffer[x]) {
+            xPeak = x;
+            amplitude = buffer[x];
+        }
+    }
+
+#ifdef DEBUG_MISC_FWHM
+    lk_debug << "x y at max = " << xPeak << " " << amplitude << endl;
+#endif
+
+    double pedestal = LKMisc::EvalPedestal(buffer, length);
+#ifdef DEBUG_MISC_FWHM
+    lk_debug << "length: " << length << endl;
+    lk_debug << "xpeak: " << xPeak << endl;
+    lk_debug << "amplitude: " << amplitude << endl;
+    lk_debug << "pedestal: " << pedestal << endl;
+#endif
+    double xMin, xMax;
+    double width = LKMisc::FWHM(buffer, length, xPeak, amplitude, pedestal, xMin, xMax);
+
+    return width;
+}
+
+double LKMisc::FWHM(double *buffer, int length, int xPeak, double amplitude, double pedestal, double &xMin, double &xMax)
+{
+    const int numDivisions = 20;
+    const auto xResolution = 1./numDivisions;
+    const double ratio = 0.5;
+    const double threshold = ratio * (amplitude - pedestal) + pedestal;
+#ifdef DEBUG_MISC_FWHM
+    lk_debug << threshold << endl;
+#endif
+
+    double dy0 = DBL_MAX; // mininum value of dy in the lower side
+    double dy1 = DBL_MAX; // mininum value of dy in the upper side
+    int    x0=0, x1=0, x2=0, x3=0;
+    double y0=0, y1=0, y2=0, y3=0;
+
+    if (xPeak>0)
+        for (auto x=xPeak-1; x>=0; --x)
+        {
+            if (buffer[x]>amplitude) {
+                xPeak = x;
+                amplitude = buffer[x];
+                continue;
+            }
+            break;
+        }
+
+    if (xPeak+1<length)
+        for (auto x=xPeak+1; x<length; ++x)
+        {
+            if (buffer[x]>amplitude) {
+                xPeak = x;
+                amplitude = buffer[x];
+                continue;
+            }
+            break;
+        }
+#ifdef DEBUG_MISC_FWHM
+    lk_debug << "x,a = " << xPeak << ", " << amplitude << endl;
+#endif
+
+    for (auto x=xPeak; x>=0; --x) {
+#ifdef DEBUG_MISC_FWHM
+        lk_debug << " ? " << x << " " << buffer[x] << " " << threshold << " " << (buffer[x]<threshold) << endl;
+#endif
+        if (buffer[x]<threshold) {
+#ifdef DEBUG_MISC_FWHM
+            lk_debug << " ! " << buffer[x] << " " << threshold << endl;
+#endif
+            x0 = x;
+            x1 = x+1;
+            y0 = buffer[x0];
+            y1 = buffer[x1];
+            break;
+        }
+    }
+
+    for (auto x=xPeak; x<length; ++x) {
+        if (buffer[x]<threshold) {
+            x2 = x-1;
+            x3 = x;   
+            y2 = buffer[x2];
+            y3 = buffer[x3];
+            break;
+        }
+     }
+
+#ifdef DEBUG_MISC_FWHM
+     lk_debug << "x0 y0 = " << x0 << " " << buffer[x0] << " " << y0 << endl;
+     lk_debug << "x1 y1 = " << x1 << " " << buffer[x1] << " " << y1 << endl;
+     lk_debug << "x2 y2 = " << x2 << " " << buffer[x2] << " " << y2 << endl;
+     lk_debug << "x3 y3 = " << x3 << " " << buffer[x3] << " " << y3 << endl;
+     lk_debug << endl;
+#endif
+
+    double sy = (y1-y0)/numDivisions;
+    for (auto div=0; div<=numDivisions; ++div)
+    {
+        auto y = y0 + div*sy;
+        auto dy = TMath::Abs(y-threshold);
+#ifdef DEBUG_MISC_FWHM
+        lk_debug << div << " lower: y dy = " << y << " " << dy << endl;
+#endif
+        if (dy>dy0) {
+            if (abs(dy)>abs(dy0)) xMin = x0 + (div-1)*xResolution;
+            else                  xMin = x0 + (div+0)*xResolution;
+#ifdef DEBUG_MISC_FWHM
+            if (abs(dy)>abs(dy0)) lk_debug << " min " << dy0 << " " << xMin << endl;
+            else                  lk_debug << " min " << dy  << " " << xMin << endl;
+#endif
+            break;
+        }
+        dy0 = dy;
+    }
+
+    sy = (y3-y2)/numDivisions;
+    for (auto div=0; div<=numDivisions; ++div)
+    {
+        auto y = y2 + div*sy;
+        auto dy = TMath::Abs(y-threshold);
+#ifdef DEBUG_MISC_FWHM
+        lk_debug << div << " upper: y dy = " << y << " " << dy << endl;
+#endif
+        if (dy>dy1) {
+            if (abs(dy)>abs(dy1)) xMax = x2 + (div-1)*xResolution;
+            else                  xMax = x2 + (div+0)*xResolution;
+#ifdef DEBUG_MISC_FWHM
+            if (abs(dy)>abs(dy0)) lk_debug << " max " << dy0 << " " << xMax << endl;
+            else                  lk_debug << " max " << dy  << " " << xMax << endl;
+#endif
+            break;
+        }
+        dy1 = dy;
+    }
+
+    double width = xMax - xMin;
+
+    return width;
+}
+
+double LKMisc::EvalPedestal(double *buffer, int length, int method)
+{
+    if (method==0) return EvalPedestalSamplingMethod(buffer, length);
+    e_error << method << endl;
+    return 0;
+}
+
+double LKMisc::EvalPedestalSamplingMethod(double *buffer, int length, int sampleLength, double cvCut, bool subtractPedestal)
+{
+    int numPedestalSamples = floor(length/sampleLength);
+    int numPedestalSamplesM1 = numPedestalSamples - 1;
+    int numTbSampleLast = sampleLength + length - numPedestalSamples*sampleLength;
+    
+
+    bool* usedSample = new bool[numPedestalSamples];
+    int*  stddevSample = new int[numPedestalSamples];
+    int*  pedestalSample = new int[numPedestalSamples];
+
+    for (auto i=0; i<numPedestalSamples; ++i) {
+        usedSample[i] = false;
+        stddevSample[i] = 0.;
+        pedestalSample[i] = 0.;
+    }
+
+    int tbGlobal = 0;
+    for (auto iSample=0; iSample<numPedestalSamplesM1; ++iSample) {
+        for (int iTb=0; iTb<sampleLength; iTb++) {
+            pedestalSample[iSample] += buffer[tbGlobal];
+            stddevSample[iSample] += buffer[tbGlobal]*buffer[tbGlobal];
+            tbGlobal++;
+        }
+        pedestalSample[iSample] = pedestalSample[iSample] / sampleLength;
+        stddevSample[iSample] = stddevSample[iSample] / sampleLength;
+        stddevSample[iSample] = sqrt(stddevSample[iSample] - pedestalSample[iSample]*pedestalSample[iSample]);
+    }
+    for (int iTb=0; iTb<numTbSampleLast; iTb++) {
+        pedestalSample[numPedestalSamplesM1] = pedestalSample[numPedestalSamplesM1] + buffer[tbGlobal];
+        tbGlobal++;
+    }
+    pedestalSample[numPedestalSamplesM1] = pedestalSample[numPedestalSamplesM1] / numTbSampleLast;
+#ifdef DEBUG_MISC_FINDPED
+    for (auto iSample=0; iSample<numPedestalSamples; ++iSample)
+        lk_debug << "i-" << iSample << " " << pedestalSample[iSample] << ">0?, " << stddevSample[iSample] << " " << stddevSample[iSample]/pedestalSample[iSample] << "<?" << cvCut << endl;
+#endif
+
+    int countBelowCut = 0;
+    for (auto iSample=0; iSample<numPedestalSamples; ++iSample) {
+        if (pedestalSample[iSample]>0&&stddevSample[iSample]/pedestalSample[iSample]<cvCut)
+            countBelowCut++;
+    }
+#ifdef DEBUG_MISC_FINDPED
+    lk_debug << "countBelowCut = " << countBelowCut << endl;
+#endif
+
+    double pedestalDiffMin = DBL_MAX;
+    double pedestalMeanRef = 0;
+    int idx1 = 0;
+    int idx2 = 0;
+    if (countBelowCut>=2) {
+        for (auto iSample=0; iSample<numPedestalSamples; ++iSample) {
+            if (pedestalSample[iSample]<=0) continue;
+            if (stddevSample[iSample]/pedestalSample[iSample]>=cvCut) continue;
+            for (auto jSample=0; jSample<numPedestalSamples; ++jSample) {
+                if (iSample>=jSample) continue;
+                if (pedestalSample[jSample]<=0) continue;
+                if (stddevSample[jSample]/pedestalSample[jSample]>=cvCut) continue;
+                double diff = abs(pedestalSample[iSample] - pedestalSample[jSample]);
+#ifdef DEBUG_MISC_FINDPED
+                lk_debug << iSample << "|" << jSample << ") " << stddevSample[jSample] << " " << pedestalSample[jSample] << endl;
+                lk_debug << iSample << "|" << jSample << ") " << diff << " <? " << pedestalDiffMin << endl;
+#endif
+                if (diff<pedestalDiffMin) {
+                    pedestalDiffMin = diff;
+                    pedestalMeanRef = 0.5 * (pedestalSample[iSample] + pedestalSample[jSample]);
+                    idx1 = iSample;
+                    idx2 = jSample;
+                }
+            }
+        }
+    }
+    else {
+        for (auto iSample=0; iSample<numPedestalSamples; ++iSample) {
+            for (auto jSample=0; jSample<numPedestalSamples; ++jSample) {
+                if (iSample>=jSample) continue;
+                double diff = abs(pedestalSample[iSample] - pedestalSample[jSample]);
+                if (diff<pedestalDiffMin) {
+                    pedestalDiffMin = diff;
+                    pedestalMeanRef = 0.5 * (pedestalSample[iSample] + pedestalSample[jSample]);
+                    idx1 = iSample;
+                    idx2 = jSample;
+                }
+            }
+        }
+    }
+
+    double pedestalFinal = 0;
+    int countNumPedestalTb = 0;
+
+    double pedestalErrorRefSample = 0.1 * pedestalMeanRef;
+    pedestalErrorRefSample = sqrt(pedestalErrorRefSample*pedestalErrorRefSample + pedestalDiffMin*pedestalDiffMin);
+
+#ifdef DEBUG_MISC_FINDPED
+    lk_debug << "diff min : " << pedestalDiffMin << endl;
+    lk_debug << "ref-diff : " << pedestalMeanRef << endl;
+    lk_debug << "ref-error-part: " << pedestalErrorRefSample << endl;
+#endif
+
+    tbGlobal = 0;
+    for (auto iSample=0; iSample<numPedestalSamplesM1; ++iSample)
+    {
+        double diffSample = abs(pedestalMeanRef - pedestalSample[iSample]);
+#ifdef DEBUG_MISC_FINDPED
+        lk_debug << "i-" << iSample << " " << diffSample << "(" << pedestalMeanRef << " - " << pedestalSample[iSample]<< ")" << " <? " << pedestalErrorRefSample << endl;
+#endif
+        if (diffSample<pedestalErrorRefSample)
+        {
+            usedSample[iSample] = true;
+            countNumPedestalTb += sampleLength;
+            for (int iTb=0; iTb<sampleLength; iTb++)
+            {
+                pedestalFinal += buffer[tbGlobal];
+                tbGlobal++;
+            }
+#ifdef DEBUG_MISC_FINDPED
+            lk_debug << "1) diffSample < pedestalErrorRefSample : i-" << iSample << " diff=" << diffSample << " pdFinal=" << pedestalFinal << " countNumPedestalTb=" << countNumPedestalTb << endl;
+#endif
+        }
+        else {
+            tbGlobal += sampleLength;
+#ifdef DEBUG_MISC_FINDPED
+            lk_debug << "2) diffSample > pedestalErrorRefSample : i-" << iSample << " diff=" << diffSample << " pdFinal=" << pedestalFinal << " countNumPedestalTb=" << countNumPedestalTb << endl;
+#endif
+        }
+    }
+    double diffSample = abs(pedestalMeanRef - pedestalSample[numPedestalSamplesM1]);
+    if (diffSample<pedestalErrorRefSample)
+    {
+        usedSample[numPedestalSamplesM1] = true;
+        countNumPedestalTb += numTbSampleLast;
+        for (int iTb=0; iTb<numTbSampleLast; iTb++) {
+            pedestalFinal += buffer[tbGlobal];
+            tbGlobal++;
+        }
+#ifdef DEBUG_MISC_FINDPED
+        lk_debug << numPedestalSamplesM1 << " diff=" << diffSample << " " << pedestalFinal/countNumPedestalTb << " " << countNumPedestalTb << endl;
+#endif
+    }
+
+#ifdef DEBUG_MISC_FINDPED
+    lk_debug << pedestalFinal << " " <<  countNumPedestalTb << endl;;
+#endif
+    if (pedestalFinal!=0||countNumPedestalTb!=0)
+        pedestalFinal = pedestalFinal / countNumPedestalTb;
+    else
+        pedestalFinal = 4096;
+
+#ifdef DEBUG_MISC_FINDPED
+    lk_debug << pedestalFinal << endl;
+#endif
+
+    if (subtractPedestal)
+        for (auto iTb=0; iTb<length; ++iTb)
+            buffer[iTb] = buffer[iTb] - pedestalFinal;
+
+    return pedestalFinal;
+}
