@@ -36,7 +36,7 @@ class LKTask : public TTask, public LKGear
 
         virtual void AddTriggerInputFile(TString fileName, TString opt) {}
 
-    private:
+    protected:
         vector<TString> fTriggerInputFileNameArray; ///< for event trigger task
 
     ClassDef(LKTask, 1)

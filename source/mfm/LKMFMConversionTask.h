@@ -36,7 +36,8 @@ class LKMFMConversionTask : public LKTask
         virtual ~LKMFMConversionTask() {};
 
         bool Init();
-        void Exec(Option_t* opt="");
+        void Exec(Option_t*) {}
+        bool AddDataChunk();
         void Run(Long64_t numEvents=-1);
         void RunOnline();
         bool EndOfRun();

@@ -100,14 +100,16 @@ void LKMFMConversionTask::Run(Long64_t numEvents)
         }
         e_cout << "=============================================================" << endl;
 
-        while (!fFileStream.eof() && fContinueEvent)
-            Exec();
+        while (!fFileStream.eof() && fContinueEvent) {
+            if (AddDataChunk()==false)
+                break;
+        }
 
         fFileStream.close();
     }
 }
 
-void LKMFMConversionTask::Exec(Option_t*)
+bool LKMFMConversionTask::AddDataChunk()
 {
     fFileStream.read(fBuffer,fMatrixSize);
     fFileBuffer += fMatrixSize;
@@ -120,7 +122,7 @@ void LKMFMConversionTask::Exec(Option_t*)
         } catch (const std::exception& e){
             lk_debug << "Error occured from " << fCountAddDataChunk << "-th addDataChunk()" << endl;
             e_cout << e.what() << endl;
-            return;
+            return false;
         }
         ////////////////////////////////////////////////////////////////////////////////////////////////
     }
@@ -129,14 +131,15 @@ void LKMFMConversionTask::Exec(Option_t*)
         try {
             ++fCountAddDataChunk;
             fFrameBuilder -> addDataChunk(fBuffer,fBuffer+fFileStream.gcount());
-            break;
+            return false;
         } catch (const std::exception& e){
             lk_debug << "Error occured from LAST " << fCountAddDataChunk << "-th addDataChunk()" << endl;
             e_cout << e.what() << endl;
-            return;
+            return false;
         }
         ////////////////////////////////////////////////////////////////////////////////////////////////
     }
+    return true;
 }
 
 void LKMFMConversionTask::RunOnline()
