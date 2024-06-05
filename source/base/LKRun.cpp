@@ -12,6 +12,9 @@
 #include "TApplication.h"
 #include "TEntryList.h"
 
+#include "TSystemDirectory.h"
+#include "TSystemFile.h"
+
 #include "LKRun.h"
 
 ClassImp(LKRun)
@@ -28,11 +31,6 @@ LKRun::LKRun(TString runName, Int_t id, Int_t division, TString tag)
     :LKTask("LKRun", "LKRun")
 {
     fInstance = this;
-    TString inputFileName = "";
-    if (runName.Index("/")>=0) {
-        inputFileName = runName;
-        runName = "";
-    }
     fRunName = runName;
     fRunID = id;
     fDivision = division;
@@ -90,9 +88,6 @@ LKRun::LKRun(TString runName, Int_t id, Int_t division, TString tag)
     }
 
     CreateParameterContainer();
-
-    if (!inputFileName.IsNull())
-        AddInputFile(inputFileName);
 
     AlwaysPrintMessage();
 }
@@ -212,7 +207,7 @@ TString LKRun::MakeFullRunName() const
 TString LKRun::ConfigureFileName()
 {
     auto fileName = MakeFullRunName();
-    fileName = LKRun::ConfigureDataPath(fileName,false,fDataPath);
+    fileName = LKRun::ConfigureDataPath(fileName,false,fOutputPath);
     return fileName;
 }
 
@@ -520,7 +515,7 @@ void LKRun::AddInputList(TString listFileName, TString treeName)
 void LKRun::AddInputFile(TString fileName, TString treeName)
 {
     //if (fInputFileName.IsNull()) fInputFileName = fileName;
-    TString configuredName = LKRun::ConfigureDataPath(fileName,true,fDataPath);
+    TString configuredName = LKRun::ConfigureDataPath(fileName,true,fOutputPath);
     if (configuredName.IsNull()) {
         lk_error << "Input file " << fileName << " cannot be configured" << endl;
         fErrorInputFile = true;
@@ -533,7 +528,7 @@ void LKRun::AddInputFile(TString fileName, TString treeName)
 
 void LKRun::AddFriend(TString fileName)
 {
-    TString configuredName = LKRun::ConfigureDataPath(fileName,true,fDataPath);
+    TString configuredName = LKRun::ConfigureDataPath(fileName,true,fOutputPath);
     if (configuredName.IsNull()) {
         lk_error << "Friend file " << fileName << " cannot be configured" << endl;
         fErrorInputFile = true;
@@ -560,23 +555,56 @@ bool LKRun::Init()
         return false;
     }
 
-    if (fDataPath.IsNull()) {
-        if (fPar -> CheckPar("LKRun/DataPath {lilak_data} # path to the output. Using {lilak_data} will save output to lilak/data/")) {
-            fDataPath = fPar -> GetParString("LKRun/DataPath");
+    if (fOutputPath.IsNull()) {
+        if (fPar -> CheckPar("LKRun/DataPath {lilak_data} # path to the output. Default path {lilak_data} is lilak/data/")) {
+            lk_warning << "Parameter LKRun/DataPath is replaced to LKRun/OutputPath!" << endl;
+            fOutputPath = fPar -> GetParString("LKRun/DataPath");
+        }
+        if (fPar -> CheckPar("LKRun/OutputPath {lilak_data} # path to the output. Default path {lilak_data} is lilak/data/")) {
+            fOutputPath = fPar -> GetParString("LKRun/OutputPath");
         }
     }
 
-    fPar -> CheckPar("LKRun/Name      run    # name of the run (If input file is output of LILAK run, this parameter is inherited)");
-    fPar -> CheckPar("LKRun/RunID     1      # run number (If input file is output of LILAK run, this parameter is inherited)");
-    fPar -> CheckPar("LKRun/Division  0      # division within the run [optional] (If input file is output of LILAK run, this parameter is inherited)");
-    fPar -> CheckPar("*LKRun/Tag      tag    # tag (*: temporary parameter) (This parameter is meant to be different depending on added tasks)");
+    fPar -> CheckPar("#&*LKRun/InputPath {lilak_data} # Multiple parameter. LKRun will search files from input paths when LKRun/SearchMFM or LKRun/SearchRoot is set.");
+    fPar -> CheckPar("#*LKRun/SearchRun  [opt] # Search input files with given LKRun/RunID. opt=mfm: search mfm files, opt=root: search any root files, opt=[tag]: search matching files -> run_runNo.*.[tag].root. Cannot be used with LKRun/InputFile");
+
+    fPar -> CheckPar("LKRun/Name       run          # name of the run (If input file is output of LILAK run, this parameter is inherited)");
+    fPar -> CheckPar("LKRun/RunID      1            # run number (If input file is output of LILAK run, this parameter is inherited)");
+    fPar -> CheckPar("LKRun/Division   0            # division within the run [optional] (If input file is output of LILAK run, this parameter is inherited)");
+    fPar -> CheckPar("*LKRun/Tag       tag          # tag (*: temporary parameter) (This parameter is meant to be different depending on added tasks)");
     fPar -> CheckPar("&*LKRun/InputFile    path/to/input/data   # input file. Used if they are not added in the macro (multiple parameters are allowed)");
     fPar -> CheckPar("&*LKRun/FriendFile   path/to/friend/data  # input friend file. Used if they are not added in the macro (multiple parameters are allowed)");
+
+    bool useManualInputFiles = false;
+    bool useInputFileParameter = false;
+    bool useSearchRunParameter = false;
+    if (fInputFileNameArray.size()!=0)
+    {
+        if (fPar->CheckPar("LKRun/InputFile") || fPar->CheckPar("LKRun/SearchRun"))
+        {
+            lk_error << "Cannot use two parameters LKRun/InputFile and LKRun/SearchRun when input file is manually given by method!" << endl;
+            lk_error << "Using user input file ..." << endl;
+        }
+        useManualInputFiles = true;
+    }
+    if (fPar->CheckPar("LKRun/InputFile"))
+    {
+        if (fPar->CheckPar("LKRun/SearchRun")) {
+            lk_error << "Cannot use two parameters LKRun/InputFile and LKRun/SearchRun at the same time!" << endl;
+            lk_error << "Using LKRun/InputFile ..." << endl;
+        }
+        useInputFileParameter = true;
+    }
+    else if (fPar->CheckPar("LKRun/SearchRun"))
+        useSearchRunParameter = true;
 
     Int_t idxInput = 1;
     if (fInputFileName.IsNull())
     {
-        if (fInputFileNameArray.size()==0 && fPar->CheckPar("LKRun/InputFile")) {
+        if (useManualInputFiles)
+        {}
+        else if (useInputFileParameter)
+        {
             LKParameterContainer* fileNameArray = fPar -> CreateMultiParContainer("LKRun/InputFile");
             TIter next(fileNameArray);
             LKParameter *parameter = nullptr;
@@ -586,7 +614,24 @@ bool LKRun::Init()
                     fInputFileNameArray.push_back(fileName);
             }
         }
-        if (fInputFileNameArray.size()>0) {
+        else if (useSearchRunParameter)
+        {
+            LKParameterContainer* inputPathArray = fPar -> CreateMultiParContainer("LKRun/SearchRun");
+            TIter next(inputPathArray);
+            LKParameter *parameter = nullptr;
+            while ((parameter = (LKParameter*) next())) {
+                auto fileName = parameter -> GetValue();
+                if (!fileName.IsNull())
+                    fInputPathArray.push_back(fileName);
+            }
+
+            fSearchOption = fPar -> CheckPar("LKRun/SearchRun");
+            vector<TString> inputFiles = SearchRunFiles(fRunID,fSearchOption);
+            for (auto fileName : inputFiles)
+                fInputFileNameArray.push_back(fileName);
+        }
+
+        if (fSearchOption!="mfm" && fInputFileNameArray.size()>0) {
             fInputFileName = fInputFileNameArray[0];
             idxInput = 1;
         }
@@ -751,9 +796,9 @@ bool LKRun::Init()
         fDetectorSystem -> Print();
     }
 
-    if (fDataPath.IsNull())
+    if (fOutputPath.IsNull())
         if (fPar -> CheckPar("LKRun/DataPath")) {
-            fDataPath = fPar -> GetParString("LKRun/DataPath");
+            fOutputPath = fPar -> GetParString("LKRun/DataPath");
         }
 
     if (fOutputFileName.IsNull())
@@ -768,7 +813,7 @@ bool LKRun::Init()
         lk_info << "Setting output file name to " << fOutputFileName << endl;
     }
     else {
-        fOutputFileName = LKRun::ConfigureDataPath(fOutputFileName,false,fDataPath,fAddVersion);
+        fOutputFileName = LKRun::ConfigureDataPath(fOutputFileName,false,fOutputPath,fAddVersion);
         fOuputHash = GetFileHash(fOutputFileName);
     }
 
@@ -839,6 +884,10 @@ bool LKRun::Init()
     if (fUsingEventTrigger)
     {
         lk_info << "Initializing event trigger task " << fEventTrigger -> GetName() << "." << endl;
+
+        for (auto fileName : fInputFileNameArray)
+            fEventTrigger -> AddTriggerInputFile(fileName, fSearchOption);
+
         if (fEventTrigger -> Init() == false) {
             lk_warning << "Initialization failed!" << endl;
             fInitialized = false;
@@ -1466,3 +1515,68 @@ LKDetectorPlane *LKRun::GetDetectorPlane(Int_t iDetector, Int_t iPlane) {
 LKDetectorSystem *LKRun::GetDetectorSystem() const { return fDetectorSystem; }
 LKDetector *LKRun::FindDetector(const char *name) { return fDetectorSystem -> FindDetector(name); }
 LKDetectorPlane *LKRun::FindDetectorPlane(const char *name) { return fDetectorSystem -> FindDetectorPlane(name); }
+
+vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchOption)
+{
+    //fInputPathArray.push_back("/home/cens-alpha-00/data/ganacq_manip/test/acquisition/run");
+    //fInputPathArray.push_back("/root/lilak/stark/macros/data");
+
+    vector<TString> matchingFiles;
+    TSystemFile *sysFile = nullptr;
+    int countPath = 0;
+    for (auto path : fInputPathArray)
+    {
+        TIter nextFile(TSystemDirectory(Form("search_path_%d",countPath),path).GetListOfFiles());
+        while ((sysFile=(TSystemFile*)nextFile()))
+        {
+            TString fileName = sysFile -> GetName();
+            ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+            if (searchOption=="mfm")
+            {
+                if (sysFile->IsDirectory()==false && fileName.Index("run_")==0 && fileName.Sizeof()>=32)
+                {
+                    int runNo = TString(fileName(5,4)).Atoi();
+                    int division = (fileName.Sizeof()>32) ? TString(fileName(32,fileName.Sizeof()-32-1)).Atoi() : 0;
+                    if (runNo==searchRunNo)
+                        matchingFiles.push_back(path+"/"+fileName);
+                }
+            }
+            ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+            else if (!searchOption.IsNull())
+            {
+                if (sysFile->IsDirectory()==false && fileName.Index("stark_")==0 && fileName.EndsWith("conv.root"))
+                {
+                    int runNo = TString(fileName(7,4)).Atoi();
+                    int division = 0;
+                    auto tokens = fileName.Tokenize(".");
+                    /*
+                    if (tokens->GetEntries()>3) {
+                        TString divString = TString(((TObjString*)tokens->At(1))->GetString());
+                        if (divString[0]=='d') {
+                            divString.Remove(0,1);
+                            if (division.IsDec()) {
+                                division = divString.Atoi();
+                            }
+                        }
+                    }
+                    */
+                    int numTokens = tokens->GetEntries();
+                    if (numTokens>3)
+                    {
+                        TString tag = TString(((TObjString*)tokens->At(numTokens-2))->GetString());
+                        if (runNo==searchRunNo && tag==searchOption)
+                            matchingFiles.push_back(path+"/"+fileName);
+                    }
+                }
+            }
+            ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+        }
+    }
+
+    sort(matchingFiles.begin(),matchingFiles.end());
+
+    for (auto file : matchingFiles)
+        cout << file << endl;
+
+    return matchingFiles;
+}

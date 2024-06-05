@@ -31,28 +31,44 @@ bool LKMFMConversionTask::Init()
         return false;
     }
 
-    auto inputFileName  = fPar -> GetParString("LKMFMConversionTask/InputFileName");
-    if (inputFileName=="online") {
-        auto check1 = fPar -> CheckPar("LKMFMConversionTask/watcherIP");
-        auto check2 = fPar -> CheckPar("LKMFMConversionTask/watcherPort");
-        if (!check1||!check2) {
-            lk_error << "Must set watcherIP and watcherPort for oline run" << endl;
-            return false;
+    if (fPar->CheckPar("LKMFMConversionTask/InputFileName"))
+    {
+        auto inputFileName  = fPar -> GetParString("LKMFMConversionTask/InputFileName");
+        if (inputFileName=="online")
+        {
+            auto check1 = fPar -> CheckPar("LKMFMConversionTask/watcherIP");
+            auto check2 = fPar -> CheckPar("LKMFMConversionTask/watcherPort");
+            if (!check1||!check2) {
+                lk_error << "Must set watcherIP and watcherPort for oline run" << endl;
+                return false;
+            }
+            fWatcherIP = fPar -> GetParString("LKMFMConversionTask/watcherIP    127.0.0.1");
+            fWatcherPort = fPar -> GetParInt("LKMFMConversionTask/watcherPort  10205");
+            lk_info << "watcherIP is " << fWatcherIP << endl;
+            lk_info << "watcherPort is " << fWatcherPort << endl;
+            lk_info << "Block size is " << fMatrixSize << endl;
         }
-        fWatcherIP = fPar -> GetParString("LKMFMConversionTask/watcherIP");
-        fWatcherPort = fPar -> GetParInt("LKMFMConversionTask/watcherPort");
-        lk_info << "watcherIP is " << fWatcherIP << endl;
-        lk_info << "watcherPort is " << fWatcherPort << endl;
-        lk_info << "Block size is " << matrixSize << endl;
-    } else {
-      lk_info << "Opening file " << inputFileName << endl;
-      lk_info << "Block size is " << matrixSize << endl;
-      fFileStream.open(inputFileName.Data(), std::ios::binary | std::ios::in);
-      if(!fFileStream.is_open()) {
-          lk_error << "Could not open input file!" << std::endl;
-          return false;
-      }
+        else
+        {
+            if (fTriggerInputFileNameArray.size()>0)
+            {
+                lk_error << "Cannot use two different inputs from LKMFMConversionTask/InputFileName and LKRun/SearchRun" << endl;
+                lk_error << "Using input from LKMFMConversionTask/InputFileName ..." << endl;
+            }
+            fTriggerInputFileNameArray.push_back(inputFileName);
+        }
     }
+    else if (fTriggerInputFileNameArray.size()>0)
+    {
+        lk_info << "Using inputs from LKRun" << fWatcherIP << endl;
+    }
+    else
+    {
+        lk_error << "No input! "<< endl;
+        return false;
+    }
+
+    fBuffer = (char *) malloc (fMatrixSize);
 
     return true;
 }
@@ -67,45 +83,59 @@ void LKMFMConversionTask::Run(Long64_t numEvents)
         return;
     }
 
-    fContinueEvent = true;
-    int countAddDataChunk = 0;
-
-    char *buffer = (char *) malloc (matrixSize);
-
-    fFileBuffer = 0;
-    fFileBufferLast = 0;
-
-    while (!fFileStream.eof() && fContinueEvent)
+    for (auto fileName : fTriggerInputFileNameArray)
     {
+        fFileBuffer = 0;
+        fFileBufferLast = 0;
+        fContinueEvent = true;
+        fCountAddDataChunk = 0;
 
-        fFileStream.read(buffer,matrixSize);
-        fFileBuffer += matrixSize;
+        e_cout << "=============================================================" << endl;
+        lk_info << "Opening file " << fileName << endl;
+        fFileStream.open(fileName.Data(), std::ios::binary | std::ios::in);
+        if (!fFileStream.is_open()) {
+            lk_error << "Could not open " << fileName << std::endl;
+            fRun -> SignalEndOfRun();
+            return;
+        }
+        e_cout << "=============================================================" << endl;
 
-        if(!fFileStream.eof()) {
-            // addDataChunk ////////////////////////////////////////////////////////////////////////////////
-            try {
-                ++countAddDataChunk;
-                fFrameBuilder -> addDataChunk(buffer,buffer+matrixSize);
-            }catch (const std::exception& e){
-                lk_debug << "Error occured from " << countAddDataChunk << "-th addDataChunk()" << endl;
-                e_cout << e.what() << endl;
-                return;
-            }
-            ////////////////////////////////////////////////////////////////////////////////////////////////
+        while (!fFileStream.eof() && fContinueEvent)
+            Exec();
+
+        fFileStream.close();
+    }
+}
+
+void LKMFMConversionTask::Exec(Option_t*)
+{
+    fFileStream.read(fBuffer,fMatrixSize);
+    fFileBuffer += fMatrixSize;
+
+    if (!fFileStream.eof()) {
+        // addDataChunk ////////////////////////////////////////////////////////////////////////////////
+        try {
+            ++fCountAddDataChunk;
+            fFrameBuilder -> addDataChunk(fBuffer,fBuffer+fMatrixSize);
+        } catch (const std::exception& e){
+            lk_debug << "Error occured from " << fCountAddDataChunk << "-th addDataChunk()" << endl;
+            e_cout << e.what() << endl;
+            return;
         }
-        else if(fFileStream.gcount()>0) {
-            // addDataChunk ////////////////////////////////////////////////////////////////////////////////
-            try {
-                ++countAddDataChunk;
-                fFrameBuilder -> addDataChunk(buffer,buffer+fFileStream.gcount());
-                break;
-            }catch (const std::exception& e){
-                lk_debug << "Error occured from LAST " << countAddDataChunk << "-th addDataChunk()" << endl;
-                e_cout << e.what() << endl;
-                return;
-            }
-            ////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////
+    }
+    else if (fFileStream.gcount()>0) {
+        // addDataChunk ////////////////////////////////////////////////////////////////////////////////
+        try {
+            ++fCountAddDataChunk;
+            fFrameBuilder -> addDataChunk(fBuffer,fBuffer+fFileStream.gcount());
+            break;
+        } catch (const std::exception& e){
+            lk_debug << "Error occured from LAST " << fCountAddDataChunk << "-th addDataChunk()" << endl;
+            e_cout << e.what() << endl;
+            return;
         }
+        ////////////////////////////////////////////////////////////////////////////////////////////////
     }
 }
 
@@ -117,7 +147,6 @@ void LKMFMConversionTask::RunOnline()
     struct sockaddr_in servAddr; /* server address */
     int size_buffer;
     int size_to_recv;
-    char *buffer;
     int received_data;
     int total_received_data;
     sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -127,7 +156,6 @@ void LKMFMConversionTask::RunOnline()
     }
 
     fContinueEvent = true;
-    int countAddDataChunk = 0;
 
     while (1)
     {
@@ -143,21 +171,21 @@ void LKMFMConversionTask::RunOnline()
 
         recv(sock, &size_buffer, sizeof (int), 0);
         lk_info << "size of total buffer: " << size_buffer << endl;
-        buffer = (char *) malloc (size_buffer);
+        fBuffer = (char *) malloc (size_buffer);
         total_received_data = 0;
         size_to_recv = size_buffer;
 
         lk_info << "start receiving data" << endl;
         while (total_received_data < size_buffer)
         {
-            received_data = recv(sock, buffer, size_to_recv, 0);
+            received_data = recv(sock, fBuffer, size_to_recv, 0);
             total_received_data += received_data;
             if (received_data == -1) {
                 lk_error << "error receiving data (" << errno << ")" << endl;
                 return;
             }
 
-            buffer += received_data;
+            fBuffer += received_data;
             size_to_recv -= received_data;
 
         }
@@ -165,7 +193,7 @@ void LKMFMConversionTask::RunOnline()
         lk_info << "end receiving data" << endl;
 
         if(size_buffer>4) {
-            fFrameBuilder -> addDataChunk(buffer-total_received_data,buffer);
+            fFrameBuilder -> addDataChunk(fBuffer-total_received_data,fBuffer);
             lk_error << "online data recorded." << endl;
 
         }
@@ -189,7 +217,7 @@ void LKMFMConversionTask::SignalNextEvent()
     auto eventHeader = (LKEventHeader *) fEventHeaderArray -> At(0);
     eventHeader -> SetBufferStart(fFileBufferLast);
     eventHeader -> SetBufferSize(bufferSize);
-    fFileBufferLast = fFileBuffer - matrixSize;
+    fFileBufferLast = fFileBuffer - fMatrixSize;
 
     fContinueEvent = fRun -> ExecuteNextEvent();
 

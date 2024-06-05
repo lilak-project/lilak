@@ -11,7 +11,7 @@ class LKMFMConversionTask : public LKTask
         TClonesArray* fEventHeaderArray = nullptr;
         TClonesArray *fChannelArray = nullptr;
 
-        size_t const matrixSize = 512;
+        size_t const fMatrixSize = 512;
         ifstream fFileStream;
 
         string fWatcherIP;
@@ -19,8 +19,12 @@ class LKMFMConversionTask : public LKTask
 
         LKFrameBuilder* fFrameBuilder;
         bool fContinueEvent = false;
+        int fCountAddDataChunk = 0;
+
         Long64_t fNumEvents = -1;
         Long64_t fCountEvents = 0;
+
+        char *fBuffer;
 
         size_t fFileBuffer;
         size_t fFileBufferLast;
@@ -32,7 +36,7 @@ class LKMFMConversionTask : public LKTask
         virtual ~LKMFMConversionTask() {};
 
         bool Init();
-        void Exec(Option_t*) {}
+        void Exec(Option_t* opt="");
         void Run(Long64_t numEvents=-1);
         void RunOnline();
         bool EndOfRun();
@@ -40,6 +44,8 @@ class LKMFMConversionTask : public LKTask
         bool IsEventTrigger() { return true; }
 
         size_t GetFileBuffer() const { return fFileBuffer; }
+
+        virtual void AddTriggerInputFile(TString fileName, TString opt) { if (opt=="mfm") fTriggerInputFileNameArray.push_back(fileName); }
 
     ClassDef(LKMFMConversionTask, 1)
 };

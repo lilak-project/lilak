@@ -84,8 +84,8 @@ class LKRun : public LKTask
         /// Data path will not be used if full path of the input/ouput file is given.
         /// This is equivalent to setting parameter LKRun/DataPath.
         /// Hoever SetDataPath method has the higher priority over setting parameter
-        void SetDataPath(TString path) { fDataPath = path; }
-        TString GetDataPath() { return fDataPath; }
+        void SetDataPath(TString path) { fOutputPath = path; }
+        TString GetDataPath() { return fOutputPath; }
 
         bool ConfigureRunFromFileName(TString inputName);
         TString ConfigureFileName();
@@ -248,6 +248,10 @@ class LKRun : public LKTask
         bool CheckMute() { return (fEventCount==0||fEventCount%fEventCountForMessage!=0); }
         void DoNotFillCurrentEvent() { fFillCurrentEvent = false; }
 
+        /// Search input files with given LKRun/RunID.
+        /// Search and return array of matching files -> run_runNo*.[tag].root
+        vector<TString> SearchRunFiles(int runNo, TString tag);
+
     protected:
         void ProcessWriteExitLog();
 
@@ -261,13 +265,15 @@ class LKRun : public LKTask
         bool fInitialized = false;
         bool fErrorInputFile = false;
 
-        TString fDataPath = "";
+        TString fOutputPath = "";
         TString fInputVersion = "";
         TString fInputFileName = "";
         TString fInputTreeName = "";
         TFile *fInputFile = nullptr;
         TChain *fInputTree = nullptr;
         std::vector<TString> fInputFileNameArray;
+        std::vector<TString> fInputPathArray;
+        TString fSearchOption = "";
 
         TString fParAddAfter = "";
 
