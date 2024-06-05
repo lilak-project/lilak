@@ -2,6 +2,7 @@
 #include "LKChannelAnalyzer.h"
 #include "TLine.h"
 #include "TLegend.h"
+#include "LKMisc.h"
 
 ClassImp(LKChannelAnalyzer);
 
@@ -157,9 +158,9 @@ void LKChannelAnalyzer::Draw(Option_t *option)
     TLegend* legend = nullptr;
 
     if (fNumHits>0 && GetTbHit(0)>fTbMax/2.)
-        legend = new TLegend(0.15, 0.65, 0.40, 0.90);
+        legend = new TLegend(0.17, 0.70, 0.40, 0.90);
     else
-        legend = new TLegend(0.70, 0.65, 0.95, 0.90);
+        legend = new TLegend(0.72, 0.70, 0.95, 0.90);
 
     if (fHistBuffer==nullptr) {
         if      (fAnalyzerMode==kPulseFittingMode)   fHistBuffer = new TH1D("hbuffer_PulseAit",";tb",fTbMax,0,fTbMax);
@@ -168,15 +169,33 @@ void LKChannelAnalyzer::Draw(Option_t *option)
         else
             return;
     }
+    if (fHistBufferIntegral==nullptr) {
+        if      (fAnalyzerMode==kPulseFittingMode)   fHistBufferIntegral = new TH1D("hbufferIntegral_PulseAit",";tb",fTbMax,0,fTbMax);
+        else if (fAnalyzerMode==kSigAtMaximumMode)   fHistBufferIntegral = new TH1D("hbufferIntegral_SigAtMax",";tb",fTbMax,0,fTbMax);
+        else if (fAnalyzerMode==kSigAtThresholdMode) fHistBufferIntegral = new TH1D("hbufferIntegral_SigAtThr",";tb",fTbMax,0,fTbMax);
+        else
+            return;
+    }
+    fHistBufferIntegral -> Clear();
+    fHistBufferIntegral -> SetStats(0);
+    fHistBufferIntegral -> SetFillColor(29);
+    for (auto tb : fIntegralTbArray)
+        fHistBufferIntegral -> SetBinContent(tb+1,fBufferOrigin[tb]);
 
     for (auto tb=0; tb<fTbMax; ++tb)
         fHistBuffer -> SetBinContent(tb+1,fBufferOrigin[tb]);
     fHistBuffer -> SetStats(0);
-    fHistBuffer -> Draw();
+
+    fHistBufferIntegral -> SetMaximum(fHistBuffer->GetMaximum()*1.15);
+    fHistBufferIntegral -> SetMinimum(fHistBuffer->GetMinimum());
+    fHistBufferIntegral -> Draw();
+    fHistBuffer -> Draw("same");
     legend -> AddEntry(fHistBuffer,"data","f");
+    legend -> AddEntry(fHistBufferIntegral,"integral","f");
 
     auto linePedestal = new TLine(0,fPedestal,fTbMax,fPedestal);
-    linePedestal -> SetLineColor(kYellow);
+    //linePedestal -> SetLineColor(kYellow);
+    linePedestal -> SetLineColor(kOrange-2);
     linePedestal -> SetLineWidth(4);
     linePedestal -> Draw("samel");
     legend -> AddEntry(linePedestal,"pedestal","l");
@@ -190,9 +209,10 @@ void LKChannelAnalyzer::Draw(Option_t *option)
         auto line = new TLine(x1,y,x2,y);
         line -> SetLineStyle(2);
         line -> SetLineColor(kGreen+1);
+        line -> SetLineWidth(2);
         //line -> SetLineColor(kBlack);
         if (fUsedSample[iSample])
-            line -> SetLineStyle(10);
+            line -> SetLineStyle(1);
         line -> Draw("samel");
         if (iSample==0)
             legend -> AddEntry(line,"PD-sample","l");
@@ -242,28 +262,28 @@ TGraphErrors* LKChannelAnalyzer::GetPulseGraph(double tbHit, double amplitude, d
     return (TGraphErrors*) nullptr;
 }
 
-void LKChannelAnalyzer::Analyze(TH1D* hist)
+void LKChannelAnalyzer::Analyze(TH1D* hist, bool inverted)
 {
     double buffer[fTbMax];
     double *bufferh = hist -> GetArray();
     for (auto i=0; i<fTbMax; ++i)
         buffer[i] = bufferh[i+1];
-    Analyze(buffer);
+    Analyze(buffer, inverted);
 }
 
-void LKChannelAnalyzer::Analyze(int* data)
+void LKChannelAnalyzer::Analyze(int* data, bool inverted)
 {
     double buffer[fTbMax];
     for (auto tb=0; tb<fTbMax; ++tb)
         buffer[tb] = (double)data[tb];
-    Analyze(buffer);
+    Analyze(buffer, inverted);
 }
 
-void LKChannelAnalyzer::Analyze(double* data)
+void LKChannelAnalyzer::Analyze(double* data, bool inverted)
 {
     Clear();
 
-    if (fDataIsInverted) {
+    if (fDataIsInverted || inverted) {
         for (auto tb=0; tb<fTbMax; ++tb)
             data[tb] = fDynamicRangeOriginal - data[tb];
     }
@@ -272,6 +292,7 @@ void LKChannelAnalyzer::Analyze(double* data)
     FindAndSubtractPedestal(data);
     memcpy(&fBuffer, data, sizeof(double)*fTbMax);
 
+    fIntegralTbArray.clear();
     if      (fAnalyzerMode==kPulseFittingMode) AnalyzePulseFitting();
     else if (fAnalyzerMode==kSigAtMaximumMode) AnalyzeSigAtMaximum();
     else if (fAnalyzerMode==kSigAtThresholdMode) AnalyzeSigAtThreshold();
@@ -279,145 +300,97 @@ void LKChannelAnalyzer::Analyze(double* data)
     fNumHits = fFitParameterArray.size();
 }
 
+double LKChannelAnalyzer::CollectTbAboveThresholdAndIntegrate(int tbHit)
+{
+    int tbLast = -1;
+    if (fIntegralTbArray.size())
+        tbLast = fIntegralTbArray.back();
+
+    double integral = 0.;
+    for (auto tb=tbHit; tb>=0; --tb)
+    {
+        if (fBuffer[tb]>=fThreshold) {
+            integral += fBuffer[tb];
+            if (tb>tbLast) fIntegralTbArray.push_back(tb);
+        }
+        else break;
+    }
+    for (auto tb=tbHit+1; tb<fTbMax; ++tb)
+    {
+        if (fBuffer[tb]>=fThreshold) {
+            integral += fBuffer[tb];
+            if (tb>tbLast) fIntegralTbArray.push_back(tb);
+        }
+        else break;
+    }
+
+    return integral;
+}
+
 void LKChannelAnalyzer::AnalyzeSigAtMaximum()
 {
-    if (fPedestal<3500)
-    {
-        int tbHit = 0;
-        double amplitude = -DBL_MAX;
-        for (auto tb=0; tb<fTbMax; ++tb) {
-            if (amplitude<fBuffer[tb]) {
-                tbHit = tb;
-                amplitude = fBuffer[tb];
-            }
-        }
-        if (amplitude >= fThreshold)
-        {
-            //XXX
-            int width = 0, integral = 0;
-            //for (auto tb=tbHit;   tb>=0;     --tb) { (fBuffer[tb]>=fThreshold) ? width++; : break; }
-            //for (auto tb=tbHit+1; tb<fTbMax; ++tb) { (fBuffer[tb]>=fThreshold) ? width++; : break; }
-            //auto tb0 = (tbHit-width<0      ) ? tbHit-width : 0;
-            //auto tb1 = (tbHit+width>=fTbMax) ? tbHit+width : fTbMax-1;
-            //for (auto tb=tb0; tb<tb1; ++tb) integral += fBuffer[tb];
-            //fFitParameterArray.push_back(LKPulseFitParameter(tbHit,width,integral,amplitude,tb1-tb0+1,1));
-            fFitParameterArray.push_back(LKPulseFitParameter(tbHit,width,integral,amplitude,1,1));
+    int tbHit = 0;
+    double amplitude = -DBL_MAX;
+    for (auto tb=0; tb<fTbMax; ++tb) {
+        if (amplitude<fBuffer[tb]) {
+            tbHit = tb;
+            amplitude = fBuffer[tb];
         }
     }
-    else
+    if (amplitude >= fThreshold)
     {
-        int tbHit = 0;
-        double amplitude = DBL_MAX;
-        for (auto tb=0; tb<fTbMax; ++tb) {
-            if (amplitude>fBuffer[tb]) {
-                tbHit = tb;
-                amplitude = fBuffer[tb];
-            }
-        }
-        if (-amplitude >= fThreshold)
-        {
-            //XXX
-            int width = 0, integral = 0;
-            //for (auto tb=tbHit;   tb>=0;     --tb) { (-fBuffer[tb]>=fThreshold) ? width++; : break; }
-            //for (auto tb=tbHit+1; tb<fTbMax; ++tb) { (-fBuffer[tb]>=fThreshold) ? width++; : break; }
-            //auto tb0 = (tbHit-width<0      ) ? tbHit-width : 0;
-            //auto tb1 = (tbHit+width>=fTbMax) ? tbHit+width : fTbMax-1;
-            //for (auto tb=tb0; tb<tb1; ++tb) integral += -fBuffer[tb];
-            //fFitParameterArray.push_back(LKPulseFitParameter(tbHit,width,integral,amplitude,tb1-tb0+1,1));
-            fFitParameterArray.push_back(LKPulseFitParameter(tbHit,width,integral,amplitude,1,1));
-        }
+        //XXX
+        double xMin, xMax;
+        double width = LKMisc::FWHM(fBuffer,fTbMax,tbHit,amplitude,fPedestal,xMin,xMax);
+        double integral = CollectTbAboveThresholdAndIntegrate(tbHit);
+        fFitParameterArray.push_back(LKPulseFitParameter(tbHit,width,integral,amplitude,1,1));
     }
 }
 
 void LKChannelAnalyzer::AnalyzeSigAtThreshold()
 {
-    if (fPedestal<3500)
+    int tbAtThreshold = -1;
+    int tMax = 0;
+    double xMin, xMax, width, integral;
+    double amplitude = -DBL_MAX;
+    for (auto tb=0; tb<fTbMax; ++tb)
     {
-        int tbAtThreshold = -1;
-        int tMax = 0;
-        double amplitude = -DBL_MAX;
-        for (auto tb=0; tb<fTbMax; ++tb)
-        {
-            auto value = fBuffer[tb];
-            if (tbAtThreshold<0 && value>fThreshold)
-                tbAtThreshold = tb;
+        auto value = fBuffer[tb];
+        if (tbAtThreshold<0 && value>fThreshold)
+            tbAtThreshold = tb;
 
-            if (tbAtThreshold>=0)
+        if (tbAtThreshold>=0)
+        {
+            if (value<fThreshold)
             {
-                if (value<fThreshold)
+                if (fFitParameterArray.size()==0)
                 {
-                    if (fFitParameterArray.size()==0)
-                    {
-                        int width = 0, integral = 0; // XXX
-                        fFitParameterArray.push_back(LKPulseFitParameter(tbAtThreshold,width,integral,amplitude,1,1));
-                        tMax = 0;
-                        amplitude = -DBL_MAX;
-                        tbAtThreshold = -1;
-                    }
-                    else if (tbAtThreshold-fFitParameterArray.back().fTbHit>fTbSeparationWidth)
-                    {
-                        int width = 0, integral = 0; // XXX
-                        fFitParameterArray.push_back(LKPulseFitParameter(tbAtThreshold,width,integral,amplitude,1,1));
-                        tMax = 0;
-                        amplitude = -DBL_MAX;
-                        tbAtThreshold = -1;
-                    }
-                    else {
-                        tMax = 0;
-                        amplitude = -DBL_MAX;
-                        tbAtThreshold = -1;
-                    }
+                    width = LKMisc::FWHM(fBuffer,fTbMax,tMax,amplitude,fPedestal,xMin,xMax);
+                    integral = CollectTbAboveThresholdAndIntegrate(tbAtThreshold);
+                    fFitParameterArray.push_back(LKPulseFitParameter(tbAtThreshold,width,integral,amplitude,1,1));
+                    tMax = 0;
+                    amplitude = -DBL_MAX;
+                    tbAtThreshold = -1;
                 }
-                else if (amplitude<value)
+                else if (tbAtThreshold-fFitParameterArray.back().fTbHit>fTbSeparationWidth)
                 {
-                    tMax = tb;
-                    amplitude = value;
+                    width = LKMisc::FWHM(fBuffer,fTbMax,tMax,amplitude,fPedestal,xMin,xMax);
+                    integral = CollectTbAboveThresholdAndIntegrate(tbAtThreshold);
+                    fFitParameterArray.push_back(LKPulseFitParameter(tbAtThreshold,width,integral,amplitude,1,1));
+                    tMax = 0;
+                    amplitude = -DBL_MAX;
+                    tbAtThreshold = -1;
+                }
+                else {
+                    tMax = 0;
+                    amplitude = -DBL_MAX;
+                    tbAtThreshold = -1;
                 }
             }
-        }
-    }
-    else
-    {
-        int tbAtThreshold = -1;
-        int tMax = 0;
-        double amplitude = -DBL_MAX;
-        for (auto tb=0; tb<fTbMax; ++tb)
-        {
-            auto value = fDynamicRange-fBuffer[tb];
-            if (tbAtThreshold<0 && value>fThreshold)
-                tbAtThreshold = tb;
-
-            if (tbAtThreshold>=0)
+            else if (amplitude<value)
             {
-                if (value<fThreshold)
-                {
-                    if (fFitParameterArray.size()==0)
-                    {
-                        int width = 0, integral = 0; // XXX
-                        fFitParameterArray.push_back(LKPulseFitParameter(tbAtThreshold,width,integral,amplitude,1,1));
-                        tMax = 0;
-                        amplitude = -DBL_MAX;
-                        tbAtThreshold = -1;
-                    }
-                    else if (tbAtThreshold-fFitParameterArray.back().fTbHit>fTbSeparationWidth)
-                    {
-                        int width = 0, integral = 0; // XXX
-                        fFitParameterArray.push_back(LKPulseFitParameter(tbAtThreshold,width,integral,amplitude,1,1));
-                        tMax = 0;
-                        amplitude = -DBL_MAX;
-                        tbAtThreshold = -1;
-                    }
-                    else {
-                        tMax = 0;
-                        amplitude = -DBL_MAX;
-                        tbAtThreshold = -1;
-                    }
-                }
-                else if (amplitude<value)
-                {
-                    tMax = tb;
-                    amplitude = value;
-                }
+                tMax = tb;
+                amplitude = value;
             }
         }
     }
@@ -434,12 +407,14 @@ void LKChannelAnalyzer::AnalyzePulseFitting()
     double amplitude;
     double chi2NDF;
     int ndf = fNDFFit;
+    double xMin, xMax, width, integral;
 
     // Previous hit information
     double tbHitPrev = fTbStart;
     double amplitudePrev = 0;
 
     for (auto it : {0,1})
+    {
         while (FindPeak(fBuffer, tbPointer, tbStartOfPulse))
         {
 #ifdef DEBUG_CHANA_ANALYZE
@@ -456,7 +431,10 @@ void LKChannelAnalyzer::AnalyzePulseFitting()
 
             if (TestPulse(fBuffer, tbHitPrev, amplitudePrev, tbHit, amplitude))
             {
-                fFitParameterArray.push_back(LKPulseFitParameter(tbHit,0,0,amplitude,ndf,chi2NDF));
+                width = LKMisc::FWHM(fBuffer,fTbMax,tbHit+fWidthLeading,amplitude,fPedestal,xMin,xMax);
+                integral = CollectTbAboveThresholdAndIntegrate(tbHit+fWidthLeading);
+                fFitParameterArray.push_back(LKPulseFitParameter(tbHit,width,integral,amplitude,ndf,chi2NDF));
+                SubtractPulse(fBuffer,tbHit,amplitude);
 #ifdef DEBUG_CHANA_ANALYZE_NHIT
                 if (fFitParameterArray.size()>=DEBUG_CHANA_ANALYZE_NHIT)
                     break;
@@ -469,6 +447,7 @@ void LKChannelAnalyzer::AnalyzePulseFitting()
                     tbPointer = int(tbHit) + fTbStepIfFoundHit;
             }
         }
+    }
 }
 
 double LKChannelAnalyzer::FindAndSubtractPedestal(double *buffer)
@@ -1015,6 +994,11 @@ bool LKChannelAnalyzer::TestPulse(double *buffer, double tbHitPrev, double ampli
     }
     */
 
+    return true;
+}
+
+void LKChannelAnalyzer::SubtractPulse(double *buffer, double tbHit, double amplitude)
+{
     /*
     for (int iTbPulse = -1; iTbPulse < numTbsCorrection; iTbPulse++) {
         int tb = int(tbHit) + iTbPulse;
@@ -1026,12 +1010,9 @@ bool LKChannelAnalyzer::TestPulse(double *buffer, double tbHitPrev, double ampli
     int tbCorrectionRange2 = tbHit + fPulseRefTbMax;
     if (tbCorrectionRange1 < 0)       tbCorrectionRange1 = 0;
     if (tbCorrectionRange2 >= fTbMax) tbCorrectionRange2 = fTbMax-1;
-    //lk_debug << fPulse << endl;
     for (int tb = tbCorrectionRange1; tb < tbCorrectionRange2; tb++) {
         buffer[tb] -= fPulse -> Eval(tb+0.5, tbHit, amplitude);
     }
-
-    return true;
 }
 
 void LKChannelAnalyzer::SetPad(TVirtualPad *pad, TH2D* hist)
@@ -1152,66 +1133,3 @@ TGraph* LKChannelAnalyzer::FillPedestalGraph(TGraph* graph, double tb1, double t
     graph -> SetLineColor(kGray+1);
     return graph;
 }
-
-/*
-double LKChannalAnalyzer::FWHM(double *buffer, double tmax, double amplitude)
-{
-    auto yhalf = 0.5*amplitude;
-    int ndt = 20;
-    auto dt = 1./ndt;
-    double dy0 = DBL_MAX;
-    double dy1 = DBL_MAX;
-    int    t0=0, t1=0, t2=0, t3=0;
-    double y0=0, y1=0, y2=0, y3=0;
-
-    for (auto t=tmax; t>=0; --t) {
-        if (buffer[t]<fThreshold) {
-            t0 = t;
-            t1 = t+1;
-            y0 = buffer[t0];
-            y1 = buffer[t1];
-            break;
-        }
-    }
-
-    for (auto t=tmax; t<fTbMax; ++t) {
-        if (buffer[t]<fThreshold) {
-            t2 = t-1;
-            t3 = t;   
-            y2 = buffer[t2];
-            y3 = buffer[t3];
-            break;
-        }
-     }
-
-    double sy = (y1-y0)/ndt;
-    for (auto i=0; i<=ndt; ++i)
-    {
-        auto y = y0 + i*sy;
-        auto dy = TMath::Abs(y-yhalf);
-        if (dy>dy0) {
-            if (abs(dy)>abs(dy0)) tmin = t0 + (i-1)*dt;
-            else                  tmin = t0 + i*dt;
-            break;
-        }
-        dy0 = dy;
-    }
-
-    sy = (y3-y2)/ndt;
-    for (auto i=0; i<=ndt; ++i)
-    {
-        auto y = y2 + i*sy;
-        auto dy = TMath::Abs(y-yhalf);
-        if (dy>dy1) {
-            if (abs(dy)>abs(dy1)) tmax = t2 + (i-1)*dt;
-            else                  tmax = t2 + i*dt;
-            break;
-        }
-        dy1 = dy;
-    }
-
-    double width = tmax - xmin;
-
-    return width;
-}
-*/

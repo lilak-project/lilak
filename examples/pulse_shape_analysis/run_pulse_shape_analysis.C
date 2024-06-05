@@ -3,7 +3,7 @@
 LKChannelAnalyzer* ana1 = nullptr;
 LKChannelAnalyzer* ana2 = nullptr;
 LKChannelAnalyzer* ana3 = nullptr;
-TFile *file_histogram = nullptr;
+TFile *file_input_histogram = nullptr;
 TIter next_key((TCollection*) nullptr);
 TCanvas *cvs1 = nullptr;
 TCanvas *cvs2 = nullptr;
@@ -13,29 +13,39 @@ void next_example()
 {
     auto key = next_key();
     auto name = key -> GetName();
-    auto hist = (TH1D*) file_histogram -> Get(name);
+    auto hist = (TH1D*) file_input_histogram -> Get(name);
 
-    ana1 -> Analyze(hist);
-    ana2 -> Analyze(hist);
-    ana3 -> Analyze(hist);
-
-    cvs1 -> cd(); ana1 -> Draw();
-    cvs2 -> cd(); ana2 -> Draw();
-    cvs3 -> cd(); ana3 -> Draw();
-    return;
-
-    auto numHits = ana1 -> GetNumHits();
-    for (auto iHit=0; iHit<numHits; ++iHit) {
-        auto tbHit = ana1 -> GetTbHit(iHit);
-        auto amplitude = ana1 -> GetAmplitude(iHit);
-        cout << "PulseFit hit-" << iHit << ": " << tbHit << " " << amplitude << endl;
+    if (1) {
+        ana1 -> Analyze(hist);
+        if (cvs1==nullptr) cvs1 = lk_cvs("cvsPulseFit");
+        cvs1 -> cd();
+        ana1 -> Draw();
+        cout << endl;
+        auto numHits = ana1 -> GetNumHits();
+        for (auto iHit=0; iHit<numHits; ++iHit) {
+            auto tbHit = ana1 -> GetTbHit(iHit);
+            auto amplitude = ana1 -> GetAmplitude(iHit);
+            cout << "PulseFit hit-" << iHit << ": t=" << ana1 -> GetT(0) << " a=" << ana1 -> GetA(0) << " w=" << ana1 -> GetW(0) << " i=" << ana1 -> GetI(0) << endl;
+        }
     }
 
-    cout << endl;
-    cout << "SigAtMax hit-0: " << ana2 -> GetTbHit(0) << " " << ana2 -> GetAmplitude(0) << endl;
+    if (1) {
+        ana2 -> Analyze(hist);
+        if (cvs2==nullptr) cvs2 = lk_cvs("cvsSigAtMax");
+        cvs2 -> cd();
+        ana2 -> Draw();
+        cout << endl;
+        cout << "SigAtMax hit-0: t=" << ana2 -> GetT(0) << " a=" << ana2 -> GetA(0) << " w=" << ana2 -> GetW(0) << " i=" << ana2 -> GetI(0) << endl;
+    }
 
-    cout << endl;
-    cout << "SigAtThr hit-0: " << ana2 -> GetTbHit(0) << " " << ana2 -> GetAmplitude(0) << endl;
+    if (1) {
+        ana3 -> Analyze(hist);
+        if (cvs3==nullptr) cvs3 = lk_cvs("cvsSigAtThr");
+        cvs3 -> cd();
+        ana3 -> Draw();
+        cout << endl;
+        cout << "SigAtThr hit-0: t=" << ana3 -> GetT(0) << " a=" << ana3 -> GetA(0) << " w=" << ana3 -> GetW(0) << " i=" << ana3 -> GetI(0) << endl;
+    }
 }
 
 void run_pulse_shape_analysis()
@@ -57,11 +67,7 @@ void run_pulse_shape_analysis()
     ana3 -> SetSigAtThreshold();
     ana3 -> SetThreshold(100);
 
-    cvs1 = lk_cvs("cvsPulseFit");
-    cvs2 = lk_cvs("cvsSigAtMax");
-    cvs3 = lk_cvs("cvsSigAtThr");
-
-    file_histogram = new TFile("histograms.root");
-    next_key = TIter(file_histogram -> GetListOfKeys());
+    file_input_histogram = new TFile("histograms.root");
+    next_key = TIter(file_input_histogram -> GetListOfKeys());
     next_example();
 }

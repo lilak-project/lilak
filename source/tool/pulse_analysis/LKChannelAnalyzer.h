@@ -172,18 +172,25 @@ class LKChannelAnalyzer : public LKPadInteractive
 
         int GetNumHits() const  { return fNumHits; }
         LKPulseFitParameter GetFitParameter(int i) const  { return fFitParameterArray[i]; }
-        double GetTbHit(int i) const      { return fFitParameterArray[i].fTbHit; }
-        double GetAmplitude(int i) const  { return fFitParameterArray[i].fAmplitude; }
-        double GetChi2NDF(int i) const    { return fFitParameterArray[i].fChi2NDF; }
         double GetNDF(int i) const        { return fFitParameterArray[i].fNDF; }
+        double GetTbHit(int i) const      { return fFitParameterArray[i].fTbHit; }
         double GetWidth(int i) const      { return fFitParameterArray[i].fWidth; }
+        double GetChi2NDF(int i) const    { return fFitParameterArray[i].fChi2NDF; }
+        double GetIntegral(int i) const   { return fFitParameterArray[i].fIntegral; }
+        double GetAmplitude(int i) const  { return fFitParameterArray[i].fAmplitude; }
+        double GetT(int i) const  { return GetTbHit(i); }
+        double GetW(int i) const  { return GetWidth(i); }
+        double GetI(int i) const  { return GetIntegral(i); }
+        double GetA(int i) const  { return GetAmplitude(i); }
 
-        void Analyze(TH1D* hist);
-        void Analyze(int* data);
-        void Analyze(double* data);
+        void Analyze(TH1D* hist, bool inverted=false);
+        void Analyze(int* data, bool inverted=false);
+        void Analyze(double* data, bool inverted=false);
         void AnalyzePulseFitting();
         void AnalyzeSigAtMaximum();
         void AnalyzeSigAtThreshold();
+
+        double CollectTbAboveThresholdAndIntegrate(int tbHit);
 
         /**
          * Find pedestal and subtract it from the buffer.
@@ -209,9 +216,10 @@ class LKChannelAnalyzer : public LKPadInteractive
         /**
          * Compare pulse with the previous pulse
          * If the pulse is not distinguishable from the previous pulse, return false.
-         * If the pulse is distinguishable, subtract pulse distribution from adc, and return true
          */
         bool TestPulse(double *buffer, double tbHitPre, double amplitudePre, double tbHit, double amplitude);
+        /// subtract pulse distribution from adc
+        void SubtractPulse(double *buffer, double tbHit, double amplitude);
         /**
          * Perform least square fitting with the fixed parameter tbStart and ndf.
          * Amplitude is calculated from weighted least chi-square fitting
@@ -355,6 +363,8 @@ class LKChannelAnalyzer : public LKPadInteractive
 #endif
 
         TH1D* fHistBuffer = nullptr;
+        TH1D* fHistBufferIntegral = nullptr;
+        vector<int> fIntegralTbArray;
 
     ClassDef(LKChannelAnalyzer,1);
 };
