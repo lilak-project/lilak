@@ -5,5 +5,5 @@ void run_conversion()
     run -> SetEventTrigger(new LKMFMConversionTask);
     run -> Init();
     run -> Print();
-    run -> Run(1);
+    run -> Run();
 }

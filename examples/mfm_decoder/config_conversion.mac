@@ -1,12 +1,13 @@
 LKRun/Name           test  # name of the run
-LKRun/DataPath       ./
+LKRun/RunID          253   # run number (If input file is output of LILAK run, this parameter is inherited)
+LKRun/InputPath      /home/ejungwoo/data/stark # LKRun will search files from input paths when LKRun/SearchRun is set.
+LKRun/SearchRun      mfm   # opt=mfm: search mfm files, opt=[tag]: search matching files -> run_runID.*.[tag].root.
+LKRun/OutputPath     ./
 
-persistency/FrameHeader true
-persistency/RawData     true
+persistency/FrameHeader     true
+persistency/RawData         true
 
-LKMFMConversionTask/InputFileName   /home/ejungwoo/data/atomx/run_0058.dat.28-02-24_11h26m56s
-
-LKFrameBuilder/MaxCobo              4   # maximum number of CoBo
-LKFrameBuilder/MaxAsad              4   # maximum number of AsAd in one CoBo
-LKFrameBuilder/MaxAget              4   # maximum number of AGET in one AsAd
-LKFrameBuilder/MaxChannels          68  # maximum number of channels in AGET
+LKFrameBuilder/MaxCobo      4   # maximum number of CoBo
+LKFrameBuilder/MaxAsad      4   # maximum number of AsAd in one CoBo
+LKFrameBuilder/MaxAget      4   # maximum number of AGET in one AsAd
+LKFrameBuilder/MaxChannels  68  # maximum number of channels in AGET

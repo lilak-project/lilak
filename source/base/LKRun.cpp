@@ -575,6 +575,15 @@ bool LKRun::Init()
     fPar -> CheckPar("&*LKRun/InputFile    path/to/input/data   # input file. Used if they are not added in the macro (multiple parameters are allowed)");
     fPar -> CheckPar("&*LKRun/FriendFile   path/to/friend/data  # input friend file. Used if they are not added in the macro (multiple parameters are allowed)");
 
+    if (!fRunNameIsSet) {
+        fPar -> UpdatePar(fRunName,  "LKRun/Name");
+        fPar -> UpdatePar(fRunID,    "LKRun/RunID");
+        fPar -> UpdatePar(fDivision, "LKRun/Division");
+        fPar -> UpdatePar(fTag,      "LKRun/Tag");
+        if (fPar -> CheckPar("LKRun/Name"))
+            fRunNameIsSet = true;
+    }
+
     bool useManualInputFiles = false;
     bool useInputFileParameter = false;
     bool useSearchRunParameter = false;
@@ -595,8 +604,9 @@ bool LKRun::Init()
         }
         useInputFileParameter = true;
     }
-    else if (fPar->CheckPar("LKRun/SearchRun"))
+    else if (fPar->CheckPar("LKRun/SearchRun")) {
         useSearchRunParameter = true;
+    }
 
     Int_t idxInput = 1;
     if (fInputFileName.IsNull())
@@ -616,16 +626,16 @@ bool LKRun::Init()
         }
         else if (useSearchRunParameter)
         {
-            LKParameterContainer* inputPathArray = fPar -> CreateMultiParContainer("LKRun/SearchRun");
+            LKParameterContainer* inputPathArray = fPar -> CreateMultiParContainer("LKRun/InputPath");
             TIter next(inputPathArray);
             LKParameter *parameter = nullptr;
             while ((parameter = (LKParameter*) next())) {
-                auto fileName = parameter -> GetValue();
-                if (!fileName.IsNull())
-                    fInputPathArray.push_back(fileName);
+                auto pathName = parameter -> GetValue();
+                if (!pathName.IsNull())
+                    fInputPathArray.push_back(pathName);
             }
 
-            fSearchOption = fPar -> CheckPar("LKRun/SearchRun");
+            fSearchOption = fPar -> GetParString("LKRun/SearchRun");
             vector<TString> inputFiles = SearchRunFiles(fRunID,fSearchOption);
             for (auto fileName : inputFiles)
                 fInputFileNameArray.push_back(fileName);
@@ -646,15 +656,6 @@ bool LKRun::Init()
             if (!fileName.IsNull())
                 fFriendFileNameArray.push_back(fileName);
         }
-    }
-
-    if (!fRunNameIsSet) {
-        fPar -> UpdatePar(fRunName,  "LKRun/Name");
-        fPar -> UpdatePar(fRunID,    "LKRun/RunID");
-        fPar -> UpdatePar(fDivision, "LKRun/Division");
-        fPar -> UpdatePar(fTag,      "LKRun/Tag");
-        if (fPar -> CheckPar("LKRun/Name"))
-            fRunNameIsSet = true;
     }
 
     if (!fInputFileName.IsNull()) {
@@ -780,7 +781,8 @@ bool LKRun::Init()
         }
     }
     else {
-        lk_warning << "Input file is not set!" << endl;
+        if (fInputFileNameArray.size()==0)
+            lk_warning << "Input file is not set!" << endl;
     }
 
     if (fDetectorSystem->GetEntries()!=0)
@@ -1526,6 +1528,7 @@ vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchOption)
     int countPath = 0;
     for (auto path : fInputPathArray)
     {
+        lk_info << "Looking for " << searchRunNo << "(" << searchOption << ") in " << path << endl;
         TIter nextFile(TSystemDirectory(Form("search_path_%d",countPath),path).GetListOfFiles());
         while ((sysFile=(TSystemFile*)nextFile()))
         {
@@ -1576,7 +1579,7 @@ vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchOption)
     sort(matchingFiles.begin(),matchingFiles.end());
 
     for (auto file : matchingFiles)
-        cout << file << endl;
+        lk_info << "Found " << file << endl;
 
     return matchingFiles;
 }

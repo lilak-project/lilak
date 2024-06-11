@@ -90,7 +90,7 @@ void LKMFMConversionTask::Run(Long64_t numEvents)
         fContinueEvent = true;
         fCountAddDataChunk = 0;
 
-        e_cout << "=============================================================" << endl;
+        e_cout << "===============================================================================================================" << endl;
         lk_info << "Opening file " << fileName << endl;
         fFileStream.open(fileName.Data(), std::ios::binary | std::ios::in);
         if (!fFileStream.is_open()) {
@@ -98,7 +98,6 @@ void LKMFMConversionTask::Run(Long64_t numEvents)
             fRun -> SignalEndOfRun();
             return;
         }
-        e_cout << "=============================================================" << endl;
 
         while (!fFileStream.eof() && fContinueEvent) {
             if (AddDataChunk()==false)

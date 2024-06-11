@@ -204,7 +204,7 @@ void LKFrameBuilder::ValidateEvent(mfm::Frame& frame)
             // frameAt ///////////////////////////////////////////////////////////////////////////////
             try { subFrame = frame.frameAt(i); }
             catch (const std::exception& e) {
-                e_debug << "Error at frameAt("<<i<<")" << endl;
+                e_error << "Error at frameAt("<<i<<")" << endl;
                 e_cout << e.what() << endl;
                 return;
             }
@@ -213,7 +213,7 @@ void LKFrameBuilder::ValidateEvent(mfm::Frame& frame)
             Int_t numItems;
             try { numItems = (*subFrame.get()).itemCount(); /*Make sure we have data*/ }
             catch (const std::exception& e){
-                e_debug << "Error at (*subFrame.get()).itemCount()" << endl;
+                e_error << "Error at (*subFrame.get()).itemCount()" << endl;
                 e_cout << e.what() << endl;
                 return;
             }
@@ -225,7 +225,7 @@ void LKFrameBuilder::ValidateEvent(mfm::Frame& frame)
                 }
             }
             catch (const std::exception& e) {
-                e_debug << "Error at ValidateFrame" << endl;
+                e_error << "Error at ValidateFrame" << endl;
                 e_cout << e.what() << endl;
                 return;
             }
