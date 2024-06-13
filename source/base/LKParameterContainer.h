@@ -39,10 +39,7 @@ using namespace std;
  * ## [header]
  *  [header] defines the characteristic of line.
  *  - < : Input parameter file. The parameter-value will be given as anohter input parameter file.
- *  - * : Temporary parameter. May be used when user want to define parameter but do not want to transfer parameter from input file to output file through LKRun. ex) *name value
  *  - @ : Conditional parameter. May be used when user wants to define parameter, only when group name is defined as parameter-name or parameter-value, ex) @group/name value
- *  - & : Multiple parameter. May be defined many times. Can be grouped later using CreateGroupContainer() method.
- *  - ! : Overwrite parameter. Overwrite parameter if this header is used
  *  - [tab] : See [group] section below.
  *
  * ## [name] and group
@@ -67,23 +64,17 @@ using namespace std;
  *   - Another [group] can be defined under [group] definition
  *   - Final name of the parameter will have [group]/[name]
  *
- *  - < : Input parameter file. The parameter-value will be given as anohter input parameter file.
- *  - * : Temporary parameter. May be used when user want to define parameter but do not want to transfer parameter from input file to output file through LKRun. ex) *name value
- *  - @ : Conditional parameter. May be used when user wants to define parameter, only when group name is defined as parameter-name or parameter-value, ex) @group/name value
- *  - & : Multiple parameter. May be defined many times. Can be grouped later using CreateGroupContainer() method.
- *  - ! : Overwrite parameter. Overwrite parameter if this header is used
- *
  * ## example parameter file
  * @code{.mac}
  *  # example parameter file
  *
  *  <input_file  path/file/to/add.par
- *  *LKRun/RunName  lilak 1 sim   # this parameter will last only within the first lilak output file
+ *  LKRun/RunName  lilak 1 sim   # this parameter will last only within the first lilak output file
  *
  *  using       option1
- *  @option1/par  value1  # parameter "par" will be set as "value1" because it was defined previously
- *  @option2/par  value2  # parameter "par" will not be set 
- *  @option3/par  value3  # parameter "par" will not be set
+ *  option1/par  value1  # parameter "par" will be set as "value1" because it was defined previously
+ *  option2/par  value2  # parameter "par" will not be set
+ *  option3/par  value3  # parameter "par" will not be set
  *
  *  title        common parameter definitions
  *  dimension    50 60 70
@@ -94,12 +85,12 @@ using namespace std;
  *      hit      false   # this parameter will be defined as "persistency/hit false"
  *      track    true    # this parameter will be defined as "persistency/track true"
  *
- *  !color       kBlue+3 # parameter value will overwrite above parameter "color"
+ *  color       kBlue+3 # parameter value will overwrite above parameter "color"
  *
  *  # sometimes user want to define parameter with same name for some reason...
- *  &SameName   1
- *  &SameName   2
- *  &SameName   3
+ *  SameName   1
+ *  SameName   2
+ *  SameName   3
  * @endcode
  *
  * ## Get parameter

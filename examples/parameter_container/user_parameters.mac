@@ -1,0 +1,27 @@
+<input_file  example.mac
+
+# ===============================================================
+# Below parameters are system parameters defined at compile time
+compile_par/lilak_mainproject_hash    {lilak_mainproject_hash}
+compile_par/lilak_version             {lilak_version}
+compile_par/lilak_hash                {lilak_hash}
+compile_par/lilak_hostname            {lilak_hostname}
+compile_par/lilak_username            {lilak_username}
+compile_par/lilak_hostuser            {lilak_hostuser}
+compile_par/lilak_home                {lilak_home}
+compile_par/lilak_path                {lilak_path}
+compile_par/lilak_data                {lilak_data}
+compile_par/lilak_common              {lilak_common}
+
+# ===============================================================
+# user
+user/par1  6
+user/par2  4
+user/par3  4
+user/par4  68
+user/par5  {user/par1}*{user/par2}*{user/par3}*{user/par4} # {user/par1}*{user/par2}*{user/par3}*{user/par4}
+
+user/numbers  0.0,  1.1,  2.2,  3.3,  4.4
+user/number2  {user/numbers[2]}  # referencing index 2 of {user/numbers}
+
+user/color_rainbow   kRed-4, kOrange-3, kYellow-4, kGreen+1, kAzure+8, kBlue+1, kViolet-6 # root color constants are converted to int
