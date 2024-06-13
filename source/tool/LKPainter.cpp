@@ -1,36 +1,36 @@
 #include "TGClient.h"
 #include "TGWindow.h"
 #include "TVirtualX.h"
-#include "LKWindowManager.h"
+#include "LKPainter.h"
 #include <iostream>
 using namespace std;
 
-ClassImp(LKWindowManager);
+ClassImp(LKPainter);
 
-LKWindowManager* LKWindowManager::fInstance = nullptr;
+LKPainter* LKPainter::fInstance = nullptr;
 
-LKWindowManager* LKWindowManager::GetWindowManager() {
+LKPainter* LKPainter::GetPainter() {
     if (fInstance == nullptr)
-        fInstance = new LKWindowManager();
+        fInstance = new LKPainter();
     return fInstance;
 }
 
-LKWindowManager::LKWindowManager()
+LKPainter::LKPainter()
 {
     Init();
 }
 
-bool LKWindowManager::Init()
+bool LKPainter::Init()
 {
     // Put intialization todos here which are not iterative job though event
-    e_info << "Initializing LKWindowManager" << std::endl;
+    e_info << "Initializing LKPainter" << std::endl;
 
     ConfigureDisplay();
 
     return true;
 }
 
-void LKWindowManager::Clear(Option_t *option)
+void LKPainter::Clear(Option_t *option)
 {
     TObject::Clear(option);
     fXCurrentDisplay = -1;
@@ -49,7 +49,7 @@ void LKWindowManager::Clear(Option_t *option)
     fHSpacing = 25;
 }
 
-void LKWindowManager::Print(Option_t *option) const
+void LKPainter::Print(Option_t *option) const
 {
     e_info << "fXCurrentDisplay : " << fXCurrentDisplay << endl;
     e_info << "fYCurrentDisplay : " << fYCurrentDisplay << endl;
@@ -67,7 +67,7 @@ void LKWindowManager::Print(Option_t *option) const
     e_info << "fHSpacing        : " << fHSpacing << endl;
 }
 
-void LKWindowManager::ConfigureDisplay()
+void LKPainter::ConfigureDisplay()
 {
     Drawable_t id = gClient->GetRoot()->GetId();
     gVirtualX -> GetWindowSize(id, fXCurrentDisplay, fYCurrentDisplay, fWCurrentDisplay, fHCurrentDisplay);
@@ -75,34 +75,34 @@ void LKWindowManager::ConfigureDisplay()
     fYCurrentCanvas = fDeadFrameSize[3];
     fWCurrentDisplay = fWCurrentDisplay - fDeadFrameSize[0] - fDeadFrameSize[1];
     fHCurrentDisplay = fHCurrentDisplay - fDeadFrameSize[2] - fDeadFrameSize[3];
-    fGeneralResizeFactor = fWCurrentDisplay / Double_t(1500);
-    fWDefault = fWDefaultOrigin * fGeneralResizeFactor;
-    fHDefault = fHDefaultOrigin * fGeneralResizeFactor;
+    fResizeFactor = fWCurrentDisplay / double(1500);
+    fWDefault = fWDefaultOrigin * fResizeFactor;
+    fHDefault = fHDefaultOrigin * fResizeFactor;
     e_info << "Full-Canvas-Size = (" << fWCurrentDisplay << ", " << fHCurrentDisplay << ")" << endl;
 }
 
-void LKWindowManager::SetDeadFrameLeft(UInt_t val)
+void LKPainter::SetDeadFrameLeft(UInt_t val)
 {
     fWCurrentDisplay = fWCurrentDisplay + fDeadFrameSize[0] - val;
     fDeadFrameSize[0] = val;
 }
-void LKWindowManager::SetDeadFrameRight(UInt_t val)
+void LKPainter::SetDeadFrameRight(UInt_t val)
 {
     fWCurrentDisplay = fWCurrentDisplay + fDeadFrameSize[1] - val;
     fDeadFrameSize[1] = val;
 }
-void LKWindowManager::SetDeadFrameBottom(UInt_t val)
+void LKPainter::SetDeadFrameBottom(UInt_t val)
 {
     fWCurrentDisplay = fWCurrentDisplay + fDeadFrameSize[2] - val;
     fDeadFrameSize[2] = val;
 }
-void LKWindowManager::SetDeadFrameTop(UInt_t val)
+void LKPainter::SetDeadFrameTop(UInt_t val)
 {
     fWCurrentDisplay = fWCurrentDisplay + fDeadFrameSize[3] - val;
     fDeadFrameSize[3] = val;
 }
 
-TCanvas *LKWindowManager::Canvas(TString name, Int_t mode, Double_t value1, Double_t value2, Double_t value3)
+TCanvas *LKPainter::Canvas(TString name, int mode, double value1, double value2, double value3)
 {
     if (mode==kDefault)    return CanvasDefault(name,value1);
     if (mode==kFull)       return CanvasFull   (name,value1,value2);
@@ -112,7 +112,7 @@ TCanvas *LKWindowManager::Canvas(TString name, Int_t mode, Double_t value1, Doub
     return CanvasDefault(name);
 }
 
-void LKWindowManager::UpdateNextCanvasPosition()
+void LKPainter::UpdateNextCanvasPosition()
 {
     if (fFixCanvasPosition)
         return;
@@ -120,7 +120,7 @@ void LKWindowManager::UpdateNextCanvasPosition()
     fYCurrentCanvas = fYCurrentCanvas + fHSpacing;
 }
 
-Double_t LKWindowManager::SetRatio(Double_t ratio, Double_t defaultValue)
+double LKPainter::SetRatio(double ratio, double defaultValue)
 {
     if (ratio==-1) ratio = defaultValue;
     else {
@@ -130,7 +130,7 @@ Double_t LKWindowManager::SetRatio(Double_t ratio, Double_t defaultValue)
     return ratio;
 }
 
-TString LKWindowManager::ConfigureName(TString name)
+TString LKPainter::ConfigureName(TString name)
 {
     if (!name.IsNull())
         return name;
@@ -138,7 +138,7 @@ TString LKWindowManager::ConfigureName(TString name)
     return name;
 }
 
-TCanvas *LKWindowManager::NewCanvas(TString name, TString title, Int_t x, Int_t y, Int_t width, Int_t height)
+TCanvas *LKPainter::NewCanvas(TString name, TString title, int x, int y, int width, int height)
 {
     name = ConfigureName(name);
     title = ConfigureName(title);
@@ -148,34 +148,34 @@ TCanvas *LKWindowManager::NewCanvas(TString name, TString title, Int_t x, Int_t 
     return cvs;
 }
 
-TCanvas *LKWindowManager::CanvasDefault(TString name, Double_t ratio)
+TCanvas *LKPainter::CanvasDefault(TString name, double ratio)
 {
     ratio = SetRatio(ratio);
-    Int_t width  = ratio*fWDefault;
-    Int_t height = ratio*fHDefault;
+    int width  = ratio*fWDefault;
+    int height = ratio*fHDefault;
     UpdateNextCanvasPosition();
     auto cvs = NewCanvas(name,name, fXCurrentCanvas, fYCurrentCanvas, width, height);
     return cvs;
 }
 
-TCanvas *LKWindowManager::CanvasFull(TString name, Double_t ratio1, Double_t ratio2)
+TCanvas *LKPainter::CanvasFull(TString name, double ratio1, double ratio2)
 {
     if (ratio1<0) ratio1 = 1;
     if (ratio1>0 && ratio2<0) ratio2 = ratio1;
     ratio1 = SetRatio(ratio1);
     ratio2 = SetRatio(ratio2);
-    Int_t width  = ratio1*fWCurrentDisplay;
-    Int_t height = ratio2*fHCurrentDisplay;
+    int width  = ratio1*fWCurrentDisplay;
+    int height = ratio2*fHCurrentDisplay;
     UpdateNextCanvasPosition();
     auto cvs = NewCanvas(name,name, fXCurrentCanvas, fYCurrentCanvas, width, height);
     return cvs;
 }
 
-TCanvas *LKWindowManager::CanvasSquare(TString name, Double_t ratio)
+TCanvas *LKPainter::CanvasSquare(TString name, double ratio)
 {
     ratio = SetRatio(ratio);
-    Int_t width  = ratio*fWCurrentDisplay;
-    Int_t height = ratio*fHCurrentDisplay;
+    int width  = ratio*fWCurrentDisplay;
+    int height = ratio*fHCurrentDisplay;
     if (width<height) height = width;
     else width = height;
     UpdateNextCanvasPosition();
@@ -183,11 +183,11 @@ TCanvas *LKWindowManager::CanvasSquare(TString name, Double_t ratio)
     return cvs;
 }
 
-TCanvas *LKWindowManager::CanvasResize(TString name, Int_t width0, Int_t height0, Double_t ratio)
+TCanvas *LKPainter::CanvasResize(TString name, int width0, int height0, double ratio)
 {
     if (ratio<0)
-    ratio = SetRatio(ratio,fGeneralResizeFactor);
-    Int_t width, height;
+    ratio = SetRatio(ratio,fResizeFactor);
+    int width, height;
     if (double(fWCurrentDisplay)/fHCurrentDisplay<double(width0)/height0) {
         width = fWCurrentDisplay*ratio;
         height = double(fWCurrentDisplay)/width0*height0*ratio;

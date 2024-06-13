@@ -1,6 +1,6 @@
 #include <fstream>
 using namespace std;
-#include "LKWindowManager.h"
+#include "LKPainter.h"
 #include "LKEvePlane.h"
 #include "GETChannel.h"
 #include "TStyle.h"
@@ -417,7 +417,7 @@ TCanvas *LKEvePlane::GetCanvas(Option_t *option)
         double y2 = y1 + 0.5*(fYCCanvas-0);
         double y3 = y2;
         double y4 = y3 + 0.5*(fYCCanvas-0);
-        fCanvas = LKWindowManager::GetWindowManager() -> CanvasResize("TTMicromegas",fDXCanvas,fDYCanvas,0.95);
+        fCanvas = LKPainter::GetPainter() -> CanvasResize("TTMicromegas",fDXCanvas,fDYCanvas,0.95);
         fPadEventDisplay1 = new TPad("LKEvePlanePad_EventDisplay1","",0,fYCCanvas,0.5,1);
         fPadEventDisplay1 -> SetMargin(0.12,0.14,0.1,0.08);
         fPadEventDisplay1 -> SetNumber(1);

@@ -1,5 +1,5 @@
 #include "LKMisc.h"
-#include "LKWindowManager.h"
+#include "LKPainter.h"
 
 #include "TColorWheel.h"
 #include "TMarker.h"
@@ -342,18 +342,18 @@ double LKMisc::EvalPedestalSamplingMethod(double *buffer, int length, int sample
 
 void LKMisc::DrawColors()
 {
-    auto cvs1 = lk_win() -> CanvasResize("CvsLKMiscColors",500,200,0.4);
+    auto cvs1 = e_painter() -> CanvasResize("CvsLKMiscColors",500,200,0.4);
     cvs1 -> DrawColorTable();
 
     TColorWheel *colorWheel = new TColorWheel();
-    auto cvs2 = lk_win() -> CanvasResize("CvsLKMiscColors2",800,825,0.6);
+    auto cvs2 = e_painter() -> CanvasResize("CvsLKMiscColors2",800,825,0.6);
     colorWheel -> SetCanvas(cvs2);
     colorWheel -> Draw();
 }
 
 void LKMisc::DrawMarkers()
 {
-    auto cvs = lk_win() -> CanvasResize("CvsLKMiscMarkers",600,400,0.6);
+    auto cvs = e_painter() -> CanvasResize("CvsLKMiscMarkers",600,400,0.6);
     cvs -> SetMargin(0.02,0.02,0.02,0.02);
     auto hist = new TH2D("HistLKMiscUserMarkers","",100,0.2,10.8,100,0.1,5.6);
     hist -> SetStats(0);
@@ -390,7 +390,7 @@ void LKMisc::DrawColors(vector<int> colors)
     int nx = 10;
     int nc = colors.size();
     int ny = 5;
-    auto cvs = lk_win() -> CanvasResize("CvsLKMiscUserColors",600,80*ny,0.5);
+    auto cvs = e_painter() -> CanvasResize("CvsLKMiscUserColors",600,80*ny,0.5);
     cvs -> SetMargin(0.02,0.02,0.02,0.02);
     auto hist = new TH2D("HistLKMiscUserColors","",100,0.2,10.8,100,0.1,1.1*ny);
     hist -> SetStats(0);

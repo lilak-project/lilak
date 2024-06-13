@@ -1,7 +1,6 @@
 #include <fstream>
 using namespace std;
 
-#include "LKWindowManager.h"
 #include "LKMicromegas.h"
 #include "GETChannel.h"
 #include "TStyle.h"

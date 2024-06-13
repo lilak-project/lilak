@@ -5,11 +5,10 @@
 
 #include "LKLogger.h"
 #include "LKRun.h"
-#include "LKWindowManager.h"
+#include "LKPainter.h"
 #include "LKGETChannelViewer.h"
 
 #include "GETChannel.h"
-#include "LKWindowManager.h"
 #include "LKContainer.h"
 #include "LKHit.h"
 
@@ -219,7 +218,7 @@ bool LKGETChannelViewer::Init()
         }
     }
 
-    fCvsMain = LKWindowManager::GetWindowManager() -> CanvasResize("LKGETChannelViewer", 1500,800);
+    fCvsMain = LKPainter::GetPainter() -> CanvasResize("LKGETChannelViewer", 1500,800);
     fCvsMain -> Divide(2,2);
 
     fVPadMCAANumber = fCvsMain -> cd(1);

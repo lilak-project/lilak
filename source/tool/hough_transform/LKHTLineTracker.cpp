@@ -1,7 +1,7 @@
 #include <climits>
 #include "TObjString.h"
 #include "LKHTLineTracker.h"
-#include "LKWindowManager.h"
+#include "LKPainter.h"
 #include "LKGeoBox.h"
 
 ClassImp(LKHTLineTracker);
@@ -1009,7 +1009,7 @@ void LKHTLineTracker::Draw(TVirtualPad* padImage, TVirtualPad* padParam, LKParam
 
 void LKHTLineTracker::Draw(TString option)
 {
-    auto cvs = LKWindowManager::GetWindowManager() -> CanvasResize("",100,50,0.6);
+    auto cvs = LKPainter::GetPainter() -> CanvasResize("",100,50,0.6);
     cvs -> Divide(2,1);
     Draw(cvs->cd(1), cvs->cd(2),option);
 }

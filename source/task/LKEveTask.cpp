@@ -25,7 +25,7 @@
 #include "LKLogger.h"
 #include "LKRun.h"
 #include "LKEveTask.h"
-#include "LKWindowManager.h"
+#include "LKPainter.h"
 
 ClassImp(LKEveTask)
 
@@ -246,7 +246,7 @@ void LKEveTask::DrawEve3D()
     }
     if (fCanvas3D==nullptr) {
         lk_info << "Using default canvas for 3d event display" << endl;
-        fCanvas3D = LKWindowManager::GetWindowManager() -> CanvasSquare("LKEveCanvas3D",0.6);
+        fCanvas3D = LKPainter::GetPainter() -> CanvasSquare("LKEveCanvas3D",0.6);
     }
 
     if (fFrame3D==nullptr)

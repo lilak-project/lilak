@@ -1,5 +1,5 @@
 #include "LKDetectorPlane.h"
-#include "LKWindowManager.h"
+#include "LKPainter.h"
 
 #include <iostream>
 using namespace std;
@@ -653,7 +653,7 @@ void LKDetectorPlane::DrawHist(Option_t *option)
 TCanvas *LKDetectorPlane::GetCanvas(Option_t *)
 {
     if (fCanvas==nullptr)
-        fCanvas = LKWindowManager::GetWindowManager() -> CanvasDefault(fName+Form("%d",fPlaneID));
+        fCanvas = LKPainter::GetPainter() -> CanvasDefault(fName+Form("%d",fPlaneID));
     return fCanvas;
 }
 
