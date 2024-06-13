@@ -44,10 +44,15 @@ bool LKGETChannelViewer::Init()
         }
     }
 
-    fPar -> UpdatePar(fNumCobo,"LKGETChannelViewer/MaxCobo     4");
-    fPar -> UpdatePar(fNumAsad,"LKGETChannelViewer/MaxAsad     4");
-    fPar -> UpdatePar(fNumAget,"LKGETChannelViewer/MaxAget     4");
-    fPar -> UpdatePar(fNumChan,"LKGETChannelViewer/MaxChannels 68");
+    fPar -> Require("LKGETChannelViewer/MaxCobo","4","",1);
+    fPar -> Require("LKGETChannelViewer/MaxAsad","4","",2);
+    fPar -> Require("LKGETChannelViewer/MaxAget","4","",3);
+    fPar -> Require("LKGETChannelViewer/MaxChan","68","",4);
+
+    fPar -> UpdatePar(fNumCobo,"LKGETChannelViewer/MaxCobo  4");
+    fPar -> UpdatePar(fNumAsad,"LKGETChannelViewer/MaxAsad  4");
+    fPar -> UpdatePar(fNumAget,"LKGETChannelViewer/MaxAget  4");
+    fPar -> UpdatePar(fNumChan,"LKGETChannelViewer/MaxChan  68");
 
     if (fNumChan>12*15) { fNXCN = 15; fNYCN = 15; }
     if (fNumChan>12*12) { fNXCN = 12; fNYCN = 15; }

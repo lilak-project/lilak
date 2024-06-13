@@ -13,13 +13,23 @@ bool LKHTTrackingTask::Init()
 {
     lk_info << "Initializing LKHTTrackingTask" << std::endl;
 
-    fPar -> UpdateBinning("LKHTTrackingTask/binning_x  #100 -100 100", fNX, fX1, fX2);
-    fPar -> UpdateBinning("LKHTTrackingTask/binning_y  #100 -100 100", fNY, fY1, fY2);
-    fPar -> UpdateBinning("LKHTTrackingTask/binning_z  #100 -100 100", fNZ, fZ1, fZ2);
-    fPar -> UpdateBinning("LKHTTrackingTask/binning_r  #100  0 0  # 0 0 will set range automatically", fNR, fR1, fR2);
-    fPar -> UpdateBinning("LKHTTrackingTask/binning_t  #100  0 0  # 0 0 will set range automatically", fNT, fT1, fT2);
-    if (fPar -> CheckPar("LKHTTrackingTask/transform_center  0 0 0"))
-        fPar -> UpdateV3("LKHTTrackingTask/transform_center  0 0 0", fTCX, fTCY, fTCZ);
+    fPar -> Require("LKHTTrackingTask/hit_branch",   "Hit",            "branch name containing LKHit");
+    fPar -> Require("LKHTTrackingTask/binning_x",    "100, -100, 100", "x-axis binning for hough transform image space");
+    fPar -> Require("LKHTTrackingTask/binning_y",    "100, -100, 100", "y-axis binning for hough transform image space");
+    fPar -> Require("LKHTTrackingTask/binning_z",    "100, -100, 100", "z-axis binning for hough transform image space");
+    fPar -> Require("LKHTTrackingTask/binning_r",    "100, 0, 0",      "range 0, 0 will set range automatically");
+    fPar -> Require("LKHTTrackingTask/binning_t",    "100, 0, 0",      "range 0, 0 will set range automatically");
+    fPar -> Require("LKHTTrackingTask/transform_ct", "0, 0, 0",        "transform center, is center point where transform is performed.");
+    fPar -> Require("LKHTTrackingTask/num_hits_cut", "3",              "Skip event if number of hits in event is lower than this cut");
+    fPar -> Require("LKHTTrackingTask/mode",         "xy, zy",         "Choose from xy, yz, yz, yx, zx, zy. If two different modes are selected, two HT-trackers will be created");
+
+    fPar -> UpdateBinning("LKHTTrackingTask/binning_x", fNX, fX1, fX2);
+    fPar -> UpdateBinning("LKHTTrackingTask/binning_y", fNY, fY1, fY2);
+    fPar -> UpdateBinning("LKHTTrackingTask/binning_z", fNZ, fZ1, fZ2);
+    fPar -> UpdateBinning("LKHTTrackingTask/binning_r", fNR, fR1, fR2);
+    fPar -> UpdateBinning("LKHTTrackingTask/binning_t", fNT, fT1, fT2);
+    if (fPar -> CheckPar("LKHTTrackingTask/transform_ct"))
+        fPar -> UpdateV3("LKHTTrackingTask/transform_ct", fTCX, fTCY, fTCZ);
     else {
         fTCX = fX1;
         fTCY = fY1;
@@ -44,46 +54,60 @@ bool LKHTTrackingTask::Init()
         tk -> Print();
     };
 
-    fNumHT = fPar -> GetParN("LKHTTrackingTask/mode");
-    if (fNumHT==1) {
-        fAxisConf0 = fPar -> GetParString("LKHTTrackingTask/mode");
-        fAxisConf0.ToLower();
-        if      (fAxisConf0=="xy") { fAxis00 = LKVector3::kX; fAxis01 = LKVector3::kY; SetTracker(fTracker0, fTCX,fTCY, fNX,fX1,fX2, fNY,fY1,fY2, fNR,fR1,fR2, fNT,fT1,fT2); }
-        else if (fAxisConf0=="xz") { fAxis00 = LKVector3::kX; fAxis01 = LKVector3::kZ; SetTracker(fTracker0, fTCX,fTCZ, fNX,fX1,fX2, fNZ,fZ1,fZ2, fNR,fR1,fR2, fNT,fT1,fT2); }
-        else if (fAxisConf0=="yz") { fAxis00 = LKVector3::kY; fAxis01 = LKVector3::kZ; SetTracker(fTracker0, fTCY,fTCZ, fNY,fY1,fY2, fNZ,fZ1,fZ2, fNR,fR1,fR2, fNT,fT1,fT2); }
-        else if (fAxisConf0=="yx") { fAxis00 = LKVector3::kY; fAxis01 = LKVector3::kX; SetTracker(fTracker0, fTCY,fTCX, fNY,fY1,fY2, fNX,fX1,fX2, fNR,fR1,fR2, fNT,fT1,fT2); }
-        else if (fAxisConf0=="zx") { fAxis00 = LKVector3::kZ; fAxis01 = LKVector3::kX; SetTracker(fTracker0, fTCZ,fTCX, fNZ,fZ1,fZ2, fNX,fX1,fX2, fNR,fR1,fR2, fNT,fT1,fT2); }
-        else if (fAxisConf0=="zy") { fAxis00 = LKVector3::kZ; fAxis01 = LKVector3::kY; SetTracker(fTracker0, fTCZ,fTCY, fNZ,fZ1,fZ2, fNY,fY1,fY2, fNR,fR1,fR2, fNT,fT1,fT2); }
+    if (fPar -> CheckPar("LKHTTrackingTask/mode")==false)
+    {
+        fNumHT = 1;
+        fAxisConf0 = "xy";
+        fAxis00 = LKVector3::kX;
+        fAxis01 = LKVector3::kZ;
+        SetTracker(fTracker0, fTCX,fTCZ, fNX,fX1,fX2, fNZ,fZ1,fZ2, fNR,fR1,fR2, fNT,fT1,fT2);
+        lk_warning << "Please set LKHTTrackingTask/mode to choose hough transform plane!" << endl;
+        lk_warning << "Using default mode xy ..." << endl;
         lk_info << "Axis: " << fAxis00 << ", " << fAxis01 << endl;
     }
-    else if (fNumHT==2) {
-        fAxisConf0 = fPar -> GetParString("LKHTTrackingTask/mode",0);
-        fAxisConf0.ToLower();
-        if      (fAxisConf0=="xy") { fAxis00 = LKVector3::kX; fAxis01 = LKVector3::kY; SetTracker(fTracker0, fTCX,fTCY, fNX,fX1,fX2, fNY,fY1,fY2, fNR,fR1,fR2, fNT,fT1,fT2); }
-        else if (fAxisConf0=="xz") { fAxis00 = LKVector3::kX; fAxis01 = LKVector3::kZ; SetTracker(fTracker0, fTCX,fTCZ, fNX,fX1,fX2, fNZ,fZ1,fZ2, fNR,fR1,fR2, fNT,fT1,fT2); }
-        else if (fAxisConf0=="yz") { fAxis00 = LKVector3::kY; fAxis01 = LKVector3::kZ; SetTracker(fTracker0, fTCY,fTCZ, fNY,fY1,fY2, fNZ,fZ1,fZ2, fNR,fR1,fR2, fNT,fT1,fT2); }
-        else if (fAxisConf0=="yx") { fAxis00 = LKVector3::kY; fAxis01 = LKVector3::kX; SetTracker(fTracker0, fTCY,fTCX, fNY,fY1,fY2, fNX,fX1,fX2, fNR,fR1,fR2, fNT,fT1,fT2); }
-        else if (fAxisConf0=="zx") { fAxis00 = LKVector3::kZ; fAxis01 = LKVector3::kX; SetTracker(fTracker0, fTCZ,fTCX, fNZ,fZ1,fZ2, fNX,fX1,fX2, fNR,fR1,fR2, fNT,fT1,fT2); }
-        else if (fAxisConf0=="zy") { fAxis00 = LKVector3::kZ; fAxis01 = LKVector3::kY; SetTracker(fTracker0, fTCZ,fTCY, fNZ,fZ1,fZ2, fNY,fY1,fY2, fNR,fR1,fR2, fNT,fT1,fT2); }
-        fAxisConf1 = fPar -> GetParString("LKHTTrackingTask/mode",1);
-        fAxisConf1.ToLower();
-        if      (fAxisConf1=="xy") { fAxis10 = LKVector3::kX; fAxis11 = LKVector3::kY; SetTracker(fTracker1, fTCX,fTCY, fNX,fX1,fX2, fNY,fY1,fY2, fNR,fR1,fR2, fNT,fT1,fT2); }
-        else if (fAxisConf1=="xz") { fAxis10 = LKVector3::kX; fAxis11 = LKVector3::kZ; SetTracker(fTracker1, fTCX,fTCZ, fNX,fX1,fX2, fNZ,fZ1,fZ2, fNR,fR1,fR2, fNT,fT1,fT2); }
-        else if (fAxisConf1=="yz") { fAxis10 = LKVector3::kY; fAxis11 = LKVector3::kZ; SetTracker(fTracker1, fTCY,fTCZ, fNY,fY1,fY2, fNZ,fZ1,fZ2, fNR,fR1,fR2, fNT,fT1,fT2); }
-        else if (fAxisConf1=="yx") { fAxis10 = LKVector3::kY; fAxis11 = LKVector3::kX; SetTracker(fTracker1, fTCY,fTCX, fNY,fY1,fY2, fNX,fX1,fX2, fNR,fR1,fR2, fNT,fT1,fT2); }
-        else if (fAxisConf1=="zx") { fAxis10 = LKVector3::kZ; fAxis11 = LKVector3::kX; SetTracker(fTracker1, fTCZ,fTCX, fNZ,fZ1,fZ2, fNX,fX1,fX2, fNR,fR1,fR2, fNT,fT1,fT2); }
-        else if (fAxisConf1=="zy") { fAxis10 = LKVector3::kZ; fAxis11 = LKVector3::kY; SetTracker(fTracker1, fTCZ,fTCY, fNZ,fZ1,fZ2, fNY,fY1,fY2, fNR,fR1,fR2, fNT,fT1,fT2); }
-        lk_info << "Axis-0: " << fAxis00 << ", " << fAxis01 << endl;
-        lk_info << "Axis-1: " << fAxis10 << ", " << fAxis11 << endl;
-    }
-    else {
-        lk_error << "Must set parameter LKHTTrackingTask/mode # xy" << endl;
-        return false;
+    else
+    {
+        fNumHT = fPar -> GetParN("LKHTTrackingTask/mode");
+        if (fNumHT==1) {
+            fAxisConf0 = fPar -> GetParString("LKHTTrackingTask/mode");
+            fAxisConf0.ToLower();
+            if      (fAxisConf0=="xy") { fAxis00 = LKVector3::kX; fAxis01 = LKVector3::kY; SetTracker(fTracker0, fTCX,fTCY, fNX,fX1,fX2, fNY,fY1,fY2, fNR,fR1,fR2, fNT,fT1,fT2); }
+            else if (fAxisConf0=="xz") { fAxis00 = LKVector3::kX; fAxis01 = LKVector3::kZ; SetTracker(fTracker0, fTCX,fTCZ, fNX,fX1,fX2, fNZ,fZ1,fZ2, fNR,fR1,fR2, fNT,fT1,fT2); }
+            else if (fAxisConf0=="yz") { fAxis00 = LKVector3::kY; fAxis01 = LKVector3::kZ; SetTracker(fTracker0, fTCY,fTCZ, fNY,fY1,fY2, fNZ,fZ1,fZ2, fNR,fR1,fR2, fNT,fT1,fT2); }
+            else if (fAxisConf0=="yx") { fAxis00 = LKVector3::kY; fAxis01 = LKVector3::kX; SetTracker(fTracker0, fTCY,fTCX, fNY,fY1,fY2, fNX,fX1,fX2, fNR,fR1,fR2, fNT,fT1,fT2); }
+            else if (fAxisConf0=="zx") { fAxis00 = LKVector3::kZ; fAxis01 = LKVector3::kX; SetTracker(fTracker0, fTCZ,fTCX, fNZ,fZ1,fZ2, fNX,fX1,fX2, fNR,fR1,fR2, fNT,fT1,fT2); }
+            else if (fAxisConf0=="zy") { fAxis00 = LKVector3::kZ; fAxis01 = LKVector3::kY; SetTracker(fTracker0, fTCZ,fTCY, fNZ,fZ1,fZ2, fNY,fY1,fY2, fNR,fR1,fR2, fNT,fT1,fT2); }
+            lk_info << "Axis: " << fAxis00 << ", " << fAxis01 << endl;
+        }
+        else if (fNumHT==2) {
+            fAxisConf0 = fPar -> GetParString("LKHTTrackingTask/mode",0);
+            fAxisConf0.ToLower();
+            if      (fAxisConf0=="xy") { fAxis00 = LKVector3::kX; fAxis01 = LKVector3::kY; SetTracker(fTracker0, fTCX,fTCY, fNX,fX1,fX2, fNY,fY1,fY2, fNR,fR1,fR2, fNT,fT1,fT2); }
+            else if (fAxisConf0=="xz") { fAxis00 = LKVector3::kX; fAxis01 = LKVector3::kZ; SetTracker(fTracker0, fTCX,fTCZ, fNX,fX1,fX2, fNZ,fZ1,fZ2, fNR,fR1,fR2, fNT,fT1,fT2); }
+            else if (fAxisConf0=="yz") { fAxis00 = LKVector3::kY; fAxis01 = LKVector3::kZ; SetTracker(fTracker0, fTCY,fTCZ, fNY,fY1,fY2, fNZ,fZ1,fZ2, fNR,fR1,fR2, fNT,fT1,fT2); }
+            else if (fAxisConf0=="yx") { fAxis00 = LKVector3::kY; fAxis01 = LKVector3::kX; SetTracker(fTracker0, fTCY,fTCX, fNY,fY1,fY2, fNX,fX1,fX2, fNR,fR1,fR2, fNT,fT1,fT2); }
+            else if (fAxisConf0=="zx") { fAxis00 = LKVector3::kZ; fAxis01 = LKVector3::kX; SetTracker(fTracker0, fTCZ,fTCX, fNZ,fZ1,fZ2, fNX,fX1,fX2, fNR,fR1,fR2, fNT,fT1,fT2); }
+            else if (fAxisConf0=="zy") { fAxis00 = LKVector3::kZ; fAxis01 = LKVector3::kY; SetTracker(fTracker0, fTCZ,fTCY, fNZ,fZ1,fZ2, fNY,fY1,fY2, fNR,fR1,fR2, fNT,fT1,fT2); }
+            fAxisConf1 = fPar -> GetParString("LKHTTrackingTask/mode",1);
+            fAxisConf1.ToLower();
+            if      (fAxisConf1=="xy") { fAxis10 = LKVector3::kX; fAxis11 = LKVector3::kY; SetTracker(fTracker1, fTCX,fTCY, fNX,fX1,fX2, fNY,fY1,fY2, fNR,fR1,fR2, fNT,fT1,fT2); }
+            else if (fAxisConf1=="xz") { fAxis10 = LKVector3::kX; fAxis11 = LKVector3::kZ; SetTracker(fTracker1, fTCX,fTCZ, fNX,fX1,fX2, fNZ,fZ1,fZ2, fNR,fR1,fR2, fNT,fT1,fT2); }
+            else if (fAxisConf1=="yz") { fAxis10 = LKVector3::kY; fAxis11 = LKVector3::kZ; SetTracker(fTracker1, fTCY,fTCZ, fNY,fY1,fY2, fNZ,fZ1,fZ2, fNR,fR1,fR2, fNT,fT1,fT2); }
+            else if (fAxisConf1=="yx") { fAxis10 = LKVector3::kY; fAxis11 = LKVector3::kX; SetTracker(fTracker1, fTCY,fTCX, fNY,fY1,fY2, fNX,fX1,fX2, fNR,fR1,fR2, fNT,fT1,fT2); }
+            else if (fAxisConf1=="zx") { fAxis10 = LKVector3::kZ; fAxis11 = LKVector3::kX; SetTracker(fTracker1, fTCZ,fTCX, fNZ,fZ1,fZ2, fNX,fX1,fX2, fNR,fR1,fR2, fNT,fT1,fT2); }
+            else if (fAxisConf1=="zy") { fAxis10 = LKVector3::kZ; fAxis11 = LKVector3::kY; SetTracker(fTracker1, fTCZ,fTCY, fNZ,fZ1,fZ2, fNY,fY1,fY2, fNR,fR1,fR2, fNT,fT1,fT2); }
+            lk_info << "Axis-0: " << fAxis00 << ", " << fAxis01 << endl;
+            lk_info << "Axis-1: " << fAxis10 << ", " << fAxis11 << endl;
+        }
+        else {
+            lk_error << "Must set parameter LKHTTrackingTask/mode # xy" << endl;
+            return false;
+        }
     }
 
     std::vector<TString> hitBranchNameArray;
-    if (fPar -> CheckPar("LKHTTrackingTask/hit_branch_name Hit"))
-        hitBranchNameArray = fPar -> GetParVString("LKHTTrackingTask/hit_branch_name");
+    if (fPar -> CheckPar("LKHTTrackingTask/hit_branch Hit"))
+        hitBranchNameArray = fPar -> GetParVString("LKHTTrackingTask/hit_branch");
     if (hitBranchNameArray.size()==0)
         hitBranchNameArray.push_back(TString("Hit"));
     for (auto hitBranchName : hitBranchNameArray) {
