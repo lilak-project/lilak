@@ -16,6 +16,9 @@ class LKMisc : public TObject
         /// cvCut: stdDev/mean cut for collecting samples used for calculating pedestal.
         static double EvalPedestalSamplingMethod(double *buffer, int length,  int sampleLength=50, double cvCut=0.2, bool subtractPedestal=false);
     
+        static void DrawColors();
+        static void DrawMarkers();
+        static void DrawColors(vector<int> colors);
 
     public:
         LKMisc();

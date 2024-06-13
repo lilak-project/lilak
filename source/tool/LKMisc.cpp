@@ -1,6 +1,13 @@
 #include "LKMisc.h"
-#include <cfloat>
+#include "LKWindowManager.h"
+
+#include "TColorWheel.h"
+#include "TMarker.h"
+#include "TH2D.h"
 #include "TMath.h"
+#include "TText.h"
+
+#include <cfloat>
 
 //#define DEBUG_MISC_FWHM
 //#define DEBUG_MISC_FINDPED
@@ -331,4 +338,85 @@ double LKMisc::EvalPedestalSamplingMethod(double *buffer, int length, int sample
             buffer[iTb] = buffer[iTb] - pedestalFinal;
 
     return pedestalFinal;
+}
+
+void LKMisc::DrawColors()
+{
+    auto cvs1 = lk_win() -> CanvasResize("CvsLKMiscColors",500,200,0.4);
+    cvs1 -> DrawColorTable();
+
+    TColorWheel *colorWheel = new TColorWheel();
+    auto cvs2 = lk_win() -> CanvasResize("CvsLKMiscColors2",800,825,0.6);
+    colorWheel -> SetCanvas(cvs2);
+    colorWheel -> Draw();
+}
+
+void LKMisc::DrawMarkers()
+{
+    auto cvs = lk_win() -> CanvasResize("CvsLKMiscMarkers",600,400,0.6);
+    cvs -> SetMargin(0.02,0.02,0.02,0.02);
+    auto hist = new TH2D("HistLKMiscUserMarkers","",100,0.2,10.8,100,0.1,5.6);
+    hist -> SetStats(0);
+    hist -> SetStats(0);
+    hist -> GetXaxis() -> SetLabelOffset(100);
+    hist -> GetYaxis() -> SetLabelOffset(100);
+    hist -> GetXaxis() -> SetNdivisions(0);
+    hist -> GetYaxis() -> SetNdivisions(0);
+    hist -> Draw();
+    int i = 0;
+    for (auto y=5; y>=1; --y) {
+        for (auto x=1; x<=10; ++x) {
+            if (i==0) { i++; continue; }
+            auto m = new TMarker(x,y,i);
+            m -> SetMarkerSize(3.5);
+            auto t = new TText(x,y-0.42,Form("%d",i));
+            t -> SetTextSize(0.035);
+            t -> SetTextAlign(22);
+            if ((i>=20&&i<=29)||i==33||i==34) t -> SetTextColor(kBlue);
+            if ((i>=24&&i<=28)||i==30||i==32) t -> SetTextColor(kRed);
+            if (i>=9&&i<=19) {
+                t -> SetTextColor(kGray);
+                m -> SetMarkerColor(kGray);
+            }
+            m -> Draw();
+            t -> Draw();
+            i++;
+        }
+    }
+}
+
+void LKMisc::DrawColors(vector<int> colors)
+{
+    int nx = 10;
+    int nc = colors.size();
+    int ny = 5;
+    auto cvs = lk_win() -> CanvasResize("CvsLKMiscUserColors",600,80*ny,0.5);
+    cvs -> SetMargin(0.02,0.02,0.02,0.02);
+    auto hist = new TH2D("HistLKMiscUserColors","",100,0.2,10.8,100,0.1,1.1*ny);
+    hist -> SetStats(0);
+    hist -> GetXaxis() -> SetLabelOffset(100);
+    hist -> GetYaxis() -> SetLabelOffset(100);
+    hist -> GetXaxis() -> SetNdivisions(0);
+    hist -> GetYaxis() -> SetNdivisions(0);
+    hist -> Draw();
+    int countColors = 0;
+    for (auto y=ny; y>=1; --y)
+    {
+        for (auto x=1; x<=nx; ++x)
+        {
+            if (countColors>=nc) break;
+            int color = colors[countColors];
+            auto m = new TMarker(x,y,21);
+            m -> SetMarkerSize(3.5);
+            m -> SetMarkerColor(color);
+            //auto t = new TText(x,y-0.42,Form("%d (%d)",countColors,color));
+            auto t = new TText(x,y-0.42,Form("%d",countColors));
+            t -> SetTextSize(0.035);
+            t -> SetTextFont(42);
+            t -> SetTextAlign(22);
+            m -> Draw();
+            t -> Draw();
+            countColors++;
+        }
+    }
 }

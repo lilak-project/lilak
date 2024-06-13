@@ -6,11 +6,11 @@
 #include "TCanvas.h"
 
 #define lk_win()    LKWindowManager::GetWindowManager()
-#define lk_cvs()    LKWindowManager::GetWindowManager() -> Canvas()
+#define lk_cvs(name)    LKWindowManager::GetWindowManager() -> Canvas(name)
 #define lk_cvs_d(name)  LKWindowManager::GetWindowManager() -> CanvasDefault(name);
 #define lk_cvs_s(name)  LKWindowManager::GetWindowManager() -> CanvasSquare(name);
 #define lk_cvs_f(name)  LKWindowManager::GetWindowManager() -> CanvasFull(name);
-#define lk_cvs_r(name,width0,height0)  kKWindowManager::GetWindowManager() -> CanvasResize(name, width0, height0);
+#define lk_cvs_r(name,width0,height0)  LKWindowManager::GetWindowManager() -> CanvasResize(name, width0, height0);
 
 class LKWindowManager : public TObject
 {
