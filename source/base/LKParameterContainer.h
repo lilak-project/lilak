@@ -148,7 +148,7 @@ class LKParameterContainer : public TObjArray
          */
         virtual void Print(Option_t *option="") const;
         void SaveAs(const char *filename, Option_t *option = "") const;
-        LKParameterContainer *CloneParameterContainer(TString name="") const;
+        LKParameterContainer *CloneParameterContainer(TString name="", bool addTemporary=false) const;
 
         void Recompile();
 
@@ -197,7 +197,7 @@ class LKParameterContainer : public TObjArray
         Bool_t CheckParTypeSize  (TString name, int idx=-1) const { return CheckParTypeDouble(name,idx); }
         Bool_t CheckParTypeAxis  (TString name, int idx=-1) const { return FindPar(name,true) -> CheckTypeAxis(idx); }
 
-        Int_t    GetParN     (TString name) const             { return FindPar(name,true) -> GetN     ();    }///< Get number of parameters in array of given name.
+        Int_t    GetParN     (TString name) const             { return FindPar(name,true) -> GetN     ();    } ///< Get number of parameters in array of given name.
         Bool_t   GetParBool  (TString name, int idx=-1) const { return FindPar(name,true) -> GetBool  (idx); } ///< Get parameter in Bool_t
         Int_t    GetParInt   (TString name, int idx=-1) const { return FindPar(name,true) -> GetInt   (idx); } ///< Get parameter in Int_t
         Long64_t GetParLong  (TString name, int idx=-1) const { return FindPar(name,true) -> GetLong  (idx); } ///< Get parameter in Long64_t
@@ -205,24 +205,13 @@ class LKParameterContainer : public TObjArray
         TString  GetParString(TString name, int idx=-1) const { return FindPar(name,true) -> GetString(idx); } ///< Get parameter in TString
         Int_t    GetParColor (TString name, int idx=-1) const { return FindPar(name,true) -> GetColor (idx); } ///< Get parameter in Color_t
         TVector3 GetParV3    (TString name) const             { return FindPar(name,true) -> GetV3    ();    } ///< Get parameter in TVector
-        Double_t GetParX     (TString name) const { return GetParDouble(name,0); }
-        Double_t GetParY     (TString name) const { return GetParDouble(name,1); }
-        Double_t GetParZ     (TString name) const { return GetParDouble(name,2); }
+        Double_t GetParX     (TString name) const             { return GetParDouble(name,0); }
+        Double_t GetParY     (TString name) const             { return GetParDouble(name,1); }
+        Double_t GetParZ     (TString name) const             { return GetParDouble(name,2); }
         Int_t    GetParStyle (TString name, int idx=-1) const { return GetParInt(name,idx); }
         Int_t    GetParWidth (TString name, int idx=-1) const { return GetParInt(name,idx); }
         Double_t GetParSize  (TString name, int idx=-1) const { return GetParDouble(name,idx); }
         axis_t   GetParAxis  (TString name, int idx=-1) const { return FindPar(name,true) -> GetAxis(); }
-
-        /// UpdatePar() will update given value, if parameter with name and idx exist. If not, value will not be changed.
-        void UpdatePar(Bool_t   &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParBool  (name,idx); }
-        void UpdatePar(Int_t    &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParInt   (name,idx); } ///< See UpdatePar(Bool_t, TString, int)
-        void UpdatePar(Long64_t &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParLong  (name,idx); } ///< See UpdatePar(Bool_t, TString, int)
-        void UpdatePar(Double_t &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParDouble(name,idx); } ///< See UpdatePar(Bool_t, TString, int)
-        void UpdatePar(TString  &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParString(name,idx); } ///< See UpdatePar(Bool_t, TString, int)
-        void UpdatePar(axis_t   &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParAxis  (name,idx); } ///< See UpdatePar(Bool_t, TString, int)
-
-        void UpdateBinning(TString name, Int_t &n, Double_t &x1, Double_t &x2) const;
-        void UpdateV3(TString name, Double_t &x, Double_t &y, Double_t &z) const;
 
         std::vector<bool>    GetParVBool  (TString name) const { return FindPar(name,true) -> GetVBool  (); }
         std::vector<int>     GetParVInt   (TString name) const { return FindPar(name,true) -> GetVInt   (); }
@@ -233,18 +222,45 @@ class LKParameterContainer : public TObjArray
         std::vector<int>     GetParVColor (TString name) const { return GetParVInt(name); }
         std::vector<double>  GetParVSize  (TString name) const { return GetParVDouble(name); }
 
+        /// UpdatePar() will update given value, if parameter with name and idx exist. If not, value will not be changed.
+        void UpdatePar(Bool_t   &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParBool  (name,idx); }
+        void UpdatePar(Int_t    &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParInt   (name,idx); } ///< See UpdatePar(Bool_t, TString, int)
+        void UpdatePar(Long64_t &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParLong  (name,idx); } ///< See UpdatePar(Bool_t, TString, int)
+        void UpdatePar(Double_t &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParDouble(name,idx); } ///< See UpdatePar(Bool_t, TString, int)
+        void UpdatePar(TString  &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParString(name,idx); } ///< See UpdatePar(Bool_t, TString, int)
+        void UpdatePar(axis_t   &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParAxis  (name,idx); } ///< See UpdatePar(Bool_t, TString, int)
+        void UpdateBinning(TString name, Int_t &n, Double_t &x1, Double_t &x2) const;
+        void UpdateV3(TString name, Double_t &x, Double_t &y, Double_t &z) const;
+
         LKParameterContainer* CreateGroupContainer(TString nameGroup);
         LKParameterContainer* CreateMultiParContainer(TString parNameGiven);
 
+    public:
+        /**
+         * - type:
+         * s: Standard
+         * l: Legacy
+         * r: Rewrite
+         * m: Multiple
+         * t: Temporary
+         * i: InputFile
+         * c: Conditional
+         * #: LineComment
+         */
+        void Require(TString name, TString value, TString comment, TString type="", int compare=-1);
+        void SetParType(TString name, TString type) { auto par = FindParFree(name, false); if (par!=nullptr) par -> SetType(type); }
+
     protected:
-        LKParameter *SetPar    (TString name, TString  raw, TString val, TString comment, int parameterType, bool rewriteParameter=false);
-        LKParameter *SetPar    (TString name, TString  val, TString comment="") { return SetPar(name,val,val,comment,0); } ///< Set parameter string
-        LKParameter *SetPar    (TString name, Int_t    val, TString comment="") { return SetPar(name,Form("%d",val),Form("%d",val),comment,0); } ///< Set parameter Int_t
-        LKParameter *SetPar    (TString name, Double_t val, TString comment="") { return SetPar(name,Form("%f",val),Form("%f",val),comment,0); } ///< Set parameter Double_t
+        LKParameter *SetPar    (TString name, TString  raw, TString val, TString comment, int parameterType=1);
+        LKParameter *SetPar    (TString name, TString  val, TString comment="") { return SetPar(name,val,val,comment); } ///< Set parameter string
+        LKParameter *SetPar    (TString name, Int_t    val, TString comment="") { return SetPar(name,Form("%d",val),Form("%d",val),comment); } ///< Set parameter Int_t
+        LKParameter *SetPar    (TString name, Double_t val, TString comment="") { return SetPar(name,Form("%f",val),Form("%f",val),comment); } ///< Set parameter Double_t
         LKParameter *SetParCont(TString name);
         LKParameter *SetParFile(TString name);
+        LKParameter *SetInputFile(TString name, TString value);
         LKParameter *SetLineComment(TString comment);
 
+        LKParameter *FindParFree(TString givenName, bool terminateIfNull=false);
         LKParameter *FindPar(TString givenName, bool terminateIfNull=false) const;
 
     private:
@@ -255,14 +271,6 @@ class LKParameterContainer : public TObjArray
         Int_t fNumInputFiles = 0;
         Int_t fRank = 0;
 
-        const int kParameterIsStandard = 0;
-        const int kParameterIsLineComment = 1;
-        const int kParameterIsTemporary = 2;
-        const int kParameterIsConditional = 3;
-        const int kParameterIsMultiple = 4;
-        const int kParameterIsTemporaryAndMultiple = 6;
-        //const int kRewriteParameter = 5;
-
     private:
         TString fCurrentGroupName;
         Int_t fPreviousTabSize = 0;
@@ -272,9 +280,12 @@ class LKParameterContainer : public TObjArray
     public:
         void SetCollectParameters(bool collect);
         void PrintCollection(TString fileName="");
+        void SetIsNewCollection() { fThisIsNewCollection = true; }
 
     private:
+        void CollectParameter();
         bool fParameterCollectionMode = false;
+        bool fThisIsNewCollection = false;
         LKParameterContainer *fCollectedParameterContainer = nullptr;
 
 

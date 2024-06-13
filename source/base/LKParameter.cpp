@@ -9,9 +9,15 @@ LKParameter::LKParameter()
 {
 }
 
-LKParameter::LKParameter(TString name, TString raw, TString value, TString comment, int parameterType)
+LKParameter::LKParameter(int parameterType)
 {
-    SetPar(name, raw, value, comment, parameterType);
+    Clear();
+    fType = parameterType;
+}
+
+LKParameter::LKParameter(TString name, TString raw, TString value, TString comment, int parameterType, int compare)
+{
+    SetPar(name, raw, value, comment, parameterType, compare);
 }
 
 LKParameter::~LKParameter()
@@ -21,17 +27,19 @@ LKParameter::~LKParameter()
 void LKParameter::SetLineComment(TString comment)
 {
     Clear();
-    fType = 1;
+    SetIsLineComment();
     fComment = comment;
 }
 
-void LKParameter::SetPar(TString name, TString raw, TString value, TString comment, int parameterType)
+void LKParameter::SetPar(TString name, TString raw, TString value, TString comment, int parameterType, int compare)
 {
     Clear();
     fName = name;
     fTitle = raw;
     fComment = comment;
     fType = parameterType;
+    if (compare>=0)
+        fCompare = compare;
 
     int iSlash = fName.Index("/");
     if (iSlash>=0) {
@@ -72,7 +80,7 @@ void LKParameter::Clear(Option_t *option)
     fComment = "";
     fNumValues = 0;
     fValueArray.clear();
-    fType = 0;
+    SetIsStandard();
 }
 
 void LKParameter::Print(Option_t *option) const
@@ -84,19 +92,33 @@ Int_t LKParameter::Compare(const TObject *obj) const
 {
     auto parameter = (LKParameter *) obj;
 
-    const int sortEarlier = 1;
-    const int sortLatter = -1;
+    const int sortLatter = 1;
+    const int sortEarlier = -1;
     const int sortSame = 0;
 
-    TString compareGroup = parameter -> GetGroup();
-    if (compareGroup=="LKRun") {
-        if (fGroup=="LKRun")
-            return sortSame;
-        else
-            return sortEarlier;
+    TString iGroup = parameter -> GetGroup();
+    TString iName = parameter -> GetName();
+    int iCompare = parameter -> GetCompare();
+
+    if (!fName.IsNull() && iName.IsNull()) { return sortEarlier; }
+    if (fName.IsNull() && !iName.IsNull()) { return sortLatter; }
+    if (fName.IsNull() && iName.IsNull()) { return sortSame; }
+
+    if (fGroup=="LKRun" && iGroup=="LKRun")
+    {
+        if      (fCompare<iCompare) { return sortEarlier; }
+        else if (fCompare>iCompare) { return sortLatter; }
+        else { return sortSame; }
     }
-    if (compareGroup<fGroup) return sortEarlier;
-    if (compareGroup>fGroup) return sortLatter;
+    else if (fGroup=="LKRun") { return sortEarlier; }
+    else if (iGroup=="LKRun") { return sortLatter; }
+    else if (fGroup<iGroup) { return sortEarlier; }
+    else if (fGroup>iGroup) { return sortLatter; }
+    else {
+        if      (fCompare<iCompare) { return sortEarlier; }
+        else if (fCompare>iCompare) { return sortLatter; }
+    }
+
     return sortSame;
 }
 
@@ -402,18 +424,41 @@ TString LKParameter::GetGroup(int ith) const
 
 TString LKParameter::GetLine(TString option) const
 {
-    TString line;
+    int nwidth = 30;
+    if      (fName.Sizeof()>60) nwidth = 80;
+    else if (fName.Sizeof()>50) nwidth = 60;
+    else if (fName.Sizeof()>30) nwidth = 50;
+    else                        nwidth = 30;
+
+    int vwidth = 20;
+    if      (fValue.Sizeof()>60) vwidth = 80;
+    else if (fValue.Sizeof()>40) vwidth = 60;
+    else if (fValue.Sizeof()>20) vwidth = 40;
+    else                         vwidth = 20;
+
     if (IsLineComment()) {
-        line = TString("# ") + fComment;
+        TString line = TString("# ") + fComment;
         return line;
     }
-    if (option.Index("t")) {
-        if (IsTemporary())   line += "*";
-        if (IsConditional()) line += "@";
-        if (IsMultiple())    line += "&";
+
+    TString name = fName;
+    if (name.Sizeof()<nwidth) {
+        auto n = nwidth - name.Sizeof();
+        for (auto i=0; i<n; ++i)
+            name = name  + " ";
     }
-    line = line + fName + " " + fValue;
+
+    TString value = fValue;
+    if (value.Sizeof()<vwidth) {
+        auto n = vwidth - value.Sizeof();
+        for (auto i=0; i<n; ++i)
+            value = value + " ";
+    }
+
+    TString line = name + " " + value;
+    //TString line = name + value + " #(" + fCompare + ")";
     if (option.Index("c") && fComment.IsNull()==false)
-        line = line + " # " + fComment;
+        line = line + "  # " + fComment;
+
     return line;
 }

@@ -7,14 +7,16 @@
 #include "LKVector3.h"
 #include "LKLogger.h"
 
+using namespace std;
+
 typedef LKVector3::Axis axis_t;
 
 class LKParameter : public TNamed
 {
     public:
         LKParameter();
-        //LKParameter(TString name, TString raw, TString value="", TString comment="", bool temporary=false, bool conditional=false);
-        LKParameter(TString name, TString raw, TString value="", TString comment="", int parameterType=0);
+        LKParameter(TString name, TString raw, TString value="", TString comment="", int parameterType=0, int compare=-1);
+        LKParameter(int parameterType);
         virtual ~LKParameter();
 
         virtual void Clear(Option_t *option = "");
@@ -24,7 +26,7 @@ class LKParameter : public TNamed
         virtual Int_t Compare(const TObject *obj) const;
 
         void SetLineComment(TString comment);
-        void SetPar(TString name, TString raw, TString value, TString comment, int parameterType);
+        void SetPar(TString name, TString raw, TString value, TString comment, int parameterType=1, int compare=-1);
         void SetValue(TString value);
 
         //const char *GetName()
@@ -39,12 +41,6 @@ class LKParameter : public TNamed
         TString GetGroup(int ith) const;
         TString GetLine(TString option="tc") const;
 
-        bool    IsStandard()    const { return (fType==0); }
-        bool    IsLineComment() const { return (fType==1); }
-        bool    IsTemporary()   const { return (fType==2||fType==6); }
-        bool    IsConditional() const { return (fType==3); }
-        bool    IsMultiple()    const { return (fType==4||fType==6); }
-
         bool    CheckTypeInt   (int i=-1) const;
         bool    CheckTypeLong  (int i=-1) const;
         bool    CheckTypeBool  (int i=-1) const;
@@ -55,7 +51,7 @@ class LKParameter : public TNamed
         bool    CheckTypeV3    ()         const;
 
         int      GetInt   (int i=-1) const;  ///< Get parameter in int
-        Long64_t GetLong  (int i=-1) const;  ///< Get parameter in int
+        Long64_t GetLong  (int i=-1) const;  ///< Get parameter in long
         bool     GetBool  (int i=-1) const;  ///< Get parameter in bool
         double   GetDouble(int i=-1) const;  ///< Get parameter in double
         TString  GetString(int i=-1) const;  ///< Get parameter in TString
@@ -78,6 +74,9 @@ class LKParameter : public TNamed
         std::vector<int>     GetVColor () const { return GetVInt(); }
         std::vector<double>  GetVSize  () const { return GetVDouble(); }
 
+        void SetCompare(int compare) { fCompare = compare; }
+        int GetCompare() const { return fCompare; }
+
     private:
         void ProcessTypeError(TString type, TString value) const;
         bool CheckFormulaValidity(TString formula, bool isInt=false) const;
@@ -90,14 +89,53 @@ class LKParameter : public TNamed
         TString fComment;
         int fNumValues = 0;
         std::vector<TString> fValueArray;
-        /**
-         * 0 : standard
-         * 1 : comment
-         * 2 : temporary
-         * 3 : conditional
-         * 4 : multiple
-         */
-        int fType = 0;
+        int fType = 1;
+
+        int fCompare = 99; //!
+
+     public:
+        void NotStandard() { fType &= (1<<1); }
+        void ResetType() { fType = 0; }
+
+        void SetType(TString type) {
+            type.ToLower();
+            if (type[0]=='s'|| type.IsNull()) SetIsStandard();
+            if (type[0]=='l') SetIsLegacy();
+            if (type[0]=='r') SetIsRewrite();
+            if (type[0]=='m') SetIsMultiple();
+            if (type[0]=='t') SetIsTemporary();
+            if (type[0]=='i') SetIsInputFile();
+            if (type[0]=='c') SetIsConditional();
+            if (type[0]=='#'|| type.Index("linecomment")==0) SetIsLineComment();
+        }
+
+        void SetIsStandard()    { NotStandard(); fType |= (1<<1); }
+        void SetIsLegacy()      { NotStandard(); fType |= (1<<2); }
+        void SetIsRewrite()     { NotStandard(); fType |= (1<<3); }
+        void SetIsMultiple()    { NotStandard(); fType |= (1<<4); }
+        void SetIsTemporary()   { NotStandard(); fType |= (1<<5); }
+        void SetIsInputFile()   { NotStandard(); fType |= (1<<6); }
+        void SetIsConditional() { NotStandard(); fType |= (1<<7); }
+        void SetIsLineComment() { NotStandard(); fType |= (1<<8); }
+
+        bool IsStandard()    const { return ((fType & (1<<1)) != 0); }
+        bool IsLegacy()      const { return ((fType & (1<<2)) != 0); }
+        bool IsRewrite()     const { return ((fType & (1<<3)) != 0); }
+        bool IsMultiple()    const { return ((fType & (1<<4)) != 0); }
+        bool IsTemporary()   const { return ((fType & (1<<5)) != 0); }
+        bool IsInputFile()   const { return ((fType & (1<<6)) != 0); }
+        bool IsConditional() const { return ((fType & (1<<7)) != 0); }
+        bool IsLineComment() const { return ((fType & (1<<8)) != 0); }
+
+        TString GetTypeHeader() const {
+            TString header;
+            if      (IsInputFile())   header += "#<";
+            else if (IsLineComment()) header += "#";
+            else {
+                if (IsConditional()) header += "@";
+            }
+            return header;
+        }
 
     ClassDef(LKParameter, 2)
 };

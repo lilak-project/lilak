@@ -401,7 +401,7 @@ TString LKRun::ConfigureDataPath(TString name, bool search, TString pathData, bo
 
             for (auto path : pathList) {
                 fullName = path + name;
-                e_info << "Trying to find " << fullName << " ..." << endl;
+                e_info << "Looking for " << fullName << " ..." << endl;
                 if (LKRun::CheckFileExistence(fullName)) {
                     e_info << "Found " << fullName << endl;
                     found = true;
@@ -521,8 +521,9 @@ void LKRun::AddInputFile(TString fileName, TString treeName)
         fErrorInputFile = true;
         return;
     }
+    lk_info << "Input file " << configuredName << endl;
     fInputVersion = GetFileHash(configuredName);
-    fInputFileNameArray.push_back(fileName);
+    fInputFileNameArray.push_back(configuredName);
     fInputTreeName = treeName;
 }
 
@@ -534,6 +535,7 @@ void LKRun::AddFriend(TString fileName)
         fErrorInputFile = true;
         return;
     }
+    lk_error << "Friend file " << configuredName << endl;
     fFriendFileNameArray.push_back(configuredName);
 }
 
@@ -555,25 +557,16 @@ bool LKRun::Init()
         return false;
     }
 
-    if (fOutputPath.IsNull()) {
-        if (fPar -> CheckPar("LKRun/DataPath {lilak_data} # path to the output. Default path {lilak_data} is lilak/data/")) {
-            lk_warning << "Parameter LKRun/DataPath is replaced to LKRun/OutputPath!" << endl;
-            fOutputPath = fPar -> GetParString("LKRun/DataPath");
-        }
-        if (fPar -> CheckPar("LKRun/OutputPath {lilak_data} # path to the output. Default path {lilak_data} is lilak/data/")) {
-            fOutputPath = fPar -> GetParString("LKRun/OutputPath");
-        }
-    }
-
-    fPar -> CheckPar("#&*LKRun/InputPath {lilak_data} # Multiple parameter. LKRun will search files from input paths when LKRun/SearchMFM or LKRun/SearchRoot is set.");
-    fPar -> CheckPar("#*LKRun/SearchRun  [opt] # Search input files with given LKRun/RunID. opt=mfm: search mfm files, opt=root: search any root files, opt=[tag]: search matching files -> run_runNo.*.[tag].root. Cannot be used with LKRun/InputFile");
-
-    fPar -> CheckPar("LKRun/Name       run          # name of the run (If input file is output of LILAK run, this parameter is inherited)");
-    fPar -> CheckPar("LKRun/RunID      1            # run number (If input file is output of LILAK run, this parameter is inherited)");
-    fPar -> CheckPar("LKRun/Division   0            # division within the run [optional] (If input file is output of LILAK run, this parameter is inherited)");
-    fPar -> CheckPar("*LKRun/Tag       tag          # tag (*: temporary parameter) (This parameter is meant to be different depending on added tasks)");
-    fPar -> CheckPar("&*LKRun/InputFile    path/to/input/data   # input file. Used if they are not added in the macro (multiple parameters are allowed)");
-    fPar -> CheckPar("&*LKRun/FriendFile   path/to/friend/data  # input friend file. Used if they are not added in the macro (multiple parameters are allowed)");
+    int countParOrder = 1;
+    fPar -> Require("LKRun/Name",      "run",          "name of the run", "", countParOrder++);
+    fPar -> Require("LKRun/RunID",     "1",            "run number", "", countParOrder++);
+    fPar -> Require("LKRun/Tag",       "tag",          "tag", "t", countParOrder++);
+    fPar -> Require("LKRun/OutputPath","{lilak_data}", "path to the output. Default path {lilak_data} is lilak/data/", "", countParOrder++);
+    fPar -> Require("LKRun/InputPath", "/path/to/in/", "LKRun will search files from input paths when LKRun/SearchRun", "t", countParOrder++);
+    fPar -> Require("LKRun/SearchRun", "mfm",          "search input files with LKRun/RunID. opt=mfm: search mfm files, opt=[tag]: search run_runNo.*.[tag].root. Cannot be used with LKRun/InputFile", "t", countParOrder++);
+    fPar -> Require("LKRun/Division",  "0",            "division within the run [optional]", "t", countParOrder++);
+    fPar -> Require("LKRun/InputFile", "path/to/input/data",   "input file. Cannot be used with LKRun/SearchRun", "t", countParOrder++);
+    fPar -> Require("LKRun/FriendFile","path/to/friend/data",  "input friend file", "t", countParOrder++);
 
     if (!fRunNameIsSet) {
         fPar -> UpdatePar(fRunName,  "LKRun/Name");
@@ -582,6 +575,12 @@ bool LKRun::Init()
         fPar -> UpdatePar(fTag,      "LKRun/Tag");
         if (fPar -> CheckPar("LKRun/Name"))
             fRunNameIsSet = true;
+    }
+
+    if (fOutputPath.IsNull()) {
+        if (fPar -> CheckPar("LKRun/OutputPath {lilak_data} # path to the output. Default path {lilak_data} is lilak/data/")) {
+            fOutputPath = fPar -> GetParString("LKRun/OutputPath");
+        }
     }
 
     bool useManualInputFiles = false;
@@ -604,9 +603,8 @@ bool LKRun::Init()
         }
         useInputFileParameter = true;
     }
-    else if (fPar->CheckPar("LKRun/SearchRun")) {
+    else if (fPar->CheckPar("LKRun/SearchRun"))
         useSearchRunParameter = true;
-    }
 
     Int_t idxInput = 1;
     if (fInputFileName.IsNull())
@@ -661,7 +659,7 @@ bool LKRun::Init()
     if (!fInputFileName.IsNull()) {
         e_cout << endl;
         if (!LKRun::CheckFileExistence(fInputFileName)) {
-            lk_info << "given input file deos not exist!" << endl;
+            lk_info << "Given input file deos not exist! " << fInputFileName << endl;
             return false;
         }
         fInputFile = new TFile(fInputFileName, "read");
@@ -781,8 +779,7 @@ bool LKRun::Init()
         }
     }
     else {
-        if (fInputFileNameArray.size()==0)
-            lk_warning << "Input file is not set!" << endl;
+        lk_warning << "Input file is not set!" << endl;
     }
 
     if (fDetectorSystem->GetEntries()!=0)
@@ -798,10 +795,8 @@ bool LKRun::Init()
         fDetectorSystem -> Print();
     }
 
-    if (fOutputPath.IsNull())
-        if (fPar -> CheckPar("LKRun/DataPath")) {
-            fOutputPath = fPar -> GetParString("LKRun/DataPath");
-        }
+    if (fOutputPath.IsNull() && fPar -> CheckPar("LKRun/OutputPath"))
+        fOutputPath = fPar -> GetParString("LKRun/OutputPath");
 
     if (fOutputFileName.IsNull())
     {
@@ -911,14 +906,13 @@ bool LKRun::Init()
 
     fCurrentEventID = 0;
 
-    //Print();
+    fPar -> UpdatePar(fAutoTerminate,"LKRun/AutoTerminate true # automatically terminate root after end of run");
+    fPar -> Sort();
 
     if (fInitialized) {
         lk_info << "Initialized!" << endl;
         return fInitialized;
     }
-
-    fPar -> Sort();
 
     return fInitialized;
 }
