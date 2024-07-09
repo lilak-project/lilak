@@ -491,6 +491,15 @@ void LKRun::Add(LKTask *task)
     task -> SetRun(this);
 }
 
+void LKRun::AddEveTask(LKTask *task)
+{
+    LKRun::Add(task);
+    if (fEveTask==nullptr)
+        fEveTask = new TTask();
+    fEveTask -> Add(task);
+    task -> SetRun(this);
+}
+
 void LKRun::SetEventTrigger(LKTask *task)
 {
     if (fUsingEventTrigger) {
@@ -1334,6 +1343,11 @@ bool LKRun::ExecuteEvent(Long64_t eventID)
     ++fEventCount;
 
     return true;
+}
+
+void LKRun::ExecuteEveTasks()
+{
+    fEveTask -> ExecuteTask("");
 }
 
 void LKRun::ClearArrays()

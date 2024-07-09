@@ -57,6 +57,7 @@ class LKRun : public LKTask
 
         /// Add task to be executed every event
         void Add(LKTask *task);
+        void AddEveTask(LKTask *task);
 
         /// Set EventTrigger which give signal to LKRun that evnet has started.
         /// EventTrigger should call LKRun::ExecuteNextEvent() when ever event start, from Exec() method.
@@ -244,6 +245,7 @@ class LKRun : public LKTask
         bool ExecutePreviousEvent() { return ExecuteEvent(-4); }
         bool ExecuteFirstEvent() { return ExecuteEvent(0); }
         bool ExecuteLastEvent() { return ExecuteEvent(-5); }
+        void ExecuteEveTasks();
 
         bool CheckMute() { return (fEventCount==0||fEventCount%fEventCountForMessage!=0); }
         void DoNotFillCurrentEvent() { fFillCurrentEvent = false; }
@@ -352,6 +354,8 @@ class LKRun : public LKTask
         bool fFillCurrentEvent = true;
 
         TString fExitLogPath;
+
+        TTask *fEveTask = nullptr;
 
     private:
         static LKRun *fInstance;

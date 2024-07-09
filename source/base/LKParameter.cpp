@@ -2,6 +2,7 @@
 #include "TObjString.h"
 #include "TFormula.h"
 #include "TApplication.h"
+#include <regex>
 
 #include "LKParameter.h"
 
@@ -71,6 +72,30 @@ void LKParameter::SetValue(TString value)
     }
 }
 
+void LKParameter::SetValueAt(int i, TString value)
+{
+    auto numValues = fValueArray.size();
+    if (i>numValues)
+        return;
+
+    TString valueUpdate;
+    if (numValues==0 && i==0)
+        valueUpdate = value;
+    else if (i==numValues)
+        valueUpdate = valueUpdate + " " + value;
+    else
+    {
+        for (auto iVal=0; iVal<numValues; ++iVal)
+        {
+            if (iVal>0)  valueUpdate =+ " ";
+            if (iVal==i) valueUpdate =+ value;
+            else         valueUpdate =+ fValueArray[iVal];
+        }
+    }
+
+    SetValue(valueUpdate);
+}
+
 void LKParameter::Clear(Option_t *option)
 {
     fGroup = "";
@@ -125,16 +150,20 @@ Int_t LKParameter::Compare(const TObject *obj) const
 bool LKParameter::CheckTypeInt(int idx) const
 {
     TString value = ((idx>=0) ? fValue : fValueArray[idx]);
-    if (!CheckFormulaValidity(value,true))
-        return false;
+    if (!value.IsDec()) {
+        if (CheckFormulaValidity(value,true)) return true;
+        else return false;
+    }
     return true;
 }
 
 bool LKParameter::CheckTypeLong(int idx) const
 {
     TString value = ((idx>=0) ? fValue : fValueArray[idx]);
-    if (!CheckFormulaValidity(value,true))
-        return false;
+    if (!value.IsDec()) {
+        if (CheckFormulaValidity(value,true)) return true;
+        else return false;
+    }
     return true;
 }
 
@@ -150,7 +179,10 @@ bool LKParameter::CheckTypeBool(int idx) const
 bool LKParameter::CheckTypeDouble(int idx) const
 {
     TString value = ((idx>=0) ? fValue : fValueArray[idx]);
-    if (!CheckFormulaValidity(value))
+    if (!value.IsFloat()) {
+        if (CheckFormulaValidity(value,true)) return true;
+        else return false;
+    }
         return false;
     return true;
 }
@@ -178,8 +210,10 @@ bool LKParameter::CheckTypeColor(int idx) const
         value.ReplaceAll("kViolet" ,"880");
         value.ReplaceAll("kPink"   ,"900");
     }
-    if (!CheckFormulaValidity(value,true))
-        return false;
+    if (!value.IsDec()) {
+        if (CheckFormulaValidity(value,true)) return true;
+        else return false;
+    }
     return true;
 }
 
@@ -215,10 +249,11 @@ int LKParameter::GetInt(int idx) const
     TString value = fValue;
     if (idx>=0) value = fValueArray[idx];
 
-    if (!CheckFormulaValidity(value,true))
-        ProcessTypeError("int", value);
-
-    return TFormula("formula",value).Eval(0);
+    if (!value.IsDec()) {
+        if (CheckFormulaValidity(value,true)) return TFormula("formula",value).Eval(0);
+        else ProcessTypeError("int", value);
+    }
+    return value.Atoi();
 }
 
 Long64_t LKParameter::GetLong(int idx) const
@@ -226,11 +261,10 @@ Long64_t LKParameter::GetLong(int idx) const
     TString value = fValue;
     if (idx>=0) value = fValueArray[idx];
 
-    if (!CheckFormulaValidity(value,true))
+    if (!value.IsDec())
         ProcessTypeError("Long64_t", value);
 
     return value.Atoll();
-    //return TFormula("formula",value).Eval(0);
 }
 
 bool LKParameter::GetBool(int idx) const
@@ -251,10 +285,11 @@ double LKParameter::GetDouble(int idx) const
     TString value = fValue;
     if (idx>=0) value = fValueArray[idx];
 
-    if (!CheckFormulaValidity(value))
-        ProcessTypeError("double", value);
-
-    return TFormula("formula",value).Eval(0);
+    if (!value.IsDec()) {
+        if (CheckFormulaValidity(value,true)) return TFormula("formula",value).Eval(0);
+        else ProcessTypeError("double", value);
+    }
+    return value.Atof();
 }
 
 TString LKParameter::GetString(int idx) const
@@ -289,10 +324,11 @@ int LKParameter::GetColor(int idx) const
         value.ReplaceAll("kPink"   ,"900");
     }
 
-    if (!CheckFormulaValidity(value,true))
-        ProcessTypeError("color", value);
-
-    return TFormula("formula",value).Eval(0);
+    if (!value.IsDec()) {
+        if (CheckFormulaValidity(value,true)) return TFormula("formula",value).Eval(0);
+        else ProcessTypeError("color", value);
+    }
+    return value.Atoi();
 }
 
 axis_t LKParameter::GetAxis(int idx) const
@@ -377,25 +413,8 @@ void LKParameter::ProcessTypeError(TString type, TString value) const
 
 bool LKParameter::CheckFormulaValidity(TString formula, bool isInt) const
 {
-    if (isInt && formula.Index(".")>=0)
-        return false;
-
-    TString formula2 = formula;
-    formula2.ReplaceAll("("," ");
-    formula2.ReplaceAll(")"," ");
-    formula2.ReplaceAll("+"," ");
-    formula2.ReplaceAll("-"," ");
-    formula2.ReplaceAll("/"," ");
-    formula2.ReplaceAll("*"," ");
-    formula2.ReplaceAll("."," ");
-    formula2.ReplaceAll("e","1");
-    formula2.ReplaceAll("E","1");
-
-    if (!formula2.IsDigit()) {
-        return false;
-    }
-
-    return true;
+    std::regex formulaRegex("^[0-9\\(\\)\\+\\-\\*/Ee\\.]+$");
+    return std::regex_match(formula.Data(), formulaRegex);
 }
 
 TString LKParameter::GetGroup(int ith) const
@@ -422,8 +441,15 @@ TString LKParameter::GetGroup(int ith) const
 }
 
 
-TString LKParameter::GetLine(TString option) const
+TString LKParameter::GetLine(TString printOptions) const
 {
+    bool evaluatePar = true;
+    bool showParComments = true;
+    if (printOptions.Index("!eval")>=0) { evaluatePar = false; printOptions.ReplaceAll("!eval", ""); }
+    if (printOptions.Index( "eval")>=0) { evaluatePar = true;  printOptions.ReplaceAll("eval", ""); }
+    if (printOptions.Index("!par#")>=0) { showParComments = false; printOptions.ReplaceAll("!par#", ""); }
+    if (printOptions.Index( "par#")>=0) { showParComments = true;  printOptions.ReplaceAll("par#", ""); }
+
     int nwidth = 30;
     if      (fName.Sizeof()>60) nwidth = 80;
     else if (fName.Sizeof()>50) nwidth = 60;
@@ -449,6 +475,8 @@ TString LKParameter::GetLine(TString option) const
     }
 
     TString value = fValue;
+    if (!evaluatePar)
+        value = fTitle;
     if (value.Sizeof()<vwidth) {
         auto n = vwidth - value.Sizeof();
         for (auto i=0; i<n; ++i)
@@ -456,8 +484,7 @@ TString LKParameter::GetLine(TString option) const
     }
 
     TString line = name + " " + value;
-    //TString line = name + value + " #(" + fCompare + ")";
-    if (option.Index("c") && fComment.IsNull()==false)
+    if (showParComments)
         line = line + "  # " + fComment;
 
     return line;

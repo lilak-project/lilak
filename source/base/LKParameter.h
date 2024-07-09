@@ -39,7 +39,7 @@ class LKParameter : public TNamed
         int     GetType()       const { return fType; }
 
         TString GetGroup(int ith) const;
-        TString GetLine(TString option="tc") const;
+        TString GetLine(TString option="c") const;
 
         bool    CheckTypeInt   (int i=-1) const;
         bool    CheckTypeLong  (int i=-1) const;
@@ -49,6 +49,12 @@ class LKParameter : public TNamed
         bool    CheckTypeColor (int i=-1) const;
         bool    CheckTypeAxis  (int i=-1) const;
         bool    CheckTypeV3    ()         const;
+
+        void SetValueAt(int i, int      value) { SetValueAt(i,Form("%d",value)); }  ///< Set int     parameter at i
+        void SetValueAt(int i, Long64_t value) { SetValueAt(i,Form("%lld",value)); }  ///< Set long    parameter at i
+        void SetValueAt(int i, bool     value) { SetValueAt(i,Form("%d",value)); }  ///< Set bool    parameter at i
+        void SetValueAt(int i, double   value) { SetValueAt(i,Form("%f",value)); }  ///< Set double  parameter at i
+        void SetValueAt(int i, TString  value);  ///< Set TString parameter at i
 
         int      GetInt   (int i=-1) const;  ///< Get parameter in int
         Long64_t GetLong  (int i=-1) const;  ///< Get parameter in long

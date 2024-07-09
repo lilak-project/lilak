@@ -160,6 +160,8 @@ class LKParameterContainer : public TObjArray
         Int_t GetNumInputFiles() const { return fNumInputFiles; } ///< Get number of input parameter files
         bool SearchAndAddPar(TString dirName="");
 
+        LKParameter* GetParameter(int idx) { return (LKParameter*) At(idx); }
+
 #ifdef LILAK_BUILD_JSONCPP
         Int_t  AddJsonTree(const Json::Value &value, TString treeName="");
 #endif
@@ -188,6 +190,7 @@ class LKParameterContainer : public TObjArray
         Bool_t CheckParTypeSize  (TString name, int idx=-1) const { return CheckParTypeDouble(name,idx); }
         Bool_t CheckParTypeAxis  (TString name, int idx=-1) const { return FindPar(name,true) -> CheckTypeAxis(idx); }
 
+        Int_t    GetParIndex (TString name) const;
         Int_t    GetParN     (TString name) const             { return FindPar(name,true) -> GetN     ();    } ///< Get number of parameters in array of given name.
         Bool_t   GetParBool  (TString name, int idx=-1) const { return FindPar(name,true) -> GetBool  (idx); } ///< Get parameter in Bool_t
         Int_t    GetParInt   (TString name, int idx=-1) const { return FindPar(name,true) -> GetInt   (idx); } ///< Get parameter in Int_t
@@ -284,7 +287,7 @@ class LKParameterContainer : public TObjArray
         Json::Value fJsonValues;
 #endif
 
-    ClassDef(LKParameterContainer, 3)
+    ClassDef(LKParameterContainer, 4)
 };
 
 #endif

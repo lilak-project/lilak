@@ -641,18 +641,18 @@ void LKParameterContainer::Print(Option_t *option) const
             if (showLineComment) {
                 if (printToScreen) e_cout << "# " << parComment << endl;
                 //if (printToFile)   fileOut << "# " << parComment << endl;
-                if (printToFile)   fileOut << parameter->GetLine() << endl;
+                if (printToFile)   fileOut << parameter->GetLine(TString(option)) << endl;
             }
         }
         else if (isParameter) {
             if (printToScreen) {
                 //if (showLineIndex) e_list(parNumber) << left << setw(nwidth) << parName << " " << setw(vwidth) << parValue << " " << parComment << endl;
-                if (showLineIndex) e_list(parNumber) << left << parameter->GetLine() << endl;
-                else               e_cout            << left << parameter->GetLine() << endl;
+                if (showLineIndex) e_list(parNumber) << left << parameter->GetLine(TString(option)) << endl;
+                else               e_cout            << left << parameter->GetLine(TString(option)) << endl;
                 //else               e_cout << left << setw(nwidth) << parName << " " << setw(vwidth) << parValue << " " << parComment << endl;
             }
             //if (printToFile) fileOut << left << setw(nwidth) << parName << " " << setw(vwidth) << parValue << " " << parComment << endl;
-            if (printToFile) fileOut << parameter->GetLine() << endl;
+            if (printToFile) fileOut << parameter->GetLine(TString(option)) << endl;
         }
 
         preGroup = parGroup;
@@ -1066,6 +1066,22 @@ void LKParameterContainer::Require(TString name, TString value, TString comment,
         par -> SetType(type);
         if (compare>=0) par -> SetCompare(compare);
     }
+}
+
+int LKParameterContainer::GetParIndex(TString name) const
+{
+    auto numEntries = GetEntries();
+    int index = -1;
+    for (auto iPar=0; iPar<numEntries; ++iPar) {
+        auto parameter = (LKParameter*) At(iPar);
+        if (parameter) {
+            if (parameter->GetName()==name) {
+                index = iPar;
+                break;
+            }
+        }
+    }
+    return index;
 }
 
 Bool_t LKParameterContainer::CheckPar(TString name) const
