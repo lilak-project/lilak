@@ -77,7 +77,7 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         virtual void UpdateChannelBuffer();
         virtual void UpdateControlEvent1();
         virtual void UpdateControlEvent2();
-        virtual void UpdateMenu();
+        virtual void UpdateMenuControlEvent2();
         virtual void UpdateFill(bool updateHist=true);
 
     public:
@@ -174,6 +174,10 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         TClonesArray *fChannelGraphArray = nullptr; ///< array of accumulate channel graphs
         int fCountChannelGraph = 0; ///< count number of accumulate channels
 
+        int fNumMenus = 8;
+        double fCtrlBinTextSize = 6.0;
+        double fCtrlLabelSize = 0.18;
+
         double fDXCanvas = 1200;
         double fDYCanvas = 700;
         double fYCCanvas = 230./700;
@@ -185,6 +189,10 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
 
         axis_t fPadAxis1[2] = {LKVector3::kNon, LKVector3::kNon};
         axis_t fPadAxis2[2] = {LKVector3::kNon, LKVector3::kNon};
+
+    public:
+        //bool GetAccumulateAllEvents() const { return fAccumulateAllEvents; }
+        Long64_t GetAccumulateEvents() const { return fAccumulateEvents; }
 
     ClassDef(LKEvePlane, 1)
 };

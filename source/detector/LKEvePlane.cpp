@@ -168,7 +168,7 @@ void LKEvePlane::UpdateChannelBuffer()
 
     auto pad = (LKPad*) fChannelArray -> At(fSelPadID);
     if (pad==nullptr) {
-        lk_error << "pad at " << fSelPadID << " is nullptr" << endl;
+        lk_error << "pad at " << fSelPadID << " is nullptr for channel" << endl;
         //fPadChannelBuffer -> cd();
         //fHistChannelBuffer -> Draw();
         return;
@@ -376,7 +376,7 @@ void LKEvePlane::UpdateControlEvent2()
         fHistControlEvent2 -> Draw("text");
 }
 
-void LKEvePlane::UpdateMenu()
+void LKEvePlane::UpdateMenuControlEvent2()
 {
     auto configureBin = [this](int currentMenu, int selectMenu, int xbin, TString name, double content) {
         if (currentMenu!=selectMenu) return -99;
@@ -502,15 +502,13 @@ TH2D* LKEvePlane::GetHistControlEvent1()
     if (fHistControlEvent1==nullptr)
     {
         gStyle -> SetHistMinimumZero(); // this will draw text even when content is 0
-        double binTextSize = 6.0;
-        double ctrlLabelSize = 0.18;
 
-        fHistControlEvent1 = new TH2D("LKEvePlane_ControlEvent1","",8,0,8,1,0,1);
+        fHistControlEvent1 = new TH2D("LKEvePlane_ControlEvent1","",fNumMenus,0,fNumMenus,1,0,1);
         fHistControlEvent1 -> SetStats(0);
         fHistControlEvent1 -> GetXaxis() -> SetTickSize(0);
         fHistControlEvent1 -> GetYaxis() -> SetTickSize(0);
         fHistControlEvent1 -> GetYaxis() -> SetBinLabel(1,"");
-        fHistControlEvent1 -> GetXaxis() -> SetLabelSize(ctrlLabelSize);
+        fHistControlEvent1 -> GetXaxis() -> SetLabelSize(fCtrlLabelSize);
         fBinCtrlFrst = fHistControlEvent1 -> GetBin(1,1);
         fBinCtrlPr50 = fHistControlEvent1 -> GetBin(2,1);
         fBinCtrlPrev = fHistControlEvent1 -> GetBin(3,1);
@@ -528,7 +526,7 @@ TH2D* LKEvePlane::GetHistControlEvent1()
         fHistControlEvent1 -> GetXaxis() -> SetBinLabel(7,"Last");
         fHistControlEvent1 -> GetXaxis() -> SetBinLabel(8,"@E>=500");
         fHistControlEvent1 -> SetBinContent(fBinCtrlFrst,0);
-        fHistControlEvent1 -> SetMarkerSize(binTextSize);
+        fHistControlEvent1 -> SetMarkerSize(fCtrlBinTextSize);
         if (fPaletteNumber==0)
             fHistControlEvent1 -> SetMarkerColor(kBlack);
         fHistControlEvent1 -> SetMinimum(0);
@@ -551,17 +549,15 @@ TH2D* LKEvePlane::GetHistControlEvent2()
     if (fHistControlEvent2==nullptr)
     {
         gStyle -> SetHistMinimumZero(); // this will draw text even when content is 0
-        double binTextSize = 6.0;
-        double ctrlLabelSize = 0.18;
 
-        fHistControlEvent2 = new TH2D("LKEvePlane_ControlEvent2","",8,0,8,1,0,1);
+        fHistControlEvent2 = new TH2D("LKEvePlane_ControlEvent2","",fNumMenus,0,fNumMenus,1,0,1);
         fHistControlEvent2 -> SetStats(0);
         fHistControlEvent2 -> GetXaxis() -> SetTickSize(0);
         fHistControlEvent2 -> GetYaxis() -> SetTickSize(0);
         fHistControlEvent2 -> GetYaxis() -> SetBinLabel(1,"");
-        fHistControlEvent2 -> GetXaxis() -> SetLabelSize(ctrlLabelSize);
-        UpdateMenu();
-        fHistControlEvent2 -> SetMarkerSize(binTextSize);
+        fHistControlEvent2 -> GetXaxis() -> SetLabelSize(fCtrlLabelSize);
+        UpdateMenuControlEvent2();
+        fHistControlEvent2 -> SetMarkerSize(fCtrlBinTextSize);
         if (fPaletteNumber==0)
             fHistControlEvent2 -> SetMarkerColor(kBlack);
         fHistControlEvent2 -> SetMinimum(0);
@@ -876,7 +872,7 @@ void LKEvePlane::ClickedEventDisplay1(double xOnClick, double yOnClick)
 
     auto pad = (LKPad*) fChannelArray -> At(fSelPadID);
     if (pad==nullptr) {
-        lk_error << "pad at " << fSelPadID << " is nullptr" << endl;
+        lk_error << "pad at " << fSelPadID << " is nullptr for event display 1" << endl;
         return;
     }
 
@@ -934,12 +930,17 @@ void LKEvePlane::ClickedControlEvent1(int selectedBin)
                 testEventTo = lastEventID;
             //testEventTo = 2;
             lk_info << "Accumulating events: " << currentEventID+1 << " - " << testEventTo << " (" << testEventTo-currentEventID << ")" << endl;
+            lk_set_message(false);
             for (Long64_t eventID=currentEventID+1; eventID<=testEventTo; ++eventID) {
+                //fRun -> ExecuteNextEvent();
+                // TODO
                 fRun -> GetEvent(eventID);
+                fRun -> ExecuteEveTasks();
                 SetDataFromBranch();
                 FillDataToHist();
                 ++fAccumulateEvents;
             }
+            lk_set_message(true);
             fAccumulateEvent2 = fRun -> GetCurrentEventID();
         }
         UpdateEventDisplay1();
@@ -1022,7 +1023,7 @@ void LKEvePlane::ClickedControlEvent2(int selectedBin)
     {
         if      (fCurrentMenu==0) fCurrentMenu = 1;
         else if (fCurrentMenu==1) fCurrentMenu = 0;
-        UpdateMenu();
+        UpdateMenuControlEvent2();
     }
 
     Long64_t currentEventID;

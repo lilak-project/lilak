@@ -70,6 +70,8 @@ class LKDetector : public TNamed, public LKGear
         double fZ1;
         double fZ2;
 
+        bool fUsePixelSpace;
+
 
     ClassDef(LKDetector, 1)
 };
