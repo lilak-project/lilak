@@ -15,6 +15,8 @@ class LKContainer : public TObject
         virtual void Clear(Option_t *option = "");
         virtual void Copy (TObject &object) const;
 
+        virtual TObject *Clone(const char *newname="") const;
+
         virtual bool DrawByDefault()              { return false; } ///< return true if to be displayed on eve.
 #ifdef ACTIVATE_EVE
         virtual bool IsEveSet()                   { return false; } ///< Check if this element should be a "set" of TEveElements (e.g. TEvePointSet)

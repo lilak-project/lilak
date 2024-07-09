@@ -29,7 +29,7 @@ class LKEventHeader : public LKContainer
         size_t fBufferStart = -1;
         int fBufferSize = -1;
 
-    ClassDef(LKEventHeader,1);
+    ClassDef(LKEventHeader,2);
 };
 
 #endif

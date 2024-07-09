@@ -33,6 +33,18 @@ void LKChannel::Copy(TObject &obj) const
     channel.SetNoiseScale(fNoiseScale);
 }
 
+TObject* LKChannel::Clone(const char *newname) const
+{
+    LKChannel *obj = (LKChannel*) LKContainer::Clone(newname);
+    obj -> SetChannelID(fChannelID);
+    obj -> SetPadID(fPadID);
+    obj -> SetTime(fTime);
+    obj -> SetEnergy(fEnergy);
+    obj -> SetPedestal(fPedestal);
+    obj -> SetNoiseScale(fNoiseScale);
+    return obj;
+}
+
 void LKChannel::Print(Option_t *option) const
 {
     if (TString(option).Index("!title")<0)

@@ -7,6 +7,11 @@
 #include "TObjArray.h"
 #include "TVector3.h"
 
+/**
+ * General channel
+ * Note that PadID is shared with DetID
+ * Use PadID for TPC, and DetID for Other detectors
+ */
 class LKChannel : public LKContainer
 {
     public:
@@ -17,14 +22,18 @@ class LKChannel : public LKContainer
         virtual void Copy(TObject &obj) const;
         virtual void Print(Option_t *option = "") const;
 
+        virtual TObject *Clone(const char *newname="") const;
+
         void SetChannelID(int value) { fChannelID = value; }
         void SetPadID(int value) { fPadID = value; }
+        void SetDetID(int value) { fPadID = value; }
         void SetTime(double value) { fTime = value; }
         void SetEnergy(double value) { fEnergy = value; }
         void SetPedestal(double value) { fPedestal = value; }
         void SetNoiseScale(double value) { fNoiseScale = value; }
 
         int GetChannelID() const { return fChannelID; }
+        int GetDetID() const { return fPadID; }
         int GetPadID() const { return fPadID; }
         double GetTime() const { return fTime; }
         double GetEnergy() const { return fEnergy; }

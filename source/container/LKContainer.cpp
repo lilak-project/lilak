@@ -17,3 +17,9 @@ void LKContainer::Copy(TObject &obj) const
 {
     TObject::Copy(obj);
 }
+
+TObject* LKContainer::Clone(const char *newname) const
+{
+    LKContainer *obj = (LKContainer*) TObject::Clone(newname);
+    return obj;
+}

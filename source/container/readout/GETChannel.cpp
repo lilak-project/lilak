@@ -37,6 +37,18 @@ void GETChannel::Print(Option_t *option) const
     fBufferRawSig.Print();
 }
 
+TObject* GETChannel::Clone(const char *newname) const
+{
+    GETChannel *obj = (GETChannel*) LKChannel::Clone(newname);
+    obj -> SetDetType(fDetType);
+    obj -> SetCobo(fCobo);
+    obj -> SetAsad(fAsad);
+    obj -> SetAget(fAget);
+    obj -> SetChan(fChan);
+    obj -> SetBuffer(fBufferRawSig);
+    return obj;
+}
+
 void GETChannel::Draw(Option_t *option)
 {
     GetHist() -> Draw(option);
@@ -48,14 +60,14 @@ TH1D *GETChannel::GetHist(TString name)
     if (name.IsNull())
         name = Form("hist_GET%d",GetCAAC());
     auto hist = fBufferRawSig.GetHist(name);
-    hist -> SetTitle(Form("%d %d %d %d", fCobo, fAsad, fAget, fChan));
+    hist -> SetTitle(MakeTitle());
     return hist;
 }
 
 void GETChannel::FillHist(TH1* hist)
 {
     hist -> Reset();
-    hist -> SetTitle(Form("%d %d %d %d", fCobo, fAsad, fAget, fChan));
+    if (TString(hist->GetTitle()).IsNull()) hist -> SetTitle(MakeTitle());
     fBufferRawSig.FillHist(hist);
 }
 

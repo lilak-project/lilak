@@ -29,9 +29,13 @@ class GETChannel : public LKChannel, public GETParameters
         virtual void Copy(TObject &object) const;
         virtual void Print(Option_t *option="") const;
 
+        virtual TObject *Clone(const char *newname="") const;
+
         virtual void Draw(Option_t *option="");
 
-        TH1D *GetHist(TString name="");
+        virtual TString MakeTitle() { return Form("%d %d %d %d", fCobo, fAsad, fAget, fChan); }
+
+        virtual TH1D *GetHist(TString name="");
         void FillHist(TH1* hist);
         void FillGraph(TGraph* graph);
 
@@ -72,7 +76,7 @@ class GETChannel : public LKChannel, public GETParameters
         LKBufferI  fBufferRawSig;
 
         LKHitArray fHitArray; //!
-        TGraph*    fGraphHit; //!
+        TGraph*    fGraphHit = nullptr; //!
 
     ClassDef(GETChannel,4);
 };
