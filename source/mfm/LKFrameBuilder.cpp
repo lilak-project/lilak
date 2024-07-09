@@ -723,8 +723,8 @@ void LKFrameBuilder::WriteChannels()
                 {
                     auto channel = (GETChannel *) fChannelArray -> ConstructedAt(fCountChannels);
                     channel -> SetChannelID(fCountChannels);
-                    channel -> SetFrameNo(frameIdx);
-                    channel -> SetDecayNo(decayIdx);
+                    //channel -> SetFrameNo(frameIdx);
+                    //channel -> SetDecayNo(decayIdx);
                     channel -> SetCobo(coboIdx);
                     channel -> SetAsad(asad);
                     channel -> SetAget(aget);

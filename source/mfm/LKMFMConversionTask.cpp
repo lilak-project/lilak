@@ -197,7 +197,6 @@ void LKMFMConversionTask::RunOnline()
         if(size_buffer>4) {
             fFrameBuilder -> addDataChunk(fBuffer-total_received_data,fBuffer);
             lk_error << "online data recorded." << endl;
-
         }
     }
 }
@@ -216,7 +215,7 @@ void LKMFMConversionTask::SignalNextEvent()
         lk_info << "New event!" << endl;
     else
         lk_info << "New event! at file buffer: " << fFileBuffer << " (" << bufferSize << ")" << endl;
-    auto eventHeader = (LKEventHeader *) fEventHeaderArray -> At(0);
+    auto eventHeader = (LKEventHeader *) fEventHeaderArray -> ConstructedAt(0);
     eventHeader -> SetBufferStart(fFileBufferLast);
     eventHeader -> SetBufferSize(bufferSize);
     fFileBufferLast = fFileBuffer - fMatrixSize;
