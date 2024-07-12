@@ -80,6 +80,9 @@ class LKSiDetector : public LKContainer
         TH2* GetHistJunction() { return fHistJunction; }
         TH2* GetHistOhmic() { return fHistOhmic; }
 
+        void FillHistEnergy();
+        void FillHistEnergySum();
+
     protected:
         TString fDetTypeName;
         int fDetType = -1; ///< Si detector type (user defined index corresponding to s1, s3, x6...)
@@ -100,6 +103,7 @@ class LKSiDetector : public LKContainer
         int fNumOhmicLR = 0;
 
         double ***fEnergyArray; //!< (side, strip, left/right)
+        double ***fEnergySumArray; //!< (side, strip, left/right)
         double ***fTimeArray; //!< (side, strip, left/right)
         int ***fIdxArray; //!< idx of fChannelArray (side, strip, left/right)
         vector<GETChannel*> fChannelArray;

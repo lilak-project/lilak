@@ -45,6 +45,7 @@ class GETChannel : public LKChannel, public GETParameters
         int* GetWaveformY() { return fBufferRawSig.GetArray(); }
         int* GetBufferArray() { return fBufferRawSig.GetArray(); }
         LKBufferI GetBuffer() { return fBufferRawSig; }
+        double GetIntegral(double pedestal=0.) { return fBufferRawSig.Integral(pedestal); }
 
         void SetWaveformY(const int* array) { fBufferRawSig.SetArray(array); }
         void SetWaveformY(const unsigned int* array) { fBufferRawSig.SetArray(array); }

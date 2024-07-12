@@ -79,20 +79,24 @@ void LKSiDetector::SetSiType(TString detTypeName, int detType, int detIndex, int
         fIdxArray = new int**[fNumSides];
         fTimeArray = new double**[fNumSides];
         fEnergyArray = new double**[fNumSides];
+        fEnergySumArray = new double**[fNumSides];
         for(int side=0; side<fNumSides; ++side)
         {
             if (side==0) {
                 fIdxArray[side] = new int*[fNumJunctionStrips];
                 fTimeArray[side] = new double*[fNumJunctionStrips];
                 fEnergyArray[side] = new double*[fNumJunctionStrips];
+                fEnergySumArray[side] = new double*[fNumJunctionStrips];
                 for(int strip=0; strip<fNumJunctionStrips; ++strip) {
                     fIdxArray[side][strip] = new int[fNumJunctionUD];
                     fTimeArray[side][strip] = new double[fNumJunctionUD];
                     fEnergyArray[side][strip] = new double[fNumJunctionUD];
+                    fEnergySumArray[side][strip] = new double[fNumJunctionUD];
                     for(int lr=0; lr<fNumJunctionUD; ++lr) {
                         fIdxArray[side][strip][lr] = 0;
                         fTimeArray[side][strip][lr] = 0;
                         fEnergyArray[side][strip][lr] = 0;
+                        fEnergySumArray[side][strip][lr] = 0;
                     }
                 }
             }
@@ -100,14 +104,17 @@ void LKSiDetector::SetSiType(TString detTypeName, int detType, int detIndex, int
                 fIdxArray[side] = new int*[fNumOhmicStrips];
                 fTimeArray[side] = new double*[fNumOhmicStrips];
                 fEnergyArray[side] = new double*[fNumOhmicStrips];
+                fEnergySumArray[side] = new double*[fNumOhmicStrips];
                 for(int strip=0; strip<fNumOhmicStrips; ++strip) {
                     fIdxArray[side][strip] = new int[fNumOhmicLR];
                     fTimeArray[side][strip] = new double[fNumOhmicLR];
                     fEnergyArray[side][strip] = new double[fNumOhmicLR];
+                    fEnergySumArray[side][strip] = new double[fNumOhmicLR];
                     for(int lr=0; lr<fNumOhmicLR; ++lr) {
                         fIdxArray[side][strip][lr] = 0;
                         fTimeArray[side][strip][lr] = 0;
                         fEnergyArray[side][strip][lr] = 0;
+                        fEnergySumArray[side][strip][lr] = 0;
                     }
                 }
             }
@@ -134,10 +141,11 @@ void LKSiDetector::SetChannel(GETChannel* channel, int side, int strip, int lr)
     int idx = fChannelArray.size();
     fChannelArray.push_back(channel);
     double energy = channel -> GetEnergy();
+    double integral = channel -> GetIntegral();
     fIdxArray[side][strip][lr] = idx;
     fTimeArray[side][strip][lr] = channel -> GetTime();
     fEnergyArray[side][strip][lr] = energy;
-
+    fEnergySumArray[side][strip][lr] = integral;
     if (fHistJunction!=nullptr) {
         if      (side==0) fHistJunction -> SetBinContent(strip+1,lr+1,energy);
         else if (side==1) fHistOhmic    -> SetBinContent(lr+1,strip+1,energy);
@@ -147,10 +155,54 @@ void LKSiDetector::SetChannel(GETChannel* channel, int side, int strip, int lr)
 void LKSiDetector::AddChannel(GETChannel* channel, int side, int strip, int lr)
 {
     double energy = channel -> GetEnergy();
+    double integral = channel -> GetIntegral();
     fEnergyArray[side][strip][lr] += energy;
+    fEnergySumArray[side][strip][lr] += integral;
     if (fHistJunction!=nullptr) {
         if      (side==0) { energy += fHistJunction -> GetBinContent(strip+1,lr+1); fHistJunction -> SetBinContent(strip+1,lr+1,energy); }
         else if (side==1) { energy += fHistOhmic    -> GetBinContent(lr+1,strip+1); fHistOhmic    -> SetBinContent(lr+1,strip+1,energy); }
+    }
+}
+
+void LKSiDetector::FillHistEnergy()
+{
+    for(int side=0; side<fNumSides; ++side)
+    {
+        if (side==0) {
+            for(int strip=0; strip<fNumJunctionStrips; ++strip) {
+                for(int lr=0; lr<fNumJunctionUD; ++lr) {
+                    fHistJunction -> SetBinContent(strip+1,lr+1,fEnergyArray[side][strip][lr]);
+                }
+            }
+        }
+        if (side==1) {
+            for(int strip=0; strip<fNumOhmicStrips; ++strip) {
+                for(int lr=0; lr<fNumOhmicLR; ++lr) {
+                    fHistOhmic -> SetBinContent(strip+1,lr+1,fEnergyArray[side][strip][lr]);
+                }
+            }
+        }
+    }
+}
+
+void LKSiDetector::FillHistEnergySum()
+{
+    for(int side=0; side<fNumSides; ++side)
+    {
+        if (side==0) {
+            for(int strip=0; strip<fNumJunctionStrips; ++strip) {
+                for(int lr=0; lr<fNumJunctionUD; ++lr) {
+                    fHistJunction -> SetBinContent(strip+1,lr+1,fEnergySumArray[side][strip][lr]);
+                }
+            }
+        }
+        if (side==1) {
+            for(int strip=0; strip<fNumOhmicStrips; ++strip) {
+                for(int lr=0; lr<fNumOhmicLR; ++lr) {
+                    fHistOhmic -> SetBinContent(strip+1,lr+1,fEnergySumArray[side][strip][lr]);
+                }
+            }
+        }
     }
 }
 
@@ -289,6 +341,7 @@ void LKSiDetector::ClearData()
                     fIdxArray[side][strip][lr] = 0;
                     fTimeArray[side][strip][lr] = 0;
                     fEnergyArray[side][strip][lr] = 0;
+                    fEnergySumArray[side][strip][lr] = 0;
                 }
             }
         }
@@ -298,6 +351,7 @@ void LKSiDetector::ClearData()
                     fIdxArray[side][strip][lr] = 0;
                     fTimeArray[side][strip][lr] = 0;
                     fEnergyArray[side][strip][lr] = 0;
+                    fEnergySumArray[side][strip][lr] = 0;
                 }
             }
         }

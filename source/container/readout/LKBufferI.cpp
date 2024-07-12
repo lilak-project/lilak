@@ -51,7 +51,6 @@ TH1D* LKBufferI::GetHist(TString name)
 void LKBufferI::FillHist(TH1* hist)
 {
     for (int i=0; i<512; ++i) {
-        //lk_debug << i+1 << " " << fArray[i] << endl;
         hist -> SetBinContent(i+1,fArray[i]);
     }
 }
@@ -152,4 +151,12 @@ void LKBufferI::GetGroupMeanStdDev(int numGroups, int tb2, double* pdstalGroup, 
         tbGlobal++;
     }
     pdstalGroup[numGroupsM1] = pdstalGroup[numGroupsM1] / numTbsInGroupLast;
+}
+
+double LKBufferI::Integral(double pedestal)
+{
+    double sum = 0.;
+    for (int tb=0; tb<512; tb++)
+        sum += fArray[0] - pedestal;
+    return sum;
 }

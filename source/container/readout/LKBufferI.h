@@ -32,6 +32,7 @@ class LKBufferI : public TObject
         void Fill(int tb, int value) { fArray[tb] += value; }
 
         int* GetArray() { return fArray; }
+        double Integral(double pedestal=0.);
 
         void SubtractArray(int*    buffer)               { for (int i=0; i<512; ++i) fArray[i] = fArray[i] - buffer[i]; }
         void SubtractArray(double* buffer)               { for (int i=0; i<512; ++i) fArray[i] = fArray[i] - buffer[i]; }

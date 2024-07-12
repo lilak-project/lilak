@@ -55,7 +55,7 @@ class LKSiChannel : public GETChannel
         int fLocalID;
         bool fSide;
         int fStrip;
-        bool fDirection; // 0 (left,down) or 1 (right,up)
+        bool fDirection; ///< 0 (left,up) or 1 (right,down)
 
         int fPairArrayIndex = -1;
         LKSiChannel *fPairChannel; //!

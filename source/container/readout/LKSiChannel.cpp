@@ -57,8 +57,7 @@ void LKSiChannel::Print(Option_t *option) const
     if (TString(option).Index("!title")<0)
         e_info << "[LKSiChannel]" << std::endl;
     GETChannel::Print("!title");
-    GETParameters::PrintParameters("!title");
-    e_info << "- Det(" << fPadID << ") " << ((fSide==1)?"Junction":"Ohmic") << "(" << fStrip << "/" << fDirection << ")" << endl;
+    e_info << "- Det(" << fPadID << ") " << "gCh|lCh=(" << fChannelID << "|" << fLocalID << ") " << ((fSide==1)?"Junction":"Ohmic") << "(" << fStrip << "/" << fDirection << ")" << endl;
     e_info << "- Phi=(" << fPhi1 << "," << fPhi2 << "), Theta=(" << fTheta1 << "," << fTheta2 << ")" << endl;
 }
 
@@ -73,9 +72,7 @@ TH1D *LKSiChannel::GetHist(TString name)
 
 bool LKSiChannel::IsPair(LKSiChannel* channel)
 {
-    int id1 = fPadID*1000+fSide*100+fStrip;
-    int id2 = channel->GetDetID()*1000+channel->GetSide()*100+channel->GetStrip();
-    if (id1==id2)
+    if (fPadID==channel->GetDetID() && fSide==channel->GetSide() && fStrip==channel->GetStrip())
         return true;
     return false;
 }
