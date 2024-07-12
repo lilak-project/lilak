@@ -68,6 +68,8 @@ bool LKEvePlane::Init()
 
     SetPalette();
 
+    for (auto i=0; i<20; ++i) UpdateFlag[i] = false;
+
     return true;
 }
 
@@ -123,6 +125,9 @@ void LKEvePlane::UpdateAll()
 
 void LKEvePlane::UpdateEventDisplay1()
 {
+    if (UpdateFlag[kUpdateEventDisplay1]) return;
+    else UpdateFlag[kUpdateEventDisplay1] = true;
+
     if (fHistEventDisplay1==nullptr) 
         return;
     fPadEventDisplay1 -> cd();
@@ -143,6 +148,9 @@ void LKEvePlane::UpdateEventDisplay1()
 
 void LKEvePlane::UpdateEventDisplay2()
 {
+    if (UpdateFlag[kUpdateEventDisplay2]) return;
+    else UpdateFlag[kUpdateEventDisplay2] = true;
+
     if (fHistEventDisplay2==nullptr) 
         return;
     fPadEventDisplay2 -> cd();
@@ -163,6 +171,9 @@ void LKEvePlane::UpdateEventDisplay2()
 
 void LKEvePlane::UpdateChannelBuffer()
 {
+    if (UpdateFlag[kUpdateChannelBuffer]) return;
+    else UpdateFlag[kUpdateChannelBuffer] = true;
+
     if (fHistChannelBuffer==nullptr) 
         return;
 
@@ -346,6 +357,9 @@ void LKEvePlane::UpdateChannelBuffer()
 
 void LKEvePlane::UpdateControlEvent1()
 {
+    if (UpdateFlag[kUpdateControlEvent1]) return;
+    else UpdateFlag[kUpdateControlEvent1] = true;
+
     if (fHistControlEvent1==nullptr)
         return;
     fPadControlEvent1 -> cd();
@@ -366,6 +380,9 @@ void LKEvePlane::UpdateControlEvent1()
 
 void LKEvePlane::UpdateControlEvent2()
 {
+    if (UpdateFlag[kUpdateControlEvent2]) return;
+    else UpdateFlag[kUpdateControlEvent2] = true;
+
     if (fHistControlEvent2==nullptr)
         return;
     fPadControlEvent2 -> cd();
@@ -850,6 +867,7 @@ void LKEvePlane::FillDataToHistEventDisplay1(Option_t *option)
 
 void LKEvePlane::ExecMouseClickEventOnPad(TVirtualPad *pad, double xOnClick, double yOnClick)
 {
+    for (auto i=0; i<20; ++i) UpdateFlag[i] = false;
     if (pad==fPadEventDisplay1) { ClickedEventDisplay1(xOnClick, yOnClick); fCountChangeOther++; }
     if (pad==fPadEventDisplay2) { ClickedEventDisplay2(xOnClick, yOnClick); fCountChangeOther++; }
     if (pad==fPadControlEvent2) { ClickedControlEvent2(xOnClick, yOnClick); fCountChangeOther++; }
@@ -930,18 +948,17 @@ void LKEvePlane::ClickedControlEvent1(int selectedBin)
                 testEventTo = lastEventID;
             //testEventTo = 2;
             lk_info << "Accumulating events: " << currentEventID+1 << " - " << testEventTo << " (" << testEventTo-currentEventID << ")" << endl;
-            lk_set_message(false);
+            if (fAllowControlLogger) fRun -> SetAllowControlLogger(false);
+            SetActive(false);
+            if (fAllowControlLogger) lk_set_message(false);
             for (Long64_t eventID=currentEventID+1; eventID<=testEventTo; ++eventID) {
-                //fRun -> ExecuteNextEvent();
-                // TODO
-                fRun -> GetEvent(eventID);
-                fRun -> ExecuteEveTasks();
-                SetDataFromBranch();
-                FillDataToHist();
+                fRun -> ExecuteNextEvent();
                 ++fAccumulateEvents;
             }
-            lk_set_message(true);
+            if (fAllowControlLogger) lk_set_message(true);
+            SetActive(true);
             fAccumulateEvent2 = fRun -> GetCurrentEventID();
+            if (fAllowControlLogger) fRun -> SetAllowControlLogger(true);
         }
         UpdateEventDisplay1();
         UpdateEventDisplay2();

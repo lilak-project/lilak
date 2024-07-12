@@ -47,6 +47,7 @@ class LKDetectorPlane : public TNamed, public LKGear
 
         bool fPadDataIsSet = false;
         bool fHitDataIsSet = false;
+        bool fActive = true;
 
     public:
         LKDetectorPlane();
@@ -65,6 +66,9 @@ class LKDetectorPlane : public TNamed, public LKGear
         virtual axis_t GetAxisDrift() const { return fAxisDrift; }
         double GetTbToLength() const { return fTbToLength; }
         double GetPosition() const { return fPosition; }
+
+        void SetActive(bool val) { fActive = val; }
+        bool IsActive() const { return fActive; }
 
     public:
         virtual void Clear(Option_t *option = "");

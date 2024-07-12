@@ -190,6 +190,14 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         axis_t fPadAxis1[2] = {LKVector3::kNon, LKVector3::kNon};
         axis_t fPadAxis2[2] = {LKVector3::kNon, LKVector3::kNon};
 
+    protected:
+        bool UpdateFlag[20];
+        int kUpdateEventDisplay1 = 1;
+        int kUpdateEventDisplay2 = 2;
+        int kUpdateControlEvent1 = 3;
+        int kUpdateControlEvent2 = 4;
+        int kUpdateChannelBuffer = 5;
+
     public:
         //bool GetAccumulateAllEvents() const { return fAccumulateAllEvents; }
         Long64_t GetAccumulateEvents() const { return fAccumulateEvents; }

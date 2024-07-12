@@ -367,6 +367,8 @@ void LKEveTask::DrawDetectorPlanes()
     for (auto iPlane = 0; iPlane < numPlanes; ++iPlane)
     {
         auto plane = fDetectorSystem -> GetDetectorPlane(iPlane);
+        if (plane->IsActive()==false)
+            continue;
         lk_info << "Drawing " << plane -> GetName() << endl;
 
         //auto cvs = (TCanvas *) fCvsDetectorPlaneArray -> At(iPlane);
