@@ -491,15 +491,6 @@ void LKRun::Add(LKTask *task)
     task -> SetRun(this);
 }
 
-void LKRun::AddEveTask(LKTask *task)
-{
-    LKRun::Add(task);
-    if (fEveTask==nullptr)
-        fEveTask = new TTask();
-    fEveTask -> Add(task);
-    task -> SetRun(this);
-}
-
 void LKRun::SetEventTrigger(LKTask *task)
 {
     if (fUsingEventTrigger) {
@@ -757,6 +748,11 @@ bool LKRun::Init()
         if (fInputFile -> Get("ParameterContainer") != nullptr) {
             auto par = (LKParameterContainer *) fInputFile -> Get("ParameterContainer");
             AddParameterContainer(par->CloneParameterContainer());
+
+            if (fRunName.IsNull() ) fPar -> UpdatePar(fRunName,  "LKRun/Name");
+            if (fRunID<0) fPar -> UpdatePar(fRunID,    "LKRun/RunID");
+            if (fDivision<0) fPar -> UpdatePar(fDivision, "LKRun/Division");
+
             if (!fParAddAfter.IsNull()) {
                 AddParameterContainer(fParAddAfter);
                 fParAddAfter = "";
@@ -1314,7 +1310,7 @@ bool LKRun::ExecuteEvent(Long64_t eventID)
     LKRun::GetEntry(fCurrentEventID);
 
     if ((fEventCount==0||fEventCount%fEventCountForMessage!=0)) {
-        lk_set_message(false);
+        if (fAllowControlLogger) lk_set_message(false);
     }
 
     if (numEntriesMatter)
@@ -1331,7 +1327,7 @@ bool LKRun::ExecuteEvent(Long64_t eventID)
         e_cout << endl;
     }
 
-    lk_set_message(true);
+    if (fAllowControlLogger) lk_set_message(true);
 
     if (fSignalEndOfRun)
         return false;
@@ -1343,11 +1339,6 @@ bool LKRun::ExecuteEvent(Long64_t eventID)
     ++fEventCount;
 
     return true;
-}
-
-void LKRun::ExecuteEveTasks()
-{
-    fEveTask -> ExecuteTask("");
 }
 
 void LKRun::ClearArrays()

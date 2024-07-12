@@ -35,10 +35,13 @@ class LKGear
 
         void SetRun(LKRun *run) { fRun = run; }
 
+        void SetAllowControlLogger(bool val) { fAllowControlLogger = val; }
+
     protected:
         LKParameterContainer *fPar = nullptr;
         LKRun *fRun = nullptr;
         Int_t fRank = 0;
+        bool fAllowControlLogger = true;
 
     ClassDef(LKGear, 1)
 };

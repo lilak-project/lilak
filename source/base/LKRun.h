@@ -247,7 +247,7 @@ class LKRun : public LKTask
         bool ExecuteLastEvent() { return ExecuteEvent(-5); }
         void ExecuteEveTasks();
 
-        bool CheckMute() { return (fEventCount==0||fEventCount%fEventCountForMessage!=0); }
+        bool CheckMute(Long64_t eventCount=-1) { if (eventCount<0) eventCount = fEventCount; return (eventCount==0||eventCount%fEventCountForMessage!=0); }
         void DoNotFillCurrentEvent() { fFillCurrentEvent = false; }
 
         /// Search input files with given LKRun/RunID.
@@ -354,8 +354,6 @@ class LKRun : public LKTask
         bool fFillCurrentEvent = true;
 
         TString fExitLogPath;
-
-        TTask *fEveTask = nullptr;
 
     private:
         static LKRun *fInstance;
