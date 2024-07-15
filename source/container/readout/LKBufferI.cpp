@@ -153,10 +153,16 @@ void LKBufferI::GetGroupMeanStdDev(int numGroups, int tb2, double* pdstalGroup, 
     pdstalGroup[numGroupsM1] = pdstalGroup[numGroupsM1] / numTbsInGroupLast;
 }
 
-double LKBufferI::Integral(double pedestal)
+double LKBufferI::Integral(double pedestal, bool invert)
 {
+    if (invert) {
+        for (auto tb=0; tb<512; ++tb)
+            fArray[tb] = 4096 - fArray[tb];
+    }
+
     double sum = 0.;
-    for (int tb=0; tb<512; tb++)
-        sum += fArray[0] - pedestal;
+    for (int tb=0; tb<512; tb++) {
+        sum += fArray[tb] - pedestal;
+    }
     return sum;
 }

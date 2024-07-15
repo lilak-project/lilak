@@ -19,15 +19,21 @@ class LKSiChannel : public GETChannel
         virtual void Copy(TObject &object) const;
         virtual void Print(Option_t *option="") const;
 
+        virtual const char* GetName() const;
+        virtual const char* GetTitle() const;
+
         virtual TObject *Clone(const char *newname="") const;
 
-        virtual TString MakeTitle() { return Form("%d-%d %s %d (%s)", fDetType, fPadID, (fSide==0?"Junction":"Ohmic"), fStrip, (fSide==0?(fDirection==0?"L":"R"):(fDirection==0?"U":"D"))); }
+        virtual TString MakeTitle() { return TString(GetTitle()); }
         virtual TH1D *GetHist(TString name="");
+
+        virtual double GetIntegral(double pedestal=-1., bool inverted=false);
 
         int GetLocalID() const { return fLocalID; }
         bool GetSide()  const { return fSide; }
         int  GetStrip() const { return fStrip; }
         bool GetDirection() const { return fDirection; }
+        bool GetInverted() const { return fInverted; }
         double GetPhi1() const { return fPhi1; }
         double GetPhi2() const { return fPhi2; }
         double GetTheta1() const { return fTheta1; }
@@ -41,6 +47,7 @@ class LKSiChannel : public GETChannel
         void SetSide(bool side) { fSide = side; }
         void SetStrip(int strip) { fStrip = strip; }
         void SetDirection(bool direction) { fDirection = direction; }
+        void SetInverted(bool inverted) { fInverted = inverted; }
         void SetPhi1(double phi) { fPhi1 = phi; }
         void SetPhi2(double phi) { fPhi2 = phi; }
         void SetTheta1(double theta) { fTheta1 = theta; }
@@ -56,6 +63,7 @@ class LKSiChannel : public GETChannel
         bool fSide;
         int fStrip;
         bool fDirection; ///< 0 (left,up) or 1 (right,down)
+        bool fInverted = false;
 
         int fPairArrayIndex = -1;
         LKSiChannel *fPairChannel; //!

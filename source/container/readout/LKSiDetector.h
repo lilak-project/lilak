@@ -17,6 +17,9 @@ class LKSiDetector : public LKContainer
 
         virtual TObject *Clone(const char *newname="") const;
 
+        virtual const char* GetName() const;
+        virtual const char* GetTitle() const;
+
         TString GetNameType() const;
         TString GetTitleType() const;
 
@@ -69,19 +72,20 @@ class LKSiDetector : public LKContainer
          */
         void SetSiType(TString detTypeName, int detType, int detIndex, int detID, int numSides, int numJunctionStrips, int numOhmicStrips, bool useJunctionLR, bool useOhmicLR);
         void SetSiPosition(TVector3 position, int layer, int row, double phi1, double phi2, double theta1, double theta2);
-        void AddChannel(GETChannel* channel, int side, int strip, int lr);
+        void SetChannel(LKSiChannel* channel);
+        void AddChannel(LKSiChannel* channel);
         void SetChannel(GETChannel* channel, int side, int strip, int lr);
+        void AddChannel(GETChannel* channel, int side, int strip, int lr);
         int GetNumActiveChannels() const { return fChannelArray.size(); }
         LKChannel* GetActiveChannel(int i) { return fChannelArray.at(i); }
 
         TH2* CreateHistJunction(TString name="", TString title="", double x1=-1, double x2=-1, double y1=-1, double y2=-1, TString option="");
         TH2* CreateHistOhmic   (TString name="", TString title="", double x1=-1, double x2=-1, double y1=-1, double y2=-1, TString option="");
-
         TH2* GetHistJunction() { return fHistJunction; }
         TH2* GetHistOhmic() { return fHistOhmic; }
-
         void FillHistEnergy();
         void FillHistEnergySum();
+        void FillHistCount();
 
     protected:
         TString fDetTypeName;
@@ -104,7 +108,7 @@ class LKSiDetector : public LKContainer
 
         double ***fEnergyArray; //!< (side, strip, left/right)
         double ***fEnergySumArray; //!< (side, strip, left/right)
-        double ***fTimeArray; //!< (side, strip, left/right)
+        int ***fCountArray; //!< (side, strip, left/right)
         int ***fIdxArray; //!< idx of fChannelArray (side, strip, left/right)
         vector<GETChannel*> fChannelArray;
 

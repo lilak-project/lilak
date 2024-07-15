@@ -27,10 +27,20 @@ void GETChannel::Copy(TObject &object) const
     objCopy.SetBuffer(fBufferRawSig);
 }
 
+const char* GETChannel::GetName() const
+{
+    return Form("GETChannel_%d",GetCAAC());
+}
+
+const char* GETChannel::GetTitle() const
+{
+    return Form("GETChannel CAAC=(%d,%d,%d,%d)",fCobo,fAsad,fAget,fChan);
+}
+
 void GETChannel::Print(Option_t *option) const
 {
     if (TString(option).Index("!title")<0)
-        e_info << "[GETChannel]" << std::endl;
+        e_info << "[" << GetName() << "]" << std::endl;
     LKChannel::Print("!title");
     GETParameters::PrintParameters("!title");
     fHitArray.Print("!title");
@@ -53,6 +63,13 @@ void GETChannel::Draw(Option_t *option)
 {
     GetHist() -> Draw(option);
     GetHitGraph() -> Draw("samel");
+}
+
+double GETChannel::GetIntegral(double pedestal, bool inverted)
+{
+    if (pedestal<0) pedestal = fPedestal;
+    if (pedestal<0) pedestal = 0;
+    return fBufferRawSig.Integral(pedestal, inverted);
 }
 
 TH1D *GETChannel::GetHist(TString name)

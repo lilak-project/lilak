@@ -29,6 +29,9 @@ class GETChannel : public LKChannel, public GETParameters
         virtual void Copy(TObject &object) const;
         virtual void Print(Option_t *option="") const;
 
+        virtual const char* GetName() const;
+        virtual const char* GetTitle() const;
+
         virtual TObject *Clone(const char *newname="") const;
 
         virtual void Draw(Option_t *option="");
@@ -45,7 +48,7 @@ class GETChannel : public LKChannel, public GETParameters
         int* GetWaveformY() { return fBufferRawSig.GetArray(); }
         int* GetBufferArray() { return fBufferRawSig.GetArray(); }
         LKBufferI GetBuffer() { return fBufferRawSig; }
-        double GetIntegral(double pedestal=0.) { return fBufferRawSig.Integral(pedestal); }
+        virtual double GetIntegral(double pedestal=-1., bool inverted=false);
 
         void SetWaveformY(const int* array) { fBufferRawSig.SetArray(array); }
         void SetWaveformY(const unsigned int* array) { fBufferRawSig.SetArray(array); }
