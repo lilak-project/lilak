@@ -39,7 +39,9 @@ LKChannelAnalyzer* LKEvePlane::GetChannelAnalyzer(int id)
         fChannelAnalyzer -> Print();
     }
 
-    fPar -> UpdatePar(fFillOptionSelected,fName+"/fillOption hit");
+    fPar -> UpdatePar(fFillOptionSelected, fName+"/fillOption hit");
+    fPar -> UpdatePar(fSkipToEnergy , fName+"/skipToEnergy  500");
+    fPar -> UpdatePar(fJumpEventSize, fName+"/jumpEventSize 2000");
     fFillOptionSelected.ToLower();
 
     return fChannelAnalyzer;
@@ -103,6 +105,12 @@ void LKEvePlane::Draw(Option_t *option)
         fillOption = optionString(0,ic);
         fEventDisplayDrawOption = optionString(ic+1,optionString.Sizeof()-ic-2);
     }
+
+    if (fJustFill) {
+        FillDataToHist(fillOption);
+        return;
+    }
+
     lk_info << "Fill option is " << fillOption << endl;
     lk_info << "Eve draw option is " << fEventDisplayDrawOption << endl;
 
@@ -367,11 +375,11 @@ void LKEvePlane::UpdateControlEvent1()
     if (fRun!=nullptr) {
         auto currentEventID = fRun -> GetCurrentEventID();
         auto lastEventID = fRun -> GetNumEvents() - 1;
-        fHistControlEvent1 -> SetBinContent(fBinCtrlPr50, (currentEventID-50<0?0:currentEventID-50));
+        fHistControlEvent1 -> SetBinContent(fBinCtrlPrJP, (currentEventID-fJumpEventSize<0?0:currentEventID-fJumpEventSize));
         fHistControlEvent1 -> SetBinContent(fBinCtrlPrev, (currentEventID==0?0:currentEventID-1));
         fHistControlEvent1 -> SetBinContent(fBinCtrlCurr, currentEventID);
         fHistControlEvent1 -> SetBinContent(fBinCtrlNext, (currentEventID==lastEventID?lastEventID:currentEventID+1));
-        fHistControlEvent1 -> SetBinContent(fBinCtrlNe50, (currentEventID+50>lastEventID?lastEventID:currentEventID+50));
+        fHistControlEvent1 -> SetBinContent(fBinCtrlNeJP, (currentEventID+fJumpEventSize>lastEventID?lastEventID:currentEventID+fJumpEventSize));
         fHistControlEvent1 -> Draw("col text");
     }
     else
@@ -527,27 +535,27 @@ TH2D* LKEvePlane::GetHistControlEvent1()
         fHistControlEvent1 -> GetYaxis() -> SetBinLabel(1,"");
         fHistControlEvent1 -> GetXaxis() -> SetLabelSize(fCtrlLabelSize);
         fBinCtrlFrst = fHistControlEvent1 -> GetBin(1,1);
-        fBinCtrlPr50 = fHistControlEvent1 -> GetBin(2,1);
+        fBinCtrlPrJP = fHistControlEvent1 -> GetBin(2,1);
         fBinCtrlPrev = fHistControlEvent1 -> GetBin(3,1);
         fBinCtrlCurr = fHistControlEvent1 -> GetBin(4,1);
         fBinCtrlNext = fHistControlEvent1 -> GetBin(5,1);
-        fBinCtrlNe50 = fHistControlEvent1 -> GetBin(6,1);
+        fBinCtrlNeJP = fHistControlEvent1 -> GetBin(6,1);
         fBinCtrlLast = fHistControlEvent1 -> GetBin(7,1);
-        fBinCtrlE500 = fHistControlEvent1 -> GetBin(8,1);
+        fBinCtrlESkp = fHistControlEvent1 -> GetBin(8,1);
         fHistControlEvent1 -> GetXaxis() -> SetBinLabel(1,"First");
-        fHistControlEvent1 -> GetXaxis() -> SetBinLabel(2,"-50");
+        fHistControlEvent1 -> GetXaxis() -> SetBinLabel(2,Form("-%d",fJumpEventSize));
         fHistControlEvent1 -> GetXaxis() -> SetBinLabel(3,"Prev.");
         fHistControlEvent1 -> GetXaxis() -> SetBinLabel(4,"Current");
         fHistControlEvent1 -> GetXaxis() -> SetBinLabel(5,"Next");
-        fHistControlEvent1 -> GetXaxis() -> SetBinLabel(6,"+50");
+        fHistControlEvent1 -> GetXaxis() -> SetBinLabel(6,Form("+%d",fJumpEventSize));
         fHistControlEvent1 -> GetXaxis() -> SetBinLabel(7,"Last");
-        fHistControlEvent1 -> GetXaxis() -> SetBinLabel(8,"@E>=500");
+        fHistControlEvent1 -> GetXaxis() -> SetBinLabel(8,Form("@E>=%d",fSkipToEnergy));
         fHistControlEvent1 -> SetBinContent(fBinCtrlFrst,0);
         fHistControlEvent1 -> SetMarkerSize(fCtrlBinTextSize);
         if (fPaletteNumber==0)
             fHistControlEvent1 -> SetMarkerColor(kBlack);
         fHistControlEvent1 -> SetMinimum(0);
-        fHistControlEvent1 -> SetBinContent(fBinCtrlE500,500);
+        fHistControlEvent1 -> SetBinContent(fBinCtrlESkp,fSkipToEnergy);
         if (fRun!=nullptr) {
             fHistControlEvent1 -> SetBinContent(fBinCtrlLast,fRun->GetNumEvents()-1);
             if (fPaletteNumber==0)
@@ -803,7 +811,6 @@ void LKEvePlane::FillDataToHistEventDisplay1(Option_t *option)
             auto j = pos.J();
             auto energy = hit -> GetCharge();
             fHistEventDisplay1 -> Fill(i,j,energy);
-            //lk_debug << i << " " << j << " " << energy << endl;
         }
     }
     else if (optionString.Index("preview")==0)
@@ -932,8 +939,8 @@ void LKEvePlane::ClickedControlEvent1(int selectedBin)
     if (fAccumulateEvents>0)
     {
         if (selectedBin==fBinCtrlFrst) { lk_info << "(First event) option is not available in acuumulate-event-mode" << endl; return; }
-        if (selectedBin==fBinCtrlPr50) { lk_info << "(Event -50)   option is not available in acuumulate-event-mode" << endl; return; }
-        if (selectedBin==fBinCtrlPrev) { lk_info << "(Prev. event  option is not available in acuumulate-event-mode" << endl; return; }
+        if (selectedBin==fBinCtrlPrJP) { lk_info << Form("(Event -%d) option is not available in acuumulate-event-mode",fJumpEventSize) << endl; return; }
+        if (selectedBin==fBinCtrlPrev) { lk_info << "(Prev. event) option is not available in acuumulate-event-mode" << endl; return; }
         if (selectedBin==fBinCtrlCurr) { return; }
         if (selectedBin==fBinCtrlNext) {
             lk_info << "Next event"  << endl;
@@ -941,24 +948,27 @@ void LKEvePlane::ClickedControlEvent1(int selectedBin)
             fAccumulateEvent2 = fRun -> GetCurrentEventID();
             ++fAccumulateEvents;
         }
-        if (selectedBin==fBinCtrlNe50 || selectedBin==fBinCtrlLast)
+        if (selectedBin==fBinCtrlNeJP || selectedBin==fBinCtrlLast)
         {
-            Long64_t testEventTo = currentEventID + 50;
-            if ((selectedBin==fBinCtrlNe50 && (currentEventID+50>lastEventID)) || (selectedBin==fBinCtrlLast))
+            Long64_t testEventTo = currentEventID + fJumpEventSize;
+            if ((selectedBin==fBinCtrlNeJP && (currentEventID+fJumpEventSize>lastEventID)) || (selectedBin==fBinCtrlLast))
                 testEventTo = lastEventID;
-            //testEventTo = 2;
             lk_info << "Accumulating events: " << currentEventID+1 << " - " << testEventTo << " (" << testEventTo-currentEventID << ")" << endl;
+            /////////////////////////////////////////////////////////////////
+            //SetActive(false);
+            fJustFill = true;
             if (fAllowControlLogger) fRun -> SetAllowControlLogger(false);
-            SetActive(false);
             if (fAllowControlLogger) lk_set_message(false);
             for (Long64_t eventID=currentEventID+1; eventID<=testEventTo; ++eventID) {
                 fRun -> ExecuteNextEvent();
                 ++fAccumulateEvents;
             }
             if (fAllowControlLogger) lk_set_message(true);
-            SetActive(true);
-            fAccumulateEvent2 = fRun -> GetCurrentEventID();
             if (fAllowControlLogger) fRun -> SetAllowControlLogger(true);
+            fJustFill = false;
+            //SetActive(true);
+            /////////////////////////////////////////////////////////////////
+            fAccumulateEvent2 = fRun -> GetCurrentEventID();
         }
         UpdateEventDisplay1();
         UpdateEventDisplay2();
@@ -966,23 +976,21 @@ void LKEvePlane::ClickedControlEvent1(int selectedBin)
     else
     {
         if (selectedBin==fBinCtrlFrst) { lk_info << "First event" << endl; fRun -> ExecuteFirstEvent(); }
-        if (selectedBin==fBinCtrlPr50) { lk_info << "Event -50"   << endl; fRun -> ExecuteEvent((currentEventID-50<0?0:currentEventID-50)); }
+        if (selectedBin==fBinCtrlPrJP) { lk_info << "Event -" << fJumpEventSize << endl; fRun -> ExecuteEvent((currentEventID-fJumpEventSize<0?0:currentEventID-fJumpEventSize)); }
         if (selectedBin==fBinCtrlPrev) { lk_info << "Prev. event" << endl; fRun -> ExecutePreviousEvent(); }
         if (selectedBin==fBinCtrlCurr) {}
         if (selectedBin==fBinCtrlNext) { lk_info << "Next event"  << endl; fRun -> ExecuteNextEvent(); }
-        if (selectedBin==fBinCtrlNe50) { lk_info << "Event +50"   << endl; fRun -> ExecuteEvent((currentEventID+50>lastEventID?lastEventID:currentEventID+50)); }
+        if (selectedBin==fBinCtrlNeJP) { lk_info << "Event +" << fJumpEventSize << endl; fRun -> ExecuteEvent((currentEventID+fJumpEventSize>lastEventID?lastEventID:currentEventID+fJumpEventSize)); }
         if (selectedBin==fBinCtrlLast) { lk_info << "Last event"  << endl; fRun -> ExecuteLastEvent(); }
     }
 
-    if (selectedBin==fBinCtrlE500)
+    if (selectedBin==fBinCtrlESkp)
     {
         if (fRun==nullptr)
             return;
 
         auto currentEventID = fRun -> GetCurrentEventID();
         lastEventID = fRun -> GetNumEvents() - 1;
-
-        double energyCut = 500;
 
         if (fRawDataArray!=nullptr)
         {
@@ -999,7 +1007,7 @@ void LKEvePlane::ClickedControlEvent1(int selectedBin)
                 for (auto iRawData=0; iRawData<numChannels; ++iRawData)
                 {
                     auto channel = (GETChannel*) fRawDataArray -> At(iRawData);
-                    if (channel->GetEnergy()>energyCut) {
+                    if (channel->GetEnergy()>fSkipToEnergy) {
                         foundEvent = true;
                         break;
                     }
@@ -1014,7 +1022,7 @@ void LKEvePlane::ClickedControlEvent1(int selectedBin)
             //if (testEventID==lastEventID)
             if (testEventID==lastEventID+1)
             {
-                lk_error << "No event with energy " << energyCut << endl;
+                lk_error << "No event with energy " << fSkipToEnergy << endl;
                 return;
             }
 
@@ -1023,7 +1031,7 @@ void LKEvePlane::ClickedControlEvent1(int selectedBin)
                 ++fAccumulateEvents;
             }
             fRun -> ExecuteEvent(testEventID);
-            lk_info << "Event with energy " << energyCut << " : " << currentEventID << endl;
+            lk_info << "Event with energy " << fSkipToEnergy << " : " << currentEventID << endl;
         }
         else
             lk_error << "Raw-Data Array is null" << endl;

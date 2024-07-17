@@ -369,12 +369,10 @@ void LKEveTask::DrawDetectorPlanes()
         auto plane = fDetectorSystem -> GetDetectorPlane(iPlane);
         if (plane->IsActive()==false)
             continue;
-        lk_info << "Drawing " << plane -> GetName() << endl;
 
-        //auto cvs = (TCanvas *) fCvsDetectorPlaneArray -> At(iPlane);
-        //cvs -> cd();
         plane -> Draw();
 
+        /*
         auto axis1 = plane -> GetAxis1();
         auto axis2 = plane -> GetAxis2();
         if (axis1==LKVector3::kNon||axis2==LKVector3::kNon)
@@ -432,6 +430,7 @@ void LKEveTask::DrawDetectorPlanes()
                 if (isHit) {;}
             }
         }
+        */
     }
 
     // @todo palette is changed when drawing top node because of TGeoMan(?)

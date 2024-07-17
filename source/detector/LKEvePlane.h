@@ -138,13 +138,13 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         const TString kFillNHit = "nhits";
 
         int fBinCtrlFrst;
-        int fBinCtrlPr50;
+        int fBinCtrlPrJP;
         int fBinCtrlPrev;
         int fBinCtrlCurr;
         int fBinCtrlNext;
-        int fBinCtrlNe50;
+        int fBinCtrlNeJP;
         int fBinCtrlLast;
-        int fBinCtrlE500;
+        int fBinCtrlESkp;
 
         int fCurrentMenu = 0;
 
@@ -186,9 +186,13 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
 
         bool fReturnDraw = false;
         bool fBranchIsSet = false;
+        bool fJustFill = false;
 
         axis_t fPadAxis1[2] = {LKVector3::kNon, LKVector3::kNon};
         axis_t fPadAxis2[2] = {LKVector3::kNon, LKVector3::kNon};
+
+        int fSkipToEnergy = 500;
+        int fJumpEventSize = 2000;
 
     protected:
         bool UpdateFlag[20];
