@@ -3,9 +3,12 @@ int GetAmplitudeSomehow() { return 1234; }
 
 void make_dummy_pulse_data()
 {
+    bool drawAna = false;
+    int numSimulations = 10;
+
     gRandom -> SetSeed(time(0));
 
-    bool drawAna = true;
+    ofstream file("out.dat");
 
     auto sim = new LKChannelSimulator();
     sim -> SetPulse("../../common/pulseReference.root");
@@ -21,11 +24,11 @@ void make_dummy_pulse_data()
     auto ana = new LKChannelAnalyzer();
 
     int buffer[512] = {0};
-    int numSimulations = 10;
     for (auto iSim=0; iSim<numSimulations; ++iSim)
     {
         memset(buffer, 0, sizeof(buffer));
         sim -> SetFluctuatingPedestal(buffer);
+        //timebucket
         auto tbSim = GetTbSomehow();
         auto amplitudeSim = GetAmplitudeSomehow();
         sim -> AddHit(buffer,tbSim,amplitudeSim);
@@ -40,12 +43,15 @@ void make_dummy_pulse_data()
             amplitude = ana -> GetAmplitude(0);
             tb = ana -> GetTbHit(0);
         }
-        cout << pedestal << " " << amplitude << " " << tb << endl;
+        file << iSim << ", " << tbSim << ", " << amplitudeSim << ", " << pedestal << ", " << tb << ", " << amplitude << endl;
+        for (auto i=0; i<512; ++i)
+            file << buffer[i] << ", ";
+        file << endl;
 
         if (drawAna) {
             auto cvs = new TCanvas(Form("cvs%d",iSim),"",800,600);
             ana -> Draw();
-            cvs -> SaveAs(Form("%s.png",cvs->GetName()));
+            cvs -> SaveAs(Form("figures/%s.png",cvs->GetName()));
         }
     }
 }
