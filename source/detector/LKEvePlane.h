@@ -80,6 +80,8 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         virtual void UpdateMenuControlEvent2();
         virtual void UpdateFill(bool updateHist=true);
 
+        virtual void ExitEve();
+
     public:
         virtual int FindPadID(int cobo, int asad, int aget, int chan);
         virtual LKPad* FindPad(int cobo, int asad, int aget, int chan); ///< TODO
@@ -137,14 +139,15 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         const TString kFillHits = "hit";
         const TString kFillNHit = "nhits";
 
-        int fBinCtrlFrst;
-        int fBinCtrlPrJP;
-        int fBinCtrlPrev;
-        int fBinCtrlCurr;
-        int fBinCtrlNext;
-        int fBinCtrlNeJP;
-        int fBinCtrlLast;
-        int fBinCtrlESkp;
+        int fBinCtrlFrst = -1;
+        int fBinCtrlPrJP = -1;
+        int fBinCtrlPrev = -1;
+        int fBinCtrlCurr = -1;
+        int fBinCtrlNext = -1;
+        int fBinCtrlNeJP = -1;
+        int fBinCtrlLast = -1;
+        int fBinCtrlESkp = -1;
+        int fBinCtrlExit = -1;
 
         int fCurrentMenu = 0;
 

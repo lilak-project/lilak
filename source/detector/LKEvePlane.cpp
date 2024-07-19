@@ -5,6 +5,7 @@ using namespace std;
 #include "GETChannel.h"
 #include "TStyle.h"
 #include "TSystem.h"
+#include "TApplication.h"
 
 ClassImp(LKEvePlane)
 
@@ -534,22 +535,16 @@ TH2D* LKEvePlane::GetHistControlEvent1()
         fHistControlEvent1 -> GetYaxis() -> SetTickSize(0);
         fHistControlEvent1 -> GetYaxis() -> SetBinLabel(1,"");
         fHistControlEvent1 -> GetXaxis() -> SetLabelSize(fCtrlLabelSize);
-        fBinCtrlFrst = fHistControlEvent1 -> GetBin(1,1);
-        fBinCtrlPrJP = fHistControlEvent1 -> GetBin(2,1);
-        fBinCtrlPrev = fHistControlEvent1 -> GetBin(3,1);
-        fBinCtrlCurr = fHistControlEvent1 -> GetBin(4,1);
-        fBinCtrlNext = fHistControlEvent1 -> GetBin(5,1);
-        fBinCtrlNeJP = fHistControlEvent1 -> GetBin(6,1);
-        fBinCtrlLast = fHistControlEvent1 -> GetBin(7,1);
-        fBinCtrlESkp = fHistControlEvent1 -> GetBin(8,1);
-        fHistControlEvent1 -> GetXaxis() -> SetBinLabel(1,"First");
-        fHistControlEvent1 -> GetXaxis() -> SetBinLabel(2,Form("-%d",fJumpEventSize));
-        fHistControlEvent1 -> GetXaxis() -> SetBinLabel(3,"Prev.");
-        fHistControlEvent1 -> GetXaxis() -> SetBinLabel(4,"Current");
-        fHistControlEvent1 -> GetXaxis() -> SetBinLabel(5,"Next");
-        fHistControlEvent1 -> GetXaxis() -> SetBinLabel(6,Form("+%d",fJumpEventSize));
-        fHistControlEvent1 -> GetXaxis() -> SetBinLabel(7,"Last");
-        fHistControlEvent1 -> GetXaxis() -> SetBinLabel(8,Form("@E>=%d",fSkipToEnergy));
+        int binx = 1;
+        fBinCtrlFrst = fHistControlEvent1 -> GetBin(binx,1); fHistControlEvent1 -> GetXaxis() -> SetBinLabel(binx++,"First");
+        //fBinCtrlPrJP = fHistControlEvent1 -> GetBin(binx,1); fHistControlEvent1 -> GetXaxis() -> SetBinLabel(binx++,Form("-%d",fJumpEventSize));
+        fBinCtrlPrev = fHistControlEvent1 -> GetBin(binx,1); fHistControlEvent1 -> GetXaxis() -> SetBinLabel(binx++,"Prev.");
+        fBinCtrlCurr = fHistControlEvent1 -> GetBin(binx,1); fHistControlEvent1 -> GetXaxis() -> SetBinLabel(binx++,"Current");
+        fBinCtrlNext = fHistControlEvent1 -> GetBin(binx,1); fHistControlEvent1 -> GetXaxis() -> SetBinLabel(binx++,"Next");
+        fBinCtrlNeJP = fHistControlEvent1 -> GetBin(binx,1); fHistControlEvent1 -> GetXaxis() -> SetBinLabel(binx++,Form("+%d",fJumpEventSize));
+        fBinCtrlLast = fHistControlEvent1 -> GetBin(binx,1); fHistControlEvent1 -> GetXaxis() -> SetBinLabel(binx++,"Last");
+        fBinCtrlESkp = fHistControlEvent1 -> GetBin(binx,1); fHistControlEvent1 -> GetXaxis() -> SetBinLabel(binx++,Form("@E>=%d",fSkipToEnergy));
+        fBinCtrlExit = fHistControlEvent1 -> GetBin(binx,1); fHistControlEvent1 -> GetXaxis() -> SetBinLabel(binx++,"Exit");
         fHistControlEvent1 -> SetBinContent(fBinCtrlFrst,0);
         fHistControlEvent1 -> SetMarkerSize(fCtrlBinTextSize);
         if (fPaletteNumber==0)
@@ -935,6 +930,11 @@ void LKEvePlane::ClickedControlEvent1(int selectedBin)
 {
     auto currentEventID = fRun -> GetCurrentEventID();
     auto lastEventID = fRun -> GetNumEvents() - 1;
+
+    if (selectedBin==fBinCtrlExit)
+    {
+        ExitEve();
+    }
 
     if (fAccumulateEvents>0)
     {
@@ -1371,4 +1371,9 @@ void LKEvePlane::SetPalette()
             fHistControlEvent1 -> SetMaximum(numEvents);
         }
     }
+}
+
+void LKEvePlane::ExitEve()
+{
+    gApplication -> Terminate();
 }
