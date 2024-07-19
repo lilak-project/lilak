@@ -58,15 +58,23 @@ class LKSiChannel : public GETChannel
 
         bool IsPair(LKSiChannel* channel);
 
+        void SetEnergy1(double energy) { fEnergy  = energy; }
+        void SetEnergy2(double energy) { fEnergy2 = energy; }
+        double GetEnergy1() const { return fEnergy;  }
+        double GetEnergy2() const { return fEnergy2; }
+        double GetEnergyPos() const { if (fEnergy>=0&&fEnergy2>=0) { return (fEnergy-fEnergy2)/(fEnergy +fEnergy2); } else { return -99.9; } }
+        double GetEnergySum() const { if (fEnergy>=0&&fEnergy2>=0) { return (fEnergy+fEnergy2); } else { return -99.9; } }
+
     protected:
-        int fLocalID;
+        int  fLocalID;
         bool fSide;
-        int fStrip;
+        int  fStrip;
         bool fDirection; ///< 0 (left,up) or 1 (right,down)
         bool fInverted = false;
 
         int fPairArrayIndex = -1;
         LKSiChannel *fPairChannel; //!
+        double fEnergy2 = -99.9;
 
         double fPhi1 = 0;
         double fPhi2 = 0;

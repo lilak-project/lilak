@@ -166,3 +166,12 @@ void LKPad::CopyPadData(LKPad* padRef)
     fPedestal = padRef -> GetPedestal();
     fNoiseScale = padRef -> GetNoiseScale();
 }
+
+void LKPad::CopyDataToChannel(GETChannel* channel)
+{
+    channel -> SetBuffer(GetBufferShaped());
+    channel -> SetCobo(fCobo);
+    channel -> SetAsad(fAsad);
+    channel -> SetAget(fAget);
+    channel -> SetChan(fChan);
+}

@@ -21,6 +21,8 @@ void LKSiChannel::Clear(Option_t *option)
     fPhi2 = -99.9;
     fTheta1 = -99.9;
     fTheta2 = -99.9;
+    fEnergy = -99.9;
+    fEnergy2 = -99.9;
 
 }
 
@@ -84,7 +86,7 @@ TH1D *LKSiChannel::GetHist(TString name)
 
 bool LKSiChannel::IsPair(LKSiChannel* channel)
 {
-    if (fPadID==channel->GetDetID() && fSide==channel->GetSide() && fStrip==channel->GetStrip())
+    if (fPadID==channel->GetDetID() && fSide==channel->GetSide() && fStrip==channel->GetStrip() && fDirection!=channel->GetDirection())
         return true;
     return false;
 }

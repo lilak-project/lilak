@@ -202,7 +202,6 @@ void LKSiDetector::SetChannel(GETChannel* channel, int side, int strip, int lr)
 void LKSiDetector::AddChannel(GETChannel* channel, int side, int strip, int lr)
 {
     double energy = channel -> GetEnergy();
-    lk_debug << side << endl;
     double integral = channel -> GetIntegral(-1, (side==0));
     fCountArray[side][strip][lr]++;
     fEnergyArray[side][strip][lr] += energy;
@@ -219,7 +218,6 @@ void LKSiDetector::SetChannel(LKSiChannel* channel)
         int strip = channel -> GetStrip();
         int lr = channel -> GetDirection();
         double energy = channel -> GetEnergy();
-        lk_debug << side << endl;
         double integral = channel -> GetIntegral(-1, (side==0));
         fIdxArray[side][strip][lr] = idx;
         fCountArray[side][strip][lr] = 1;

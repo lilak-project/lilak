@@ -26,18 +26,19 @@ class LKPad : public GETChannel
 
         void SetPad(LKPad* padRef); // copy configuration (position, ids) from padRef
         void CopyPadData(LKPad* padRef); // copy data from padRef
+        void CopyDataToChannel(GETChannel* channel); // copy data to input channel
 
         /////////////////////////////////////////////////////////////////////////////////////////////////
         void FillBufferRawSig(int t, double val, int id=-1) { fActive = true; fBufferRawSig.Fill(t,val); }
         void SetBufferRawSig(int*    array) { fBufferRawSig.SetArray(array); }
         void SetBufferShaped(double* array) { fBufferShaped.SetArray(array); }
         void SetBufferRawSig(LKBufferI buffer) { fBufferRawSig.SetBuffer(buffer); }
-        void SetBufferShaped(LKBufferD buffer) { fBufferShaped.SetBuffer(buffer); }
+        void SetBufferShaped(LKBufferI buffer) { fBufferShaped.SetBuffer(buffer); }
 
-        int*    GetArrayRawSig() { return fBufferRawSig.GetArray(); }
-        double* GetArrayShaped() { return fBufferShaped.GetArray(); }
+        int* GetArrayRawSig() { return fBufferRawSig.GetArray(); }
+        int* GetArrayShaped() { return fBufferShaped.GetArray(); }
         LKBufferI GetBufferRawSig() { return fBufferRawSig; }
-        LKBufferD GetBufferShaped() { return fBufferShaped; }
+        LKBufferI GetBufferShaped() { return fBufferShaped; }
 
         /////////////////////////////////////////////////////////////////////////////////////////////////
         void SetPlaneID(int id) { fPlaneID = id; }
@@ -95,7 +96,7 @@ class LKPad : public GETChannel
         void LetGo() { fGrabed = false; }
 
     private:
-        LKBufferD fBufferShaped;
+        LKBufferI fBufferShaped;
 
         int      fPlaneID = 0;
         int      fSection = -1;
