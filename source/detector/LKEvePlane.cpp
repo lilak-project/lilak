@@ -1106,6 +1106,7 @@ void LKEvePlane::ClickedControlEvent2(int selectedBin)
             ClickedControlEvent1(fBinCtrlLast);
             fHistControlEvent2 -> SetBinContent(fBinCtrlFillAEv, 1);
         }
+        UpdateAll();
     }
     else if (selectedBin==fBinCtrlAcmltEv)
     {
