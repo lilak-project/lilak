@@ -245,7 +245,6 @@ class LKRun : public LKTask
         bool ExecutePreviousEvent() { return ExecuteEvent(-4); }
         bool ExecuteFirstEvent() { return ExecuteEvent(0); }
         bool ExecuteLastEvent() { return ExecuteEvent(-5); }
-        void ExecuteEveTasks();
 
         bool CheckMute(Long64_t eventCount=-1) { if (eventCount<0) eventCount = fEventCount; return (eventCount==0||eventCount%fEventCountForMessage!=0); }
         void DoNotFillCurrentEvent() { fFillCurrentEvent = false; }

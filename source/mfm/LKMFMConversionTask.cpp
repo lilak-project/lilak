@@ -209,11 +209,12 @@ bool LKMFMConversionTask::EndOfRun()
 void LKMFMConversionTask::SignalNextEvent()
 {
     fCountEvents++;
+    bool printLog = (fRun->CheckMute(fCountEvents)==false);
     int bufferSize = fFileBuffer - fFileBufferLast;
 
     if (fRunOnline)
         lk_info << "New event!" << endl;
-    else
+    else if (printLog)
         lk_info << "New event! at file buffer: " << fFileBuffer << " (" << bufferSize << ")" << endl;
     auto eventHeader = (LKEventHeader *) fEventHeaderArray -> ConstructedAt(0);
     eventHeader -> SetBufferStart(fFileBufferLast);

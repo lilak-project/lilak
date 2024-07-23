@@ -914,6 +914,8 @@ bool LKRun::Init()
     fPar -> UpdatePar(fAutoTerminate,"LKRun/AutoTerminate true # automatically terminate root after end of run");
     fPar -> Sort();
 
+    fPar -> UpdatePar(fEventCountForMessage,"LKRun/EventCountForMessage 2000");
+
     if (fInitialized) {
         lk_info << "Initialized!" << endl;
         return fInitialized;
