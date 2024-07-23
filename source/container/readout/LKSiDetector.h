@@ -76,8 +76,11 @@ class LKSiDetector : public LKContainer
         void AddChannel(LKSiChannel* channel);
         void SetChannel(GETChannel* channel, int side, int strip, int lr);
         void AddChannel(GETChannel* channel, int side, int strip, int lr);
-        int GetNumActiveChannels() const { return fChannelArray.size(); }
-        LKChannel* GetActiveChannel(int i) { return fChannelArray.at(i); }
+        int GetNumActiveChannels() const { return fChannelArray.GetEntries(); }
+        LKChannel* GetActiveChannel(int i) { return (LKChannel*) fChannelArray.At(i); }
+
+        void RegisterChannel(LKSiChannel* channel);
+        LKSiChannel* GetRegisteredChannel(int side, int strip, int lr);
 
         TH2* CreateHistJunction(TString name="", TString title="", double x1=-1, double x2=-1, double y1=-1, double y2=-1, TString option="");
         TH2* CreateHistOhmic   (TString name="", TString title="", double x1=-1, double x2=-1, double y1=-1, double y2=-1, TString option="");
@@ -108,9 +111,11 @@ class LKSiDetector : public LKContainer
 
         double ***fEnergyArray; //!< (side, strip, left/right)
         double ***fEnergySumArray; //!< (side, strip, left/right)
+        int ***fChannelIndexArray; //!< (side, strip, left/right)
         int ***fCountArray; //!< (side, strip, left/right)
         int ***fIdxArray; //!< idx of fChannelArray (side, strip, left/right)
-        vector<GETChannel*> fChannelArray;
+        TObjArray fChannelArray;
+        TObjArray fRegisteredChannelArray;
 
         TH2* fHistJunction = nullptr;
         TH2* fHistOhmic = nullptr;

@@ -68,10 +68,14 @@ const char* LKSiChannel::GetTitle() const
 
 void LKSiChannel::Print(Option_t *option) const
 {
+    if (TString(option).Contains("get")) {
+        e_info << "- CAAC = " << fCobo << " " << fAsad << " " << fAget << " " << fChan << " | DSSD = " << fPadID << " " << ((fSide==0)?"Junc.":"Ohmic") << " " << fStrip << " " << fDirection << " | E = " << fEnergy << endl;
+        return;
+    }
     if (TString(option).Index("!title")<0)
         e_info << "[LKSiChannel]" << std::endl;
     GETChannel::Print("!title");
-    e_info << "- Det(" << fPadID << ") " << "gCh|lCh=(" << fChannelID << "|" << fLocalID << ") " << ((fSide==1)?"Junction":"Ohmic") << "(" << fStrip << "/" << fDirection << ")" << endl;
+    e_info << "- Det(" << fPadID << ") " << "gCh|lCh=(" << fChannelID << "|" << fLocalID << ") " << ((fSide==0)?"Junction":"Ohmic") << "(" << fStrip << "/" << fDirection << ")" << endl;
     e_info << "- Phi=(" << fPhi1 << "," << fPhi2 << "), Theta=(" << fTheta1 << "," << fTheta2 << ")" << endl;
 }
 

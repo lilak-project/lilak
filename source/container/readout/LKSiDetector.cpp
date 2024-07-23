@@ -62,6 +62,13 @@ void LKSiDetector::Print(Option_t *option) const
         if (fNumOhmicLR==2) ttlOLR = " ,L/R";
         e_info << GetTitleType() << " Idx(" << fDetIndex << ") ID(" << fDetID << "), junction (" << fNumJunctionStrips << " strips" << ttlJLR << "), ohmic (" << fNumOhmicStrips << " strips" << ttlOLR << ")" << endl;
     }
+    if (TString(option).Contains("get_channels")) {
+        auto numChannels = fRegisteredChannelArray.GetEntries();
+        for (auto iChannel=0; iChannel<numChannels; ++iChannel) {
+            auto channel = fRegisteredChannelArray.At(iChannel);
+            channel -> Print("get");
+        }
+    }
 }
 
 void LKSiDetector::Draw(Option_t *option)
@@ -98,6 +105,7 @@ void LKSiDetector::SetSiType(TString detTypeName, int detType, int detIndex, int
         fCountArray = new int**[fNumSides];
         fEnergyArray = new double**[fNumSides];
         fEnergySumArray = new double**[fNumSides];
+        fChannelIndexArray = new int**[fNumSides];
         for(int side=0; side<fNumSides; ++side)
         {
             if (side==0) {
@@ -105,16 +113,19 @@ void LKSiDetector::SetSiType(TString detTypeName, int detType, int detIndex, int
                 fCountArray[side] = new int*[fNumJunctionStrips];
                 fEnergyArray[side] = new double*[fNumJunctionStrips];
                 fEnergySumArray[side] = new double*[fNumJunctionStrips];
+                fChannelIndexArray[side] = new int*[fNumJunctionStrips];
                 for(int strip=0; strip<fNumJunctionStrips; ++strip) {
                     fIdxArray[side][strip] = new int[fNumJunctionUD];
                     fCountArray[side][strip] = new int[fNumJunctionUD];
                     fEnergyArray[side][strip] = new double[fNumJunctionUD];
                     fEnergySumArray[side][strip] = new double[fNumJunctionUD];
+                    fChannelIndexArray[side][strip] = new int[fNumJunctionUD];
                     for(int lr=0; lr<fNumJunctionUD; ++lr) {
                         fIdxArray[side][strip][lr] = 0;
                         fCountArray[side][strip][lr] = 0;
                         fEnergyArray[side][strip][lr] = 0;
                         fEnergySumArray[side][strip][lr] = 0;
+                        fChannelIndexArray[side][strip][lr] = -1;
                     }
                 }
             }
@@ -123,16 +134,19 @@ void LKSiDetector::SetSiType(TString detTypeName, int detType, int detIndex, int
                 fCountArray[side] = new int*[fNumOhmicStrips];
                 fEnergyArray[side] = new double*[fNumOhmicStrips];
                 fEnergySumArray[side] = new double*[fNumOhmicStrips];
+                fChannelIndexArray[side] = new int*[fNumOhmicStrips];
                 for(int strip=0; strip<fNumOhmicStrips; ++strip) {
                     fIdxArray[side][strip] = new int[fNumOhmicLR];
                     fCountArray[side][strip] = new int[fNumOhmicLR];
                     fEnergyArray[side][strip] = new double[fNumOhmicLR];
                     fEnergySumArray[side][strip] = new double[fNumOhmicLR];
+                    fChannelIndexArray[side][strip] = new int[fNumOhmicLR];
                     for(int lr=0; lr<fNumOhmicLR; ++lr) {
                         fIdxArray[side][strip][lr] = 0;
                         fCountArray[side][strip][lr] = 0;
                         fEnergyArray[side][strip][lr] = 0;
                         fEnergySumArray[side][strip][lr] = 0;
+                        fChannelIndexArray[side][strip][lr] = -1;
                     }
                 }
             }
@@ -145,7 +159,7 @@ void LKSiDetector::SetSiType(TString detTypeName, int detType, int detIndex, int
 
 void LKSiDetector::ClearData()
 {
-    fChannelArray.clear();
+    fChannelArray.Clear();
     for(int side=0; side<fNumSides; ++side)
     {
         if (side==0) {
@@ -189,8 +203,8 @@ void LKSiDetector::SetSiPosition(TVector3 position, int layer, int row, double p
 
 void LKSiDetector::SetChannel(GETChannel* channel, int side, int strip, int lr)
 {
-    int idx = fChannelArray.size();
-    fChannelArray.push_back(channel);
+    int idx = fChannelArray.GetEntries();
+    fChannelArray.Add(channel);
     double energy = channel -> GetEnergy();
     double integral = channel -> GetIntegral(-1, (side==0));
     fIdxArray[side][strip][lr] = idx;
@@ -212,8 +226,8 @@ void LKSiDetector::SetChannel(LKSiChannel* channel)
 {
     if (channel -> GetDetID() == fDetID)
     {
-        int idx = fChannelArray.size();
-        fChannelArray.push_back(channel);
+        int idx = fChannelArray.GetEntries();
+        fChannelArray.Add(channel);
         int side = channel -> GetSide();
         int strip = channel -> GetStrip();
         int lr = channel -> GetDirection();
@@ -249,6 +263,7 @@ void LKSiDetector::FillHistEnergy()
             for(int strip=0; strip<fNumJunctionStrips; ++strip) {
                 for(int lr=0; lr<fNumJunctionUD; ++lr) {
                     fHistJunction -> SetBinContent(strip+1,lr+1,fEnergyArray[side][strip][lr]);
+                    auto rgChannel = GetRegisteredChannel(side,strip,lr); if (rgChannel!=nullptr) rgChannel -> SetEnergy(fEnergyArray[side][strip][lr]);
                 }
             }
         }
@@ -256,6 +271,7 @@ void LKSiDetector::FillHistEnergy()
             for(int strip=0; strip<fNumOhmicStrips; ++strip) {
                 for(int lr=0; lr<fNumOhmicLR; ++lr) {
                     fHistOhmic -> SetBinContent(lr+1,strip+1,fEnergyArray[side][strip][lr]);
+                    auto rgChannel = GetRegisteredChannel(side,strip,lr); if (rgChannel!=nullptr) rgChannel -> SetEnergy(fEnergyArray[side][strip][lr]);
                 }
             }
         }
@@ -270,6 +286,7 @@ void LKSiDetector::FillHistEnergySum()
             for(int strip=0; strip<fNumJunctionStrips; ++strip) {
                 for(int lr=0; lr<fNumJunctionUD; ++lr) {
                     fHistJunction -> SetBinContent(strip+1,lr+1,fEnergySumArray[side][strip][lr]);
+                    auto rgChannel = GetRegisteredChannel(side,strip,lr); if (rgChannel!=nullptr) rgChannel -> SetEnergy(fEnergySumArray[side][strip][lr]);
                 }
             }
         }
@@ -277,6 +294,7 @@ void LKSiDetector::FillHistEnergySum()
             for(int strip=0; strip<fNumOhmicStrips; ++strip) {
                 for(int lr=0; lr<fNumOhmicLR; ++lr) {
                     fHistOhmic -> SetBinContent(lr+1,strip+1,fEnergySumArray[side][strip][lr]);
+                    auto rgChannel = GetRegisteredChannel(side,strip,lr); if (rgChannel!=nullptr) rgChannel -> SetEnergy(fEnergySumArray[side][strip][lr]);
                 }
             }
         }
@@ -291,6 +309,7 @@ void LKSiDetector::FillHistCount()
             for(int strip=0; strip<fNumJunctionStrips; ++strip) {
                 for(int lr=0; lr<fNumJunctionUD; ++lr) {
                     fHistJunction -> SetBinContent(strip+1,lr+1,fCountArray[side][strip][lr]);
+                    auto rgChannel = GetRegisteredChannel(side,strip,lr); if (rgChannel!=nullptr) rgChannel -> SetEnergy(fCountArray[side][strip][lr]);
                 }
             }
         }
@@ -298,6 +317,7 @@ void LKSiDetector::FillHistCount()
             for(int strip=0; strip<fNumOhmicStrips; ++strip) {
                 for(int lr=0; lr<fNumOhmicLR; ++lr) {
                     fHistOhmic -> SetBinContent(lr+1,strip+1,fCountArray[side][strip][lr]);
+                    auto rgChannel = GetRegisteredChannel(side,strip,lr); if (rgChannel!=nullptr) rgChannel -> SetEnergy(fCountArray[side][strip][lr]);
                 }
             }
         }
@@ -387,4 +407,24 @@ TH2* LKSiDetector::CreateHistOhmic(TString name, TString title, double x1, doubl
         }
     }
     return fHistOhmic;
+}
+
+void LKSiDetector::RegisterChannel(LKSiChannel* channel)
+{
+    auto idx = fRegisteredChannelArray.GetEntries();
+    fRegisteredChannelArray.Add(channel);
+    int side = channel -> GetSide();
+    int strip = channel -> GetStrip();
+    int lr = channel -> GetDirection();
+    if (side>=0&&strip>=0&&lr>=0)
+        fChannelIndexArray[side][strip][lr] = idx;
+}
+
+LKSiChannel* LKSiDetector::GetRegisteredChannel(int side, int strip, int lr)
+{
+    LKSiChannel* channel = nullptr;
+    int idx = fChannelIndexArray[side][strip][lr];
+    if (idx>=0)
+        channel = (LKSiChannel*) fRegisteredChannelArray.At(idx);
+    return channel;
 }
