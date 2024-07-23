@@ -22,8 +22,15 @@ class LKGETChannelViewer : public LKTask, public LKPadInteractive
         void SetChannelAnalyzer(LKChannelAnalyzer* channelAnalyzer) { fChannelAnalyzer = channelAnalyzer; }
         LKChannelAnalyzer* GetChannelAnalyzer() { return fChannelAnalyzer; }
 
+        void SelectCAAC(int cobo, int asad, int aget, int chan) {
+            fSelCobo = cobo;
+            fSelAsad = asad;
+            fSelAget = aget;
+            fSelChan = chan;
+        }
+
     protected:
-        void ResetActive(bool resetMenu=true, bool resetCobo=true, bool resetAsad=true, bool resetAget=true, bool resetChan=true);
+        void ResetActive(bool resetMenu=true, bool resetCobo=true, bool resetAsad=true, bool resetAget=true, bool resetChan=true, bool resetValue=false);
         void PrintActive() const;
 
         void FillChannelGraph(int iChannel, TGraph* graph) { Int_t dummy; FillChannelGraph(iChannel, graph, dummy, dummy); }
@@ -43,7 +50,8 @@ class LKGETChannelViewer : public LKTask, public LKPadInteractive
         void UpdateChan();
         void ClearChan();
         void DrawCurrentMCAAChannels();
-        void DrawCurrentIndvChannels();
+        void DrawCurrentIndvChannels(int iChannel=-1, bool drawGraphs=true);
+        void DrawGraphs(int iChannel=-1, bool drawAllGraphs=false);
         void TestPSA();
 
     private:
@@ -67,7 +75,7 @@ class LKGETChannelViewer : public LKTask, public LKPadInteractive
 
         int* fCurrentIndvBuffer;
         int fCountIndv = 0;
-        const int fMaxNumIndv = 2;
+        int fMaxNumIndv = 2;
 
         int fPalette = kRainBow;
         double fFillMaximum = 10;
@@ -80,7 +88,7 @@ class LKGETChannelViewer : public LKTask, public LKPadInteractive
         int fYMin = 0;
         int fYMax = 4100;
 
-        int fNumMenu = 4;
+        int fNumMenu = 5;
         int fNumMCAA = 4;
         int fNumCobo = 4;   ///< par
         int fNumAsad = 4;   ///< par
@@ -118,6 +126,13 @@ class LKGETChannelViewer : public LKTask, public LKPadInteractive
 
         int* fChanToBin;
         int* fBinToChan;
+
+        bool fFindChannel = false;
+        bool fChannelSelectingMode = false;
+        int fSelCobo = -1;
+        int fSelAsad = -1;
+        int fSelAget = -1;
+        int fSelChan = -1;
 
         TH2D* fHistMCAANumber = nullptr;
         TH2D* fHistChanNumber = nullptr;

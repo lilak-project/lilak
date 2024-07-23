@@ -62,8 +62,6 @@ bool LKGETChannelViewer::Init()
     if (fNumChan>   68) { fNXCN = 10; fNYCN =  8; }
     else                { fNXCN = 10; fNYCN =  7; }
 
-    fNumMenu = 4;
-
     fActiveMenu = new bool[fNumMenu];
     fActiveCobo = new bool[fNumCobo];
     fActiveAsad = new bool[fNumAsad];
@@ -84,7 +82,8 @@ bool LKGETChannelViewer::Init()
     lk_info << "# of Asad: " << fNumAsad << endl;
     lk_info << "# of Aget: " << fNumAget << endl;
 
-    auto maxNumbr = fNumCobo;
+    auto maxNumbr = fNumMenu;
+    if (maxNumbr<fNumCobo) maxNumbr = fNumCobo;
     if (maxNumbr<fNumAsad) maxNumbr = fNumAsad;
     if (maxNumbr<fNumAget) maxNumbr = fNumAget;
 
@@ -128,9 +127,10 @@ bool LKGETChannelViewer::Init()
         fNumCobo = 24;
         fBinXCobo = new int[fNumCobo];
         fBinYCobo = new int[fNumCobo];
-        fBinYMenu[0] = 1; fBinXMenu[0] = 1;
-        fBinYMenu[1] = 1; fBinXMenu[1] = 2;
-        fBinYMenu[2] = 1; fBinXMenu[2] = 3;
+        for (auto i=0; i<fNumMenu; ++i) {
+            fBinYMenu[i] = 1;
+            fBinXMenu[i] = i+1;
+        }
         for (auto i=0; i<8;  ++i)       { fBinYCobo[i] = 2; fBinXCobo[i] = i+1; }
         for (auto i=8; i<16; ++i)       { fBinYCobo[i] = 3; fBinXCobo[i] = i+1-8; }
         for (auto i=16;i<24; ++i)       { fBinYCobo[i] = 4; fBinXCobo[i] = i+1-16; }
@@ -176,17 +176,20 @@ bool LKGETChannelViewer::Init()
     fHistMCAANumber -> GetYaxis() -> SetBinLabel(fBinYAget[0],"Aget");
     fHistMCAANumber -> GetYaxis() -> SetLabelSize(0.08);
     fHistMCAANumber -> GetXaxis() -> SetTickSize(0);
-    fHistMCAANumber -> GetXaxis() -> SetBinLabel(1,"All");
+    fHistMCAANumber -> GetXaxis() -> SetBinLabel(fBinXMenu[0],"First");
     fHistMCAANumber -> GetXaxis() -> SetBinLabel(fBinXMenu[1],"Prev");
     fHistMCAANumber -> GetXaxis() -> SetBinLabel(fBinXMenu[2],"Next");
+    fHistMCAANumber -> GetXaxis() -> SetBinLabel(fBinXMenu[3],"Select");
+    fHistMCAANumber -> GetXaxis() -> SetBinLabel(fBinXMenu[4],"Find Evt.");
     fHistMCAANumber -> GetXaxis() -> SetLabelSize(0.08);
     fHistMCAANumber -> SetMaximum(fFillMaximum);
     for (auto i=0; i<fNumMenu; ++i) fHistMCAANumber -> SetBinContent(fBinXMenu[i],fBinYMenu[i],1);
     for (auto i=0; i<fNumCobo; ++i) fHistMCAANumber -> SetBinContent(fBinXCobo[i],fBinYCobo[i],1);
     for (auto i=0; i<fNumAsad; ++i) fHistMCAANumber -> SetBinContent(fBinXAsad[i],fBinYAsad[i],1);
     for (auto i=0; i<fNumAget; ++i) fHistMCAANumber -> SetBinContent(fBinXAget[i],fBinYAget[i],1);
+
     fHistMCAANumber2 -> SetMarkerSize(fBinTextSize);
-    fHistMCAANumber2 -> SetBinContent(fBinXMenu[0],fBinYMenu[0],999);
+    //fHistMCAANumber2 -> SetBinContent(fBinXMenu[0],fBinYMenu[0],999);
     for (auto i=0; i<fNumCobo; ++i) fHistMCAANumber2 -> SetBinContent(fBinXCobo[i],fBinYCobo[i],i);
     for (auto i=0; i<fNumAsad; ++i) fHistMCAANumber2 -> SetBinContent(fBinXAsad[i],fBinYAsad[i],i);
     for (auto i=0; i<fNumAget; ++i) fHistMCAANumber2 -> SetBinContent(fBinXAget[i],fBinYAget[i],i);
@@ -285,6 +288,22 @@ void LKGETChannelViewer::Exec(Option_t*)
         fNumHitsInEvent = fHitArray -> GetEntries();
     fNumChannelsInEvent = fChannelArray -> GetEntries();
 
+    if (fFindChannel)
+    {
+        bool foundChannel = false;
+        for (auto iChannel=0; iChannel<fNumChannelsInEvent; ++iChannel) {
+            auto channel = (GETChannel*) fChannelArray -> At(iChannel);
+            if (fSelCobo==channel->GetCobo() && fSelAsad==channel->GetAsad() && fSelAget==channel->GetAget() && fSelChan==channel->GetChan()) {
+                foundChannel = true;
+                break;
+            }
+        }
+        if (!foundChannel)
+            return;
+
+        fFindChannel = false;
+    }
+
     fCountIndv = 0;
 
     if (fActiveAllChannels!=nullptr) {
@@ -337,16 +356,16 @@ void LKGETChannelViewer::SelectAll(bool update)
 #endif
 }
 
-void LKGETChannelViewer::ResetActive(bool resetMenu, bool resetCobo, bool resetAsad, bool resetAget, bool resetChan)
+void LKGETChannelViewer::ResetActive(bool resetMenu, bool resetCobo, bool resetAsad, bool resetAget, bool resetChan, bool resetValue)
 {
 #ifdef DEBUG_LKGCV_FUNCTION
     lk_info << endl;
 #endif
     if (resetMenu) for (auto i=0; i<fNumMenu; ++i) fActiveMenu[i] = true;
-    if (resetCobo) for (auto i=0; i<fNumCobo; ++i) fActiveCobo[i] = false;
-    if (resetAsad) for (auto i=0; i<fNumAsad; ++i) fActiveAsad[i] = false;
-    if (resetAget) for (auto i=0; i<fNumAget; ++i) fActiveAget[i] = false;
-    if (resetChan) for (auto i=0; i<fNXCN*fNYCN; ++i) fActiveChan[i] = false;
+    if (resetCobo) for (auto i=0; i<fNumCobo; ++i) fActiveCobo[i] = resetValue;
+    if (resetAsad) for (auto i=0; i<fNumAsad; ++i) fActiveAsad[i] = resetValue;
+    if (resetAget) for (auto i=0; i<fNumAget; ++i) fActiveAget[i] = resetValue;
+    if (resetChan) for (auto i=0; i<fNXCN*fNYCN; ++i) fActiveChan[i] = resetValue;
     for (auto i=0; i<fNXCN*fNYCN; ++i) fChannelContainHits[i] = false;
     for (auto i=0; i<fNumChannelsInEvent; ++i) fActiveAllChannels[i] = false;
 #ifdef DEBUG_LKGCV_FUNCTION
@@ -415,7 +434,7 @@ void LKGETChannelViewer::ClickedMCAANumber(double xOnClick, double yOnClick)
     if (!found) for (auto i=0; i<fNumAget; ++i) { if (fBinXAget[i]==binx && fBinYAget[i]==biny) { SelectAget(i); found = true; break; } }
     if (!found) return;
 
-    PrintActive();
+    //PrintActive();
 #ifdef DEBUG_LKGCV_FUNCTION
     lk_warning << endl;
 #endif
@@ -558,15 +577,16 @@ void LKGETChannelViewer::DrawCurrentMCAAChannels()
 #endif
 }
 
-void LKGETChannelViewer::DrawCurrentIndvChannels()
+void LKGETChannelViewer::DrawCurrentIndvChannels(int iChannel, bool drawGraphs)
 {
 #ifdef DEBUG_LKGCV_FUNCTION
     lk_info << endl;
 #endif
-    if (fCurrentChan<0)
+    if (iChannel<0&&fCurrentChan<0)
         return;
 
-    auto iChannel = fChannelIndex[fCurrentCobo][fCurrentAsad][fCurrentAget][fCurrentChan];
+    if (iChannel<0)
+        iChannel = fChannelIndex[fCurrentCobo][fCurrentAsad][fCurrentAget][fCurrentChan];
     if (iChannel<0)
         return;
 
@@ -586,43 +606,66 @@ void LKGETChannelViewer::DrawCurrentIndvChannels()
     yMax = yMax + dy; if (yMax>fYMax) yMax = fYMax;
     fHistIndvChannels -> GetYaxis() -> SetRangeUser(yMin,yMax);
 
-    fVPadIndvChannels -> cd();
-    fHistIndvChannels -> SetTitle(fTitleIndvChannels);
-    fHistIndvChannels -> Draw();
-
-    auto numGraphs = fGraphArrayIndv -> GetEntries();
-    for (auto iGraph=0; iGraph<numGraphs; ++iGraph)
-    {
-        auto graph = (TGraph*) fGraphArrayIndv -> At(iGraph);
-        graph -> SetLineStyle(2);
-        //graph -> SetLineColor(iGraph+2);
-        graph -> SetLineColor(kGray);
-        graph -> Draw("samel");
-    }
-    fGraphIndvCurrent -> SetLineStyle(1);
-    fGraphIndvCurrent -> SetLineWidth(2);
-    fGraphIndvCurrent -> SetLineColor(kBlack);
-    fGraphIndvCurrent -> Draw("samel");
-
-    int countHits = 0;
-    for (auto iHit=0; iHit<fNumHitsInEvent; ++iHit) {
-        auto hit = (LKHit*) fHitArray -> At(iHit);
-        {
-            auto channel = (GETChannel*) fChannelArray -> At(hit->GetChannelID());
-            //lk_debug << iChannel << " " << channel->GetCobo() << " " << channel->GetAsad() << " " << channel->GetAget() << " " << channel->GetChan() << endl;
-        }
-        if (hit->GetChannelID()==iChannel) {
-            auto graph = fChannelAnalyzer -> GetPulseGraph(hit->GetTb(), hit->GetCharge(), hit->GetPedestal());
-            graph -> SetLineColor(kRed-4);
-            graph -> Draw("samel");
-            countHits++;
-        }
-    }
-    if (fNumHitsInEvent>0)
-        lk_info << "Number of hits = " << countHits << endl;
+    if (drawGraphs) DrawGraphs();
 #ifdef DEBUG_LKGCV_FUNCTION
     lk_warning << endl;
 #endif
+}
+
+void LKGETChannelViewer::DrawGraphs(int iChannel, bool drawAllGraphs)
+{
+    auto numGraphs = fGraphArrayIndv -> GetEntries();
+
+    if (drawAllGraphs)
+    {
+        fVPadIndvChannels -> cd();
+        fHistIndvChannels -> SetTitle("All");
+        fHistIndvChannels -> GetYaxis() -> SetRangeUser(0,4200);
+        fHistIndvChannels -> Draw();
+
+        for (auto iGraph=0; iGraph<numGraphs; ++iGraph)
+        {
+            auto graph = (TGraph*) fGraphArrayIndv -> At(iGraph);
+            //graph -> SetLineStyle(2);
+            //graph -> SetLineColor(kGray);
+            graph -> Draw("samel");
+        }
+    }
+    else
+    {
+        fVPadIndvChannels -> cd();
+        fHistIndvChannels -> SetTitle(fTitleIndvChannels);
+        fHistIndvChannels -> Draw();
+
+        for (auto iGraph=0; iGraph<numGraphs; ++iGraph)
+        {
+            auto graph = (TGraph*) fGraphArrayIndv -> At(iGraph);
+            graph -> SetLineStyle(2);
+            //graph -> SetLineColor(iGraph+2);
+            graph -> SetLineColor(kGray);
+            graph -> Draw("samel");
+        }
+        fGraphIndvCurrent -> SetLineStyle(1);
+        fGraphIndvCurrent -> SetLineWidth(2);
+        fGraphIndvCurrent -> SetLineColor(kBlack);
+        fGraphIndvCurrent -> Draw("samel");
+    }
+
+    if (iChannel>=0)
+    {
+        int countHits = 0;
+        for (auto iHit=0; iHit<fNumHitsInEvent; ++iHit) {
+            auto hit = (LKHit*) fHitArray -> At(iHit);
+            if (hit->GetChannelID()==iChannel) {
+                auto graph = fChannelAnalyzer -> GetPulseGraph(hit->GetTb(), hit->GetCharge(), hit->GetPedestal());
+                graph -> SetLineColor(kRed-4);
+                graph -> Draw("samel");
+                countHits++;
+            }
+        }
+        if (fNumHitsInEvent>0)
+            lk_info << "Number of hits = " << countHits << endl;
+    }
 }
 
 void LKGETChannelViewer::SelectMenu(int valMenu, bool update)
@@ -630,27 +673,61 @@ void LKGETChannelViewer::SelectMenu(int valMenu, bool update)
     if (fNumMenu<=0)
         return;
 
-    lk_info << "Menu-" << valMenu << endl;
+    //lk_info << "Menu-" << valMenu << endl;
 
     //if (valMenu==fCurrentMenu) return;
 
+    fChannelSelectingMode = false;
+
     if (valMenu==0) {
-        fCurrentMenu = valMenu;
-        lk_info << "All" << endl;
-        SelectAll();
+        fRun -> ExecuteFirstEvent();
+        lk_info << "Event " << fRun -> GetCurrentEventID() << endl;
+        //fCurrentMenu = valMenu;
+        //lk_info << "All" << endl;
+        //SelectAll();
+        //int maxNumIndv = fMaxNumIndv;
+        //fMaxNumIndv = 10*4*4*68;
+        //for (auto iChannel=0; iChannel<fNumChannelsInEvent; ++iChannel)
+        //    DrawCurrentIndvChannels(iChannel,false);
+        //DrawGraphs(-1,true);
+        //fMaxNumIndv = maxNumIndv;
     }
     else if (valMenu==2)
     {
         fRun -> ExecuteNextEvent();
+        lk_info << "Event " << fRun -> GetCurrentEventID() << endl;
     }
     else if (valMenu==1)
     {
         fRun -> ExecutePreviousEvent();
+        lk_info << "Event " << fRun -> GetCurrentEventID() << endl;
     }
     else if (valMenu==3) {
-        lk_info << "Test fit current buffer" << endl;
-        if (fCurrentChan>=0)
-            TestPSA();
+        ResetActive(true,true,true,true,true,true);
+        if (fSelCobo>=0) fCurrentCobo = fSelCobo;
+        if (fSelAsad>=0) fCurrentAsad = fSelAsad;
+        if (fSelAget>=0) fCurrentAget = fSelAget;
+        if (fSelChan>=0) fCurrentChan = fSelChan;
+        UpdateMCAA();
+        UpdateChan();
+        fChannelSelectingMode = true;
+    }
+    else if (valMenu==4) {
+        if (fSelCobo>=0 && fSelAsad>=0 && fSelAget>=0 && fSelChan>=0) {
+            lk_info << "Skipping to event containing CAAC = " << fSelCobo << " " << fSelAsad << " " << fSelAget << " " << fSelChan << endl;
+            fRun -> SetEventCountForMessage(2000);
+            fFindChannel = true;
+            while (fFindChannel) {
+                if (fRun -> ExecuteNextEvent() == false)
+                    break;
+            }
+            fFindChannel = false;
+            fRun -> SetEventCountForMessage(1);
+            lk_info << "Event " << fRun -> GetCurrentEventID() << endl;
+        }
+        else {
+            lk_info << "Skipping to event containing CAAC = " << fSelCobo << " " << fSelAsad << " " << fSelAget << " " << fSelChan << " ... ?" << endl;
+        }
     }
     //ResetActive(0);
 
@@ -665,15 +742,22 @@ void LKGETChannelViewer::SelectCobo(int valCobo, bool update)
     lk_info << "Cobo-" << valCobo << endl;
     //if (valCobo==fCurrentCobo) return;
     fCurrentCobo = valCobo;
-    fCurrentAsad = -1;
-    fCurrentAget = -1;
-    fCurrentChan = -1;
     fTitleMCAAChannels = Form("Cobo-%d",fCurrentCobo);
 
     if (fActiveCobo[fCurrentCobo]==false) {
         lk_warning << fTitleMCAAChannels << " is not activated" << endl;
         //return;
     }
+
+    if (fChannelSelectingMode) {
+        fSelCobo = valCobo;
+        UpdateMCAA();
+        return;
+    }
+
+    fCurrentAsad = -1;
+    fCurrentAget = -1;
+    fCurrentChan = -1;
     ResetActive(0,0);
 
     for (auto iChannel=0; iChannel<fNumChannelsInEvent; ++iChannel) {
@@ -694,14 +778,21 @@ void LKGETChannelViewer::SelectAsad(int valAsad, bool update)
     lk_info << "Asad-" << valAsad << endl;
     //if (valAsad==fCurrentAsad) return;
     fCurrentAsad = valAsad;
-    fCurrentAget = -1;
-    fCurrentChan = -1;
     fTitleMCAAChannels = Form("Cobo-%d  Asad-%d",fCurrentCobo,fCurrentAsad);
 
     if (fActiveAsad[fCurrentAsad]==false) {
         lk_warning << fTitleMCAAChannels << " is not activated" << endl;
         //return;
     }
+
+    if (fChannelSelectingMode) {
+        fSelAsad = valAsad;
+        UpdateMCAA();
+        return;
+    }
+
+    fCurrentAget = -1;
+    fCurrentChan = -1;
     ResetActive(0,0,0);
 
     for (auto iChannel=0; iChannel<fNumChannelsInEvent; ++iChannel) {
@@ -723,13 +814,20 @@ void LKGETChannelViewer::SelectAget(int valAget, bool update)
     lk_info << "Aget-" << valAget << endl;
     //if (valAget==fCurrentAget) return;
     fCurrentAget = valAget;
-    fCurrentChan = -1;
     fTitleMCAAChannels = Form("Cobo-%d  Asad-%d  Aget-%d",fCurrentCobo,fCurrentAsad,fCurrentAget);
 
     if (fActiveAget[fCurrentAget]==false) {
         lk_warning << fTitleMCAAChannels << " is not activated" << endl;
         //return;
     }
+
+    if (fChannelSelectingMode) {
+        fSelAget = valAget;
+        UpdateMCAA();
+        return;
+    }
+
+    fCurrentChan = -1;
     ResetActive(0,0,0,0);
 
     for (auto iChannel=0; iChannel<fNumChannelsInEvent; ++iChannel) {
@@ -762,6 +860,13 @@ void LKGETChannelViewer::SelectChan(int valChan, bool update)
     lk_info << "Select Channel " << valChan << endl;
     if (valChan==fCurrentChan) return;
     fCurrentChan = valChan;
+
+    if (fChannelSelectingMode) {
+        fSelChan = valChan;
+        UpdateChan();
+        return;
+    }
+
     fTitleIndvChannels = Form("Channel-%d",fCurrentChan);
 
     if (fCurrentChan>=0&&fActiveChan[fCurrentChan]==false) {
