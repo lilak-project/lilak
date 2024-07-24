@@ -187,49 +187,101 @@ while True:
                 proj_common_dir = f"{projct_path}/common/"
                 ls_proj_common = os.listdir(proj_common_dir)
                 for file1 in sorted(os.listdir(proj_common_dir)):
+                    if file1.endswith(".common"):
+                        continue
                     src_file = os.path.join(proj_common_dir, file1)
                     dest_link = os.path.join(top_common_dir, file1)
                     if os.path.exists(dest_link) or os.path.islink(dest_link):
                         print(f"link already exists: {dest_link}")
                         continue
                     else:
-                        print(f"linking {dest_link}")
+                        print(f"linking {src_file} to {dest_link}")
                         os.symlink(src_file, dest_link)
                         #print(f"Link created for {src_file} -> {dest_link}")
         print()
         for project_name in project_list:
             projct_path = os.path.join(lilak_path, project_name)
             project_cmake_file_name = os.path.join(projct_path, "CMakeLists.txt")
-            with open(project_cmake_file_name, "w") as f:
-                print("creating", project_cmake_file_name)
-                ls_project = os.listdir(f"{lilak_path}/{project_name}")
-                f.write("set(LILAK_SOURCE_DIRECTORY_LIST ${LILAK_SOURCE_DIRECTORY_LIST}\n")
-                for directory_name in ls_project:
-                    if directory_name in list_prj_subdir_link:
-                        f.write("    ${CMAKE_CURRENT_SOURCE_DIR}/" + directory_name + "\n")
-                f.write('    CACHE INTERNAL ""\n)\n\n')
 
-                f.write("set(LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF ${LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF}\n")
+            # Generate the new contents
+            new_contents = "set(LILAK_SOURCE_DIRECTORY_LIST ${LILAK_SOURCE_DIRECTORY_LIST}\n"
+            ls_project = os.listdir(project_name)
+            for directory_name in ls_project:
+                if directory_name in list_prj_subdir_link:
+                    new_contents += "    ${CMAKE_CURRENT_SOURCE_DIR}/" + directory_name + "\n"
+            new_contents += '    CACHE INTERNAL ""\n)\n\n'
 
-                for directory_name in ls_project:
-                    if directory_name in list_prj_subdir_xlink:
-                        f.write("    ${CMAKE_CURRENT_SOURCE_DIR}/" + directory_name + "\n")
-                        break
-                f.write('    CACHE INTERNAL ""\n)\n\n')
+            new_contents += "set(LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF ${LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF}\n"
+            for directory_name in ls_project:
+                if directory_name in list_prj_subdir_xlink:
+                    new_contents += "    ${CMAKE_CURRENT_SOURCE_DIR}/" + directory_name + "\n"
+                    break
+            new_contents += '    CACHE INTERNAL ""\n)\n\n'
 
-                for directory_name in ls_project:
-                    if directory_name in list_sub_packages:
-                        f.write("set(LILAK_" + directory_name.upper() + "_SOURCE_DIRECTORY_LIST ${LILAK_" + directory_name.upper() + "_SOURCE_DIRECTORY_LIST}\n")
-                        f.write("    ${CMAKE_CURRENT_SOURCE_DIR}/" + directory_name + "\n")
-                        f.write('    CACHE INTERNAL ""\n)\n\n')
+            for directory_name in ls_project:
+                if directory_name in list_sub_packages:
+                    new_contents += "set(LILAK_" + directory_name.upper() + "_SOURCE_DIRECTORY_LIST ${LILAK_" + directory_name.upper() + "_SOURCE_DIRECTORY_LIST}\n"
+                    new_contents += "    ${CMAKE_CURRENT_SOURCE_DIR}/" + directory_name + "\n"
+                    new_contents += '    CACHE INTERNAL ""\n)\n\n'
 
-                # executables
-                f.write("""file(GLOB MACROS_FOR_EXECUTABLE_PROCESS ${CMAKE_CURRENT_SOURCE_DIR}/macros*/*.cc)
+            new_contents += """file(GLOB MACROS_FOR_EXECUTABLE_PROCESS ${CMAKE_CURRENT_SOURCE_DIR}/macros*/*.cc)
 
 set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
     ${MACROS_FOR_EXECUTABLE_PROCESS}
     CACHE INTERNAL ""
-)""")
+)"""
+
+            # Check if the file exists and compare the contents
+            if os.path.exists(project_cmake_file_name):
+                with open(project_cmake_file_name, "r") as f:
+                    current_contents = f.read()
+
+                # If the contents are the same, skip writing
+                if current_contents == new_contents:
+                    print(f"No changes in {project_cmake_file_name}")
+                    continue
+                else:
+                    print(f"Updating {project_cmake_file_name}")
+            else:
+                print(f"Creating {project_cmake_file_name}")
+
+            # Write the new contents to the file
+            with open(project_cmake_file_name, "w") as f:
+                f.write(new_contents)
+
+#        for project_name in project_list:
+#            projct_path = os.path.join(lilak_path, project_name)
+#            project_cmake_file_name = os.path.join(projct_path, "CMakeLists.txt")
+#            with open(project_cmake_file_name, "w") as f:
+#                print("creating", project_cmake_file_name)
+#                ls_project = os.listdir(f"{lilak_path}/{project_name}")
+#                f.write("set(LILAK_SOURCE_DIRECTORY_LIST ${LILAK_SOURCE_DIRECTORY_LIST}\n")
+#                for directory_name in ls_project:
+#                    if directory_name in list_prj_subdir_link:
+#                        f.write("    ${CMAKE_CURRENT_SOURCE_DIR}/" + directory_name + "\n")
+#                f.write('    CACHE INTERNAL ""\n)\n\n')
+#
+#                f.write("set(LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF ${LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF}\n")
+#
+#                for directory_name in ls_project:
+#                    if directory_name in list_prj_subdir_xlink:
+#                        f.write("    ${CMAKE_CURRENT_SOURCE_DIR}/" + directory_name + "\n")
+#                        break
+#                f.write('    CACHE INTERNAL ""\n)\n\n')
+#
+#                for directory_name in ls_project:
+#                    if directory_name in list_sub_packages:
+#                        f.write("set(LILAK_" + directory_name.upper() + "_SOURCE_DIRECTORY_LIST ${LILAK_" + directory_name.upper() + "_SOURCE_DIRECTORY_LIST}\n")
+#                        f.write("    ${CMAKE_CURRENT_SOURCE_DIR}/" + directory_name + "\n")
+#                        f.write('    CACHE INTERNAL ""\n)\n\n')
+#
+#                # executables
+#                f.write("""file(GLOB MACROS_FOR_EXECUTABLE_PROCESS ${CMAKE_CURRENT_SOURCE_DIR}/macros*/*.cc)
+#
+#set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
+#    ${MACROS_FOR_EXECUTABLE_PROCESS}
+#    CACHE INTERNAL ""
+#)""")
         break
 
     ### for new build options
@@ -321,6 +373,7 @@ original_directory = os.getcwd()
 os.system(f'mkdir -p build')
 os.chdir(f'{lilak_path}/build')
 os.system('cmake ..')
+#os.system('make -j4 VERBOSE=1 | tee build.log')
 os.system('make -j4')
 os.chdir(f'{original_directory}')
 
@@ -485,7 +538,7 @@ echo "LILAK environment setup complete. Use 'lilak {{home|build|clean-build|upda
 
     print(f"""
 1. Set up LILAK environment
-source lilak.sh
+source {lilak_path}/lilak.sh
 
 2. Add following to .rootrc:
 Rint.Logon: {lilak_path}/macros/rootlogon.C
