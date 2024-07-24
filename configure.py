@@ -157,21 +157,57 @@ while True:
     ### using previous build options
     if confirm == 1:
         print()
-        print("saving options to", build_option_file_name)
-        with open(build_option_file_name, "w") as f:
-            for key, value in build_options.items():
-                vonoff = "ON" if value == 1 else "OFF"
-                f.write(f"set({key} {vonoff} CACHE INTERNAL \"\")\n")
-            project_all = ""
-            for project_name in project_list:
-                project_all = project_all + '\n    ' + project_name
-            f.write("\nset(LILAK_PROJECT_LIST ${LILAK_PROJECT_LIST}")
-            f.write(f"{project_all}")
-            f.write('\n    CACHE INTERNAL ""\n)')
-            f.write(f'\n\nset(GRUDIR {GRU_dir} CACHE INTERNAL "")')
-            f.write(f'\nset(GETDIR {GET_dir} CACHE INTERNAL "")')
-            if main_project != "lilak":
-                f.write(f'\n\nset(LILAK_PROJECT_MAIN {main_project} CACHE INTERNAL "")')
+        #print("saving options to", build_option_file_name)
+
+        # Generate the new contents for the build options file
+        new_contents = ""
+        for key, value in build_options.items():
+            vonoff = "ON" if value == 1 else "OFF"
+            new_contents += f"set({key} {vonoff} CACHE INTERNAL \"\")\n"
+        project_all = ""
+        for project_name in project_list:
+            project_all += '\n    ' + project_name
+        new_contents += "\nset(LILAK_PROJECT_LIST ${LILAK_PROJECT_LIST}"
+        new_contents += f"{project_all}"
+        new_contents += '\n    CACHE INTERNAL ""\n)'
+        new_contents += f'\n\nset(GRUDIR {GRU_dir} CACHE INTERNAL "")'
+        new_contents += f'\nset(GETDIR {GET_dir} CACHE INTERNAL "")'
+        if main_project != "lilak":
+            new_contents += f'\n\nset(LILAK_PROJECT_MAIN {main_project} CACHE INTERNAL "")'
+
+        # Check if the file exists and compare the contents
+        if os.path.exists(build_option_file_name):
+            with open(build_option_file_name, "r") as f:
+                current_contents = f.read()
+
+            # If the contents are the same, skip writing
+            if current_contents == new_contents:
+                print(f"No changes in {build_option_file_name}")
+            else:
+                print(f"Updating {build_option_file_name}")
+                with open(build_option_file_name, "w") as f:
+                    f.write(new_contents)
+        else:
+            print(f"Creating {build_option_file_name}")
+            with open(build_option_file_name, "w") as f:
+                f.write(new_contents)
+#    if confirm == 1:
+#        print()
+#        print("saving options to", build_option_file_name)
+#        with open(build_option_file_name, "w") as f:
+#            for key, value in build_options.items():
+#                vonoff = "ON" if value == 1 else "OFF"
+#                f.write(f"set({key} {vonoff} CACHE INTERNAL \"\")\n")
+#            project_all = ""
+#            for project_name in project_list:
+#                project_all = project_all + '\n    ' + project_name
+#            f.write("\nset(LILAK_PROJECT_LIST ${LILAK_PROJECT_LIST}")
+#            f.write(f"{project_all}")
+#            f.write('\n    CACHE INTERNAL ""\n)')
+#            f.write(f'\n\nset(GRUDIR {GRU_dir} CACHE INTERNAL "")')
+#            f.write(f'\nset(GETDIR {GET_dir} CACHE INTERNAL "")')
+#            if main_project != "lilak":
+#                f.write(f'\n\nset(LILAK_PROJECT_MAIN {main_project} CACHE INTERNAL "")')
 
         top_common_dir = f"{lilak_path}/common/"
         print()
@@ -205,7 +241,7 @@ while True:
 
             # Generate the new contents
             new_contents = "set(LILAK_SOURCE_DIRECTORY_LIST ${LILAK_SOURCE_DIRECTORY_LIST}\n"
-            ls_project = os.listdir(project_name)
+            ls_project = os.listdir(lilak_path+"/"+project_name)
             for directory_name in ls_project:
                 if directory_name in list_prj_subdir_link:
                     new_contents += "    ${CMAKE_CURRENT_SOURCE_DIR}/" + directory_name + "\n"
@@ -369,11 +405,9 @@ if lilak_path_is_set == False:
     os.environ["LILAK_PATH"] = lilak_path
 
 original_directory = os.getcwd()
-#os.system(f'mkdir -p {lilak_path}/build')
-os.system(f'mkdir -p build')
+if not os.path.exists(f'{lilak_path}/build'): os.makedirs(f'{lilak_path}/build')
 os.chdir(f'{lilak_path}/build')
 os.system('cmake ..')
-#os.system('make -j4 VERBOSE=1 | tee build.log')
 os.system('make -j4')
 os.chdir(f'{original_directory}')
 
@@ -381,8 +415,8 @@ if True:
     lilak_sh_content = f"""#!/bin/bash
 
 # Add the lilak directory to the PATH
-export LILAK_DIR="{lilak_path}"
-export PATH="$LILAK_DIR:$PATH"
+export LILAK_PATH="{lilak_path}"
+export PATH="$LILAK_PATH:$PATH"
 
 # Unset any previous definition of the lilak function
 unset -f lilak
@@ -410,21 +444,25 @@ update_git_repos() {{
 lilak() {{
     case $1 in
         home)
-            cd "$LILAK_DIR" || echo "Directory not found: $LILAK_DIR"
+            cd "$LILAK_PATH" || echo "Directory not found: $LILAK_PATH"
             echo "Changed directory to: $(pwd)"
             ;;
         build)
-            python3 "$LILAK_DIR/configure.py"
-            export LD_LIBRARY_PATH="$LILAK_DIR/build:$LD_LIBRARY_PATH"
+            local original_dir=$(pwd)
+            cd "$LILAK_PATH"
+            python3 "$LILAK_PATH/configure.py"
+            cd "$original_dir"
             ;;
         clean-build)
             echo -n "Are you sure you want to clean the build directory? (y/n): "
             read confirm
             if [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]]; then
-                rm -rf "$LILAK_DIR/build"
-                mkdir -p "$LILAK_DIR/build"
-                python3 "$LILAK_DIR/configure.py"
-                export LD_LIBRARY_PATH="$LILAK_DIR/build:$LD_LIBRARY_PATH"
+                local original_dir=$(pwd)
+                rm -rf "$LILAK_PATH/build"
+                mkdir -p "$LILAK_PATH/build"
+                cd "$LILAK_PATH"
+                python3 "$LILAK_PATH/configure.py"
+                cd "$original_dir"
             else
                 echo "Clean build canceled."
             fi
@@ -433,7 +471,7 @@ lilak() {{
             update_git_repos
             ;;
         example)
-            cd "$LILAK_DIR/examples" || echo "Directory not found: $LILAK_DIR/examples"
+            cd "$LILAK_PATH/examples" || echo "Directory not found: $LILAK_PATH/examples"
             echo "Changed directory to: $(pwd)"
             ;;
         list-project)
@@ -456,7 +494,7 @@ lilak() {{
             if [ -z "$2" ]; then
                 echo "Error: Please provide the search term."
             else
-                file=$(find "$LILAK_DIR" -name "*$2*" -print -quit)
+                file=$(find "$LILAK_PATH" -name "*$2*" -print -quit)
                 if [ -n "$file" ]; then
                     dir=$(dirname "$file")
                     echo "Found '$file'"
@@ -474,7 +512,7 @@ lilak() {{
             if [ -z "$2" ]; then
                 echo "Error: Please provide the input directory."
             else
-                target_dir="$LILAK_DIR/$2/macros"
+                target_dir="$LILAK_PATH/$2/macros"
                 if cd "$target_dir"; then
                     echo "Changed directory to: $(pwd)"
                 else
