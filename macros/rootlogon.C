@@ -10,7 +10,7 @@
         libString = TString(gSystem -> Getenv("LILAK_PATH")) + "/build/libLILAK.so";
 
     if (gSystem -> Load(libString) != -1)
-        cout << "LILAK Library Loaded" << endl;
+        cout << "LILAK" << endl;
     else
         cout << "Cannot Load LILAK" << endl;
 }
