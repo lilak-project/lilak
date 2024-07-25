@@ -418,8 +418,10 @@ if True:
 export LILAK_PATH="{lilak_path}"
 export PATH="$LILAK_PATH:$PATH"
 
-# Unset any previous definition of the lilak function
-unset -f lilak
+# Unset any previous definition of the lilak function if it exists
+if declare -f lilak > /dev/null; then
+    unset -f lilak
+fi
 
 # Define a function to update git repositories
 update_git_repos() {{
@@ -442,6 +444,27 @@ update_git_repos() {{
 
 # Define the lilak function
 lilak() {{
+    if [ -z "$1" ]; then
+        echo "Usage: lilak {{home|build|clean-build|update|example|list-project|doc|find|github}} [input]"
+        echo
+        echo "Commands:"
+        echo "  home               Navigate to the lilak home directory."
+        echo "  build              Run the configure.py script to build the package."
+        echo "  clean-build        Clean the build directory and rebuild the package (asks for confirmation)."
+        echo "  update             Check the current branch and pull updates for lilak and project directories."
+        echo "  example            Navigate to the lilak examples directory."
+        echo "  list-project       List projects that are being compiled together."
+        echo "  doc [input]        Print the reference link to the class documentation."
+        echo "  find [input]       Find and navigate to the directory containing files with the specified input term, and print the path."
+        echo "  github             Print the GitHub URL of the lilak project."
+        echo
+        echo "Project commands:"
+        for project in {" ".join(project_list)}; do
+            echo "  $project           Navigate to the macros directory of the project $project."
+        done
+        return
+    fi
+
     case $1 in
         home)
             cd "$LILAK_PATH" || echo "Directory not found: $LILAK_PATH"
@@ -451,6 +474,7 @@ lilak() {{
             local original_dir=$(pwd)
             cd "$LILAK_PATH"
             python3 "$LILAK_PATH/configure.py"
+            export LD_LIBRARY_PATH="$LILAK_PATH/build:$LD_LIBRARY_PATH"
             cd "$original_dir"
             ;;
         clean-build)
@@ -462,6 +486,7 @@ lilak() {{
                 mkdir -p "$LILAK_PATH/build"
                 cd "$LILAK_PATH"
                 python3 "$LILAK_PATH/configure.py"
+                export LD_LIBRARY_PATH="$LILAK_PATH/build:$LD_LIBRARY_PATH"
                 cd "$original_dir"
             else
                 echo "Clean build canceled."
@@ -508,36 +533,21 @@ lilak() {{
                 fi
             fi
             ;;
-        project)
-            if [ -z "$2" ]; then
-                echo "Error: Please provide the input directory."
-            else
-                target_dir="$LILAK_PATH/$2/macros"
+        github)
+            echo "https://github.com/lilak-project"
+            ;;
+        *)
+            if [[ " {" ".join(project_list)} " =~ " $1 " ]]; then
+                target_dir="$LILAK_PATH/$1/macros"
                 if cd "$target_dir"; then
                     echo "Changed directory to: $(pwd)"
                 else
                     echo "Directory not found: $target_dir"
                 fi
+            else
+                echo "Unknown command or project: $1"
+                lilak
             fi
-            ;;
-        github)
-            echo "https://github.com/lilak-project"
-            ;;
-        help|*)
-            echo "Usage: lilak {{home|build|clean-build|update|example|list-project|doc|find|project|github}} [input]"
-            echo
-            echo "Commands:"
-            echo "  home               Navigate to the lilak home directory."
-            echo "  build              Run the configure.py script to build the package."
-            echo "  clean-build        Clean the build directory and rebuild the package (asks for confirmation)."
-            echo "  update             Check the current branch and pull updates for lilak and project directories."
-            echo "  example            Navigate to the lilak examples directory."
-            echo "  list-project       List projects that are being compiled together."
-            echo "  doc [input]        Print the reference link to the class documentation."
-            echo "  find [input]       Find and navigate to the directory containing files with the specified input term, and print the path."
-            echo "  project [input]    Navigate to the macros directory within the specified subdirectory and print the path."
-            echo "  github             Print the GitHub URL of the lilak project."
-            echo
             ;;
     esac
 }}
@@ -548,7 +558,7 @@ _lilak_completions() {{
     local curr_word prev_word
     curr_word="${{COMP_WORDS[COMP_CWORD]}}"
     prev_word="${{COMP_WORDS[COMP_CWORD-1]}}"
-    local commands="home build clean-build update example list-project doc find project github help"
+    local commands="home build clean-build update example list-project doc find github {" ".join(project_list)}"
 
     if [[ ${{COMP_CWORD}} == 1 ]]; then
         COMPREPLY=( $(compgen -W "${{commands}}" -- "${{curr_word}}") )
@@ -561,7 +571,7 @@ _lilak_completions() {{
 complete -F _lilak_completions lilak
 
 # Optional: Add a message to confirm the script is sourced correctly
-echo "LILAK environment setup complete. Use 'lilak {{home|build|clean-build|update|example|list-project|doc|find|project|github|help}}' to run commands."
+echo "LILAK environment setup complete. Use 'lilak {{home|build|clean-build|update|example|list-project|doc|find|github}} [input]' to run commands."
 """
 
     # Path to the lilak.sh file
