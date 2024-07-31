@@ -65,6 +65,12 @@ class LKSiChannel : public GETChannel
         double GetEnergyPos() const { if (fEnergy>=0&&fEnergy2>=0) { return (fEnergy-fEnergy2)/(fEnergy +fEnergy2); } else { return -99.9; } }
         double GetEnergySum() const { if (fEnergy>=0&&fEnergy2>=0) { return (fEnergy+fEnergy2); } else { return -99.9; } }
 
+        void SetIsStandaloneChannel() { fIsStandaloneChannel = true; }
+        void SetIsPairedChannel() { fIsStandaloneChannel = false; }
+
+        bool IsStandaloneChannel() const { return fIsStandaloneChannel; }
+        bool IsPairedChannel() const { return !fIsStandaloneChannel; }
+
     protected:
         int  fLocalID;
         bool fSide;
@@ -81,7 +87,9 @@ class LKSiChannel : public GETChannel
         double fTheta1 = 0;
         double fTheta2 = 0;
 
-    ClassDef(LKSiChannel,1);
+        bool fIsStandaloneChannel = true;
+
+    ClassDef(LKSiChannel,2);
 };
 
 #endif

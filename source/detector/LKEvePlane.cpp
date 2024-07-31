@@ -957,14 +957,17 @@ void LKEvePlane::ClickedControlEvent1(int selectedBin)
             /////////////////////////////////////////////////////////////////
             //SetActive(false);
             fJustFill = true;
-            if (fAllowControlLogger) fRun -> SetAllowControlLogger(false);
+            auto ecm = fRun -> GetEventCountForMessage();
+            //if (fAllowControlLogger) fRun -> SetAllowControlLogger(false);
+            if (fAllowControlLogger) fRun -> SetEventCountForMessage(20000);
             if (fAllowControlLogger) lk_set_message(false);
             for (Long64_t eventID=currentEventID+1; eventID<=testEventTo; ++eventID) {
                 fRun -> ExecuteNextEvent();
                 ++fAccumulateEvents;
             }
             if (fAllowControlLogger) lk_set_message(true);
-            if (fAllowControlLogger) fRun -> SetAllowControlLogger(true);
+            //if (fAllowControlLogger) fRun -> SetAllowControlLogger(true);
+            if (fAllowControlLogger) fRun -> SetEventCountForMessage(ecm);
             fJustFill = false;
             //SetActive(true);
             /////////////////////////////////////////////////////////////////

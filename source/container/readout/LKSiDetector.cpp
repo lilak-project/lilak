@@ -106,6 +106,7 @@ void LKSiDetector::SetSiType(TString detTypeName, int detType, int detIndex, int
         fEnergyArray = new double**[fNumSides];
         fEnergySumArray = new double**[fNumSides];
         fChannelIndexArray = new int**[fNumSides];
+        fStripEnergySumArray = new double*[fNumSides];
         for(int side=0; side<fNumSides; ++side)
         {
             if (side==0) {
@@ -114,12 +115,14 @@ void LKSiDetector::SetSiType(TString detTypeName, int detType, int detIndex, int
                 fEnergyArray[side] = new double*[fNumJunctionStrips];
                 fEnergySumArray[side] = new double*[fNumJunctionStrips];
                 fChannelIndexArray[side] = new int*[fNumJunctionStrips];
+                fStripEnergySumArray[side] = new double[fNumJunctionStrips];
                 for(int strip=0; strip<fNumJunctionStrips; ++strip) {
                     fIdxArray[side][strip] = new int[fNumJunctionUD];
                     fCountArray[side][strip] = new int[fNumJunctionUD];
                     fEnergyArray[side][strip] = new double[fNumJunctionUD];
                     fEnergySumArray[side][strip] = new double[fNumJunctionUD];
                     fChannelIndexArray[side][strip] = new int[fNumJunctionUD];
+                    fStripEnergySumArray[side][strip] = 0;
                     for(int lr=0; lr<fNumJunctionUD; ++lr) {
                         fIdxArray[side][strip][lr] = 0;
                         fCountArray[side][strip][lr] = 0;
@@ -135,12 +138,14 @@ void LKSiDetector::SetSiType(TString detTypeName, int detType, int detIndex, int
                 fEnergyArray[side] = new double*[fNumOhmicStrips];
                 fEnergySumArray[side] = new double*[fNumOhmicStrips];
                 fChannelIndexArray[side] = new int*[fNumOhmicStrips];
+                fStripEnergySumArray[side] = new double[fNumOhmicStrips];
                 for(int strip=0; strip<fNumOhmicStrips; ++strip) {
                     fIdxArray[side][strip] = new int[fNumOhmicLR];
                     fCountArray[side][strip] = new int[fNumOhmicLR];
                     fEnergyArray[side][strip] = new double[fNumOhmicLR];
                     fEnergySumArray[side][strip] = new double[fNumOhmicLR];
                     fChannelIndexArray[side][strip] = new int[fNumOhmicLR];
+                    fStripEnergySumArray[side][strip] = 0;
                     for(int lr=0; lr<fNumOhmicLR; ++lr) {
                         fIdxArray[side][strip][lr] = 0;
                         fCountArray[side][strip][lr] = 0;
@@ -154,6 +159,21 @@ void LKSiDetector::SetSiType(TString detTypeName, int detType, int detIndex, int
     }
     else {
         e_error << "Si Detector is already initialized!" << endl;
+    }
+}
+
+void LKSiDetector::Fire(int side, int strip, double energy)
+{
+    fNumFiredStrips++;
+    fStripEnergySumArray[side][strip] = energy;
+}
+
+void LKSiDetector::ClearFiredFlags()
+{
+    fNumFiredStrips = 0;
+    for(int side=0; side<fNumSides; ++side) {
+        if (side==0) { for(int strip=0; strip<fNumJunctionStrips; ++strip) fStripEnergySumArray[side][strip] = 0; }
+        if (side==1) { for(int strip=0; strip<fNumOhmicStrips;    ++strip) fStripEnergySumArray[side][strip] = 0; }
     }
 }
 

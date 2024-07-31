@@ -90,6 +90,10 @@ class LKSiDetector : public LKContainer
         void FillHistEnergySum();
         void FillHistCount();
 
+        void Fire(int side, int strip, double energy);
+        void ClearFiredFlags();
+        int GetNumFiredStrips() const { return fNumFiredStrips; }
+
     protected:
         TString fDetTypeName;
         int fDetType = -1; ///< Si detector type (user defined index corresponding to s1, s3, x6...)
@@ -114,6 +118,10 @@ class LKSiDetector : public LKContainer
         int ***fChannelIndexArray; //!< (side, strip, left/right)
         int ***fCountArray; //!< (side, strip, left/right)
         int ***fIdxArray; //!< idx of fChannelArray (side, strip, left/right)
+
+        double **fStripEnergySumArray; //!< (side, strip)
+        int fNumFiredStrips;
+
         TObjArray fChannelArray;
         TObjArray fRegisteredChannelArray;
 

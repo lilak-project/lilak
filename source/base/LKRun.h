@@ -116,6 +116,7 @@ class LKRun : public LKTask
 
         void AlwaysPrintMessage() { fEventCountForMessage = 1; }
         void SetEventCountForMessage(Long64_t val) { fEventCountForMessage = val; }
+        Long64_t GetEventCountForMessage() const { return fEventCountForMessage; }
         void SetNumPrintMessage(Long64_t num) { fNumPrintMessage = num; }
 
         void AddParAfter(TString fname) { fParAddAfter = fname; }
