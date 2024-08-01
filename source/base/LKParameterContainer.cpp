@@ -177,7 +177,7 @@ void LKParameterContainer::ReplaceVariables(TString &valInput)
         }
         if (setWidth) {
             int replaceWidth = replaceTo.Sizeof() - 1;
-            lk_error << "!!" << " " << width << " " << replaceWidth << endl;
+            lk_error << "!!" << " width is " << width << ", replaced width is " << replaceWidth << endl;
             if (width>replaceWidth) {
                 int dWidth = width - replaceWidth;
                 TString addSpace = " ";
@@ -1195,6 +1195,7 @@ LKParameter *LKParameterContainer::FindPar(TString givenName, bool terminateIfNu
 
     TIter iterator(this);
     LKParameter *parameter = nullptr;
+    LKParameter *parameterFound = nullptr;
     bool parameterIsFound = false;
     while ((parameter = dynamic_cast<LKParameter*>(iterator())))
     {
@@ -1206,12 +1207,14 @@ LKParameter *LKParameterContainer::FindPar(TString givenName, bool terminateIfNu
                 auto mainName = parameter -> GetMainName();
                 if (mainName==justName) {
                     parameterIsFound = true;
-                    break;
+                    parameterFound = parameter;
+                    //break;
                 }
             }
             else if (parName==justName) {
                 parameterIsFound = true;
-                break;
+                parameterFound = parameter;
+                //break;
             }
         }
     }
@@ -1219,13 +1222,13 @@ LKParameter *LKParameterContainer::FindPar(TString givenName, bool terminateIfNu
     if (fParameterCollectionMode && fCollectedParameterContainer->FindPar(givenName)==nullptr)
     {
         if (parameterIsFound)
-            fCollectedParameterContainer -> AddLine(Form("%s",parameter->GetLine().Data()));
+            fCollectedParameterContainer -> AddLine(Form("%s",parameterFound->GetLine().Data()));
         else
             fCollectedParameterContainer -> AddLine(Form("%s",givenName.Data()));
     }
 
     if (parameterIsFound)
-        return parameter;
+        return parameterFound;
 
     if (terminateIfNull) {
         lk_error << "parameter " << justName << " does not exist!" << endl;
