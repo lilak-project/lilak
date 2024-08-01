@@ -30,10 +30,16 @@ class LKSiDetector : public LKContainer
         int GetLayer() const  { return fLayer; }
         int GetRow() const  { return fRow; }
         TVector3 GetPosition() const { return fPosition; }
+        double GetZ() const { return fPosition.Z(); }
+        double GetRadius() const { return fPosition.Pt(); }
+        double GetPhi0() const { return 0.5*(fPhi1+fPhi2); }
         double GetPhi1() const { return fPhi1; }
         double GetPhi2() const { return fPhi2; }
-        double GetTheta1() const { return fTheta1; }
+        double GetTheta1() const { return 0.5*(fTheta1+fTheta2); }
+        double GetTheta0() const { return fTheta1; }
         double GetTheta2() const { return fTheta2; }
+        double GetWidth() const { return fWidth; }
+        double GetHeight() const { return fHeight; }
         int GetNumSides() const { return fNumSides; }
         int GetNumJunctionStrips() const { return fNumJunctionStrips; }
         int GetNumOhmicStrips() const { return fNumOhmicStrips; }
@@ -56,6 +62,8 @@ class LKSiDetector : public LKContainer
         void SetPhi2(double phi) { fPhi2 = phi; }
         void SetTheta1(double theta) { fTheta1 = theta; }
         void SetTheta2(double theta) { fTheta2 = theta; }
+        void SetWidth(double w) { fWidth = w; }
+        void SetHeight(double h) { fHeight = h; }
 
         virtual void ClearData();
         /**
@@ -106,6 +114,9 @@ class LKSiDetector : public LKContainer
         double fPhi2 = 0;
         double fTheta1 = 0;
         double fTheta2 = 0;
+
+        double fWidth;
+        double fHeight;
 
         int fNumSides = 0;
         int fNumJunctionStrips = 0;

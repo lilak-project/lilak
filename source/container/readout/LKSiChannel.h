@@ -3,12 +3,6 @@
 
 #include "GETChannel.h"
 
-/**
- * Raw event data from GET
- */
-
-class LKSiChannel;
-
 class LKSiChannel : public GETChannel
 {
     public:
@@ -34,13 +28,18 @@ class LKSiChannel : public GETChannel
         int  GetStrip() const { return fStrip; }
         bool GetDirection() const { return fDirection; }
         bool GetInverted() const { return fInverted; }
+        double GetPhi0() const { return 0.5*(fPhi1+fPhi2); }
         double GetPhi1() const { return fPhi1; }
         double GetPhi2() const { return fPhi2; }
+        double GetTheta0() const { return 0.5*(fTheta1+fTheta2); }
         double GetTheta1() const { return fTheta1; }
         double GetTheta2() const { return fTheta2; }
         int GetDetID() const { return GetPadID(); }
         int GetPairArrayIndex() const { return fPairArrayIndex; }
         LKSiChannel* GetPairChannel() const { return fPairChannel; }
+        TVector3 GetPosition() const { return fPosition; }
+        double GetZ() const { return fPosition.Z(); }
+        double GetRadius() const { return fPosition.Pt(); }
 
         //void SetSiChannel(bool side, int strip, bool lr, double phi1, double ph2, double theta1, double, theta2);
         void SetLocalID(int id) { fLocalID = id; }
@@ -55,6 +54,7 @@ class LKSiChannel : public GETChannel
         void SetDetID(int value) { SetPadID(value); }
         void SetPairArrayIndex(int pair) { fPairArrayIndex = pair; }
         void SetPairChannel(LKSiChannel* pairChannel) { fPairChannel = pairChannel; }
+        void SetPosition(TVector3 pos) { fPosition = pos; }
 
         bool IsPair(LKSiChannel* channel);
 
@@ -81,6 +81,8 @@ class LKSiChannel : public GETChannel
         int fPairArrayIndex = -1;
         LKSiChannel *fPairChannel; //!
         double fEnergy2 = -99.9;
+
+        TVector3 fPosition;
 
         double fPhi1 = 0;
         double fPhi2 = 0;
