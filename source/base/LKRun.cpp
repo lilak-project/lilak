@@ -1069,11 +1069,13 @@ TClonesArray *LKRun::GetBranchA(Int_t idx)
     return (TClonesArray *) nullptr;
 }
 
-TClonesArray *LKRun::GetBranchA(TString name)
+TClonesArray *LKRun::GetBranchA(TString name, bool complainIfDoNotExist)
 {
     auto dataContainer = fBranchPtrMap[name];
-    if (dataContainer==nullptr)
-        lk_error << "Branch " << name << " does not exist!" << endl;
+    if (dataContainer==nullptr) {
+        if (complainIfDoNotExist)
+            lk_error << "Branch " << name << " does not exist!" << endl;
+    }
     //else if (dataContainer->InheritsFrom("TClonesArray")==false)
     //    lk_error << "Branch " << name << " is not TClonesArray object!" << endl;
     else
@@ -1549,7 +1551,7 @@ vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchOption)
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////
             else if (!searchOption.IsNull())
             {
-                if (sysFile->IsDirectory()==false && fileName.Index("stark_")==0 && fileName.EndsWith("conv.root"))
+                if (sysFile->IsDirectory()==false && fileName.Index((fRunName+"_"))==0 && fileName.EndsWith(searchOption+".root"))
                 {
                     int runNo = TString(fileName(7,4)).Atoi();
                     int division = 0;
@@ -1566,7 +1568,7 @@ vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchOption)
                     }
                     */
                     int numTokens = tokens->GetEntries();
-                    if (numTokens>3)
+                    if (numTokens>=3)
                     {
                         TString tag = TString(((TObjString*)tokens->At(numTokens-2))->GetString());
                         if (runNo==searchRunNo && tag==searchOption)

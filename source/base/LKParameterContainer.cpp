@@ -177,7 +177,7 @@ void LKParameterContainer::ReplaceVariables(TString &valInput)
         }
         if (setWidth) {
             int replaceWidth = replaceTo.Sizeof() - 1;
-            lk_error << "!!" << " width is " << width << ", replaced width is " << replaceWidth << endl;
+            //lk_error << "!!" << " width is " << width << ", replaced width is " << replaceWidth << endl;
             if (width>replaceWidth) {
                 int dWidth = width - replaceWidth;
                 TString addSpace = " ";
@@ -929,11 +929,25 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
             }
             else if (name[0]=='@') {
                 parameter0.SetIsConditional();
-                name = name(1, name.Sizeof()-2);
-                groupName = name(0,name.Index("/"));
-                if (name.Index("/")<0)
+                if (name.Index("/")<0) {
                     lk_error << "Parameter name " << name << " is out of naming rule" << endl;
-                if (CheckPar(groupName)==false&&CheckValue(groupName)==false)
+                    break;
+                }
+                name = name(1, name.Sizeof()-2);
+                bool setParIfGroupNameIsNotSet = false;
+                if (name[0]=='-') {
+                    setParIfGroupNameIsNotSet = true;
+                    name = name(1, name.Sizeof()-2);
+                }
+                groupName = name(0,name.Index("/"));
+                if (setParIfGroupNameIsNotSet) {
+                    allowSetPar = false;
+                    if (CheckPar(groupName)==false)
+                        allowSetPar = true;
+                    else if (GetParString(groupName).IsNull())
+                        allowSetPar = true;
+                }
+                else if (CheckPar(groupName)==false&&CheckValue(groupName)==false)
                     allowSetPar = false; // @todo save as hidden parameter when they are not allowed to be set
                 continue;
             }

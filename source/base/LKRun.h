@@ -169,7 +169,7 @@ class LKRun : public LKTask
         //TObject *GetBranch(Int_t idx);
         //TObject *KeepBranch(TString name);
 
-        TClonesArray *GetBranchA(TString name); ///< Get branch in TClonesArray by name. Return nullptr if branch is not inherited from TClonesArray
+        TClonesArray *GetBranchA(TString name, bool complainIfDoNotExist=true); ///< Get branch in TClonesArray by name. Return nullptr if branch is not inherited from TClonesArray
         TClonesArray *GetBranchA(Int_t idx);
         TClonesArray *KeepBranchA(TString name);
         Int_t GetNumBranches() const { return fCountBranches; }
