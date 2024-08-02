@@ -1173,7 +1173,7 @@ void LKRun::Run(Long64_t numEvents)
     }
 }
 
-void LKRun::RunOnline()
+void LKRun::RunOnline(Long64_t numEvents)
 {
     e_cout << endl;
 
@@ -1182,7 +1182,7 @@ void LKRun::RunOnline()
 
     if (fUsingEventTrigger) {
         fCurrentEventID = -1;
-        fEventTrigger -> RunOnline();
+        fEventTrigger -> RunOnline(numEvents);
         LKRun::EndOfRun();
     }
     else {
@@ -1553,7 +1553,7 @@ vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchOption)
             {
                 if (sysFile->IsDirectory()==false && fileName.Index((fRunName+"_"))==0 && fileName.EndsWith(searchOption+".root"))
                 {
-                    int runNo = TString(fileName(7,4)).Atoi();
+                    int runNo = TString(fileName(fRunName.Sizeof(),4)).Atoi();
                     int division = 0;
                     auto tokens = fileName.Tokenize(".");
                     /*

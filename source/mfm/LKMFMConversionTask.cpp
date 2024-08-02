@@ -47,6 +47,9 @@ bool LKMFMConversionTask::Init()
             lk_info << "watcherIP is " << fWatcherIP << endl;
             lk_info << "watcherPort is " << fWatcherPort << endl;
             lk_info << "Block size is " << fMatrixSize << endl;
+
+            fPar -> UpdatePar(fSleepBeforeConnect,"LKMFMConversionTask/sleepBeforeConnect");
+            fPar -> UpdatePar(fBreakAfterFailNumber,"LKMFMConversionTask/breakAfterFailNumber");
         }
         else
         {
@@ -141,9 +144,10 @@ bool LKMFMConversionTask::AddDataChunk()
     return true;
 }
 
-void LKMFMConversionTask::RunOnline()
+void LKMFMConversionTask::RunOnline(Long64_t numEvents)
 {
     fRunOnline = true;
+    fNumEvents = numEvents;
 
     int sock;                    /* Socket descriptor */
     struct sockaddr_in servAddr; /* server address */
@@ -159,44 +163,71 @@ void LKMFMConversionTask::RunOnline()
 
     fContinueEvent = true;
 
-    while (1)
+    bool failFlag = false;
+    int countSocketFail = 0;
+    int countConnect = 0;
+    int countConnectFail = 0;
+    int countSizeBufferIs0 = 0;
+    while (fContinueEvent)
     {
+        if (failFlag) lk_info << "#socket-fail=" << countSocketFail << ", #connect-fail=" << countConnectFail << ", #buffer0=" << countSizeBufferIs0 << endl;
+        if (countSocketFail>fBreakAfterFailNumber) break;
+        if (countSizeBufferIs0>fBreakAfterFailNumber) break;
+        if (countConnectFail>fBreakAfterFailNumber) break;
+        failFlag = false;
+
+        sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+        if (sock == 0) {
+            countSocketFail++;
+            lk_error << "socket call failed" << endl;
+            failFlag = true;
+            continue;
+        }
         memset(&servAddr, 0, sizeof(servAddr));
         servAddr.sin_family = AF_INET;             /* Internet address family */
         servAddr.sin_addr.s_addr = inet_addr(fWatcherIP.c_str());   /* Server IP address */
         servAddr.sin_port = htons(fWatcherPort); /* Server port */
+        if (countConnect>0)
+            sleep(fSleepBeforeConnect);
+        countConnect++;
         if (connect(sock, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0) {
-            lk_error << "connect call failed" << endl;
-            return;
+            countConnectFail++;
+            lk_error << "connect call failed!" << endl;
+            failFlag = true;
+            continue;
         }
-        lk_info << "connect call success!" << endl;
+        //lk_info << "connect call success!" << endl;
 
         recv(sock, &size_buffer, sizeof (int), 0);
-        lk_info << "size of total buffer: " << size_buffer << endl;
+        lk_info << "connected! size of total buffer: " << size_buffer << endl;
+        if (size_buffer==0) {
+            countSizeBufferIs0++;
+            failFlag = true;
+            continue;
+        }
         fBuffer = (char *) malloc (size_buffer);
         total_received_data = 0;
         size_to_recv = size_buffer;
 
-        lk_info << "start receiving data" << endl;
+        //lk_info << "start receiving data" << endl;
+        int countReceive = 0;
         while (total_received_data < size_buffer)
         {
             received_data = recv(sock, fBuffer, size_to_recv, 0);
             total_received_data += received_data;
             if (received_data == -1) {
                 lk_error << "error receiving data (" << errno << ")" << endl;
-                return;
+                break;
             }
 
             fBuffer += received_data;
             size_to_recv -= received_data;
-
         }
         close (sock);
-        lk_info << "end receiving data" << endl;
+        //lk_info << "end receiving data" << endl;
 
         if(size_buffer>4) {
             fFrameBuilder -> addDataChunk(fBuffer-total_received_data,fBuffer);
-            lk_error << "online data recorded." << endl;
         }
     }
 }

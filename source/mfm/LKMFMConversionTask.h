@@ -31,6 +31,9 @@ class LKMFMConversionTask : public LKTask
 
         bool fRunOnline = false;
 
+        int fSleepBeforeConnect = 1;
+        int fBreakAfterFailNumber = 10;
+
     public:
         LKMFMConversionTask();
         virtual ~LKMFMConversionTask() {};
@@ -39,7 +42,7 @@ class LKMFMConversionTask : public LKTask
         void Exec(Option_t*) {}
         bool AddDataChunk();
         void Run(Long64_t numEvents=-1);
-        void RunOnline();
+        void RunOnline(Long64_t numEvents=-1);
         bool EndOfRun();
         void SignalNextEvent();
         bool IsEventTrigger() { return true; }
