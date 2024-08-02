@@ -275,6 +275,12 @@ void LKSiDetector::AddChannel(LKSiChannel* channel)
     }
 }
 
+void LKSiDetector::AddEnergy(int side, int strip, int lr, double energy)
+{
+    fCountArray[side][strip][lr]++;
+    fEnergyArray[side][strip][lr] += energy;
+}
+
 void LKSiDetector::FillHistEnergy()
 {
     for(int side=0; side<fNumSides; ++side)

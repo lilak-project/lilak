@@ -40,6 +40,8 @@ class LKSiDetector : public LKContainer
         double GetTheta2() const { return fTheta2; }
         double GetWidth() const { return fWidth; }
         double GetHeight() const { return fHeight; }
+        int IsdEDetector() const { return !fIsEDetector; }
+        int IsEDetector() const { return fIsEDetector; }
         int GetNumSides() const { return fNumSides; }
         int GetNumJunctionStrips() const { return fNumJunctionStrips; }
         int GetNumOhmicStrips() const { return fNumOhmicStrips; }
@@ -64,6 +66,8 @@ class LKSiDetector : public LKContainer
         void SetTheta2(double theta) { fTheta2 = theta; }
         void SetWidth(double w) { fWidth = w; }
         void SetHeight(double h) { fHeight = h; }
+        void SetIsdEDetector() { fIsEDetector = false; }
+        void SetIsEDetector() { fIsEDetector = true; }
 
         virtual void ClearData();
         /**
@@ -84,6 +88,7 @@ class LKSiDetector : public LKContainer
         void AddChannel(LKSiChannel* channel);
         void SetChannel(GETChannel* channel, int side, int strip, int lr);
         void AddChannel(GETChannel* channel, int side, int strip, int lr);
+        void AddEnergy(int side, int strip, int lr, double energy);
         int GetNumActiveChannels() const { return fChannelArray.GetEntries(); }
         LKChannel* GetActiveChannel(int i) { return (LKChannel*) fChannelArray.At(i); }
 
@@ -114,9 +119,9 @@ class LKSiDetector : public LKContainer
         double fPhi2 = 0;
         double fTheta1 = 0;
         double fTheta2 = 0;
-
         double fWidth;
         double fHeight;
+        bool fIsEDetector;
 
         int fNumSides = 0;
         int fNumJunctionStrips = 0;
