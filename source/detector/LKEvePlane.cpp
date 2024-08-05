@@ -1045,6 +1045,11 @@ void LKEvePlane::ClickedControlEvent1(int selectedBin)
     //Draw();
 }
 
+void LKEvePlane::RunAllEvents()
+{
+    ClickedControlEvent2(fBinCtrlFillAEv);
+}
+
 void LKEvePlane::ClickedControlEvent2(int selectedBin)
 {
     if (selectedBin==fBinCtrlChgMenu)

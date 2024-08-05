@@ -71,6 +71,8 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         virtual void ClickedControlEvent2(int selectedBin);
         void SetPalette();
 
+        void RunAllEvents();
+
         virtual void UpdateAll();
         virtual void UpdateEventDisplay1();
         virtual void UpdateEventDisplay2();
