@@ -9,23 +9,37 @@ ClassImp(LKPainter);
 
 LKPainter* LKPainter::fInstance = nullptr;
 
-LKPainter* LKPainter::GetPainter() {
+LKPainter* LKPainter::GetPainter(bool useConfiguration) {
     if (fInstance == nullptr)
-        fInstance = new LKPainter();
+        fInstance = new LKPainter(useConfiguration);
     return fInstance;
 }
 
-LKPainter::LKPainter()
+LKPainter::LKPainter(bool useConfiguration)
 {
-    Init();
+    Clear();
+    Init(useConfiguration);
 }
 
-bool LKPainter::Init()
+bool LKPainter::Init(bool useConfiguration)
 {
-    // Put intialization todos here which are not iterative job though event
-    e_info << "Initializing LKPainter" << std::endl;
+    if (useConfiguration==false) {
+        e_warning << "Skip LKPainter configuration" << endl;
+        e_warning << "Using default window size 1300 x 900" << endl;
+        return true;
+    }
 
-    ConfigureDisplay();
+    e_info << "Initializing LKPainter" << std::endl;
+    Drawable_t id = gClient->GetRoot()->GetId();
+    gVirtualX -> GetWindowSize(id, fXCurrentDisplay, fYCurrentDisplay, fWCurrentDisplay, fHCurrentDisplay);
+    fXCurrentCanvas = fDeadFrameSize[0];
+    fYCurrentCanvas = fDeadFrameSize[3];
+    fWCurrentDisplay = fWCurrentDisplay - fDeadFrameSize[0] - fDeadFrameSize[1];
+    fHCurrentDisplay = fHCurrentDisplay - fDeadFrameSize[2] - fDeadFrameSize[3];
+    fResizeFactor = fWCurrentDisplay / double(1500);
+    fWDefault = fWDefaultOrigin * fResizeFactor;
+    fHDefault = fHDefaultOrigin * fResizeFactor;
+    e_info << "Full-Canvas-Size = (" << fWCurrentDisplay << ", " << fHCurrentDisplay << ")" << endl;
 
     return true;
 }
@@ -33,10 +47,10 @@ bool LKPainter::Init()
 void LKPainter::Clear(Option_t *option)
 {
     TObject::Clear(option);
-    fXCurrentDisplay = -1;
-    fYCurrentDisplay = -1;
-    fWCurrentDisplay = -1;
-    fHCurrentDisplay = -1;
+    fXCurrentDisplay = 0;
+    fYCurrentDisplay = 0;
+    fWCurrentDisplay = 1300;
+    fHCurrentDisplay = 900;
     fDeadFrameSize[0] = 25;
     fDeadFrameSize[1] = 25;
     fDeadFrameSize[2] = 80;
@@ -47,6 +61,7 @@ void LKPainter::Clear(Option_t *option)
     fHDefault = 500;
     fWSpacing = 25;
     fHSpacing = 25;
+    fResizeFactor = 1.;
 }
 
 void LKPainter::Print(Option_t *option) const
@@ -65,20 +80,6 @@ void LKPainter::Print(Option_t *option) const
     e_info << "fHDefault        : " << fHDefault << endl;
     e_info << "fWSpacing        : " << fWSpacing << endl;
     e_info << "fHSpacing        : " << fHSpacing << endl;
-}
-
-void LKPainter::ConfigureDisplay()
-{
-    Drawable_t id = gClient->GetRoot()->GetId();
-    gVirtualX -> GetWindowSize(id, fXCurrentDisplay, fYCurrentDisplay, fWCurrentDisplay, fHCurrentDisplay);
-    fXCurrentCanvas = fDeadFrameSize[0];
-    fYCurrentCanvas = fDeadFrameSize[3];
-    fWCurrentDisplay = fWCurrentDisplay - fDeadFrameSize[0] - fDeadFrameSize[1];
-    fHCurrentDisplay = fHCurrentDisplay - fDeadFrameSize[2] - fDeadFrameSize[3];
-    fResizeFactor = fWCurrentDisplay / double(1500);
-    fWDefault = fWDefaultOrigin * fResizeFactor;
-    fHDefault = fHDefaultOrigin * fResizeFactor;
-    e_info << "Full-Canvas-Size = (" << fWCurrentDisplay << ", " << fHCurrentDisplay << ")" << endl;
 }
 
 void LKPainter::SetDeadFrameLeft(UInt_t val)

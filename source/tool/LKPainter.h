@@ -15,11 +15,11 @@
 class LKPainter : public TObject
 {
     public:
-        LKPainter();
+        LKPainter(bool useConfiguration=true);
         virtual ~LKPainter() { ; }
-        static LKPainter* GetPainter();
+        static LKPainter* GetPainter(bool useConfiguration=true);
 
-        bool Init();
+        bool Init(bool useConfiguration=true);
         void Clear(Option_t *option="");
         void Print(Option_t *option="") const;
 
@@ -66,8 +66,7 @@ class LKPainter : public TObject
         const int kSquare     = 2;
         const int kResize     = 3;
 
-    private:
-        void ConfigureDisplay();
+        bool fSkipConfiguration = false;
 
     private:
         static LKPainter* fInstance;
