@@ -825,8 +825,21 @@ bool LKRun::Init()
 
         fOutputFileName.ReplaceAll("//","/");
         lk_info << "Output file : " << fOutputFileName << endl;
-        fOutputFile = new TFile(fOutputFileName, "recreate");
-        fOutputTree = new TTree("event", "");
+        bool updateOutputFile = false;
+        fPar -> UpdatePar(updateOutputFile,"LKRun/UpdateOuputFile");
+        if (updateOutputFile)
+        {
+            lk_info << "Updating existing file" << endl;
+            fOutputFile = new TFile(fOutputFileName, "update");
+            fOutputTree = (TTree*) fOutputFile -> Get("event");
+            if (fOutputTree==nullptr)
+                fOutputTree = new TTree("event", "");
+        }
+        else
+        {
+            fOutputFile = new TFile(fOutputFileName, "recreate");
+            fOutputTree = new TTree("event", "");
+        }
     }
 
     if (!fOutputFileName.IsNull() && !fInputFileName.IsNull()) {
@@ -908,6 +921,8 @@ bool LKRun::Init()
     }
     else
         lk_error << "[LKRun] FAILED initializing tasks." << endl;
+
+    //if (fNumEntries>fNumEntriesLimit) fNumEntries = fNumEntriesLimit;
 
     fCurrentEventID = 0;
 
@@ -1136,7 +1151,8 @@ bool LKRun::WriteOutputFile()
     fOutputTree -> Write();
     for (auto iObject=0; iObject<fCountRunObjects; ++iObject)
         fRunObjectPtr[iObject] -> Write(fRunObjectName[iObject],TObject::kSingleKey);
-    fOutputFile -> Close();
+    if (fAutoTerminate)
+        fOutputFile -> Close();
 
     TString linkName = TString(LILAK_PATH) + "/data/lk_last_output.root";
     unlink(linkName.Data());

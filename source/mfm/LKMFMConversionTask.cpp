@@ -170,7 +170,7 @@ void LKMFMConversionTask::RunOnline(Long64_t numEvents)
     int countSizeBufferIs0 = 0;
     while (fContinueEvent)
     {
-        if (failFlag) lk_info << "#socket-fail=" << countSocketFail << ", #connect-fail=" << countConnectFail << ", #buffer0=" << countSizeBufferIs0 << endl;
+        if (failFlag) lk_warning << "#socket-fail=" << countSocketFail << ", #connect-fail=" << countConnectFail << ", #buffer0=" << countSizeBufferIs0 << endl;
         if (countSocketFail>fBreakAfterFailNumber) break;
         if (countSizeBufferIs0>fBreakAfterFailNumber) break;
         if (countConnectFail>fBreakAfterFailNumber) break;

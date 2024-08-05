@@ -183,6 +183,7 @@ class LKRun : public LKTask
         LKDetectorPlane *FindDetectorPlane(const char *name);
 
         void SetEntries(Long64_t num) { fNumEntries = num; } ///< Set total number of entries. Use only input do not exist.
+        void SetEntriesLimit(Long64_t num) { fNumEntriesLimit = num; } ///< Set total number of entries. Use only input do not exist.
         Long64_t GetEntries() const { return fNumEntries; } ///< Get total number of entries
         /// GetEntry current from input tree. For options 
         /// For options see TTree::GetEntry : https://root.cern.ch/doc/master/classTTree.html#a14c88179bd5fd2116228707d6addea9f
@@ -309,6 +310,7 @@ class LKRun : public LKTask
         std::map<TString, TObject*> fRunObjectPtrMap;
 
         Long64_t fNumEntries = 0;
+        Long64_t fNumEntriesLimit = 0;
 
         //TTreeFormula* fSelect = nullptr;
         //Long64_t fCurrentEventIDForSelection = 0;
