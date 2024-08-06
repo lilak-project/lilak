@@ -350,6 +350,29 @@ void LKSiDetector::FillHistCount()
     }
 }
 
+void LKSiDetector::FillHistValue(double value)
+{
+    for(int side=0; side<fNumSides; ++side)
+    {
+        if (side==0) {
+            for(int strip=0; strip<fNumJunctionStrips; ++strip) {
+                for(int lr=0; lr<fNumJunctionUD; ++lr) {
+                    fHistJunction -> SetBinContent(strip+1,lr+1,value);
+                    auto rgChannel = GetRegisteredChannel(side,strip,lr); if (rgChannel!=nullptr) rgChannel -> SetEnergy(value);
+                }
+            }
+        }
+        if (side==1) {
+            for(int strip=0; strip<fNumOhmicStrips; ++strip) {
+                for(int lr=0; lr<fNumOhmicLR; ++lr) {
+                    fHistOhmic -> SetBinContent(lr+1,strip+1,value);
+                    auto rgChannel = GetRegisteredChannel(side,strip,lr); if (rgChannel!=nullptr) rgChannel -> SetEnergy(value);
+                }
+            }
+        }
+    }
+}
+
 TString LKSiDetector::GetNameType() const
 {
     TString nameType = fDetTypeName;

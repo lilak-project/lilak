@@ -102,6 +102,7 @@ class LKSiDetector : public LKContainer
         void FillHistEnergy();
         void FillHistEnergySum();
         void FillHistCount();
+        void FillHistValue(double value);
 
         void Fire(int side, int strip, double energy);
         void ClearFiredFlags();
