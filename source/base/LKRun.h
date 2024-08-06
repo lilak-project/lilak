@@ -262,6 +262,7 @@ class LKRun : public LKTask
         bool fRunNameIsSet = false;
         TString fRunName = "run";
         Int_t   fRunID = -1;
+        vector<Int_t> fRunIDList;
         Int_t   fDivision = -1;
 
         bool fRunInit = false;

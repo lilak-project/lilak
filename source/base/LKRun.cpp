@@ -568,6 +568,9 @@ bool LKRun::Init()
     fPar -> Require("LKRun/InputFile", "path/to/input/data",   "input file. Cannot be used with LKRun/SearchRun", "t", countParOrder++);
     fPar -> Require("LKRun/FriendFile","path/to/friend/data",  "input friend file", "t", countParOrder++);
 
+    fPar -> Require("LKRun/RunIDList",  "1, 2, 3, 4", "list of run numbers separated by ,", "", countParOrder++);
+    fPar -> Require("LKRun/RunIDRange", "1, 10", "list of run numbers ranged by ,", "", countParOrder++);
+
     if (!fRunNameIsSet) {
         fPar -> UpdatePar(fRunName,  "LKRun/Name");
         fPar -> UpdatePar(fRunID,    "LKRun/RunID");
@@ -575,6 +578,20 @@ bool LKRun::Init()
         fPar -> UpdatePar(fTag,      "LKRun/Tag");
         if (fPar -> CheckPar("LKRun/Name"))
             fRunNameIsSet = true;
+    }
+
+    if (fPar -> CheckPar("LKRun/RunIDRange"))
+    {
+        auto runID1 = fPar -> GetParInt("LKRun/RunIDRange",0);
+        auto runID2 = fPar -> GetParInt("LKRun/RunIDRange",1);
+        for (auto runID=runID1; runID<=runID2; ++runID)
+            fRunIDList.push_back(runID);
+    }
+    else if (fPar -> CheckPar("LKRun/RunIDList"))
+    {
+        auto n = fPar -> GetParN("LKRun/RunIDList");
+        for (auto i=0; i<n; ++i)
+            fRunIDList.push_back(fPar->GetParInt("LKRun/RunIDList",i));
     }
 
     if (fOutputPath.IsNull()) {
@@ -634,9 +651,20 @@ bool LKRun::Init()
             }
 
             fSearchOption = fPar -> GetParString("LKRun/SearchRun");
-            vector<TString> inputFiles = SearchRunFiles(fRunID,fSearchOption);
-            for (auto fileName : inputFiles)
-                fInputFileNameArray.push_back(fileName);
+            if (fRunIDList.size())
+            {
+                for (auto runID : fRunIDList)
+                {
+                    vector<TString> inputFiles = SearchRunFiles(runID,fSearchOption);
+                    for (auto fileName : inputFiles)
+                        fInputFileNameArray.push_back(fileName);
+                }
+            }
+            else {
+                vector<TString> inputFiles = SearchRunFiles(fRunID,fSearchOption);
+                for (auto fileName : inputFiles)
+                    fInputFileNameArray.push_back(fileName);
+            }
         }
 
         if (fSearchOption!="mfm" && fInputFileNameArray.size()>0) {
@@ -865,9 +893,12 @@ bool LKRun::Init()
         for (Int_t iFriend = idxInput; iFriend < fFriendFileNameArray.size(); iFriend++)
             fRunHeader -> AddPar(Form("FriendFile/%d",iFriend),fFriendFileNameArray[iFriend]);
         fRunHeader -> AddPar("OutputFile",fOutputFileName);
-
         fRunHeader -> AddPar("RunName",fRunName);
         fRunHeader -> AddPar("RunID",fRunID);
+        for (auto i=0; i<fRunIDList.size(); ++i) {
+            auto runID = fRunIDList.at(i);
+            fRunHeader -> AddPar(Form("run_%d",i),runID);
+        }
         fRunHeader -> AddPar("Division",fDivision);
         fRunHeader -> AddPar("Tag",fTag);
         fRunHeader -> AddPar("Split",fSplit);
