@@ -341,6 +341,7 @@ class LKChannelAnalyzer : public LKPadInteractive
 
         TClonesArray* fGraphArray = nullptr;
         Int_t         fNumGraphs = 0;
+        Int_t         fNumHists = 0;
 
 #ifdef DEBUG_CHANA_FINDPEAK
     public:
