@@ -13,4 +13,9 @@
         cout << "LILAK" << endl;
     else
         cout << "Cannot Load LILAK" << endl;
+
+    ifstream readme("README");
+    string line;
+    while (getline(readme, line))
+        cout << line << endl;
 }
