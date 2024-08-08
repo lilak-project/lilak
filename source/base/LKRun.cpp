@@ -582,10 +582,18 @@ bool LKRun::Init()
 
     if (fPar -> CheckPar("LKRun/RunIDRange"))
     {
-        auto runID1 = fPar -> GetParInt("LKRun/RunIDRange",0);
-        auto runID2 = fPar -> GetParInt("LKRun/RunIDRange",1);
-        for (auto runID=runID1; runID<=runID2; ++runID)
-            fRunIDList.push_back(runID);
+        auto n = fPar -> GetParN("LKRun/RunIDRange");
+        if (n%2!=0) {
+            lk_error << "LKRun/RunIDRange number of parameter is " << n << "!!" << endl;
+            return false;
+        }
+        for (auto i=0; i<n/2; ++i)
+        {
+            auto runID1 = fPar -> GetParInt("LKRun/RunIDRange",i*2+0);
+            auto runID2 = fPar -> GetParInt("LKRun/RunIDRange",i*2+1);
+            for (auto runID=runID1; runID<=runID2; ++runID)
+                fRunIDList.push_back(runID);
+        }
     }
     else if (fPar -> CheckPar("LKRun/RunIDList"))
     {
