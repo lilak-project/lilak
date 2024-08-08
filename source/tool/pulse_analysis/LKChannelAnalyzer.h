@@ -269,6 +269,9 @@ class LKChannelAnalyzer : public LKPadInteractive
         TGraphErrors* GetGraphSigAtMaximum(double tb0, double amplitude, double pedestal=0);
         TGraphErrors* GetGraphSigAtThreshold(double tb0, double amplitude, double pedestal=0);
 
+        TH1D* GetHistBuffer() const { return fHistBuffer; }
+        TH1D* NewHistBuffer();
+
         void ClearGraphArray() { if (fGraphArray!=nullptr) fGraphArray -> Clear("C"); fNumGraphs = 0; }
 
     public:

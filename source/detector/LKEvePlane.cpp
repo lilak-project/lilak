@@ -37,7 +37,7 @@ LKChannelAnalyzer* LKEvePlane::GetChannelAnalyzer(int id)
         double threshold = 300;
         fPar -> UpdatePar(threshold,fName+"/EveThreshold  300  # threshold for default peak finding method");
         fChannelAnalyzer -> SetThreshold(threshold);
-        fChannelAnalyzer -> Print();
+        //fChannelAnalyzer -> Print();
     }
 
     fPar -> UpdatePar(fFillOptionSelected, fName+"/fillOption hit");

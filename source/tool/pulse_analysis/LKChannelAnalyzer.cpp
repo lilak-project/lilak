@@ -153,6 +153,17 @@ void LKChannelAnalyzer::Print(Option_t *option) const
         }
 }
 
+TH1D* LKChannelAnalyzer::NewHistBuffer()
+{
+    if      (fAnalyzerMode==kPulseFittingMode)   fHistBuffer = new TH1D(Form("hbuffer_PulseAit_%d",fNumHists++),";tb",fTbMax,0,fTbMax);
+    else if (fAnalyzerMode==kSigAtMaximumMode)   fHistBuffer = new TH1D(Form("hbuffer_SigAtMax_%d",fNumHists++),";tb",fTbMax,0,fTbMax);
+    else if (fAnalyzerMode==kSigAtThresholdMode) fHistBuffer = new TH1D(Form("hbuffer_SigAtThr_%d",fNumHists++),";tb",fTbMax,0,fTbMax);
+    for (auto tb=0; tb<fTbMax; ++tb)
+        fHistBuffer -> SetBinContent(tb+1,fBufferOrigin[tb]);
+    fHistBuffer -> SetStats(0);
+    return fHistBuffer;
+}
+
 void LKChannelAnalyzer::Draw(Option_t *option)
 {
     TLegend* legend = nullptr;
@@ -162,14 +173,14 @@ void LKChannelAnalyzer::Draw(Option_t *option)
     else
         legend = new TLegend(0.72, 0.70, 0.95, 0.90);
 
-    if (TString(option).Index("new")>=0&&fHistBuffer==nullptr) {
+    if (TString(option).Index("new")>=0||fHistBuffer==nullptr) {
         if      (fAnalyzerMode==kPulseFittingMode)   fHistBuffer = new TH1D(Form("hbuffer_PulseAit_%d",fNumHists++),";tb",fTbMax,0,fTbMax);
         else if (fAnalyzerMode==kSigAtMaximumMode)   fHistBuffer = new TH1D(Form("hbuffer_SigAtMax_%d",fNumHists++),";tb",fTbMax,0,fTbMax);
         else if (fAnalyzerMode==kSigAtThresholdMode) fHistBuffer = new TH1D(Form("hbuffer_SigAtThr_%d",fNumHists++),";tb",fTbMax,0,fTbMax);
         else
             return;
     }
-    if (TString(option).Index("new")>=0&&fHistBufferIntegral==nullptr) {
+    if (TString(option).Index("new")>=0||fHistBufferIntegral==nullptr) {
         if      (fAnalyzerMode==kPulseFittingMode)   fHistBufferIntegral = new TH1D(Form("hbufferIntegral_PulseAit_%d",fNumHists++),";tb",fTbMax,0,fTbMax);
         else if (fAnalyzerMode==kSigAtMaximumMode)   fHistBufferIntegral = new TH1D(Form("hbufferIntegral_SigAtMax_%d",fNumHists++),";tb",fTbMax,0,fTbMax);
         else if (fAnalyzerMode==kSigAtThresholdMode) fHistBufferIntegral = new TH1D(Form("hbufferIntegral_SigAtThr_%d",fNumHists++),";tb",fTbMax,0,fTbMax);
@@ -188,8 +199,9 @@ void LKChannelAnalyzer::Draw(Option_t *option)
 
     fHistBufferIntegral -> SetMaximum(fHistBuffer->GetMaximum()*1.15);
     fHistBufferIntegral -> SetMinimum(fHistBuffer->GetMinimum());
-    fHistBufferIntegral -> Draw();
-    fHistBuffer -> Draw("same");
+    //fHistBufferIntegral -> Draw();
+    //fHistBuffer -> Draw("same");
+    fHistBuffer -> Draw();
     legend -> AddEntry(fHistBuffer,"data","f");
     legend -> AddEntry(fHistBufferIntegral,"integral","f");
 
