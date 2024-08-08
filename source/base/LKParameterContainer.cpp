@@ -1071,13 +1071,13 @@ void LKParameterContainer::Require(TString name, TString value, TString comment,
     if (fParameterCollectionMode && fCollectedParameterContainer->FindPar(name)==nullptr)
     {
         auto parc = fCollectedParameterContainer -> SetPar(name, value, value, comment);
-        parc -> SetType(type);
+        if (!type.IsNull()) parc -> SetType(type);
         if (compare>=0) parc -> SetCompare(compare);
     }
 
     auto par = FindParFree(name,false);
     if (par!=nullptr) {
-        par -> SetType(type);
+        if (!type.IsNull()) par -> SetType(type);
         if (compare>=0) par -> SetCompare(compare);
     }
 }

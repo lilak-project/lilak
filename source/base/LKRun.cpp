@@ -651,7 +651,7 @@ bool LKRun::Init()
             }
 
             fSearchOption = fPar -> GetParString("LKRun/SearchRun");
-            if (fRunIDList.size())
+            if (fRunIDList.size()>0)
             {
                 for (auto runID : fRunIDList)
                 {
