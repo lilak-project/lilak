@@ -1146,8 +1146,9 @@ TClonesArray *LKRun::KeepBranchA(TString name) {
     TClonesArray* dataContainer = GetBranchA(name);
     if (fOutputTree!=nullptr) {
         if (fOutputTree -> GetBranch(name)==nullptr) {
-            lk_info << "Keep branch " << name << endl;
-            fOutputTree -> Branch(name, dataContainer, 32000, 0);
+            return (TClonesArray*) nullptr;
+            //lk_info << "Keep branch " << name << endl;
+            //fOutputTree -> Branch(name, dataContainer, 32000, 0);
             //if (dataContainer -> InheritsFrom(TClonesArray::Class())) {
             //    fOutputTree -> Branch(name, dataContainer, 32000, 0);
             //}
@@ -1195,7 +1196,7 @@ bool LKRun::WriteOutputFile()
     fOutputTree -> Write();
     for (auto iObject=0; iObject<fCountRunObjects; ++iObject)
         fRunObjectPtr[iObject] -> Write(fRunObjectName[iObject],TObject::kSingleKey);
-    if (fUserDrawingArray->GetEntries()>0)
+    if (fUserDrawingArray!=nullptr&&fUserDrawingArray->GetEntries()>0)
         fUserDrawingArray -> Write("drawings",TObject::kSingleKey);
     if (fAutoTerminate)
         fOutputFile -> Close();
