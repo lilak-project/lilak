@@ -378,6 +378,7 @@ void LKFrameBuilder::UnpackFrame(mfm::Frame& frame)
     UInt_t asadIdx = frame.headerField("asadIdx").value<UInt_t>();
     UInt_t itemSize = frame.headerField("itemSize").value<UInt_t>();
     UInt_t frameSize = frame.headerField("frameSize").value<UInt_t>();
+    fEventTime = frame.headerField("eventTime").value<UInt_t>();
     fCurrEventIdx = (Int_t)frame.headerField("eventIdx").value<UInt_t>();
 #ifdef DEBUG_UNPACKFRAME_CUT
 //#ifdef DEBUG_LKFRAMEBUILDER
@@ -706,6 +707,7 @@ void LKFrameBuilder::WriteChannels()
 
     auto eventHeader = (LKEventHeader *) fEventHeaderArray -> ConstructedAt(0);
     eventHeader -> SetEventNumber(Int_t(fCurrEventIdx));
+    eventHeader -> SetEventTime(fEventTime);
 
     for (UInt_t asad=0; asad<fMaxAsad; asad++)
     {
