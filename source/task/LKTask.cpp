@@ -36,6 +36,7 @@ bool LKTask::InitTask()
 
 bool LKTask::Init() 
 {
+    fPar -> UpdatePar(fAllowControlLogger,fName+"/AllowControlLogger");
     return true;
 }
 

@@ -80,6 +80,7 @@ class LKGETChannelViewer : public LKTask, public LKPadInteractive
         int fPalette = kRainBow;
         double fFillMaximum = 10;
         const int fFillActive = 2;
+        const int fFillActFPN = 3; /// active FPN channels
         const int fFillActHit = 4; /// active and contain hit
         const int fFillSelect = 6;
         const int fFillSelBNA = 8; /// seelected but not active

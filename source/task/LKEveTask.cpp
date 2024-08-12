@@ -38,26 +38,41 @@ bool LKEveTask::Init()
 {
     fNumBranches = fRun -> GetNumBranches();
 
-    if (fPar->CheckPar("#LKEveTask/selectTrackIDs 0"))       fSelTrkIDs      = fPar -> GetParVInt("LKEveTask/selectTrackIDs");
-    if (fPar->CheckPar("#LKEveTask/ignoreTrackIDs 0"))       fIgnTrkIDs      = fPar -> GetParVInt("LKEveTask/ignoreTrackIDs");
-    if (fPar->CheckPar("#LKEveTask/selectTrackParentIDs 0")) fSelPntIDs      = fPar -> GetParVInt("LKEveTask/selectTrackParentIDs");
-    if (fPar->CheckPar("#LKEveTask/ignoreTrackParentIDs 0")) fIgnPntIDs      = fPar -> GetParVInt("LKEveTask/ignoreTrackParentIDs");
-    if (fPar->CheckPar("#LKEveTask/selectTrackPDGs 0"))      fSelPDGs        = fPar -> GetParVInt("LKEveTask/selectTrackPDGs");
-    if (fPar->CheckPar("#LKEveTask/ignoreTrackPDGs 0"))      fIgnPDGs        = fPar -> GetParVInt("LKEveTask/ignoreTrackPDGs");
-    if (fPar->CheckPar("#LKEveTask/selectMCIDs 0"))          fSelMCIDs       = fPar -> GetParVInt("LKEveTask/selectMCIDs");
-    if (fPar->CheckPar("#LKEveTask/ignoreMCIDs 0"))          fIgnMCIDs       = fPar -> GetParVInt("LKEveTask/ignoreMCIDs");
-    if (fPar->CheckPar("#LKEveTask/selectHitParentIDs 0"))   fSelHitPntIDs   = fPar -> GetParVInt("LKEveTask/selectHitParentIDs");
-    if (fPar->CheckPar("#LKEveTask/ignoreHitParentIDs 0"))   fIgnHitPntIDs   = fPar -> GetParVInt("LKEveTask/ignoreHitParentIDs");
-    if (fPar->CheckPar("#LKEveTask/selectBranches 0"))       fSelBranchNames = fPar -> GetParVString("LKEveTask/selectBranches");
+    int countParOrder = 1;
+    fPar -> Require("[BranchName]/lineStyle",         1,        "track line style of [BranchName].",  "t/",countParOrder++);
+    fPar -> Require("[BranchName]/lineWidth",         1,        "track line width of [BranchName].",  "t/",countParOrder++);
+    fPar -> Require("[BranchName]/lineColor",         "kBlack", "track line color of [BranchName].",  "t/",countParOrder++);
+    fPar -> Require("[BranchName]/markerStyle",       20,       "track marker style of [BranchName].","t/",countParOrder++);
+    fPar -> Require("[BranchName]/markerSize",        1,        "track marker size  of [BranchName].","t/",countParOrder++);
+    fPar -> Require("[BranchName]/markerColor",       "kBlue",  "track marker style of [BranchName].","t/",countParOrder++);
+    fPar -> Require("LKEveTask/selectTrackIDs",       0,        "", "t/" ,countParOrder++);
+    fPar -> Require("LKEveTask/ignoreTrackIDs",       0,        "", "t/" ,countParOrder++);
+    fPar -> Require("LKEveTask/selectTrackParentIDs", 0,        "", "t/" ,countParOrder++);
+    fPar -> Require("LKEveTask/ignoreTrackParentIDs", 0,        "", "t/" ,countParOrder++);
+    fPar -> Require("LKEveTask/selectTrackPDGs",      0,        "", "t/" ,countParOrder++);
+    fPar -> Require("LKEveTask/ignoreTrackPDGs",      0,        "", "t/" ,countParOrder++);
+    fPar -> Require("LKEveTask/selectMCIDs",          0,        "", "t/" ,countParOrder++);
+    fPar -> Require("LKEveTask/ignoreMCIDs",          0,        "", "t/" ,countParOrder++);
+    fPar -> Require("LKEveTask/selectHitParentIDs",   0,        "", "t/" ,countParOrder++);
+    fPar -> Require("LKEveTask/ignoreHitParentIDs",   0,        "", "t/" ,countParOrder++);
+    fPar -> Require("LKEveTask/selectBranches",       0,        "", "t/" ,countParOrder++);
+    fPar -> Require("LKEveTask/drawEve3D", "false",  "draw 3d event display using ROOT EVE package and root geometry defined in detector class", "t/", countParOrder++);
+    fPar -> Require("LKEveTask/drawPlane", "true" ,  "draw 2d planes using detector plane class", "t/", countParOrder++);
+
+    if (fPar->CheckPar("LKEveTask/selectTrackIDs"))       fSelTrkIDs      = fPar -> GetParVInt("LKEveTask/selectTrackIDs");
+    if (fPar->CheckPar("LKEveTask/ignoreTrackIDs"))       fIgnTrkIDs      = fPar -> GetParVInt("LKEveTask/ignoreTrackIDs");
+    if (fPar->CheckPar("LKEveTask/selectTrackParentIDs")) fSelPntIDs      = fPar -> GetParVInt("LKEveTask/selectTrackParentIDs");
+    if (fPar->CheckPar("LKEveTask/ignoreTrackParentIDs")) fIgnPntIDs      = fPar -> GetParVInt("LKEveTask/ignoreTrackParentIDs");
+    if (fPar->CheckPar("LKEveTask/selectTrackPDGs"))      fSelPDGs        = fPar -> GetParVInt("LKEveTask/selectTrackPDGs");
+    if (fPar->CheckPar("LKEveTask/ignoreTrackPDGs"))      fIgnPDGs        = fPar -> GetParVInt("LKEveTask/ignoreTrackPDGs");
+    if (fPar->CheckPar("LKEveTask/selectMCIDs"))          fSelMCIDs       = fPar -> GetParVInt("LKEveTask/selectMCIDs");
+    if (fPar->CheckPar("LKEveTask/ignoreMCIDs"))          fIgnMCIDs       = fPar -> GetParVInt("LKEveTask/ignoreMCIDs");
+    if (fPar->CheckPar("LKEveTask/selectHitParentIDs"))   fSelHitPntIDs   = fPar -> GetParVInt("LKEveTask/selectHitParentIDs");
+    if (fPar->CheckPar("LKEveTask/ignoreHitParentIDs"))   fIgnHitPntIDs   = fPar -> GetParVInt("LKEveTask/ignoreHitParentIDs");
+    if (fPar->CheckPar("LKEveTask/selectBranches"))       fSelBranchNames = fPar -> GetParVString("LKEveTask/selectBranches");
 
     fPar -> UpdatePar(fDrawEve3D, "LKEveTask/drawEve3D      false    # draw 3d event display using ROOT EVE package and root geometry defined in detector class");
     fPar -> UpdatePar(fDrawPlane, "LKEveTask/drawPlane      true     # draw 2d planes using detector plane class");
-    fPar -> CheckPar("#[BranchName]/lineStyle   1        # track line style of [BranchName]. [BranchName] should be replaced to the actual branch name");
-    fPar -> CheckPar("#[BranchName]/lineWidth   1        # track line width of [BranchName]. [BranchName] should be replaced to the actual branch name");
-    fPar -> CheckPar("#[BranchName]/lineColor   kBlack   # track line color of [BranchName]. [BranchName] should be replaced to the actual branch name");
-    fPar -> CheckPar("#[BranchName]/markerStyle 20       # track marker style of [BranchName]. [BranchName] should be replaced to the actual branch name");
-    fPar -> CheckPar("#[BranchName]/markerSize  1        # track marker size  of [BranchName]. [BranchName] should be replaced to the actual branch name");
-    fPar -> CheckPar("#[BranchName]/markerColor kBlue    # track marker style of [BranchName]. [BranchName] should be replaced to the actual branch name");
 
     fNumSelectedBranches = fSelBranchNames.size();
     if (fNumSelectedBranches==0) {

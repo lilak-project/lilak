@@ -48,7 +48,7 @@ class LKEveTask : public LKTask
         void SetGraphAtt(TGraph2D *graph, TString branchName);
 
     private:
-        Bool_t fDrawEve3D = true;
+        Bool_t fDrawEve3D = false;
         Bool_t fDrawPlane = true;
 
         vector<Int_t> fSelTrkIDs;
