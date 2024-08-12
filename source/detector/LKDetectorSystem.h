@@ -24,6 +24,7 @@ class LKDetectorSystem : public TObjArray, public LKGear
 
         virtual void Print(Option_t *option="") const;
         virtual bool Init();
+        bool EndOfRun();
 
         TGeoManager *GetGeoManager() const;
         TGeoVolume *GetGeoTopVolume() const;

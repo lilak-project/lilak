@@ -77,6 +77,8 @@ class LKDetectorPlane : public TNamed, public LKGear
         /// Init() method should implement pad information (id, position, neighbor) and add channel using AddChannel() or AddPad() method.
         /// All parameters should be configured such as axis-1,2,3, fPosition, fTbToLength from parameter container.
         virtual bool Init() { return true; }
+        virtual bool Init2() { return true; }
+        virtual bool EndOfRun() { return true; }
 
         virtual TCanvas *GetCanvas(Option_t *option = ""); ///< Implementation recommanded for event display.
         virtual void Draw(Option_t *option = ""); ///< Implementation recommanded for event display. Draw event display to the canvas.

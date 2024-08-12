@@ -74,6 +74,16 @@ bool LKDetectorSystem::Init()
     return true;
 }
 
+bool LKDetectorSystem::EndOfRun()
+{
+    bool eor = true;
+    TIter next(this);
+    LKDetector *detector;
+    while ((detector = (LKDetector *) next()))
+        eor = (eor && detector -> EndOfRun());
+    return eor;
+}
+
 TGeoManager *LKDetectorSystem::GetGeoManager() const { return fGeoManager; }
 TGeoVolume *LKDetectorSystem::GetGeoTopVolume() const { return fGeoManager -> GetTopVolume(); }
 void LKDetectorSystem::SetGeoManager(TGeoManager *man)

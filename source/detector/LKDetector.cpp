@@ -47,6 +47,16 @@ bool LKDetector::Init()
     return true;
 }
 
+bool LKDetector::EndOfRun()
+{
+    bool eor = true;
+    TIter next(fDetectorPlaneArray);
+    LKDetectorPlane *plane;
+    while ((plane = (LKDetectorPlane *) next()))
+        eor = (eor && plane -> EndOfRun());
+    return eor;
+}
+
 TGeoManager *LKDetector::GetGeoManager() { return fGeoManager; }
 void LKDetector::SetGeoManager(TGeoManager *man) { fGeoManager = man; }
 
