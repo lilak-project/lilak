@@ -255,6 +255,10 @@ class LKRun : public LKTask
         /// Search and return array of matching files -> run_runNo*.[tag].root
         vector<TString> SearchRunFiles(int runNo, TString tag);
 
+        bool AddDrawing(TObject* drawing, TString label, int i=-1);
+        void PrintDrawings();
+        TObjArray* GetUserDrawingArray() { return fUserDrawingArray; }
+
     protected:
         void ProcessWriteExitLog();
 
@@ -357,6 +361,8 @@ class LKRun : public LKTask
         bool fFillCurrentEvent = true;
 
         TString fExitLogPath;
+
+        TObjArray* fUserDrawingArray = nullptr;
 
     private:
         static LKRun *fInstance;

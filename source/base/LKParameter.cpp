@@ -487,5 +487,8 @@ TString LKParameter::GetLine(TString printOptions) const
     if (showParComments)
         line = line + "  # " + fComment;
 
+    if (IsCommentOut())
+        line = TString("# ") + line;
+
     return line;
 }

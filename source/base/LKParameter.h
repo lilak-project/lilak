@@ -105,14 +105,15 @@ class LKParameter : public TNamed
 
         void SetType(TString type) {
             type.ToLower();
-            if (type[0]=='s'|| type.IsNull()) SetIsStandard();
-            if (type[0]=='l') SetIsLegacy();
-            if (type[0]=='r') SetIsRewrite();
-            if (type[0]=='m') SetIsMultiple();
-            if (type[0]=='t') SetIsTemporary();
-            if (type[0]=='i') SetIsInputFile();
-            if (type[0]=='c') SetIsConditional();
-            if (type[0]=='#'|| type.Index("linecomment")==0) SetIsLineComment();
+            if (type.Index("s")>=0|| type.IsNull()) SetIsStandard();
+            if (type.Index("l")>=0) SetIsLegacy();
+            if (type.Index("r")>=0) SetIsRewrite();
+            if (type.Index("m")>=0) SetIsMultiple();
+            if (type.Index("t")>=0) SetIsTemporary();
+            if (type.Index("i")>=0) SetIsInputFile();
+            if (type.Index("c")>=0) SetIsConditional();
+            if (type.Index("#")>=0|| type.Index("linecomment")==0) SetIsLineComment();
+            if (type.Index("/")>=0) SetIsCommentOut();
         }
 
         void SetIsStandard()    { NotStandard(); fType |= (1<<1); }
@@ -123,6 +124,7 @@ class LKParameter : public TNamed
         void SetIsInputFile()   { NotStandard(); fType |= (1<<6); }
         void SetIsConditional() { NotStandard(); fType |= (1<<7); }
         void SetIsLineComment() { NotStandard(); fType |= (1<<8); }
+        void SetIsCommentOut()  { NotStandard(); fType |= (1<<9); }
 
         bool IsStandard()    const { return ((fType & (1<<1)) != 0); }
         bool IsLegacy()      const { return ((fType & (1<<2)) != 0); }
@@ -132,11 +134,13 @@ class LKParameter : public TNamed
         bool IsInputFile()   const { return ((fType & (1<<6)) != 0); }
         bool IsConditional() const { return ((fType & (1<<7)) != 0); }
         bool IsLineComment() const { return ((fType & (1<<8)) != 0); }
+        bool IsCommentOut()  const { return ((fType & (1<<9)) != 0); }
 
         TString GetTypeHeader() const {
             TString header;
             if      (IsInputFile())   header += "#<";
             else if (IsLineComment()) header += "#";
+            else if (IsCommentOut())  header += "#";
             else {
                 if (IsConditional()) header += "@";
             }

@@ -165,8 +165,8 @@ void LKParameterContainer::ReplaceVariables(TString &valInput)
         else if (parName2=="lilak_home"    ) replaceTo = LILAK_PATH;
         else if (parName2=="lilak_path"    ) replaceTo = LILAK_PATH;
         else if (parName2=="lilak_version" ) replaceTo = LILAK_VERSION;
-        else if (parName2=="lilak_data"    ) replaceTo = TString(LILAK_PATH)+"/data/";
-        else if (parName2=="lilak_common"  ) replaceTo = TString(LILAK_PATH)+"/common/";
+        else if (parName2=="lilak_data"    ) replaceTo = TString(LILAK_PATH)+"/data";
+        else if (parName2=="lilak_common"  ) replaceTo = TString(LILAK_PATH)+"/common";
         else if (parName2.EndsWith("]")) {
             int idx = TString(parName2(parName2.Index("[")+1,parName2.Index("]")-parName2.Index("[")-1)).Atoi();
             parName2 = parName2(0,parName2.Index("["));
@@ -1077,6 +1077,7 @@ void LKParameterContainer::Require(TString name, TString value, TString comment,
 
     auto par = FindParFree(name,false);
     if (par!=nullptr) {
+        type.ReplaceAll("/","");
         if (!type.IsNull()) par -> SetType(type);
         if (compare>=0) par -> SetCompare(compare);
     }
