@@ -1145,6 +1145,7 @@ LKParameter *LKParameterContainer::FindParFree(TString givenName, bool terminate
 
     TIter iterator(this);
     LKParameter *parameter = nullptr;
+    LKParameter *parameterFound = nullptr;
     bool parameterIsFound = false;
     while ((parameter = dynamic_cast<LKParameter*>(iterator())))
     {
@@ -1156,12 +1157,14 @@ LKParameter *LKParameterContainer::FindParFree(TString givenName, bool terminate
                 auto mainName = parameter -> GetMainName();
                 if (mainName==justName) {
                     parameterIsFound = true;
-                    break;
+                    parameterFound = parameter;
+                    //break;
                 }
             }
             else if (parName==justName) {
                 parameterIsFound = true;
-                break;
+                parameterFound = parameter;
+                //break;
             }
         }
     }
@@ -1169,13 +1172,13 @@ LKParameter *LKParameterContainer::FindParFree(TString givenName, bool terminate
     if (fParameterCollectionMode && fCollectedParameterContainer->FindPar(givenName)==nullptr)
     {
         if (parameterIsFound)
-            fCollectedParameterContainer -> AddLine(Form("%s",parameter->GetLine().Data()));
+            fCollectedParameterContainer -> AddLine(Form("%s",parameterFound->GetLine().Data()));
         else
             fCollectedParameterContainer -> AddLine(Form("%s",givenName.Data()));
     }
 
     if (parameterIsFound)
-        return parameter;
+        return parameterFound;
 
     if (terminateIfNull) {
         lk_error << "parameter " << justName << " does not exist!" << endl;

@@ -791,11 +791,11 @@ LKLinearTrack* LKHTLineTracker::FitTrack3DWithParamPoint(LKParamPointRT* paramPo
 
     TIter next(fSelectedHitArray);
     LKHit *hit = nullptr;
-    while (hit = (LKHit *) next())
+    while ((hit = (LKHit *) next()))
         fLineFitter -> PreAddPoint(hit->X(),hit->Y(),hit->Z(),hit->WeightPositionError());
 
     next.Reset();
-    while (hit = (LKHit *) next())
+    while ((hit = (LKHit *) next()))
         fLineFitter -> AddPoint(hit->X(),hit->Y(),hit->Z(),hit->WeightPositionError());
 
     if (fLineFitter->GetNumPoints()<fCutNumTrackHits) {

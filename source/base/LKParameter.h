@@ -2,6 +2,7 @@
 #define LKPARAMETER_HH
 
 #include <vector>
+#include <bitset>
 #include "TNamed.h"
 #include "TVector3.h"
 #include "LKVector3.h"
@@ -100,8 +101,15 @@ class LKParameter : public TNamed
         int fCompare = 99; //!
 
      public:
-        void NotStandard() { fType &= (1<<1); }
+        void NotStandard() { fType &= ~(1<<1); }
         void ResetType() { fType = 0; }
+
+        TString GetTypeBinaryString() const {
+            std::bitset<32> bits(fType); // Use 32 bits for the binary representation
+            std::string binaryString = bits.to_string();
+            binaryString = binaryString.substr(binaryString.size() - 10);
+            return TString(binaryString);
+        }
 
         void SetType(TString type) {
             type.ToLower();
@@ -112,7 +120,7 @@ class LKParameter : public TNamed
             if (type.Index("t")>=0) SetIsTemporary();
             if (type.Index("i")>=0) SetIsInputFile();
             if (type.Index("c")>=0) SetIsConditional();
-            if (type.Index("#")>=0|| type.Index("linecomment")==0) SetIsLineComment();
+            if (type.Index("#")>=0) SetIsLineComment();
             if (type.Index("/")>=0) SetIsCommentOut();
         }
 

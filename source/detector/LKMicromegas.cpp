@@ -318,7 +318,7 @@ void LKMicromegas::FillDataToHistEventDisplay2(Option_t *option)
         title = "Hit";
         TIter nextHit(fHitArray);
         LKHit* hit = nullptr;
-        while (hit = (LKHit*) nextHit())
+        while ((hit = (LKHit*) nextHit()))
         {
             auto pos = hit -> GetPosition(fAxisDrift);
             auto i = pos.I();
@@ -341,7 +341,7 @@ void LKMicromegas::FillDataToHistEventDisplay2(Option_t *option)
         title = "Raw Data";
         TIter nextPad(fChannelArray);
         LKPad *pad = nullptr;
-        while (pad = (LKPad*) nextPad())
+        while ((pad = (LKPad*) nextPad()))
         {
             auto iz = pad -> GetI();
             auto ix = pad -> GetJ();

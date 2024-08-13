@@ -36,7 +36,7 @@ const char* LKSiDetector::GetTitle() const
     if (fNumSides==1) {
         TString ttlJ = "";
         if (fNumJunctionUD==2) ttlJ = " (U/D)";
-        return Form("%s Idx(%d) ID(%d), single side detector with %d strips%s" + ttlJ,GetTitleType(),fDetIndex,fDetID,fNumJunctionStrips,ttlJ.Data());
+        return Form("%s Idx(%d) ID(%d), single side detector with %d strips%s" + ttlJ,GetTitleType().Data(),fDetIndex,fDetID,fNumJunctionStrips,ttlJ.Data());
     }
     //else if (fNumSides==2)
     //{
@@ -44,7 +44,7 @@ const char* LKSiDetector::GetTitle() const
         TString ttlO = "";
         if (fNumJunctionUD==2) ttlJ = " (U/D)";
         if (fNumOhmicLR==2) ttlO = " (L/R)";
-        return Form("%s Idx(%d) ID(%d), junction %d strips%s, ohmic %d strips%s" + ttlJ,GetTitleType(),fDetIndex,fDetID,fNumJunctionStrips,ttlJ.Data(),fNumOhmicStrips,ttlO.Data());
+        return Form("%s Idx(%d) ID(%d), junction %d strips%s, ohmic %d strips%s" + ttlJ,GetTitleType().Data(),fDetIndex,fDetID,fNumJunctionStrips,ttlJ.Data(),fNumOhmicStrips,ttlO.Data());
     //}
 }
 

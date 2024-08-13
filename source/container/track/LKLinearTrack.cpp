@@ -28,7 +28,7 @@ void LKLinearTrack::CopyFrom(LKLinearTrack *track)
 {
     TIter nextHit(track->GetHitArray());
     LKHit* hit;
-    while (hit = (LKHit*) nextHit())
+    while ((hit = (LKHit*) nextHit()))
         fHitArray.AddHit(hit);
 
     for (auto id : *track->GetHitIDArray())
