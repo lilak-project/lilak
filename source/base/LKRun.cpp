@@ -1146,9 +1146,8 @@ TClonesArray *LKRun::KeepBranchA(TString name) {
     TClonesArray* dataContainer = GetBranchA(name);
     if (fOutputTree!=nullptr) {
         if (fOutputTree -> GetBranch(name)==nullptr) {
-            return (TClonesArray*) nullptr;
-            //lk_info << "Keep branch " << name << endl;
-            //fOutputTree -> Branch(name, dataContainer, 32000, 0);
+            lk_info << "Keep branch " << name << endl;
+            fOutputTree -> Branch(name, dataContainer, 32000, 0);
             //if (dataContainer -> InheritsFrom(TClonesArray::Class())) {
             //    fOutputTree -> Branch(name, dataContainer, 32000, 0);
             //}
