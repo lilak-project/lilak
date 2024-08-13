@@ -1,21 +1,19 @@
 {
-    SysInfo_t info;
-    gSystem -> GetSysInfo(&info);
-    TString osString = info.fOS;
+    TString libString = TString(gSystem->Getenv("LILAK_PATH"))+"/build/libLILAK";
+    int loadv = gSystem -> Load(libString);
+    if      (loadv== 0) cout << "LILAK" << endl;
+    else if (loadv== 1) cout << "LILAK (already loaded)" << endl;
+    else if (loadv==-1) cout << "ERROR: Cannot Load LILAK from " << libString << endl;
+    else if (loadv==-2) cout << "ERROR: LILAK version miss match!" << libString << endl;
 
-    TString libString;
-    if (osString.Index("Darwin") >= 0)
-        libString = TString(gSystem -> Getenv("LILAK_PATH")) + "/build/libLILAK.dylib";
-    else if (osString.Index("Linux") >= 0)
-        libString = TString(gSystem -> Getenv("LILAK_PATH")) + "/build/libLILAK.so";
-
-    if (gSystem -> Load(libString) != -1)
-        cout << "LILAK" << endl;
-    else
-        cout << "Cannot Load LILAK" << endl;
-
-    ifstream readme("README");
-    string line;
-    while (getline(readme, line))
-        cout << line << endl;
+    for (TString fileName : {"README.lilak","readme.lilak"})
+    {
+        string line;
+        ifstream readme(fileName);
+        if (readme.is_open()) {
+            while (getline(readme, line))
+                cout << line << endl;
+            break;
+        }
+    }
 }
