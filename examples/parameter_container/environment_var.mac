@@ -1,0 +1,8 @@
+default_type D
+type e{TYPE}
+@-type/type {default_type}
+
+@A/LKRun/RunIDRange 0, 10 # if type is set to A
+@B/LKRun/RunIDRange 11, 37 # if type is set to B
+@C/LKRun/RunIDRange 38, 52 # if type is set to C
+@D/LKRun/RunIDRange 100, 200 # if type is set to C

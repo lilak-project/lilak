@@ -1,0 +1,6 @@
+#####################################################################################################
+root collect_parameters.C           # collect parameters from tasks
+root read_parameters.C              # to read example.mac
+root clone_parameters.C             # to clone example.mac and create example_clone.mac
+root parameter_referencing.C        # to see example of referencing parameters in user_parameters.mac
+root read_parameters_with_env_var.C # to see how to use environment variable as parameter

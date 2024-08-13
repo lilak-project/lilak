@@ -1,5 +1,3 @@
-#include "LKWindowManager.h"
-
 void parameter_referencing()
 {
     auto par = new LKParameterContainer("user_parameters.mac");

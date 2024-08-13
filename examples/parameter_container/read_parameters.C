@@ -12,8 +12,8 @@ void read_parameters()
     e_info << "LKHTTrackingTask/transform_ct =" << endl;
     center.Print();
 
-    bool draw = parc -> GetParBool("LKEveTask/drawPlane");
-    e_info << "LKEveTask/drawPlane = " << draw << endl; 
+    //bool draw = parc -> GetParBool("LKEveTask/drawPlane");
+    //e_info << "LKEveTask/drawPlane = " << draw << endl;
 
     bool exist = parc -> CheckPar("NON_EXISTING_PARAMETER");
     e_info << "check NON_EXISTING_PARAMETER: " << exist << endl;
