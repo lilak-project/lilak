@@ -121,6 +121,8 @@ class LKRun : public LKTask
 
         void AddParAfter(TString fname) { fParAddAfter = fname; }
 
+        void SetLILAKRun() { fIsLILAKRun = true; }
+
         /**
          * Initailize LKRun.
          * Configure input and output files(trees and branches), input parameters and detectors
@@ -174,6 +176,8 @@ class LKRun : public LKTask
         TClonesArray *KeepBranchA(TString name);
         Int_t GetNumBranches() const { return fCountBranches; }
 
+        void Add(LKDetector *detector) { AddDetector(detector); }
+        void Add(LKDetectorPlane *plane) { ; }
         void AddDetector(LKDetector *detector); ///< Set detector
         LKDetector *GetDetector(Int_t idx=0) const;
         LKDetectorSystem *GetDetectorSystem() const;
@@ -363,6 +367,8 @@ class LKRun : public LKTask
         TString fExitLogPath;
 
         TObjArray* fUserDrawingArray = nullptr;
+
+        bool fIsLILAKRun = false;
 
     private:
         static LKRun *fInstance;

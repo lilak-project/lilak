@@ -16,6 +16,7 @@
 #include "TSystemFile.h"
 
 #include "LKRun.h"
+#include "LKClassFactory.h"
 
 ClassImp(LKRun)
 
@@ -557,7 +558,44 @@ bool LKRun::Init()
         return false;
     }
 
+    TString printAfterInit = "";
+    Long64_t runAfterInit = -1;
+    Long64_t exeAfterInit = -1;
+    TString collecteParAndPrintTo = "";
+    if (fIsLILAKRun)
+    {
+        LKClassFactory classFactory(this);
+        auto lilakPar = fPar -> CreateGroupContainer("lilak");
+        TIter nextAdd(lilakPar->CreateMultiParContainer("add"));
+        LKParameter* parameter;
+        while ((parameter=(LKParameter*)nextAdd()))
+            classFactory.Add(parameter->GetString());
+        if (lilakPar->CheckPar("run")) {
+            runAfterInit = lilakPar -> GetParLong("run");
+            //runAfterInit = lilakPar -> GetParLong("run",0);
+            //if (lilakPar->GetParN("run")>1) lilakPar -> UpdatePar(fEventCountForMessage,"run",1);
+        }
+        else if (lilakPar->CheckPar("execute"))
+            exeAfterInit = lilakPar -> GetParLong("execute");
+        if (lilakPar->CheckPar("print")) {
+            printAfterInit = lilakPar -> GetParString("print");
+            if (printAfterInit.IsNull())
+                printAfterInit = "all";
+        }
+        if (lilakPar->CheckPar("collect_par")) {
+            collecteParAndPrintTo = lilakPar -> GetParString("collect_par");
+            if (collecteParAndPrintTo.IsNull()) collecteParAndPrintTo = "print";
+            fPar -> SetCollectParameters(true);
+        }
+    }
+
     int countParOrder = 1;
+    fPar -> Require("lilak/add",          "LKTask",         "add task or detector class", "t/", countParOrder++);
+    fPar -> Require("lilak/print",        "all",            "print after init gen:par:out:in:det:task", "t/", countParOrder++);
+    fPar -> Require("lilak/collect_par",  "print",          "file name to write collected parameters. 'print' to print out on screen", "t/", countParOrder++);
+    fPar -> Require("lilak/run",          "0",              "run [no] after init. Execute all events if [no] is 0", "t/", countParOrder++);
+    fPar -> Require("lilak/execute",      "0",              "execute event [no] after init", "t/", countParOrder++);
+
     fPar -> Require("LKRun/Name",         "run",            "name of the run", "",  countParOrder++);
     fPar -> Require("LKRun/RunID",        0,                "run number",      "",  countParOrder++);
     fPar -> Require("LKRun/Tag",          "tag",            "tag",             "t", countParOrder++);
@@ -976,9 +1014,26 @@ bool LKRun::Init()
 
     fPar -> UpdatePar(fEventCountForMessage,"LKRun/EventCountForMessage 20000");
 
-    if (fInitialized) {
-        lk_info << "Initialized!" << endl;
-        return fInitialized;
+    lk_info << "Initialized!" << endl;
+
+    if (!collecteParAndPrintTo.IsNull()) {
+        fPar -> PrintCollection(collecteParAndPrintTo);
+        fPar -> SetCollectParameters(false);
+    }
+
+    if (!printAfterInit.IsNull())
+        Print(printAfterInit);
+
+    if (runAfterInit>=0)
+    {
+        Run(runAfterInit);
+        return true;
+    }
+
+    else if (exeAfterInit>=0)
+    {
+        ExecuteEvent(exeAfterInit);
+        return true;
     }
 
     return fInitialized;
@@ -1357,6 +1412,7 @@ bool LKRun::ExecuteEvent(Long64_t eventID)
     else {
         fCurrentEventID = eventID;
     }
+
 
     if (numEntriesMatter)
     {

@@ -404,6 +404,103 @@ if lilak_path_is_set == False:
     print()
     os.environ["LILAK_PATH"] = lilak_path
 
+#####################################################################
+if True:
+    add_class_lines = ""
+    include_lines = ""
+    list_of_classes = []
+
+    # Predefined list of directories to search within
+    search_list = project_list
+    search_list.append("source")
+
+    # Function to scan directories and collect class names
+    def scan_directories(base_path, directories):
+        for directory in directories:
+            dir_path = os.path.join(base_path, directory)
+            for root, dirs, files in os.walk(dir_path):
+                for file in files:
+                    if file.endswith(".h"):
+                        class_name = file[:-2]  # Remove the '.h' extension to get the class name
+                        source_file = f"{class_name}.cpp"
+                        # Check if the corresponding source file exists in the same directory
+                        if source_file in files:
+                            relative_path = os.path.relpath(root, lilak_path)
+                            # Add the class name and its relative path to the list
+                            list_of_classes.append((class_name, relative_path))
+                            relative_path = os.path.relpath(root, lilak_path)
+
+    # Scan the directories in project_list
+    scan_directories(lilak_path, search_list)
+
+    # Sort the list of classes by the length of the class name
+    list_of_classes.sort(key=lambda x: len(x[0]))
+
+    # List of keywords to exclude
+    exclude_name = ["LKDetectorSystem"]
+    exclude_path = ["zzz", "temp", "figures", "data"]
+    include_path = ["detector", "task"]
+
+    # Construct the lines for adding classes and including headers
+    for class_name, path_name in list_of_classes:
+        if any(keyword in path_name for keyword in exclude_path):
+            continue
+
+        if any(keyword in class_name for keyword in exclude_name):
+            continue
+
+        if any(keyword in path_name for keyword in include_path):
+            #print(class_name, path_name)
+            if not add_class_lines: add_class_lines  = f'    if      (name=="{class_name}") {{ e_info << "Adding {class_name}" << endl; fRun -> Add(new {class_name}); }}\n'
+            else:                   add_class_lines += f'    else if (name=="{class_name}") {{ e_info << "Adding {class_name}" << endl; fRun -> Add(new {class_name}); }}\n'
+            include_lines += f'#include "{class_name}.h"\n'
+    add_class_lines += f'    else {{ e_warning << "Class {class_name} is not in the class factory!" << endl; }}\n'
+
+    # Create the source file content
+    source_content = f"""#include "LKClassFactory.h"
+#include "LKRun.h"
+
+
+{include_lines}
+void LKClassFactory::Add(TString name)
+{{
+{add_class_lines}}}
+"""
+
+    # Create the header file content
+    header_content = """#ifndef LKCLASSFACTORY_HH
+#define LKCLASSFACTORY_HH
+
+#include "TString.h"
+#include "LKLogger.h"
+
+class LKRun;
+
+class LKClassFactory
+{
+    public:
+        LKClassFactory(LKRun* run) { fRun = run; }
+        virtual ~LKClassFactory() {}
+
+        void Add(TString name);
+
+        LKRun* fRun;
+};
+
+#endif
+"""
+
+    # Write the source and header files
+    source_file_path = os.path.join(lilak_path, "source/base/LKClassFactory.cpp")
+    header_file_path = os.path.join(lilak_path, "source/base/LKClassFactory.h")
+
+    with open(source_file_path, 'w') as source_file: print(source_content, file=source_file)
+    with open(header_file_path, 'w') as header_file: print(header_content, file=header_file)
+
+    print(source_file_path)
+    print(header_file_path)
+
+#####################################################################
 original_directory = os.getcwd()
 if not os.path.exists(f'{lilak_path}/build'): os.makedirs(f'{lilak_path}/build')
 os.chdir(f'{lilak_path}/build')
@@ -411,6 +508,7 @@ os.system('cmake ..')
 os.system('make -j4')
 os.chdir(f'{original_directory}')
 
+#####################################################################
 if True:
     lilak_sh_content = f"""#!/bin/bash
 
@@ -445,7 +543,7 @@ update_git_repos() {{
 # Define the lilak function
 lilak() {{
     if [ -z "$1" ]; then
-        echo "Usage: lilak {{home|build|clean-build|update|example|list-project|doc|find|github}} [input]"
+        echo "Usage: lilak {{home|build|clean-build|update|example|list-project|doc|find|run|github}} [input]"
         echo
         echo "Commands:"
         echo "  home               Navigate to the lilak home directory."
@@ -456,6 +554,7 @@ lilak() {{
         echo "  list-project       List projects that are being compiled together."
         echo "  doc [input]        Print the reference link to the class documentation."
         echo "  find [input]       Find and navigate to the directory containing files with the specified input term, and print the path."
+        echo "  run [input]        Execute the ROOT script with the provided input."
         echo "  github             Print the GitHub URL of the lilak project."
         echo
         echo "Project commands:"
@@ -533,6 +632,13 @@ lilak() {{
                 fi
             fi
             ;;
+        run)
+            if [ -z "$2" ]; then
+                echo "Error: Please provide the input for the ROOT script."
+            else
+                root -l '{lilak_path}/macros/run_lilak.C("'"$2"'")'
+            fi
+            ;;
         github)
             echo "https://github.com/lilak-project"
             ;;
@@ -558,10 +664,12 @@ _lilak_completions() {{
     local curr_word prev_word
     curr_word="${{COMP_WORDS[COMP_CWORD]}}"
     prev_word="${{COMP_WORDS[COMP_CWORD-1]}}"
-    local commands="home build clean-build update example list-project doc find github {" ".join(project_list)}"
+    local commands="home build clean-build update example list-project doc find run github {" ".join(project_list)}"
 
     if [[ ${{COMP_CWORD}} == 1 ]]; then
         COMPREPLY=( $(compgen -W "${{commands}}" -- "${{curr_word}}") )
+    elif [[ $prev_word == "run" ]]; then
+        COMPREPLY=( $(compgen -f "${{curr_word}}") )
     fi
 
     return 0
@@ -571,7 +679,7 @@ _lilak_completions() {{
 complete -F _lilak_completions lilak
 
 # Optional: Add a message to confirm the script is sourced correctly
-echo "LILAK environment setup complete. Use 'lilak {{home|build|clean-build|update|example|list-project|doc|find|github}} [input]' to run commands."
+echo "LILAK is set. Use 'lilak {{home|build|clean-build|update|example|list-project|doc|find|run|github}}'"
 """
 
     # Path to the lilak.sh file

@@ -1271,7 +1271,7 @@ void LKParameterContainer::SetCollectParameters(bool collect)
 void LKParameterContainer::PrintCollection(TString fileName)
 {
     fCollectedParameterContainer -> Sort();
-    if (fileName.IsNull())
+    if (fileName.IsNull() || fileName=="print")
         fCollectedParameterContainer -> Print("!eval line# par# !idx");
     else
         fCollectedParameterContainer -> SaveAs(fileName);
