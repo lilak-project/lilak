@@ -1026,7 +1026,8 @@ bool LKRun::Init()
 
     if (runAfterInit>=0)
     {
-        Run(runAfterInit);
+        if (runAfterInit==0) Run();
+        else Run(runAfterInit);
         return true;
     }
 
