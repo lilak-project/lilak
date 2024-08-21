@@ -1,4 +1,4 @@
-#include "LKWindowManager.h"
+#include "LKPainter.h"
 
 LKChannelAnalyzer* ana1 = nullptr;
 LKChannelAnalyzer* ana2 = nullptr;
@@ -17,7 +17,7 @@ void next_example()
 
     if (1) {
         ana1 -> Analyze(hist);
-        if (cvs1==nullptr) cvs1 = lk_cvs("cvsPulseFit");
+        if (cvs1==nullptr) cvs1 = e_cvs("cvsPulseFit");
         cvs1 -> cd();
         ana1 -> Draw();
         cout << endl;
@@ -31,7 +31,7 @@ void next_example()
 
     if (1) {
         ana2 -> Analyze(hist);
-        if (cvs2==nullptr) cvs2 = lk_cvs("cvsSigAtMax");
+        if (cvs2==nullptr) cvs2 = e_cvs("cvsSigAtMax");
         cvs2 -> cd();
         ana2 -> Draw();
         cout << endl;
@@ -40,7 +40,7 @@ void next_example()
 
     if (1) {
         ana3 -> Analyze(hist);
-        if (cvs3==nullptr) cvs3 = lk_cvs("cvsSigAtThr");
+        if (cvs3==nullptr) cvs3 = e_cvs("cvsSigAtThr");
         cvs3 -> cd();
         ana3 -> Draw();
         cout << endl;
