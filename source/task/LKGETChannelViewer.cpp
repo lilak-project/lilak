@@ -53,6 +53,11 @@ bool LKGETChannelViewer::Init()
     fPar -> UpdatePar(fNumAget,"LKGETChannelViewer/MaxAget  4");
     fPar -> UpdatePar(fNumChan,"LKGETChannelViewer/MaxChan  68");
 
+    fPar -> UpdatePar(fSelCobo,"LKGETChannelViewer/SelCobo  0");
+    fPar -> UpdatePar(fSelAsad,"LKGETChannelViewer/SelAsad  0");
+    fPar -> UpdatePar(fSelAget,"LKGETChannelViewer/SelAget  0");
+    fPar -> UpdatePar(fSelChan,"LKGETChannelViewer/SelChan  0");
+
     if (fNumChan>12*15) { fNXCN = 15; fNYCN = 15; }
     if (fNumChan>12*12) { fNXCN = 12; fNYCN = 15; }
     if (fNumChan>10*12) { fNXCN = 12; fNYCN = 12; }
