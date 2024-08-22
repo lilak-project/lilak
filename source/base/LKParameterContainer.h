@@ -144,6 +144,7 @@ class LKParameterContainer : public TObjArray
         void Recompile();
 
         bool IsEmpty() const; ///< Return true if empty
+        int  FindAndRetrieveColumnValue(TString fileName, int searchColumn, TString searchValue, int getColumn, TString &getValue);
         void ReplaceEnvVariables(TString &val); ///< evaluate and replace all unraveled variables with ({par},+,-,...)
         void ReplaceVariables(TString &val); ///< evaluate and replace all unraveled variables with ({par},+,-,...)
 

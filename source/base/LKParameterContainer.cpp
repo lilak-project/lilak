@@ -96,28 +96,91 @@ bool LKParameterContainer::IsEmpty() const
     return true;
 }
 
-void LKParameterContainer::ReplaceEnvVariables(TString &valInput)
+int LKParameterContainer::FindAndRetrieveColumnValue(TString fileName, int searchColumn, TString searchValue, int getColumn, TString &getValue)
 {
-    int ienv = valInput.Index("e{");
-    while (ienv>=0) {
-        int fenv = valInput.Index("}",1,ienv,TString::kExact);
+    std::ifstream file(fileName.Data());
 
-        TString replaceFrom = TString(valInput(ienv+2,fenv-ienv-2));
-        TString replaceFrom2 = replaceFrom;
-        replaceFrom2.ToLower();
-        TString replaceTo;
-        replaceTo = getenv(replaceFrom);
-
-        valInput.Replace(ienv,fenv-ienv+1,replaceTo);
-        ienv = valInput.Index("e{");
+    if (!file.is_open()) {
+        lk_error << "Could not open file " << fileName << std::endl;
+        return 1;
     }
 
-    if (valInput[0] == '$') {
-        TString env = valInput;
-        Ssiz_t nenv = env.First("/");
-        env.Resize(nenv);
-        env.Remove(0,1);
-        valInput.Replace(0, nenv+1, getenv(env));
+    TString line;
+    while (line.ReadLine(file)) {
+        std::vector<TString> columns;
+        std::istringstream stream(line.Data());
+        TString token;
+
+        while (true) {
+            if (stream.eof()) break;
+            stream >> token;
+            columns.push_back(token);
+        }
+
+        if (searchColumn >= columns.size() || getColumn >= columns.size()) {
+            lk_error << "Column index out of bounds" << std::endl;
+            return 2;
+        }
+
+        if (columns[searchColumn] == searchValue) {
+            getValue = columns[getColumn];
+            return 0;
+        }
+    }
+
+    return 3;
+}
+
+void LKParameterContainer::ReplaceEnvVariables(TString &valInput)
+{
+    int trySpTypes[] = {0,1};
+    int isp = INT_MAX;
+    int type = -1;
+    int idx = 0;
+
+    while (true)
+    {
+        isp = INT_MAX;
+        type = -1;
+        for (int trySpType : trySpTypes)
+        {
+            if      (trySpType==0) idx = valInput.Index( "e{");
+            else if (trySpType==1) idx = valInput.Index("cv{");
+            if (idx>=0 && idx<isp) {
+                isp = idx;
+                type = trySpType;
+            }
+        }
+        if (isp==INT_MAX)
+            break;
+
+        int fsp = valInput.Index("}",1,isp,TString::kExact);
+
+        if (type==0)
+        {
+            TString replaceFrom = TString(valInput(isp+2,fsp-isp-2));
+            TString replaceFrom2 = replaceFrom;
+            replaceFrom2.ToLower();
+            TString replaceTo;
+            replaceTo = getenv(replaceFrom);
+            valInput.Replace(isp,fsp-isp+1,replaceTo);
+        }
+        else if (type==1)
+        {
+            int isp1 = valInput.Index("{",1,isp+3,TString::kExact);
+            while (isp1>=0 && isp1<fsp)
+            {
+                TString replaceFrom = TString(valInput(isp1+2,fsp-isp1-2));
+                TString replaceFrom2 = replaceFrom;
+                replaceFrom2.ToLower();
+                TString replaceTo;
+                replaceTo = getenv(replaceFrom);
+                valInput.Replace(isp1,fsp-isp1+1,replaceTo);
+                fsp = valInput.Index("}",1,isp+3,TString::kExact);
+                isp1 = valInput.Index("{",1,isp+3,TString::kExact);
+            }
+            valInput.Replace(isp,fsp-isp+1,"lk");
+        }
     }
 }
 

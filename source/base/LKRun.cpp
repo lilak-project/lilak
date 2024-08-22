@@ -901,7 +901,7 @@ bool LKRun::Init()
         fOutputFileName.ReplaceAll("//","/");
         lk_info << "Output file : " << fOutputFileName << endl;
         bool updateOutputFile = false;
-        fPar -> UpdatePar(updateOutputFile,"LKRun/UpdateOuputFile");
+        fPar -> UpdatePar(updateOutputFile,"LKRun/UpdateOutputFile");
         if (updateOutputFile)
         {
             lk_info << "Updating existing file" << endl;
@@ -1012,7 +1012,11 @@ bool LKRun::Init()
     fPar -> UpdatePar(fAutoTerminate,"LKRun/AutoTerminate true # automatically terminate root after end of run");
     fPar -> Sort();
 
-    fPar -> UpdatePar(fEventCountForMessage,"LKRun/EventCountForMessage 20000");
+    if (fPar -> CheckPar("LKRun/EventCountForMessage"))
+    {
+        fPar -> UpdatePar(fEventCountForMessage,"LKRun/EventCountForMessage");
+        lk_info << "Event count for message = " << fEventCountForMessage << endl;
+    }
 
     lk_info << "Initialized!" << endl;
 
