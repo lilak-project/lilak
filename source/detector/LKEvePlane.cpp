@@ -40,11 +40,6 @@ LKChannelAnalyzer* LKEvePlane::GetChannelAnalyzer(int id)
         //fChannelAnalyzer -> Print();
     }
 
-    fPar -> UpdatePar(fFillOptionSelected, fName+"/fillOption hit");
-    fPar -> UpdatePar(fSkipToEnergy , fName+"/skipToEnergy  500");
-    fPar -> UpdatePar(fJumpEventSize, fName+"/jumpEventSize 2000");
-    fFillOptionSelected.ToLower();
-
     return fChannelAnalyzer;
 }
 
@@ -62,7 +57,18 @@ bool LKEvePlane::Init()
 {
     GetChannelAnalyzer();
 
+    fPar -> Require(fName+"/FigurePath",".","path to save figues","t/");
+    fPar -> Require(fName+"/fillOption","hit","fill option to fill detector histogram","t/");
+    fPar -> Require(fName+"/skipToEnergy","500","energy to reference when, button(skip to event containing channel with pulse height>energy) is clicked","t/");
+    fPar -> Require(fName+"/jumpEventSize","2000","jump event value amount when jump event button is clicked","t/");
+    fPar -> Require(fName+"/EventCountForMessage","2000","event count for message at event accumulation","t/");
+
     fPar -> UpdatePar(fSavePath,fName+"/FigurePath .");
+    fPar -> UpdatePar(fFillOptionSelected, fName+"/fillOption hit");
+    fPar -> UpdatePar(fSkipToEnergy , fName+"/skipToEnergy  500");
+    fPar -> UpdatePar(fJumpEventSize, fName+"/jumpEventSize 2000");
+    fPar -> UpdatePar(fECMForAccumulation, fName+"/EventCountForMessage 2000");
+    fFillOptionSelected.ToLower();
 
     fPosition = 0;
     fTbToLength = 1;
@@ -958,8 +964,9 @@ void LKEvePlane::ClickedControlEvent1(int selectedBin)
             //SetActive(false);
             fJustFill = true;
             auto ecm = fRun -> GetEventCountForMessage();
+            lk_debug << ecm << endl;
             //if (fAllowControlLogger) fRun -> SetAllowControlLogger(false);
-            if (fAllowControlLogger) fRun -> SetEventCountForMessage(20000);
+            if (fAllowControlLogger) fRun -> SetEventCountForMessage(fECMForAccumulation);
             if (fAllowControlLogger) lk_set_message(false);
             for (Long64_t eventID=currentEventID+1; eventID<=testEventTo; ++eventID) {
                 fRun -> ExecuteNextEvent();

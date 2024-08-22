@@ -199,6 +199,8 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         int fSkipToEnergy = 500;
         int fJumpEventSize = 2000;
 
+        int fECMForAccumulation = 2000;
+
     protected:
         bool UpdateFlag[20];
         int kUpdateEventDisplay1 = 1;
