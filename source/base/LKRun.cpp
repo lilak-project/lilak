@@ -1699,7 +1699,18 @@ vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchOption)
         }
     }
 
-    sort(matchingFiles.begin(),matchingFiles.end());
+    if (searchOption=="mfm")
+    {
+        auto customComparator = [](const TString &a, const TString &b) {
+            if (a[a.Length()-1]=='s') return true;
+            if (b[b.Length()-1]=='s') return false;
+            TString fileNumberA = a(a.Last('.') + 1, a.Length());
+            TString fileNumberB = b(b.Last('.') + 1, b.Length());
+            return std::stoi(fileNumberA.Data()) < std::stoi(fileNumberB.Data());
+        };
+
+        sort(matchingFiles.begin(),matchingFiles.end(),customComparator);
+    }
 
     for (auto file : matchingFiles)
         lk_info << "Found " << file << endl;
