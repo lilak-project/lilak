@@ -28,6 +28,8 @@ class LKPainter : public TObject
         UInt_t GetWCurrentDisplay() const  { return fWCurrentDisplay; }
         UInt_t GetHCurrentDisplay() const  { return fHCurrentDisplay; }
 
+        double GetResizeFactor() const { return fResizeFactor; }
+
         void SetDeadFrameLeft  (UInt_t val);
         void SetDeadFrameRight (UInt_t val);
         void SetDeadFrameBottom(UInt_t val);
@@ -55,11 +57,16 @@ class LKPainter : public TObject
          * mode = 2 (kSquare)     : square canvas.
          * mode = 3 (kResize)     : resize canvas from given w,h = (value1, value2) to show similar scale in the current display.
          */
-        TCanvas *Canvas          (TString name="cvs_lilak", Int_t mode=0, double value1=1, double value2=-1, double value3=-1);
+        TCanvas *Canvas          (TString name="cvs_lilak", int mode=0, double value1=1, double value2=-1, double value3=-1);
         TCanvas *CanvasDefault   (TString name="cvs_lilak", double ratio=1);
         TCanvas *CanvasFull      (TString name="cvs_lilak", double ratio=1, double ratio2=-1);
         TCanvas *CanvasSquare    (TString name="cvs_lilak", double ratio=1);
-        TCanvas *CanvasResize    (TString name, Int_t width0, int height0, double ratio=-1);
+        TCanvas *CanvasResize    (TString name, int width0, int height0, double ratio=-1);
+
+        void GetSizeDefault  (int &width, int &height, double ratio=1);
+        void GetSizeFull     (int &width, int &height, double ratio=1, double ratio2=-1);
+        void GetSizeSquare   (int &width, int &height, double ratio=1);
+        void GetSizeResize   (int &width, int &height, int width0, int height0, double ratio=-1);
 
         const int kDefault    = 0;
         const int kFull       = 1;

@@ -149,46 +149,36 @@ TCanvas *LKPainter::NewCanvas(TString name, TString title, int x, int y, int wid
     return cvs;
 }
 
-TCanvas *LKPainter::CanvasDefault(TString name, double ratio)
+void LKPainter::GetSizeDefault(int &width, int &height, double ratio)
 {
     ratio = SetRatio(ratio);
-    int width  = ratio*fWDefault;
-    int height = ratio*fHDefault;
-    UpdateNextCanvasPosition();
-    auto cvs = NewCanvas(name,name, fXCurrentCanvas, fYCurrentCanvas, width, height);
-    return cvs;
+    width  = ratio*fWDefault;
+    height = ratio*fHDefault;
 }
 
-TCanvas *LKPainter::CanvasFull(TString name, double ratio1, double ratio2)
+void LKPainter::GetSizeFull(int &width, int &height, double ratio1, double ratio2)
 {
     if (ratio1<0) ratio1 = 1;
     if (ratio1>0 && ratio2<0) ratio2 = ratio1;
     ratio1 = SetRatio(ratio1);
     ratio2 = SetRatio(ratio2);
-    int width  = ratio1*fWCurrentDisplay;
-    int height = ratio2*fHCurrentDisplay;
-    UpdateNextCanvasPosition();
-    auto cvs = NewCanvas(name,name, fXCurrentCanvas, fYCurrentCanvas, width, height);
-    return cvs;
+    width  = ratio1*fWCurrentDisplay;
+    height = ratio2*fHCurrentDisplay;
 }
 
-TCanvas *LKPainter::CanvasSquare(TString name, double ratio)
+void LKPainter::GetSizeSquare(int &width, int &height, double ratio)
 {
     ratio = SetRatio(ratio);
-    int width  = ratio*fWCurrentDisplay;
-    int height = ratio*fHCurrentDisplay;
+    width  = ratio*fWCurrentDisplay;
+    height = ratio*fHCurrentDisplay;
     if (width<height) height = width;
     else width = height;
-    UpdateNextCanvasPosition();
-    auto cvs = NewCanvas(name,name, fXCurrentCanvas, fYCurrentCanvas, width, height);
-    return cvs;
 }
 
-TCanvas *LKPainter::CanvasResize(TString name, int width0, int height0, double ratio)
+void LKPainter::GetSizeResize(int &width, int &height, int width0, int height0, double ratio)
 {
     if (ratio<0)
     ratio = SetRatio(ratio,fResizeFactor);
-    int width, height;
     if (double(fWCurrentDisplay)/fHCurrentDisplay<double(width0)/height0) {
         width = fWCurrentDisplay*ratio;
         height = double(fWCurrentDisplay)/width0*height0*ratio;
@@ -207,6 +197,39 @@ TCanvas *LKPainter::CanvasResize(TString name, int width0, int height0, double r
         height = scale_down*height;
         width  = scale_down*width;
     }
+}
+
+TCanvas *LKPainter::CanvasDefault(TString name, double ratio)
+{
+    int width, height;
+    GetSizeDefault(width, height, ratio);
+    UpdateNextCanvasPosition();
+    auto cvs = NewCanvas(name,name, fXCurrentCanvas, fYCurrentCanvas, width, height);
+    return cvs;
+}
+
+TCanvas *LKPainter::CanvasFull(TString name, double ratio1, double ratio2)
+{
+    int width, height;
+    GetSizeFull(width, height, ratio1, ratio2);
+    UpdateNextCanvasPosition();
+    auto cvs = NewCanvas(name,name, fXCurrentCanvas, fYCurrentCanvas, width, height);
+    return cvs;
+}
+
+TCanvas *LKPainter::CanvasSquare(TString name, double ratio)
+{
+    int width, height;
+    GetSizeSquare(width, height, ratio);
+    UpdateNextCanvasPosition();
+    auto cvs = NewCanvas(name,name, fXCurrentCanvas, fYCurrentCanvas, width, height);
+    return cvs;
+}
+
+TCanvas *LKPainter::CanvasResize(TString name, int width0, int height0, double ratio)
+{
+    int width, height;
+    GetSizeResize(width, height, width0, height0, ratio);
     UpdateNextCanvasPosition();
     auto cvs = NewCanvas(name,name, fXCurrentCanvas, fYCurrentCanvas, width, height);
     return cvs;
