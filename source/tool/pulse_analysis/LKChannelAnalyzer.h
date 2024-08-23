@@ -192,7 +192,7 @@ class LKChannelAnalyzer : public LKPadInteractive
 
         double CollectTbAboveThresholdAndIntegrate(int tbHit);
 
-        void OmitPedestalSubtraction() { fOmitPedestalSubtraction = false; }
+        void OmitPedestalSubtraction() { fOmitPedestalSubtraction = true; }
 
         /**
          * Find pedestal and subtract it from the buffer.
@@ -243,6 +243,7 @@ class LKChannelAnalyzer : public LKPadInteractive
         double GetScaleTbStep() const { return fScaleTbStep; }
         double GetTbStepCut() const { return fTbStepCut; }
 
+        //void SetPedestal(double pedestal) { fPedestal = pedestal; }
         void SetTbRange(int tbStart, int tbMax) { fTbStart = tbStart; fTbMax = tbMax; }
         void SetTbMax(int tbMax) { fTbMax = tbMax; }
         void SetTbStart(int tbStart) { fTbStart = tbStart; }
