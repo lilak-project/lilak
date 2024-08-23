@@ -192,6 +192,8 @@ class LKChannelAnalyzer : public LKPadInteractive
 
         double CollectTbAboveThresholdAndIntegrate(int tbHit);
 
+        void OmitPedestalSubtraction() { fOmitPedestalSubtraction = false; }
+
         /**
          * Find pedestal and subtract it from the buffer.
          * Pedestal is estimated through following process
@@ -345,6 +347,8 @@ class LKChannelAnalyzer : public LKPadInteractive
         TClonesArray* fGraphArray = nullptr;
         Int_t         fNumGraphs = 0;
         Int_t         fNumHists = 0;
+
+        bool          fOmitPedestalSubtraction = false;
 
 #ifdef DEBUG_CHANA_FINDPEAK
     public:

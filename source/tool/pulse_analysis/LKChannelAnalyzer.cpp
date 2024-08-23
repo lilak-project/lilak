@@ -301,7 +301,7 @@ void LKChannelAnalyzer::Analyze(double* data, bool inverted)
     }
 
     memcpy(&fBufferOrigin, data, sizeof(double)*fTbMax);
-    FindAndSubtractPedestal(data);
+    if (!fOmitPedestalSubtraction) FindAndSubtractPedestal(data);
     memcpy(&fBuffer, data, sizeof(double)*fTbMax);
 
     fIntegralTbArray.clear();
