@@ -1,5 +1,6 @@
 #include "LKPainter.h"
 #include "LKDrawing.h"
+#include <iostream>
 
 ClassImp(LKDrawing)
 

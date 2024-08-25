@@ -2,6 +2,8 @@
 #define LKDRAWINGCLUSTER_HH
 
 #include "TObjArray.h"
+#include "LKDrawing.h"
+#include "LKDrawingGroup.h"
 
 class LKDrawingCluster : public TObjArray
 {
@@ -10,6 +12,9 @@ class LKDrawingCluster : public TObjArray
         ~LKDrawingCluster() {}
 
         virtual void Draw(Option_t *option="");
+        void AddDrawing(LKDrawing* drawing);
+        void AddGroup(LKDrawingGroup* group);
+        void AddCluster(LKDrawingCluster* cluster);
 
     ClassDef(LKDrawingCluster, 1)
 };

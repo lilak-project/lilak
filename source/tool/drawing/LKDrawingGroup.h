@@ -4,7 +4,7 @@
 #include "TObjArray.h"
 #include "TGraph.h"
 #include "TH1.h"
-#include "TVirtualPad.h"
+#include "TCanvas.h"
 
 #include "LKDrawing.h"
 #include "LKPainter.h"
@@ -12,7 +12,7 @@
 class LKDrawingGroup : public TObjArray
 {
     protected:
-        TVirtualPad *fCvs = nullptr;
+        TCanvas *fCvs = nullptr;
         int fnx = 1;
         int fny = 1;
 
@@ -24,7 +24,10 @@ class LKDrawingGroup : public TObjArray
 
         virtual void Draw(Option_t *option="");
 
-        void SetCanvas(TVirtualPad* pad) { fCvs = pad; }
+        TCanvas* GetCanvas() { return fCvs; }
+
+        void SetCanvas(TCanvas* pad) { fCvs = pad; }
+        void AddDrawing(LKDrawing* drawing) { Add(drawing); }
         void AddHist(TH1 *hist) { Add(new LKDrawing(hist)); }
         void AddGraph(TGraph* graph) { Add(new LKDrawing(graph)); }
 

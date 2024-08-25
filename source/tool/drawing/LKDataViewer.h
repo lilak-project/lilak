@@ -8,6 +8,8 @@
 #include "TGFrame.h"
 #include "TGButton.h"
 #include "TGCanvas.h"
+#include "TGListBox.h"
+#include "TGTextEntry.h"
 #include "TGNumberEntry.h"
 #include "TRootEmbeddedCanvas.h"
 
@@ -20,6 +22,7 @@ class LKDataViewer : public TGMainFrame
 {
     protected:
         bool fInitialized = false;
+        int fInitWidth, fInitHeight;
         double fControlFrameXRatio = 0.15;
         double fStatusFrameYRatio = 0.05;
         double fRF = 1; ///< Resize factor (scale factor of your screen compare to the mornitor which has with of 1500)
@@ -29,6 +32,8 @@ class LKDataViewer : public TGMainFrame
         FontStruct_t fSFont1;
         TGFont*      fGFont2;
         FontStruct_t fSFont2;
+        TGFont*      fGFont3;
+        FontStruct_t fSFont3;
 
         TGHorizontalFrame *fMainFrame = nullptr;
         TGVerticalFrame *fControlFrame = nullptr;
@@ -37,9 +42,15 @@ class LKDataViewer : public TGMainFrame
         TGNumberEntry *fEventRangeEntry1 = nullptr;
         TGNumberEntry *fEventRangeEntry2 = nullptr;
 
+        bool fUseTRootCanvas = false;
         TGTab *fTabSpace = nullptr;
-        TGNumberEntry *fTabNumberEntry = nullptr;
-        LKDrawingCluster *fDrawingExibition = nullptr;
+        LKDrawingCluster *fDrawingCluster = nullptr;
+        TGListBox* fTabListBox = nullptr;
+        vector<TCanvas*> fTabCanvases;
+
+        //TGTextEntry *fNumberInput; // Input field for the number pad
+        TGNumberEntryField *fNumberInput; // Input field for the number pad
+        std::vector<TGTextButton *> fNumberButtons; // Buttons for the number pad
 
         int fCountMessageUpdate = 0;
         TGLabel* fStatusMessages = nullptr;
@@ -49,19 +60,17 @@ class LKDataViewer : public TGMainFrame
 
     public:
         LKDataViewer(LKDrawingCluster *exb, const TGWindow *p=nullptr, UInt_t w=1600, UInt_t h=800);
-        LKDataViewer(const TGWindow *p, UInt_t w=1600, UInt_t h=800);
+        LKDataViewer(const TGWindow *p=nullptr, UInt_t w=1600, UInt_t h=800);
         virtual ~LKDataViewer();
-
-        void SetDrawingCluster(LKDrawingCluster *exb) { fDrawingExibition = exb; }
 
         bool InitParameters();
         bool InitFrames();
 
-        void Add(TH1* hist);
-        void Add(LKDrawing* drawing);
-        void Add(LKDrawingGroup* group);
-        void Add(LKDrawingCluster* exib);
-        //void AddCanvas(TString name, int nx=1, int ny=1);
+        void SetUseTRootCanvas(bool value) { fUseTRootCanvas = value; }
+        void AddDrawing(LKDrawing* drawing);
+        void AddGroup(LKDrawingGroup* group);
+        void AddCluster(LKDrawingCluster* cluster);
+
         void SetRun(LKRun* run) { fRun = run; }
 
         void Draw();
@@ -77,6 +86,7 @@ class LKDataViewer : public TGMainFrame
         void CreateEventRangeControlSection(); ///< CreateControlFrame
         void CreateExitFrame(); ///< CreateControlFrame
         void CreateTabControlSection(); ///< CreateControlFrame
+        void CreateNumberPad(); ///< CreateControlFrame
 
         void SendOutMessage(TString message);
 
@@ -91,6 +101,9 @@ class LKDataViewer : public TGMainFrame
         void ProcessPrevTab();
         void ProcessNextTab();
         void ProcessAccumulateEvents() {}
+        void ProcessTabSelection(Int_t id);
+
+        void HandleNumberInput(Int_t id);
 
     ClassDef(LKDataViewer,1)
 };

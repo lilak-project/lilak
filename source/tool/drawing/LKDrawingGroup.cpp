@@ -25,8 +25,6 @@ bool LKDrawingGroup::ConfigureCanvas()
     auto numDrawings = GetEntries();
 
     if      (numDrawings== 1) { fnx =  1; fny =  1; }
-    //else if (numDrawings== 2) { fnx =  2; fny =  1; }
-    //else if (numDrawings== 3) { fnx =  3; fny =  1; }
     else if (numDrawings<= 4) { fnx =  2; fny =  2; }
     else if (numDrawings<= 6) { fnx =  3; fny =  2; }
     else if (numDrawings<= 8) { fnx =  4; fny =  2; }
