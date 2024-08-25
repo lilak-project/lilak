@@ -2,6 +2,7 @@
 
 import os
 import sys
+import argparse
 
 def print_c(message):
     print_head = '\033[94m'
@@ -503,11 +504,17 @@ class LKClassFactory
     print(header_file_path)
 
 #####################################################################
+parser = argparse.ArgumentParser(description='Configure and build LILAK')
+parser.add_argument('-j', type=int, default=4, help='Number of jobs to run in parallel for make')
+args = parser.parse_args()
+
 original_directory = os.getcwd()
 if not os.path.exists(f'{lilak_path}/build'): os.makedirs(f'{lilak_path}/build')
 os.chdir(f'{lilak_path}/build')
 os.system('cmake ..')
-os.system('make -j4')
+#os.system('make -j4')
+print(f'make -j{args.j}')
+os.system(f'make -j{args.j}')
 os.chdir(f'{original_directory}')
 
 #####################################################################
@@ -574,7 +581,7 @@ lilak() {{
         build)
             local original_dir=$(pwd)
             cd "$LILAK_PATH"
-            python3 "$LILAK_PATH/configure.py"
+            python3 "$LILAK_PATH/configure.py" "$2"
             export LD_LIBRARY_PATH="$LILAK_PATH/build:$LD_LIBRARY_PATH"
             cd "$original_dir"
             ;;
