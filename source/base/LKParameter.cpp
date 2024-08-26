@@ -58,18 +58,45 @@ void LKParameter::SetPar(TString name, TString raw, TString value, TString comme
     SetValue(value);
 }
 
-void LKParameter::SetValue(TString value)
+void LKParameter::SetValue(TString line)
 {
-    fValue = value;
-    value.ReplaceAll(","," ");
-    auto listOfTokens = value.Tokenize(" ");
-    fNumValues = listOfTokens -> GetEntries();
-    if (fNumValues>1) {
-        for (auto iVal=0; iVal<fNumValues; ++iVal) {
-            TString parValue(((TObjString *) listOfTokens->At(iVal))->GetString());
-            fValueArray.push_back(parValue);
+    fValue = line;
+    fValueArray.clear();
+
+    TString currentToken;
+    bool insideQuotes = false;
+
+    for (int i=0; i<line.Length(); ++i)
+    {
+        char c = line[i];
+
+        if (c == '\"') {
+            insideQuotes = !insideQuotes; // Toggle insideQuotes when encountering a double quote
+            //if (!insideQuotes) {
+            //    // If closing quote, push the current token to the list and reset it
+            //    tokens.push_back(currentToken);
+            //    currentToken.Clear();
+            //}
+        } else if (insideQuotes) {
+            // If inside quotes, continue adding characters to currentToken
+            currentToken += c;
+        } else if (c==' ' || c==',') {
+            // If encountering space or comma outside quotes, finalize the current token
+            if (!currentToken.IsNull()) {
+                fValueArray.push_back(currentToken);
+                currentToken.Clear();
+            }
+        } else {
+            // Continue adding characters to currentToken
+            currentToken += c;
         }
     }
+
+    // If any token remains after the loop, add it to the tokens list
+    if (!currentToken.IsNull()) {
+        fValueArray.push_back(currentToken);
+    }
+    fNumValues = fValueArray.size();
 }
 
 void LKParameter::SetValueAt(int i, TString value)
