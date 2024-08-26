@@ -411,8 +411,9 @@ if True:
     include_lines = ""
     list_of_classes = []
 
-    # Predefined list of directories to search within
-    search_list = project_list
+    search_list = []
+    for project in project_list:
+        search_list.append(project)
     search_list.append("source")
 
     # Function to scan directories and collect class names
@@ -581,7 +582,24 @@ lilak() {{
         build)
             local original_dir=$(pwd)
             cd "$LILAK_PATH"
-            python3 "$LILAK_PATH/configure.py" "$2"
+            if [[ "$2" =~ ^[0-9]+$ ]]; then
+                python3 "$LILAK_PATH/configure.py" -j"$2"
+            elif [ -z "$2" ]; then
+                python3 "$LILAK_PATH/configure.py" -j4
+            else
+                python3 "$LILAK_PATH/configure.py" "$2"
+            fi
+            export LD_LIBRARY_PATH="$LILAK_PATH/build:$LD_LIBRARY_PATH"
+            cd "$original_dir"
+            ;;
+        make)
+            local original_dir=$(pwd)
+            cd "$LILAK_PATH"
+            if [ -z "$2" ]; then
+                python3 "$LILAK_PATH/configure.py" -j4
+            else
+                python3 "$LILAK_PATH/configure.py" "$2"
+            fi
             export LD_LIBRARY_PATH="$LILAK_PATH/build:$LD_LIBRARY_PATH"
             cd "$original_dir"
             ;;
@@ -593,7 +611,11 @@ lilak() {{
                 rm -rf "$LILAK_PATH/build"
                 mkdir -p "$LILAK_PATH/build"
                 cd "$LILAK_PATH"
-                python3 "$LILAK_PATH/configure.py"
+                if [ -z "$2" ]; then
+                    python3 "$LILAK_PATH/configure.py" -j4
+                else
+                    python3 "$LILAK_PATH/configure.py" "$2"
+                fi
                 export LD_LIBRARY_PATH="$LILAK_PATH/build:$LD_LIBRARY_PATH"
                 cd "$original_dir"
             else
