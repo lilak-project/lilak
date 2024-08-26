@@ -8,6 +8,13 @@ LKDrawingGroup::LKDrawingGroup(TString name)
     SetName(name);
 }
 
+void LKDrawingGroup::Init()
+{
+    fCvs = nullptr;
+    fnx = 1;
+    fny = 1;
+}
+
 void LKDrawingGroup::Draw(Option_t *option)
 {
     ConfigureCanvas();
@@ -15,7 +22,7 @@ void LKDrawingGroup::Draw(Option_t *option)
     auto numDrawings = GetEntries();
     for (auto iDrawing=0; iDrawing<numDrawings; ++iDrawing) {
         auto drawing = (LKDrawing*) At(iDrawing);
-        fCvs -> cd(iDrawing+1);
+        drawing -> SetCanvas(fCvs->cd(iDrawing+1));
         drawing -> Draw();
     }
 }
@@ -45,9 +52,7 @@ bool LKDrawingGroup::ConfigureCanvas()
     else                      { fnx = 12; fny = 10; }
 
     if (fCvs==nullptr)
-    {
         fCvs = LKPainter::GetPainter() -> CanvasResize("", 125*fnx, 100*fny);
-    }
 
     if (numDrawings==1)
         return true;

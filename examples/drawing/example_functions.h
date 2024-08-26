@@ -1,6 +1,6 @@
 //#include "LKDrawing.cpp"
 //#include "LKDrawingGroup.cpp"
-//#include "LKDrawingCluster.cpp"
+//#include "LKDrawingSet.cpp"
 //#include "LKDataViewer.cpp"
 
 struct function_data { TString formula; int npar; };

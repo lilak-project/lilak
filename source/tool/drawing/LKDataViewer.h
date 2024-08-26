@@ -16,7 +16,7 @@
 #include "LKRun.h"
 #include "LKDrawing.h"
 #include "LKDrawingGroup.h"
-#include "LKDrawingCluster.h"
+#include "LKDrawingSet.h"
 
 class LKDataViewer : public TGMainFrame
 {
@@ -44,9 +44,11 @@ class LKDataViewer : public TGMainFrame
 
         bool fUseTRootCanvas = false;
         TGTab *fTabSpace = nullptr;
-        LKDrawingCluster *fDrawingCluster = nullptr;
+        LKDrawingSet *fDrawingSet = nullptr;
         TGListBox* fTabListBox = nullptr;
         vector<TCanvas*> fTabCanvases;
+        vector<bool> fTabShouldBeUpdated;
+        vector<LKDrawingGroup*> fTagGroup;
 
         //TGTextEntry *fNumberInput; // Input field for the number pad
         TGNumberEntryField *fNumberInput; // Input field for the number pad
@@ -59,23 +61,24 @@ class LKDataViewer : public TGMainFrame
         LKRun *fRun = nullptr;
 
     public:
-        LKDataViewer(LKDrawingCluster *exb, const TGWindow *p=nullptr, UInt_t w=1600, UInt_t h=800);
+        LKDataViewer(LKDrawingSet *exb, const TGWindow *p=nullptr, UInt_t w=1600, UInt_t h=800);
         LKDataViewer(const TGWindow *p=nullptr, UInt_t w=1600, UInt_t h=800);
         virtual ~LKDataViewer();
-
-        bool InitParameters();
-        bool InitFrames();
 
         void SetUseTRootCanvas(bool value) { fUseTRootCanvas = value; }
         void AddDrawing(LKDrawing* drawing);
         void AddGroup(LKDrawingGroup* group);
-        void AddCluster(LKDrawingCluster* cluster);
-
+        void AddSet(LKDrawingSet* set);
         void SetRun(LKRun* run) { fRun = run; }
+
+        LKDrawingSet* GetDrawingSet() const { return fDrawingSet; }
 
         void Draw();
 
     protected:
+        bool InitParameters();
+        bool InitFrames();
+
         void AddTab(LKDrawingGroup* group); ///< CreateMainCanvas
 
         void CreateMainFrame();
@@ -92,12 +95,12 @@ class LKDataViewer : public TGMainFrame
 
     public:
         void ProcessExitViewer();
-        void ProcessPrevEvent() { cout << "prev" << endl; }
-        void ProcessNextEvent() { cout << "next" << endl; }
-        void ProcessGotoEvent() { cout << "goto" << endl; }
-        void ProcessRangeEvents() { cout << "range" << endl; }
-        void ProcessAllEvents() { cout << "all" << endl; }
-        void ProcessGotoTab();
+        void ProcessPrevEvent()   { e_test << endl; }
+        void ProcessNextEvent()   { e_test << endl; }
+        void ProcessGotoEvent()   { e_test << endl; }
+        void ProcessAllEvents()   { e_test << endl;}
+        void ProcessRangeEvents() { e_test << endl;; }
+        void ProcessGotoTab(int id=-1);
         void ProcessPrevTab();
         void ProcessNextTab();
         void ProcessAccumulateEvents() {}

@@ -22,12 +22,15 @@ void LKDrawing::Add(TObject *obj, TString title, TString drawOption, bool isMain
     if (fDrawingArray.GetEntries()==0)
         isMain = true;
     if (isMain) {
-        //if (fMainIndex>=0) e_error << "replacing main index (" << fMainIndex << ")" << endl;
-        if (fMainIndex>=0) cout << "replacing main index (" << fMainIndex << ")" << endl;
+        if (fMainIndex>=0) e_warning << "replacing main index (" << fMainIndex << ")" << endl;
         fMainIndex = fDrawingArray.GetEntriesFast();
         fMain = obj;
         if (obj->InheritsFrom(TH1::Class()))
             fHist = (TH1*) obj;
+        if (obj->InheritsFrom(TH2::Class())) {
+            if (drawOption.IsNull())
+                drawOption = "colz";
+        }
     }
     fDrawingArray.Add(obj);
     fTitleArray.push_back(title);
@@ -54,7 +57,14 @@ void LKDrawing::MakeLegend()
 
 void LKDrawing::Draw(Option_t *option)
 {
-    if (fCvs!=nullptr) fCvs -> cd();
+    if (fCvs!=nullptr) {
+        fCvs -> cd();
+        if (fSetLogX ) fCvs -> SetLogx ();
+        if (fSetLogY ) fCvs -> SetLogy ();
+        if (fSetLogZ ) fCvs -> SetLogz ();
+        if (fSetGridX) fCvs -> SetGridx();
+        if (fSetGridY) fCvs -> SetGridy();
+    }
     auto numDrawings = fDrawingArray.GetEntries();
     for (auto iDrawing=0; iDrawing<numDrawings; ++iDrawing)
     {

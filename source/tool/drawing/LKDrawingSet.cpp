@@ -1,13 +1,14 @@
-#include "LKDrawingCluster.h"
+#include "LKDrawingSet.h"
 
-ClassImp(LKDrawingCluster)
+ClassImp(LKDrawingSet)
 
-LKDrawingCluster::LKDrawingCluster()
+LKDrawingSet::LKDrawingSet()
 : TObjArray()
 {
+    SetName("DrawingSet");
 }
 
-void LKDrawingCluster::Draw(Option_t *option)
+void LKDrawingSet::Draw(Option_t *option)
 {
     auto numDrawings = GetEntries();
     for (auto iGroup=0; iGroup<numDrawings; ++iGroup) {
@@ -16,23 +17,23 @@ void LKDrawingCluster::Draw(Option_t *option)
     }
 }
 
-void LKDrawingCluster::AddCluster(LKDrawingCluster* cluster)
+void LKDrawingSet::AddSet(LKDrawingSet* set)
 {
-    auto numDrawings = cluster -> GetEntries();
+    auto numDrawings = set -> GetEntries();
     for (auto iGroup=0; iGroup<numDrawings; ++iGroup) {
-        auto group = (LKDrawingGroup*) cluster -> At(iGroup);
+        auto group = (LKDrawingGroup*) set -> At(iGroup);
         AddGroup(group);
     }
 }
 
-void LKDrawingCluster::AddDrawing(LKDrawing* drawing)
+void LKDrawingSet::AddDrawing(LKDrawing* drawing)
 {
     auto group = new LKDrawingGroup(Form("group_%s",drawing->GetName()));
     group -> AddDrawing(drawing);
     AddGroup(group);
 }
 
-void LKDrawingCluster::AddGroup(LKDrawingGroup* group)
+void LKDrawingSet::AddGroup(LKDrawingGroup* group)
 {
     Add(group);
 }

@@ -12,16 +12,18 @@
 class LKDrawingGroup : public TObjArray
 {
     protected:
-        TCanvas *fCvs = nullptr;
+        TCanvas *fCvs = nullptr; //!
         int fnx = 1;
         int fny = 1;
 
+    public:
         bool ConfigureCanvas();
 
     public:
         LKDrawingGroup(TString name="");
         ~LKDrawingGroup() {}
 
+        void Init();
         virtual void Draw(Option_t *option="");
 
         TCanvas* GetCanvas() { return fCvs; }

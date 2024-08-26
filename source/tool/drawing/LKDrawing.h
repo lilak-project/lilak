@@ -7,6 +7,7 @@
 #include "TNamed.h"
 #include "TPad.h"
 #include "TH1.h"
+#include "TH2.h"
 #include <vector>
 using namespace std;
 
@@ -27,14 +28,30 @@ class LKDrawing : public TNamed
         void Add(TObject *obj, TString title="", TString drawOption="", bool isMain=false);
         void SetTitle(int i, TString title) { fTitleArray[i] = title; }
         void SetOption(int i, TString option) { fOptionArray[i] = option; }
+        void SetCanvas(TVirtualPad* cvs) { fCvs = (TPad*) cvs; }
+        void SetCanvas(TPad* cvs) { fCvs = (TPad*) cvs; }
+        void SetCanvas(TCanvas* cvs) { fCvs = (TPad*) cvs; }
 
         int GetNumDrawings() const { return fDrawingArray.GetEntries(); }
         TString GetTitle(int i) const { return fTitleArray.at(i); }
         TString GetOption(int i) const { return fOptionArray.at(i); }
         TObject* GetDrawing(int i) const { return fDrawingArray.At(i); }
-        TPad* GetMainPad()  const { return fCvs; }
+        TPad* GetCanvas()  const { return fCvs; }
         TH1* GetMainHist() const { return fHist; }
         TObject* GetMain() const { return fMain; }
+
+        void SetCanvasOption(TString value) {
+            if (value.Index("logx")>=0)  { value.ReplaceAll("logx","");  fSetLogX  = true; }
+            if (value.Index("logy")>=0)  { value.ReplaceAll("logy","");  fSetLogY  = true; }
+            if (value.Index("logz")>=0)  { value.ReplaceAll("logz","");  fSetLogZ  = true; }
+            if (value.Index("gridx")>=0) { value.ReplaceAll("gridx",""); fSetGridX = true; }
+            if (value.Index("gridy")>=0) { value.ReplaceAll("gridy",""); fSetGridY = true; }
+        }
+        void SetLogx (bool value=true) { fSetLogX  = value; }
+        void SetLogy (bool value=true) { fSetLogY  = value; }
+        void SetLogz (bool value=true) { fSetLogZ  = value; }
+        void SetGridx(bool value=true) { fSetGridX = value; }
+        void SetGridy(bool value=true) { fSetGridY = value; }
 
     private:
         void MakeLegend();
@@ -46,8 +63,8 @@ class LKDrawing : public TNamed
 
         int fMainIndex = -1;
 
-        TPad* fCvs = nullptr;
-        TObject* fMain = nullptr;
+        TPad* fCvs = nullptr; //!
+        TObject* fMain = nullptr; //!
         TH1* fHist = nullptr;
         TLegend* fLegend = nullptr;
 

@@ -17,10 +17,10 @@ LKDataViewer::LKDataViewer(const TGWindow *p, UInt_t w, UInt_t h)
     InitParameters();
 }
 
-LKDataViewer::LKDataViewer(LKDrawingCluster *cluster, const TGWindow *p, UInt_t w, UInt_t h)
+LKDataViewer::LKDataViewer(LKDrawingSet *set, const TGWindow *p, UInt_t w, UInt_t h)
     : LKDataViewer(p, w, h)
 {
-    AddCluster(cluster);
+    AddSet(set);
 }
 
 bool LKDataViewer::InitParameters()
@@ -48,29 +48,31 @@ LKDataViewer::~LKDataViewer() {
 
 void LKDataViewer::AddDrawing(LKDrawing* drawing)
 {
-    if (fDrawingCluster==nullptr)
-        fDrawingCluster = new LKDrawingCluster();
-    fDrawingCluster -> AddDrawing(drawing);
+    if (fDrawingSet==nullptr)
+        fDrawingSet = new LKDrawingSet();
+    fDrawingSet -> AddDrawing(drawing);
 }
 
 void LKDataViewer::AddGroup(LKDrawingGroup* group)
 {
-    if (fDrawingCluster==nullptr)
-        fDrawingCluster = new LKDrawingCluster();
-    fDrawingCluster -> AddGroup(group);
+    if (fDrawingSet==nullptr)
+        fDrawingSet = new LKDrawingSet();
+    fDrawingSet -> AddGroup(group);
 }
 
-void LKDataViewer::AddCluster(LKDrawingCluster* cluster)
+void LKDataViewer::AddSet(LKDrawingSet* set)
 {
-    if (fDrawingCluster==nullptr)
-        fDrawingCluster = new LKDrawingCluster();
-    fDrawingCluster -> AddCluster(cluster);
+    if (fDrawingSet==nullptr)
+        fDrawingSet = new LKDrawingSet();
+    fDrawingSet -> AddSet(set);
 }
 
 bool LKDataViewer::InitFrames()
 {
     if (fInitialized)
         return true;
+
+    //Resize(fInitWidth,fInitHeight);
 
     CreateStatusFrame();
     CreateMainFrame();
@@ -79,13 +81,21 @@ bool LKDataViewer::InitFrames()
 
     SetWindowName("LILAK Data Viewer");
     MapSubwindows(); // Map all subwindows of main frame
-    if (GetDefaultSize().fWidth>fInitWidth)
-    {
-        lk_warning << "Maybe tab will overflow " << GetDefaultSize().fWidth << " > " << fInitWidth << endl;
-    }
+    //if (GetDefaultSize().fWidth>fInitWidth)
+    //    lk_warning << "Maybe tab will overflow " << GetDefaultSize().fWidth << " > " << fInitWidth << endl;
     Resize(fInitWidth,fInitHeight);
     //Resize(GetDefaultSize()); // Initialize the layout algorithm
     MapWindow(); // Map main frame
+
+    //{
+    //    TIter next(fDrawingSet);
+    //    LKDrawingGroup *group;
+    //    while ((group = (LKDrawingGroup*) next()))
+    //        group -> Draw();
+    //}
+    //for (auto group : fTagGroup) group -> Draw();
+
+    ProcessGotoTab(0);
 
     fInitialized = true;
 
@@ -111,7 +121,7 @@ void LKDataViewer::CreateMainCanvas()
     fMainFrame->AddFrame(fTabSpace, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY));
 
     LKDrawingGroup *group;
-    TIter next(fDrawingCluster);
+    TIter next(fDrawingSet);
     while ((group = (LKDrawingGroup*) next()))
         AddTab(group);
 }
@@ -136,7 +146,9 @@ void LKDataViewer::AddTab(LKDrawingGroup* group)
         tabFrame->SetEditable(kFALSE);
         group -> SetCanvas(canvas);
     }
-    group -> Draw();
+    fTagGroup.push_back(group);
+    fTabShouldBeUpdated.push_back(true);
+    //group -> Draw();
 }
 
 void LKDataViewer::CreateStatusFrame()
@@ -317,13 +329,16 @@ void LKDataViewer::CreateNumberPad()
     fNumberInput->SetHeight(fRFEntry*fNumberInput->GetHeight());
     vFrame->AddFrame(fNumberInput, new TGLayoutHints(kLHintsExpandX | kLHintsTop | kLHintsExpandY, fRF*5, fRF*5, fRF*5, fRF*5));
 
-    vector<vector<int>> numbers = {{0},{1,2,3},{4,5,6},{7,8,9}};
+    vector<vector<int>> numbers = {{91,0,92},{1,2,3},{4,5,6},{7,8,9}};
     for (int row : {3,2,1,0})
     {
         TGHorizontalFrame *hFrame = new TGHorizontalFrame(vFrame);
         vFrame->AddFrame(hFrame, new TGLayoutHints(kLHintsExpandX | kLHintsCenterX, fRF*5, fRF*5, fRF*2, fRF*2));
         for (int i : numbers[row]) {
-            TGTextButton *button = new TGTextButton(hFrame, Form("&%d", i), i);
+            TString title = Form("&%d", i);
+            if (i==91) title = "&-";
+            if (i==92) title = "&.";
+            TGTextButton *button = new TGTextButton(hFrame, title, i);
             button->SetFont(fSFont3);
             fNumberButtons.push_back(button);
             button->Connect("Clicked()", "LKDataViewer", this, Form("HandleNumberInput(=%d)",i));
@@ -333,14 +348,14 @@ void LKDataViewer::CreateNumberPad()
 
     TGHorizontalFrame *hFrame4 = new TGHorizontalFrame(vFrame);
 
-    TGTextButton *clearButton = new TGTextButton(hFrame4, "&Clear", 10);
+    TGTextButton *clearButton = new TGTextButton(hFrame4, "&Clear", 101);
     clearButton->SetFont(fSFont1);
-    clearButton->Connect("Clicked()", "LKDataViewer", this, "HandleNumberInput(=10)");
+    clearButton->Connect("Clicked()", "LKDataViewer", this, "HandleNumberInput(=101)");
     hFrame4->AddFrame(clearButton, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY, fRF*5, fRF*5, fRF*2, fRF*2));
 
-    TGTextButton *backButton = new TGTextButton(hFrame4, "&Back", 10);
+    TGTextButton *backButton = new TGTextButton(hFrame4, "&Back", 102);
     backButton->SetFont(fSFont1);
-    backButton->Connect("Clicked()", "LKDataViewer", this, "HandleNumberInput(=11)");
+    backButton->Connect("Clicked()", "LKDataViewer", this, "HandleNumberInput(=102)");
     hFrame4->AddFrame(backButton, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY, fRF*5, fRF*5, fRF*2, fRF*2));
 
     vFrame->AddFrame(hFrame4, new TGLayoutHints(kLHintsExpandX | kLHintsCenterX, fRF*5, fRF*5, fRF*5, fRF*5));
@@ -349,43 +364,62 @@ void LKDataViewer::CreateNumberPad()
 void LKDataViewer::HandleNumberInput(Int_t id)
 {
     if (id >= 0 && id <= 9) {
-        // Append the number to the input field
         fNumberInput->AppendText(Form("%d", id));
         SendOutMessage(fNumberInput->GetText());
-    } else if (id == 10) {
-        // Clear button
+    }
+    else if (id == 91) {
+        TString text = fNumberInput->GetText();
+        if (text[0]=='-') text = text(1,text.Sizeof()-2);
+        else text = Form("-%s",text.Data());
+        fNumberInput->SetText(text);
+        SendOutMessage(fNumberInput->GetText());
+    }
+    else if (id == 92) {
+        fNumberInput->AppendText(".");
+        SendOutMessage(fNumberInput->GetText());
+    }
+    else if (id == 101) {
         fNumberInput->Clear();
         SendOutMessage("Clear number entry");
-    } else if (id == 11) {
-        // Enter button: handle the entered number
+    }
+    else if (id == 102) {
         fNumberInput->Backspace();
-        //fNumberInput->TextChanged();
-        fNumberInput->SetText(fNumberInput->GetText());
         SendOutMessage(fNumberInput->GetText());
-        //SendOutMessage(Form("Entered number: %s", enteredText.Data()));
-        // Perform any other actions with the entered number
+        //fNumberInput->TextChanged();
+        //fNumberInput->SetText(fNumberInput->GetText());
     }
 }
 
 void LKDataViewer::SendOutMessage(TString message)
 {
-    //message = Form("[%d]  %s",fCountMessageUpdate++,message.Data());
-    std::cout << message << std::endl;
+    e_cout << Form("[%d] %s",fCountMessageUpdate++,message.Data()) << endl;
+    //e_cout << message << std::endl;
     fStatusMessages -> ChangeText(message);
 }
 
-void LKDataViewer::ProcessGotoTab()
+void LKDataViewer::ProcessGotoTab(int id)
 {
-    int updateID = fNumberInput->GetIntNumber();
-    fNumberInput->Clear();
+    int updateID = 0;
+    if (id>=0)
+        updateID = id;
+    else {
+        updateID = fNumberInput->GetIntNumber();
+        fNumberInput->Clear();
+    }
     if (updateID < 0 || updateID >= fTabSpace->GetNumberOfTabs()) {
         SendOutMessage(Form("Invalid tab ID: %d",updateID));
         return;
     }
     fTabSpace->SetTab(updateID);
+    if (fTabShouldBeUpdated[updateID]) {
+        fTabShouldBeUpdated[updateID] = false;
+        fTagGroup[updateID] -> Draw();
+        fTagGroup[updateID] -> GetCanvas() -> Modified();
+        fTagGroup[updateID] -> GetCanvas() -> Update();
+    }
     fTabSpace->Layout();
     TString tabName = *(fTabSpace->GetTabTab(updateID)->GetText());
-    SendOutMessage(Form("Switched to %s",tabName.Data()));
+    SendOutMessage(Form("Switched to %s (%d)",tabName.Data(),updateID));
 }
 
 void LKDataViewer::ProcessPrevTab()
@@ -398,10 +432,7 @@ void LKDataViewer::ProcessPrevTab()
         return;
     }
 
-    fTabSpace->SetTab(updateID);
-    fTabSpace->Layout();
-    TString tabName = *(fTabSpace->GetTabTab(updateID)->GetText());
-    SendOutMessage(Form("Switched to %s",tabName.Data()));
+    ProcessGotoTab(updateID);
 }
 
 void LKDataViewer::ProcessNextTab()
@@ -414,13 +445,11 @@ void LKDataViewer::ProcessNextTab()
         return;
     }
 
-    fTabSpace->SetTab(updateID);
-    auto canvas = fTabCanvases.at(updateID);
+    ProcessGotoTab(updateID);
+    //auto canvas = fTabCanvases.at(updateID);
     //canvas->ToggleToolBar();
-    Layout();
-    fTabSpace->Layout();
-    TString tabName = *(fTabSpace->GetTabTab(updateID)->GetText());
-    SendOutMessage(Form("Switched to %s",tabName.Data()));
+    //Layout();
+    //fTabSpace->Layout();
 }
 
 void LKDataViewer::ProcessExitViewer()
