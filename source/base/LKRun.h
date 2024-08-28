@@ -236,6 +236,10 @@ class LKRun : public LKTask
 
         //void EventMessage(const char *message);
 
+        void SetSkipEndOfRun(bool val=true)  { fSkipEndOfRun = val; }
+        void SetAccumulateEventsFlag(bool val) { fAccumulateEventsFlag = val; }
+        bool GetAccumulateEventsFlag()         { return fAccumulateEventsFlag; }
+
         void SignalEndOfRun() { fSignalEndOfRun = true; }
         void SetAutoEndOfRun(Bool_t val) { fAutoEndOfRun = val; }
 
@@ -257,7 +261,7 @@ class LKRun : public LKTask
 
         /// Search input files with given LKRun/RunID.
         /// Search and return array of matching files -> run_runNo*.[tag].root
-        vector<TString> SearchRunFiles(int runNo, TString tag);
+        vector<TString> SearchRunFiles(int runNo, TString searchOption, TString searchOption2="");
 
         bool AddDrawing(TObject* drawing, TString label, int i=-1);
         void PrintDrawings();
@@ -344,6 +348,8 @@ class LKRun : public LKTask
         bool fRunHasStarted = false;
         bool fCleanExit = false;
         bool fSignalEndOfRun = false;
+        bool fSkipEndOfRun = false;
+        bool fAccumulateEventsFlag = false;
 
         LKParameterContainer *fRunHeader = nullptr;
         LKParameterContainer *fG4ProcessTable = nullptr; ///< List of Geant4 physics process

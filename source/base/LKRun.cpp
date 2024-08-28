@@ -670,6 +670,9 @@ bool LKRun::Init()
     else if (fPar->CheckPar("LKRun/SearchRun"))
         useSearchRunParameter = true;
 
+    TString searchOption;
+    TString searchOption2;
+
     Int_t idxInput = 1;
     if (fInputFileName.IsNull())
     {
@@ -697,24 +700,30 @@ bool LKRun::Init()
                     fInputPathArray.push_back(pathName);
             }
 
-            fSearchOption = fPar -> GetParString("LKRun/SearchRun");
+            auto numSearchOptions = fPar -> GetParN("LKRun/SearchRun");
+            if (numSearchOptions==1)
+                searchOption = fPar -> GetParString("LKRun/SearchRun");
+            if (numSearchOptions==2) {
+                searchOption = fPar -> GetParString("LKRun/SearchRun",0);
+                searchOption2 = fPar -> GetParString("LKRun/SearchRun",1);
+            }
             if (fRunIDList.size()>0)
             {
                 for (auto runID : fRunIDList)
                 {
-                    vector<TString> inputFiles = SearchRunFiles(runID,fSearchOption);
+                    vector<TString> inputFiles = SearchRunFiles(runID,searchOption, searchOption2);
                     for (auto fileName : inputFiles)
                         fInputFileNameArray.push_back(fileName);
                 }
             }
             else {
-                vector<TString> inputFiles = SearchRunFiles(fRunID,fSearchOption);
+                vector<TString> inputFiles = SearchRunFiles(fRunID,searchOption, searchOption2);
                 for (auto fileName : inputFiles)
                     fInputFileNameArray.push_back(fileName);
             }
         }
 
-        if (fSearchOption!="mfm" && fInputFileNameArray.size()>0) {
+        if (searchOption!="mfm" && fInputFileNameArray.size()>0) {
             fInputFileName = fInputFileNameArray[0];
             idxInput = 1;
         }
@@ -979,7 +988,7 @@ bool LKRun::Init()
         lk_info << "Initializing event trigger task " << fEventTrigger -> GetName() << "." << endl;
 
         for (auto fileName : fInputFileNameArray)
-            fEventTrigger -> AddTriggerInputFile(fileName, fSearchOption);
+            fEventTrigger -> AddTriggerInputFile(fileName, searchOption);
 
         if (fEventTrigger -> Init() == false) {
             lk_warning << "Initialization failed!" << endl;
@@ -1553,6 +1562,9 @@ bool LKRun::StartOfRun(Long64_t numEvents)
 
 bool LKRun::EndOfRun()
 {
+    if (fSkipEndOfRun)
+        return false;
+
     e_cout << endl;
     lk_info << "Executing of EndOfRunTask" << endl;
     if (fUsingEventTrigger)
@@ -1645,7 +1657,7 @@ LKDetectorSystem *LKRun::GetDetectorSystem() const { return fDetectorSystem; }
 LKDetector *LKRun::FindDetector(const char *name) { return fDetectorSystem -> FindDetector(name); }
 LKDetectorPlane *LKRun::FindDetectorPlane(const char *name) { return fDetectorSystem -> FindDetectorPlane(name); }
 
-vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchOption)
+vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchOption, TString searchOption2)
 {
     //fInputPathArray.push_back("/home/cens-alpha-00/data/ganacq_manip/test/acquisition/run");
     //fInputPathArray.push_back("/root/lilak/stark/macros/data");
@@ -1667,8 +1679,15 @@ vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchOption)
                 {
                     int runNo = TString(fileName(5,4)).Atoi();
                     int division = (fileName.Sizeof()>32) ? TString(fileName(32,fileName.Sizeof()-32-1)).Atoi() : 0;
+                    bool matched = false;
                     if (runNo==searchRunNo)
-                        matchingFiles.push_back(path+"/"+fileName);
+                        matched = true;
+                    if (!searchOption2.IsNull()) {
+                        if (searchOption2.IsDigit())
+                            searchOption2 = Form(".%s",searchOption2.Data());
+                        matched = fileName.EndsWith("s");
+                    }
+                    if (matched) matchingFiles.push_back(path+"/"+fileName);
                 }
             }
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////
