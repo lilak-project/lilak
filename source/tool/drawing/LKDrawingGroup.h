@@ -15,6 +15,10 @@ class LKDrawingGroup : public TObjArray
         TCanvas *fCvs = nullptr; //!
         int fnx = 1;
         int fny = 1;
+        TObjArray *fSubGroupArray = nullptr;
+
+    private:
+        int fID = -1;
 
     public:
         bool ConfigureCanvas();
@@ -25,10 +29,22 @@ class LKDrawingGroup : public TObjArray
 
         void Init();
         virtual void Draw(Option_t *option="");
+        void DrawSubGroups(Option_t *option="");
 
         TCanvas* GetCanvas() { return fCvs; }
 
         void SetCanvas(TCanvas* pad) { fCvs = pad; }
+
+        TObjArray* GetSubGroupArray();
+        int GetNumSubGroups();
+        void AddSubGroup(LKDrawingGroup *group) { GetSubGroupArray() -> Add(group); }
+        LKDrawingGroup* GetSubGroup(int ii);
+        LKDrawingGroup* GetOrCreateSubGroup(int ii);
+
+        void AddDrawing(int ii, LKDrawing* drawing) { auto subGroup = GetOrCreateSubGroup(ii); subGroup -> Add(drawing); }
+        void AddHist   (int ii, TH1 *hist)          { auto subGroup = GetOrCreateSubGroup(ii); subGroup -> Add(new LKDrawing(hist)); }
+        void AddGraph  (int ii, TGraph* graph)      { auto subGroup = GetOrCreateSubGroup(ii); subGroup -> Add(new LKDrawing(graph)); }
+
         void AddDrawing(LKDrawing* drawing) { Add(drawing); }
         void AddHist(TH1 *hist) { Add(new LKDrawing(hist)); }
         void AddGraph(TGraph* graph) { Add(new LKDrawing(graph)); }

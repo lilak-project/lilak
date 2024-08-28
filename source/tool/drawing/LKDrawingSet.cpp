@@ -13,7 +13,7 @@ void LKDrawingSet::Draw(Option_t *option)
     auto numDrawings = GetEntries();
     for (auto iGroup=0; iGroup<numDrawings; ++iGroup) {
         auto group = (LKDrawingGroup*) At(iGroup);
-        group -> Draw();
+        group -> Draw(option);
     }
 }
 

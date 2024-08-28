@@ -23,7 +23,7 @@ class LKDrawing : public TNamed
         virtual void Draw(Option_t *option="");
         virtual void Print(Option_t *option="") const;
         virtual void Clear(Option_t *option="");
-        virtual Double_t GetEntries() const;
+        virtual Double_t GetHistEntries() const;
 
         void Add(TObject *obj, TString title="", TString drawOption="", bool isMain=false);
         void SetTitle(int i, TString title) { fTitleArray[i] = title; }
@@ -33,9 +33,11 @@ class LKDrawing : public TNamed
         void SetCanvas(TCanvas* cvs) { fCvs = (TPad*) cvs; }
 
         int GetNumDrawings() const { return fDrawingArray.GetEntries(); }
+        //int GetNumDrawings() const { return GetEntries(); }
         TString GetTitle(int i) const { return fTitleArray.at(i); }
         TString GetOption(int i) const { return fOptionArray.at(i); }
-        TObject* GetDrawing(int i) const { return fDrawingArray.At(i); }
+        LKDrawing* GetDrawing(int i) const { return (LKDrawing*) fDrawingArray.At(i); }
+        //LKDrawing* GetDrawing(int i) const { return (LKDrawing*) At(i); }
         TPad* GetCanvas()  const { return fCvs; }
         TH1* GetMainHist() const { return fHist; }
         TObject* GetMain() const { return fMain; }
@@ -64,7 +66,7 @@ class LKDrawing : public TNamed
         int fMainIndex = -1;
 
         TPad* fCvs = nullptr; //!
-        TObject* fMain = nullptr; //!
+        TObject* fMain = nullptr;
         TH1* fHist = nullptr;
         TLegend* fLegend = nullptr;
 

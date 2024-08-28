@@ -1,7 +1,11 @@
-#include "TH1.h"
-#include "TCanvas.h"
-#include "TRandom.h"
 #include "TApplication.h"
+#include "TSystem.h"
+#include "TROOT.h"
+#include "TRandom.h"
+#include "TCanvas.h"
+#include "TCutG.h"
+#include "TKey.h"
+#include "TH1.h"
 
 #include "TGResourcePool.h"
 #include "TGLayout.h"
@@ -21,6 +25,12 @@ LKDataViewer::LKDataViewer(LKDrawingSet *set, const TGWindow *p, UInt_t w, UInt_
     : LKDataViewer(p, w, h)
 {
     AddSet(set);
+}
+
+LKDataViewer::LKDataViewer(TString fileName, TString setName, const TGWindow *p, UInt_t w, UInt_t h)
+    : LKDataViewer(p, w, h)
+{
+    AddFile(fileName, setName);
 }
 
 bool LKDataViewer::InitParameters()
@@ -67,6 +77,46 @@ void LKDataViewer::AddSet(LKDrawingSet* set)
     fDrawingSet -> AddSet(set);
 }
 
+bool LKDataViewer::AddFile(TString fileName, TString setName)
+{
+    TFile* file = new TFile(fileName);
+    if (!file->IsOpen()) {
+        e_error << fileName << " is cannot be openned" << endl;
+        return false;
+    }
+
+    if (!setName.IsNull())
+    {
+        auto obj = file -> Get(setName);
+        if (obj==nullptr) {
+            e_error << setName << " is nullptr" << endl;
+            return false;
+        }
+        if (TString(obj->ClassName())=="LKDrawingSet") {
+            auto set = (LKDrawingSet*) obj;
+            AddSet(set);
+        }
+        else {
+            e_error << setName << " type is not LKDrawingSet" << endl;
+            return false;
+        }
+    }
+    else
+    {
+        auto listOfKeys = file -> GetListOfKeys();
+        TKey* key = nullptr;
+        TIter nextKey(listOfKeys);
+        while ((key=(TKey*)nextKey())) {
+            if (TString(key->GetClassName())=="LKDrawingSet") {
+                auto set = (LKDrawingSet*) key -> ReadObj();
+                AddSet(set);
+            }
+        }
+    }
+
+    return true;
+}
+
 bool LKDataViewer::InitFrames()
 {
     if (fInitialized)
@@ -83,19 +133,13 @@ bool LKDataViewer::InitFrames()
     MapSubwindows(); // Map all subwindows of main frame
     //if (GetDefaultSize().fWidth>fInitWidth)
     //    lk_warning << "Maybe tab will overflow " << GetDefaultSize().fWidth << " > " << fInitWidth << endl;
-    Resize(fInitWidth,fInitHeight);
-    //Resize(GetDefaultSize()); // Initialize the layout algorithm
+    Resize(fInitWidth,fInitHeight); // Initialize the layout algorithm
+    //Resize(GetDefaultSize());
     MapWindow(); // Map main frame
 
-    //{
-    //    TIter next(fDrawingSet);
-    //    LKDrawingGroup *group;
-    //    while ((group = (LKDrawingGroup*) next()))
-    //        group -> Draw();
-    //}
-    //for (auto group : fTagGroup) group -> Draw();
+    e_info << fTabGroup.size() << " groups added" << endl;
 
-    ProcessGotoTab(0);
+    ProcessGotoTopTab(0);
 
     fInitialized = true;
 
@@ -115,53 +159,90 @@ void LKDataViewer::CreateMainFrame()
 
 void LKDataViewer::CreateMainCanvas()
 {
-    // Create a tabbed interface
-    fTabSpace = new TGTab(fMainFrame, (1 - fControlFrameXRatio) * fWidth, fHeight, (*(gClient->GetResourcePool()->GetFrameGC()))(),fSFont1);
+    fTabSpace = new TGTab(fMainFrame, (1 - fControlFrameXRatio) * fWidth, fHeight, (*(gClient->GetResourcePool()->GetFrameGC()))());//,fSFont1);
+    //fTabSpace -> SetName("fTabSpace");
     fTabSpace->SetMinHeight(fRFEntry*fTabSpace->GetHeight());
     fMainFrame->AddFrame(fTabSpace, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY));
-
-    LKDrawingGroup *group;
+    LKDrawingGroup *group = nullptr;
     TIter next(fDrawingSet);
     while ((group = (LKDrawingGroup*) next()))
         AddTab(group);
 }
 
-void LKDataViewer::AddTab(LKDrawingGroup* group)
+void LKDataViewer::AddTab(LKDrawingGroup* group, int iTab)
 {
-    TString tabName = group -> GetName();
-    TString cvsName = group -> GetName();
-    TGCompositeFrame *tabFrame = fTabSpace->AddTab(tabName);
-    tabFrame->SetMinHeight(fRFEntry*tabFrame->GetHeight());
-    if (!fUseTRootCanvas) {
-        TRootEmbeddedCanvas *ecvs = new TRootEmbeddedCanvas(cvsName, tabFrame, (1 - fControlFrameXRatio) * fWidth, fHeight);
-        tabFrame->AddFrame(ecvs, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY));
-        TCanvas *canvas = ecvs->GetCanvas();
-        fTabCanvases.push_back(canvas);
-        group -> SetCanvas(canvas);
+    bool isMainTabs = false;
+    TGTab *tabSpace = nullptr;
+
+    if (iTab<0) {
+        isMainTabs = true;
+        tabSpace = fTabSpace;
+        fTabGroup.push_back(group);
+        fTabShouldBeUpdated.push_back(true);
+
+        vector<LKDrawingGroup*> subTabGroup;
+        fSubTabGroup.push_back(subTabGroup);
+        vector<bool> subTabShouldBeUpdated;
+        fSubTabShouldBeUpdated.push_back(subTabShouldBeUpdated);
     }
     else {
-        tabFrame->SetEditable();
-        TCanvas* canvas = new TCanvas(cvsName, cvsName, 400, 400);
-        fTabCanvases.push_back(canvas);
-        tabFrame->SetEditable(kFALSE);
-        group -> SetCanvas(canvas);
+        tabSpace = fSubTabSpace[iTab];
+        fSubTabShouldBeUpdated[iTab].push_back(true);
+        fSubTabGroup[iTab].push_back(group);
     }
-    fTagGroup.push_back(group);
-    fTabShouldBeUpdated.push_back(true);
-    //group -> Draw();
+
+    TString tabName = group -> GetName();
+    TString cvsName = group -> GetName();
+    TGCompositeFrame *tabFrame;
+    tabFrame = tabSpace->AddTab(tabName);
+
+    auto numSubGroups = group->GetNumSubGroups();
+    if (numSubGroups>0)
+    {
+        iTab = fTabShouldBeUpdated.size()-1;
+        //TGTab *nestedTab = new TGTab(tabFrame, (1 - fControlFrameXRatio) * fWidth, fHeight);
+        TGTab *nestedTab = new TGTab(tabFrame);
+        nestedTab->SetName(Form("fTabSpace_%d",iTab));
+        tabFrame->AddFrame(nestedTab, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY));
+        //tabFrame->AddFrame(nestedTab, new TGLayoutHints(kLHintsExpandY));
+        //tabFrame->AddFrame(nestedTab);
+        fSubTabSpace.push_back(nestedTab);
+        fNumSubTabs.push_back(numSubGroups);
+        for (auto iSub=0; iSub<numSubGroups; ++iSub) {
+            auto subGroup = group -> GetSubGroup(iSub);
+            //subGroup -> SetName(Form("%d",iSub));
+            AddTab(subGroup,iTab);
+        }
+    }
+    else
+    {
+        if (isMainTabs) {
+            fSubTabSpace.push_back(tabSpace);
+            fNumSubTabs.push_back(0);
+        }
+        if (!fUseTRootCanvas) {
+            TRootEmbeddedCanvas *ecvs = new TRootEmbeddedCanvas(cvsName, tabFrame, (1 - fControlFrameXRatio) * fWidth, fHeight);
+            tabFrame->AddFrame(ecvs, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY));
+            TCanvas *canvas = ecvs->GetCanvas();
+            group -> SetCanvas(canvas);
+        }
+        else {
+            tabFrame->SetEditable();
+            TCanvas* canvas = new TCanvas(cvsName, cvsName, 400, 400);
+            tabFrame->SetEditable(kFALSE);
+            group -> SetCanvas(canvas);
+        }
+    }
 }
 
 void LKDataViewer::CreateStatusFrame()
 {
-    // Double line bottom bar
     TGVerticalFrame *messageFrame = new TGVerticalFrame(this, fWidth, fStatusFrameYRatio*fHeight);
     AddFrame(messageFrame, new TGLayoutHints(kLHintsExpandX | kLHintsBottom));
-
     fStatusMessages = new TGLabel(messageFrame, "");
     fStatusDataName = new TGLabel(messageFrame, "");
     messageFrame->AddFrame(fStatusMessages, new TGLayoutHints(kLHintsLeft | kLHintsExpandX | kLHintsTop, fRF*5, fRF*5, fRF*2, fRF*2));
     messageFrame->AddFrame(fStatusDataName, new TGLayoutHints(kLHintsLeft | kLHintsExpandX | kLHintsBottom, fRF*5, fRF*5, fRF*2, fRF*2));
-
     fStatusMessages->SetTextFont(fGFont1);
     fStatusDataName->SetTextFont(fGFont1);
 }
@@ -170,164 +251,192 @@ void LKDataViewer::CreateControlFrame()
 {
     fControlFrame = new TGVerticalFrame(fMainFrame, fControlFrameXRatio*fWidth, fHeight);
     fMainFrame->AddFrame(fControlFrame, new TGLayoutHints(kLHintsLeft | kLHintsExpandY));
-    //fMainFrame->AddFrame(fControlFrame, new TGLayoutHints(kLHintsRight | kLHintsExpandY));
-
-    if (fRun!=nullptr)
-    {
+    if (fRun!=nullptr) {
         CreateEventControlSection();
         CreateEventRangeControlSection();
     }
-    CreateExitFrame();
+    CreateViewerControlSection();
     CreateTabControlSection();
     CreateNumberPad();
 }
 
-void LKDataViewer::CreateExitFrame()
+void LKDataViewer::CreateViewerControlSection()
 {
-    TGGroupFrame *grouFrame = new TGGroupFrame(fControlFrame, "Exit");
-    grouFrame->SetTextFont(fSFont1);
-    fControlFrame->AddFrame(grouFrame, new TGLayoutHints(kLHintsExpandX | kLHintsBottom, fRF*5, fRF*5, fRF*5, fRF*5));
+    TGGroupFrame *section = new TGGroupFrame(fControlFrame, "Viewer Control");
+    section->SetTextFont(fSFont1);
+    fControlFrame->AddFrame(section, new TGLayoutHints(kLHintsExpandX | kLHintsBottom, fRF*5, fRF*5, fRF*5, fRF*5));
 
-    // First line: Number entry and Go button
-    TGHorizontalFrame *innerFrame = new TGHorizontalFrame(grouFrame);
-    grouFrame->AddFrame(innerFrame, new TGLayoutHints(kLHintsExpandX, fRF*5, fRF*5, fRF*10, fRF*5));
+    if (true) {
+        TGHorizontalFrame *frame1 = new TGHorizontalFrame(section);
+        section->AddFrame(frame1, new TGLayoutHints(kLHintsExpandX, fRF*5, fRF*5, fRF*10, fRF*2));
+        auto buttonLoadAll = new TGTextButton(frame1, "Load(&A)");
+        frame1->AddFrame(buttonLoadAll, new TGLayoutHints(kLHintsCenterX, fRF*2, fRF*2, fRF*2, fRF*2));
+        buttonLoadAll->SetFont(fSFont1);
+        buttonLoadAll->Connect("Clicked()", "LKDataViewer", this, "ProcessLoadAllCanvas()");
+        auto buttonExitViewer = new TGTextButton(frame1, "E&xit");
+        frame1->AddFrame(buttonExitViewer, new TGLayoutHints(kLHintsCenterX, fRF*2, fRF*2, fRF*2, fRF*2));
+        buttonExitViewer->SetFont(fSFont1);
+        buttonExitViewer->Connect("Clicked()", "LKDataViewer", this, "ProcessExitViewer()");
+    }
 
-    //auto buttonExitViewer = new TGTextButton(innerFrame, "E&xit");
-    auto buttonExitViewer = new TGTextButton(innerFrame, "E&xit");
-    innerFrame->AddFrame(buttonExitViewer, new TGLayoutHints(kLHintsCenterX, fRF*2, fRF*2, fRF*2, fRF*2));
-    buttonExitViewer->SetFont(fSFont1);
-    buttonExitViewer->Connect("Clicked()", "LKDataViewer", this, "ProcessExitViewer()");
+    if (false) {
+        TGHorizontalFrame *frame2 = new TGHorizontalFrame(section);
+        section->AddFrame(frame2, new TGLayoutHints(kLHintsExpandX, fRF*5, fRF*5, fRF*2, fRF*2));
+        auto buttonTCutGMode = new TGTextButton(frame2, "TCut&G");
+        frame2->AddFrame(buttonTCutGMode, new TGLayoutHints(kLHintsCenterX, fRF*2, fRF*2, fRF*2, fRF*2));
+        buttonTCutGMode->SetFont(fSFont1);
+        buttonTCutGMode->Connect("Clicked()", "LKDataViewer", this, "ProcessTCutGMode()");
+        auto buttonTCutGSave = new TGTextButton(frame2, "&Write");
+        frame2->AddFrame(buttonTCutGSave, new TGLayoutHints(kLHintsCenterX, fRF*2, fRF*2, fRF*2, fRF*2));
+        buttonTCutGSave->SetFont(fSFont1);
+        buttonTCutGSave->Connect("Clicked()", "LKDataViewer", this, "ProcessTCutGSave()");
+    }
+
+    if (false) {
+        TGHorizontalFrame *frame3 = new TGHorizontalFrame(section);
+        section->AddFrame(frame3, new TGLayoutHints(kLHintsExpandX, fRF*5, fRF*5, fRF*2, fRF*2));
+        auto buttonSaveCanvas = new TGTextButton(frame3, "&Save");
+        frame3->AddFrame(buttonSaveCanvas, new TGLayoutHints(kLHintsCenterX, fRF*2, fRF*2, fRF*2, fRF*2));
+        buttonSaveCanvas->SetFont(fSFont1);
+        buttonSaveCanvas->Connect("Clicked()", "LKDataViewer", this, "ProcessSaveCanvas()");
+    }
 }
 
 void LKDataViewer::CreateEventControlSection()
 {
-    TGGroupFrame *eventControlFrame = new TGGroupFrame(fControlFrame, "Event Control");
-    eventControlFrame->SetTextFont(fSFont1);
-    fControlFrame->AddFrame(eventControlFrame, new TGLayoutHints(kLHintsExpandX, fRF*5, fRF*5, fRF*5, fRF*5));
+    TGGroupFrame *section = new TGGroupFrame(fControlFrame, "Event Control");
+    section->SetTextFont(fSFont1);
+    fControlFrame->AddFrame(section, new TGLayoutHints(kLHintsExpandX, fRF*5, fRF*5, fRF*5, fRF*5));
 
-    // First line: Number entry and Go button
-    TGHorizontalFrame *eventFrame1 = new TGHorizontalFrame(eventControlFrame);
-    eventControlFrame->AddFrame(eventFrame1, new TGLayoutHints(kLHintsExpandX, fRF*5, fRF*5, fRF*10, fRF*5));
+    if (true) {
+        TGHorizontalFrame *frame1 = new TGHorizontalFrame(section);
+        section->AddFrame(frame1, new TGLayoutHints(kLHintsExpandX, fRF*5, fRF*5, fRF*10, fRF*2));
+        //fEventNumberEntry = new TGNumberEntry(frame1, 0, 9, -1, TGNumberFormat::kNESInteger);
+        //fEventNumberEntry->SetHeight(fRFEntry*fEventNumberEntry->GetHeight());
+        //frame1->AddFrame(fEventNumberEntry, new TGLayoutHints(kLHintsLeft|kLHintsCenterY, fRF*2, fRF*2, fRF*2, fRF*2));
+        TGTextButton *gotoButton = new TGTextButton(frame1, "Go");
+        gotoButton->SetFont(fSFont1);
+        gotoButton->Connect("Clicked()", "LKDataViewer", this, "ProcessGotoEvent()");
+        frame1->AddFrame(gotoButton, new TGLayoutHints(kLHintsRight, fRF*2, fRF*2, fRF*2, fRF*2));
+    }
 
-    fEventNumberEntry = new TGNumberEntry(eventFrame1, 0, 9, -1, TGNumberFormat::kNESInteger);
-    //fEventNumberEntry->SetTextFont(fSFont1);
-    fEventNumberEntry->SetHeight(fRFEntry*fEventNumberEntry->GetHeight());
-    eventFrame1->AddFrame(fEventNumberEntry, new TGLayoutHints(kLHintsLeft|kLHintsCenterY, fRF*2, fRF*2, fRF*2, fRF*2));
-
-    TGTextButton *gotoButton = new TGTextButton(eventFrame1, "Go");
-    gotoButton->SetFont(fSFont1);
-    gotoButton->Connect("Clicked()", "LKDataViewer", this, "ProcessGotoEvent()");
-    eventFrame1->AddFrame(gotoButton, new TGLayoutHints(kLHintsRight, fRF*2, fRF*2, fRF*2, fRF*2));
-
-    // Second line: Prev and Next buttons
-    TGHorizontalFrame *eventFrame2 = new TGHorizontalFrame(eventControlFrame);
-    eventControlFrame->AddFrame(eventFrame2, new TGLayoutHints(kLHintsExpandX, fRF*5, fRF*5, fRF*5, fRF*5));
-
-    TGTextButton *prevButton = new TGTextButton(eventFrame2, "&Prev");
-    prevButton->SetFont(fSFont1);
-    prevButton->Connect("Clicked()", "LKDataViewer", this, "ProcessPrevEvent()");
-    eventFrame2->AddFrame(prevButton, new TGLayoutHints(kLHintsLeft, fRF*2, fRF*2, fRF*2, fRF*2));
-
-    TGTextButton *nextButton = new TGTextButton(eventFrame2, "&Next");
-    nextButton->SetFont(fSFont1);
-    nextButton->Connect("Clicked()", "LKDataViewer", this, "ProcessNextEvent()");
-    eventFrame2->AddFrame(nextButton, new TGLayoutHints(kLHintsRight, fRF*2, fRF*2, fRF*2, fRF*2));
+    if (true) {
+        TGHorizontalFrame *frame2 = new TGHorizontalFrame(section);
+        section->AddFrame(frame2, new TGLayoutHints(kLHintsExpandX, fRF*5, fRF*5, fRF*2, fRF*2));
+        TGTextButton *prevButton = new TGTextButton(frame2, "&Prev");
+        TGTextButton *nextButton = new TGTextButton(frame2, "&Next");
+        frame2->AddFrame(prevButton, new TGLayoutHints(kLHintsLeft, fRF*2, fRF*2, fRF*2, fRF*2));
+        frame2->AddFrame(nextButton, new TGLayoutHints(kLHintsRight, fRF*2, fRF*2, fRF*2, fRF*2));
+        prevButton->SetFont(fSFont1);
+        nextButton->SetFont(fSFont1);
+        prevButton->Connect("Clicked()", "LKDataViewer", this, "ProcessPrevEvent()");
+        nextButton->Connect("Clicked()", "LKDataViewer", this, "ProcessNextEvent()");
+    }
 }
 
 void LKDataViewer::CreateEventRangeControlSection()
 {
-    TGGroupFrame *eventRangeFrame = new TGGroupFrame(fControlFrame, "Event Range");
-    eventRangeFrame->SetTextFont(fSFont1);
-    fControlFrame->AddFrame(eventRangeFrame, new TGLayoutHints(kLHintsExpandX, fRF*5, fRF*5, fRF*5, fRF*5));
+    TGGroupFrame *section = new TGGroupFrame(fControlFrame, "Event Range");
+    section->SetTextFont(fSFont1);
+    fControlFrame->AddFrame(section, new TGLayoutHints(kLHintsExpandX, fRF*5, fRF*5, fRF*5, fRF*5));
 
-    // First line: Number entry and Go button
-    TGHorizontalFrame *eventFrame1 = new TGHorizontalFrame(eventRangeFrame);
-    eventRangeFrame->AddFrame(eventFrame1, new TGLayoutHints(kLHintsExpandX, fRF*5, fRF*5, fRF*10, fRF*5));
-
-    fEventRangeEntry1 = new TGNumberEntry(eventFrame1, 0, 9, -1, TGNumberFormat::kNESInteger);
+    /*
+    TGHorizontalFrame *frame1 = new TGHorizontalFrame(section);
+    section->AddFrame(frame1, new TGLayoutHints(kLHintsExpandX, fRF*5, fRF*5, fRF*10, fRF*2));
+    fEventRangeEntry1 = new TGNumberEntry(frame1, 0, 9, -1, TGNumberFormat::kNESInteger);
     fEventRangeEntry1->SetHeight(fRFEntry*fEventRangeEntry1->GetHeight());
-    eventFrame1->AddFrame(fEventRangeEntry1, new TGLayoutHints(kLHintsLeft|kLHintsCenterY, fRF*2, fRF*2, fRF*2, fRF*2));
-
-    fEventRangeEntry2 = new TGNumberEntry(eventFrame1, 0, 9, -1, TGNumberFormat::kNESInteger);
+    frame1->AddFrame(fEventRangeEntry1, new TGLayoutHints(kLHintsLeft|kLHintsCenterY, fRF*2, fRF*2, fRF*2, fRF*2));
+    fEventRangeEntry2 = new TGNumberEntry(frame1, 0, 9, -1, TGNumberFormat::kNESInteger);
     fEventRangeEntry2->SetHeight(fRFEntry*fEventRangeEntry2->GetHeight());
-    eventFrame1->AddFrame(fEventRangeEntry2, new TGLayoutHints(kLHintsRight|kLHintsCenterY, fRF*2, fRF*2, fRF*2, fRF*2));
+    frame1->AddFrame(fEventRangeEntry2, new TGLayoutHints(kLHintsRight|kLHintsCenterY, fRF*2, fRF*2, fRF*2, fRF*2));
 
-    // Second line: Prev and Next buttons
-    TGHorizontalFrame *eventFrame2 = new TGHorizontalFrame(eventRangeFrame);
-    eventRangeFrame->AddFrame(eventFrame2, new TGLayoutHints(kLHintsExpandX, fRF*5, fRF*5, fRF*5, fRF*5));
-
-    TGTextButton *allButton = new TGTextButton(eventFrame2, "&All Evt");
+    TGHorizontalFrame *frame2 = new TGHorizontalFrame(section);
+    section->AddFrame(frame2, new TGLayoutHints(kLHintsExpandX, fRF*5, fRF*5, fRF*2, fRF*2));
+    TGTextButton *allButton = new TGTextButton(frame2, "&All Evt");
     allButton->SetFont(fSFont1);
     allButton->Connect("Clicked()", "LKDataViewer", this, "ProcessAllEvents()");
-    eventFrame2->AddFrame(allButton, new TGLayoutHints(kLHintsLeft, fRF*2, fRF*2, fRF*2, fRF*2));
-
-    TGTextButton *rangeButton = new TGTextButton(eventFrame2, "Go");
+    frame2->AddFrame(allButton, new TGLayoutHints(kLHintsLeft, fRF*2, fRF*2, fRF*2, fRF*2));
+    TGTextButton *rangeButton = new TGTextButton(frame2, "Go");
     rangeButton->SetFont(fSFont1);
     rangeButton->Connect("Clicked()", "LKDataViewer", this, "ProcessRangeEvents()");
-    eventFrame2->AddFrame(rangeButton, new TGLayoutHints(kLHintsRight, fRF*2, fRF*2, fRF*2, fRF*2));
+    frame2->AddFrame(rangeButton, new TGLayoutHints(kLHintsRight, fRF*2, fRF*2, fRF*2, fRF*2));
+    */
 }
 
 void LKDataViewer::CreateTabControlSection()
 {
-    TGGroupFrame *tabControlGroup = new TGGroupFrame(fControlFrame, "Tab Control");
-    tabControlGroup->SetTextFont(fSFont1);
-    fControlFrame->AddFrame(tabControlGroup, new TGLayoutHints(kLHintsExpandX | kLHintsBottom, fRF*5, fRF*5, fRF*5, fRF*5));
+    TGGroupFrame *section = new TGGroupFrame(fControlFrame, "Tab Control");
+    section->SetTextFont(fSFont1);
+    fControlFrame->AddFrame(section, new TGLayoutHints(kLHintsExpandX | kLHintsBottom, fRF*5, fRF*5, fRF*5, fRF*5));
 
-    // First line: Number entry and Go button
-    TGHorizontalFrame *tabControlFrame = new TGHorizontalFrame(tabControlGroup);
-    tabControlGroup->AddFrame(tabControlFrame, new TGLayoutHints(kLHintsExpandX, fRF*5, fRF*5, fRF*10, fRF*5));
-
-    TGTextButton* buttonGotoTab = new TGTextButton(tabControlFrame, "Goto &Tab");
-    buttonGotoTab->SetFont(fSFont1);
-    buttonGotoTab->Connect("Clicked()", "LKDataViewer", this, "ProcessGotoTab()");
-    tabControlFrame->AddFrame(buttonGotoTab, new TGLayoutHints(kLHintsExpandX, fRF*2, fRF*2, fRF*2, fRF*2));
-
-    // Second line: Prev and Next buttons
-    TGHorizontalFrame *tabFrame2 = new TGHorizontalFrame(tabControlGroup);
-    tabControlGroup->AddFrame(tabFrame2, new TGLayoutHints(kLHintsExpandX, fRF*5, fRF*5, fRF*5, fRF*5));
-
-    TGTextButton *prevButton;
-    TGTextButton *nextButton;
-    if (!fUseTRootCanvas) prevButton = new TGTextButton(tabFrame2, "Prev(&H)");
-    else                  prevButton = new TGTextButton(tabFrame2, "Prev(&-)");
-    prevButton->SetFont(fSFont1);
-    prevButton->Connect("Clicked()", "LKDataViewer", this, "ProcessPrevTab()");
-    tabFrame2->AddFrame(prevButton, new TGLayoutHints(kLHintsLeft, fRF*2, fRF*2, fRF*2, fRF*2));
-
-    if (!fUseTRootCanvas) nextButton = new TGTextButton(tabFrame2, "Next(&L)");
-    else                  nextButton = new TGTextButton(tabFrame2, "Next(&+)");
-    nextButton->SetFont(fSFont1);
-    nextButton->Connect("Clicked()", "LKDataViewer", this, "ProcessNextTab()");
-    tabFrame2->AddFrame(nextButton, new TGLayoutHints(kLHintsRight, fRF*2, fRF*2, fRF*2, fRF*2));
-
-    fTabListBox = new TGListBox(tabControlGroup);
-    tabControlGroup->AddFrame(fTabListBox, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY, fRF * 5, fRF * 5, fRF * 10, fRF * 10));
-    auto numTabs = fTabSpace->GetNumberOfTabs();
-    for (auto iTab=0; iTab<numTabs; ++iTab) {
-        TString tabName = *(fTabSpace->GetTabTab(iTab)->GetText());
-        fTabListBox -> AddEntry(tabName, iTab);
+    if (true) {
+        TGHorizontalFrame *frame1 = new TGHorizontalFrame(section);
+        section->AddFrame(frame1, new TGLayoutHints(kLHintsExpandX, fRF*5, fRF*5, fRF*10, fRF*2));
+        TGTextButton* buttonGotoTopTab = new TGTextButton(frame1, "Go &Tab");
+        TGTextButton* buttonGotoSubTab = new TGTextButton(frame1, "Go S&ub");
+        buttonGotoTopTab->Connect("Clicked()", "LKDataViewer", this, "ProcessGotoTopTab()");
+        buttonGotoSubTab->Connect("Clicked()", "LKDataViewer", this, "ProcessGotoSubTab()");
+        frame1->AddFrame(buttonGotoTopTab, new TGLayoutHints(kLHintsExpandX, fRF*2, fRF*2, fRF*2, fRF*2));
+        frame1->AddFrame(buttonGotoSubTab, new TGLayoutHints(kLHintsExpandX, fRF*2, fRF*2, fRF*2, fRF*2));
+        buttonGotoTopTab->SetFont(fSFont1);
+        buttonGotoSubTab->SetFont(fSFont1);
     }
-    // Connect the list box to the tab selection handler
-    fTabListBox->Connect("Selected(Int_t)", "LKDataViewer", this, "ProcessTabSelection(Int_t)");
+
+    if (true) {
+        TGHorizontalFrame *frame2 = new TGHorizontalFrame(section);
+        section->AddFrame(frame2, new TGLayoutHints(kLHintsExpandX, fRF*5, fRF*5, fRF*2, fRF*2));
+        //TGTextButton *prevButton = new TGTextButton(frame2, "Prev(&H)");
+        //TGTextButton *nextButton = new TGTextButton(frame2, "Next(&L)");
+        TGTextButton *prevButton = new TGTextButton(frame2, "<(&H)Tab");
+        TGTextButton *nextButton = new TGTextButton(frame2, "Tab(&L)>");
+        frame2->AddFrame(prevButton, new TGLayoutHints(kLHintsLeft, fRF*2, fRF*2, fRF*2, fRF*2));
+        frame2->AddFrame(nextButton, new TGLayoutHints(kLHintsRight, fRF*2, fRF*2, fRF*2, fRF*2));
+        prevButton->Connect("Clicked()", "LKDataViewer", this, "ProcessPrevTab()");
+        nextButton->Connect("Clicked()", "LKDataViewer", this, "ProcessNextTab()");
+        prevButton->SetFont(fSFont1);
+        nextButton->SetFont(fSFont1);
+        //if (fUseTRootCanvas) prevButton = new TGTextButton(frame2, "Prev(&-)");
+        //if (fUseTRootCanvas) nextButton = new TGTextButton(frame2, "Next(&+)");
+    }
+
+    if (true) {
+        TGHorizontalFrame *frame3 = new TGHorizontalFrame(section);
+        section->AddFrame(frame3, new TGLayoutHints(kLHintsExpandX, fRF*5, fRF*5, fRF*2, fRF*2));
+        TGTextButton *prevSubButton = new TGTextButton(frame3, "<(&J)Sub");
+        TGTextButton *nextSubButton = new TGTextButton(frame3, "Sub(&K)>");
+        frame3->AddFrame(prevSubButton, new TGLayoutHints(kLHintsLeft, fRF*2, fRF*2, fRF*2, fRF*2));
+        frame3->AddFrame(nextSubButton, new TGLayoutHints(kLHintsRight, fRF*2, fRF*2, fRF*2, fRF*2));
+        prevSubButton->Connect("Clicked()", "LKDataViewer", this, "ProcessPrevSubTab()");
+        nextSubButton->Connect("Clicked()", "LKDataViewer", this, "ProcessNextSubTab()");
+        prevSubButton->SetFont(fSFont1);
+        nextSubButton->SetFont(fSFont1);
+    }
+
+    if (false) {
+        fTabListBox = new TGListBox(section);
+        section->AddFrame(fTabListBox, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY, fRF * 5, fRF * 5, fRF * 10, fRF * 10));
+        auto numTabs = fTabSpace->GetNumberOfTabs();
+        for (auto iTab=0; iTab<numTabs; ++iTab) {
+            TString tabName = *(fTabSpace->GetTabTab(iTab)->GetText());
+            fTabListBox -> AddEntry(tabName, iTab);
+        }
+        fTabListBox->Connect("Selected(Int_t)", "LKDataViewer", this, "ProcessTabSelection(Int_t)");
+    }
 }
 
 void LKDataViewer::CreateNumberPad()
 {
-    // Create a frame for the number pad
-    TGGroupFrame *numberPadFrame = new TGGroupFrame(fControlFrame, "Number Pad");
-    numberPadFrame->SetTextFont(fSFont1);
-    fControlFrame->AddFrame(numberPadFrame, new TGLayoutHints(kLHintsExpandX | kLHintsBottom, fRF*5, fRF*5, fRF*5, fRF*5));
+    TGGroupFrame *section = new TGGroupFrame(fControlFrame, "Number Pad");
+    section->SetTextFont(fSFont1);
+    fControlFrame->AddFrame(section, new TGLayoutHints(kLHintsExpandX | kLHintsBottom, fRF*5, fRF*5, fRF*5, fRF*5));
 
-    // Create a vertical frame to hold the rows of the number pad
-    TGVerticalFrame *vFrame = new TGVerticalFrame(numberPadFrame);
-    numberPadFrame->AddFrame(vFrame, new TGLayoutHints(kLHintsExpandX | kLHintsCenterX | kLHintsBottom | kLHintsExpandY, fRF*5, fRF*5, fRF*20, fRF*5));
+    TGVerticalFrame *vFrame = new TGVerticalFrame(section);
+    section->AddFrame(vFrame, new TGLayoutHints(kLHintsExpandX | kLHintsCenterX | kLHintsBottom | kLHintsExpandY, fRF*5, fRF*5, fRF*20, fRF*5));
 
-    // Create the input field for the number pad
-    //fNumberInput = new TGTextEntry(vFrame, new TGTextBuffer(20));
-    //fNumberInput = new TGNumberEntryField(vFrame, new TGTextBuffer(20));
     fNumberInput = new TGNumberEntryField(vFrame);
     fNumberInput->SetHeight(fRFEntry*fNumberInput->GetHeight());
     vFrame->AddFrame(fNumberInput, new TGLayoutHints(kLHintsExpandX | kLHintsTop | kLHintsExpandY, fRF*5, fRF*5, fRF*5, fRF*5));
+    fNumberInput->Clear();
 
     vector<vector<int>> numbers = {{91,0,92},{1,2,3},{4,5,6},{7,8,9}};
     for (int row : {3,2,1,0})
@@ -346,19 +455,16 @@ void LKDataViewer::CreateNumberPad()
         }
     }
 
-    TGHorizontalFrame *hFrame4 = new TGHorizontalFrame(vFrame);
-
-    TGTextButton *clearButton = new TGTextButton(hFrame4, "&Clear", 101);
-    clearButton->SetFont(fSFont1);
+    TGHorizontalFrame *frame2 = new TGHorizontalFrame(vFrame);
+    vFrame->AddFrame(frame2, new TGLayoutHints(kLHintsExpandX | kLHintsCenterX, fRF*5, fRF*5, fRF*5, fRF*5));
+    TGTextButton *clearButton = new TGTextButton(frame2, "&Clear", 101);
+    TGTextButton *bkspcButton = new TGTextButton(frame2, "&Back", 102);
     clearButton->Connect("Clicked()", "LKDataViewer", this, "HandleNumberInput(=101)");
-    hFrame4->AddFrame(clearButton, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY, fRF*5, fRF*5, fRF*2, fRF*2));
-
-    TGTextButton *backButton = new TGTextButton(hFrame4, "&Back", 102);
-    backButton->SetFont(fSFont1);
-    backButton->Connect("Clicked()", "LKDataViewer", this, "HandleNumberInput(=102)");
-    hFrame4->AddFrame(backButton, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY, fRF*5, fRF*5, fRF*2, fRF*2));
-
-    vFrame->AddFrame(hFrame4, new TGLayoutHints(kLHintsExpandX | kLHintsCenterX, fRF*5, fRF*5, fRF*5, fRF*5));
+    bkspcButton->Connect("Clicked()", "LKDataViewer", this, "HandleNumberInput(=102)");
+    frame2->AddFrame(clearButton, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY, fRF*5, fRF*5, fRF*2, fRF*2));
+    frame2->AddFrame(bkspcButton, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY, fRF*5, fRF*5, fRF*2, fRF*2));
+    clearButton->SetFont(fSFont1);
+    bkspcButton->SetFont(fSFont1);
 }
 
 void LKDataViewer::HandleNumberInput(Int_t id)
@@ -397,12 +503,12 @@ void LKDataViewer::SendOutMessage(TString message)
     fStatusMessages -> ChangeText(message);
 }
 
-void LKDataViewer::ProcessGotoTab(int id)
+void LKDataViewer::ProcessGotoTopTab(int id)
 {
     int updateID = 0;
     if (id>=0)
         updateID = id;
-    else {
+    else if (!TString(fNumberInput->GetText()).IsNull()) {
         updateID = fNumberInput->GetIntNumber();
         fNumberInput->Clear();
     }
@@ -411,15 +517,61 @@ void LKDataViewer::ProcessGotoTab(int id)
         return;
     }
     fTabSpace->SetTab(updateID);
-    if (fTabShouldBeUpdated[updateID]) {
+
+    if (fNumSubTabs[updateID]==0&&fTabShouldBeUpdated[updateID]) {
         fTabShouldBeUpdated[updateID] = false;
-        fTagGroup[updateID] -> Draw();
-        fTagGroup[updateID] -> GetCanvas() -> Modified();
-        fTagGroup[updateID] -> GetCanvas() -> Update();
+        fTabGroup[updateID] -> Draw();
+        fTabGroup[updateID] -> GetCanvas() -> Modified();
+        fTabGroup[updateID] -> GetCanvas() -> Update();
     }
     fTabSpace->Layout();
     TString tabName = *(fTabSpace->GetTabTab(updateID)->GetText());
     SendOutMessage(Form("Switched to %s (%d)",tabName.Data(),updateID));
+
+    fCurrentTabID = updateID;
+    if (fNumSubTabs[fCurrentTabID]>0) {
+        fCurrentSubTabSpace = fSubTabSpace[fCurrentTabID];
+        ProcessGotoSubTab(-2);
+    }
+    else {
+        fCurrentSubTabSpace = nullptr;
+    }
+}
+
+void LKDataViewer::ProcessGotoSubTab(int id)
+{
+    if (fCurrentSubTabSpace==nullptr)
+        return;
+
+    int updateID = 0;
+    if (id>=0)
+        updateID = id;
+    else if (id==-2)
+        updateID = fCurrentSubTabID;
+    else if (id==-1)
+    {
+        if (!TString(fNumberInput->GetText()).IsNull()) {
+            updateID = fNumberInput->GetIntNumber();
+            fNumberInput->Clear();
+        }
+    }
+
+    if (updateID < 0 || updateID >= fCurrentSubTabSpace->GetNumberOfTabs()) {
+        SendOutMessage(Form("Invalid tab ID: %d",updateID));
+        return;
+    }
+    fCurrentSubTabSpace->SetTab(updateID);
+    if (fSubTabShouldBeUpdated[fCurrentTabID][updateID]) {
+        fSubTabShouldBeUpdated[fCurrentTabID][updateID] = false;
+        fSubTabGroup[fCurrentTabID][updateID] -> Draw();
+        fSubTabGroup[fCurrentTabID][updateID] -> GetCanvas() -> Modified();
+        fSubTabGroup[fCurrentTabID][updateID] -> GetCanvas() -> Update();
+    }
+    fCurrentSubTabSpace->Layout();
+    TString tabName = *(fCurrentSubTabSpace->GetTabTab(updateID)->GetText());
+    SendOutMessage(Form("Switched to subtab %s (%d,%d)",tabName.Data(),fCurrentTabID,updateID));
+
+    fCurrentSubTabID = updateID;
 }
 
 void LKDataViewer::ProcessPrevTab()
@@ -432,7 +584,7 @@ void LKDataViewer::ProcessPrevTab()
         return;
     }
 
-    ProcessGotoTab(updateID);
+    ProcessGotoTopTab(updateID);
 }
 
 void LKDataViewer::ProcessNextTab()
@@ -445,11 +597,85 @@ void LKDataViewer::ProcessNextTab()
         return;
     }
 
-    ProcessGotoTab(updateID);
-    //auto canvas = fTabCanvases.at(updateID);
-    //canvas->ToggleToolBar();
-    //Layout();
-    //fTabSpace->Layout();
+    ProcessGotoTopTab(updateID);
+}
+
+void LKDataViewer::ProcessPrevSubTab()
+{
+    if (fCurrentSubTabSpace==nullptr)
+        return;
+
+    int currentID = fCurrentSubTabSpace -> GetCurrent();
+    int updateID = currentID - 1;
+    if (updateID < 0)
+    {
+        SendOutMessage("Current sub-tab is first sub-tab!");
+        return;
+    }
+
+    ProcessGotoSubTab(updateID);
+}
+
+void LKDataViewer::ProcessNextSubTab()
+{
+    if (fCurrentSubTabSpace==nullptr)
+        return;
+
+    int currentID = fCurrentSubTabSpace -> GetCurrent();
+    int updateID = currentID + 1;
+    if (updateID >= fCurrentSubTabSpace->GetNumberOfTabs())
+    {
+        SendOutMessage("Current sub-tab is last sub-tab!");
+        return;
+    }
+
+    ProcessGotoSubTab(updateID);
+}
+
+void LKDataViewer::ProcessPrevEvent()
+{
+    if (fRun==nullptr)
+        return;
+
+    fRun -> ExecutePreviousEvent();
+}
+
+void LKDataViewer::ProcessNextEvent()
+{
+    if (fRun==nullptr)
+        return;
+
+    fRun -> ExecuteNextEvent();
+}
+
+void LKDataViewer::ProcessGotoEvent()
+{
+    if (fRun==nullptr)
+        return;
+
+    int eventID = fNumberInput->GetIntNumber();
+    fNumberInput->Clear();
+    fRun -> ExecuteEvent(eventID);
+}
+
+void LKDataViewer::ProcessAllEvents()
+{
+    if (fRun==nullptr)
+        return;
+
+    fRun -> SetSkipEndOfRun(true);
+    fRun -> SetAutoTermination(false);
+    fRun -> Run();
+}
+
+void LKDataViewer::ProcessRangeEvents()
+{
+    if (fRun==nullptr)
+        return;
+
+    fRun -> SetSkipEndOfRun(true);
+    fRun -> SetAutoTermination(false);
+    //fRun -> Run();
 }
 
 void LKDataViewer::ProcessExitViewer()
@@ -458,9 +684,92 @@ void LKDataViewer::ProcessExitViewer()
     gApplication -> Terminate();
 }
 
+void LKDataViewer::ProcessSaveCanvas()
+{
+    auto group = fTabGroup[fCurrentTabID];
+    auto cvs = group -> GetCanvas();
+    gSystem -> Exec(Form("mkdir -p %s",fSavePath.Data()));
+    cvs -> SaveAs(Form("%s/%s.png",fSavePath.Data(),cvs->GetName()));
+    auto file = new TFile(Form("%s/%s.root",fSavePath.Data(),cvs->GetName()),"recreate");
+    group -> Write(group->GetName(),TObject::kSingleKey);
+}
+
 void LKDataViewer::ProcessTabSelection(Int_t id)
 {
     fTabSpace->SetTab(id);
     fTabSpace->Layout();
     SendOutMessage(Form("Switched to tab %d", id));
+}
+
+void LKDataViewer::ProcessLoadAllCanvas()
+{
+    int numTabs = fTabGroup.size();
+    SendOutMessage(Form("Loading %d tabs ...",numTabs));
+    for (auto iTab=0; iTab<numTabs; ++iTab)
+    {
+        int numSubTabs = fSubTabGroup[iTab].size();
+        if (numSubTabs>0)
+        {
+            SendOutMessage(Form("Loading %d sub-tabs ...",numSubTabs));
+            for (auto iSub=0; iSub<numSubTabs; ++iSub)
+            {
+                if (fSubTabShouldBeUpdated[iTab][iSub]) {
+                    fSubTabShouldBeUpdated[iTab][iSub] = false;
+                    fSubTabGroup[iTab][iSub] -> Draw();
+                    fSubTabGroup[iTab][iSub] -> GetCanvas() -> Modified();
+                    fSubTabGroup[iTab][iSub] -> GetCanvas() -> Update();
+                }
+            }
+        }
+        else  {
+            if (fTabShouldBeUpdated[iTab]) {
+                fTabShouldBeUpdated[iTab] = false;
+                fTabGroup[iTab] -> Draw();
+                fTabGroup[iTab] -> GetCanvas() -> Modified();
+                fTabGroup[iTab] -> GetCanvas() -> Update();
+            }
+        }
+    }
+
+    SendOutMessage("All tabs Loaded");
+}
+
+void LKDataViewer::ProcessTCutEditorMode(int iMode)
+{
+    vector<TString> options = {
+         "Arc" ,"Line" ,"Arrow" ,"Button" ,"Diamond" ,"Ellipse" ,"Pad"
+        ,"Pave" ,"PaveLabel" ,"PaveText" ,"PavesText" ,"PolyLine"
+        ,"CurlyLine" ,"CurlyArc" ,"Text" ,"Marker" ,"CutG"};
+
+    if (iMode<0) {
+        if (!TString(fNumberInput->GetText()).IsNull()) {
+            iMode = fNumberInput->GetIntNumber();
+            fNumberInput->Clear();
+        }
+    }
+    if (iMode<0 || iMode>=options.size()) {
+        SendOutMessage(Form("Invalid mode: %d. Avaialbe modes are: ",iMode));
+        int count = 1;
+        for (auto option : options)
+            e_cout << count++ << " : " << option << endl;
+        return;
+    }
+
+    gROOT -> SetEditorMode(options[iMode]);
+}
+
+void LKDataViewer::ProcessTCutGMode()
+{
+    gROOT -> SetEditorMode("CutG");
+}
+
+void LKDataViewer::ProcessTCutGSave()
+{
+    TCutG* cutg = (TCutG*) gPad->WaitPrimitive("CUTG","CutG");
+    //gSystem -> Exec("mkdir -p viewer/");
+    //auto file = new TFile(Form("viewer/%s.root",cvs->GetName()),"recreate");
+    //group -> Write(group->GetName(),TObject::kSingleKey);
+    //lk_debug << cutg << endl;
+    //if (cutg)
+    //cutg -> SaveAs("
 }

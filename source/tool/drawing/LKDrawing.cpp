@@ -20,10 +20,12 @@ LKDrawing::LKDrawing(TObject* obj, TObject* obj1, TObject* obj2, TObject* obj3)
 void LKDrawing::Add(TObject *obj, TString title, TString drawOption, bool isMain)
 {
     if (fDrawingArray.GetEntries()==0)
+    //if (GetEntries()==0)
         isMain = true;
     if (isMain) {
         if (fMainIndex>=0) e_warning << "replacing main index (" << fMainIndex << ")" << endl;
         fMainIndex = fDrawingArray.GetEntriesFast();
+        //fMainIndex = GetEntriesFast();
         fMain = obj;
         if (obj->InheritsFrom(TH1::Class()))
             fHist = (TH1*) obj;
@@ -33,6 +35,7 @@ void LKDrawing::Add(TObject *obj, TString title, TString drawOption, bool isMain
         }
     }
     fDrawingArray.Add(obj);
+    //Add(obj);
     fTitleArray.push_back(title);
     fOptionArray.push_back(drawOption);
 }
@@ -66,9 +69,11 @@ void LKDrawing::Draw(Option_t *option)
         if (fSetGridY) fCvs -> SetGridy();
     }
     auto numDrawings = fDrawingArray.GetEntries();
+    //auto numDrawings = GetEntries();
     for (auto iDrawing=0; iDrawing<numDrawings; ++iDrawing)
     {
         auto drawing = fDrawingArray.At(iDrawing);
+        //auto drawing = At(iDrawing);
         auto option = fOptionArray.at(iDrawing);
         option.ToLower();
         if (iDrawing>0 && option.Index("same")<0)
@@ -84,6 +89,7 @@ void LKDrawing::Print(Option_t *option) const
 void LKDrawing::Clear(Option_t *option)
 {
     fDrawingArray.Clear();
+    //TObjArray::Clear();
     fTitleArray.clear();
     fOptionArray.clear();
 
@@ -97,7 +103,7 @@ void LKDrawing::Clear(Option_t *option)
     fHistPixel = nullptr;
 }
 
-Double_t LKDrawing::GetEntries() const
+Double_t LKDrawing::GetHistEntries() const
 {
     if (fHist!=nullptr)
         return fHist -> GetEntries();

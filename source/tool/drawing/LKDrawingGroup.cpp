@@ -17,13 +17,33 @@ void LKDrawingGroup::Init()
 
 void LKDrawingGroup::Draw(Option_t *option)
 {
-    ConfigureCanvas();
-
     auto numDrawings = GetEntries();
-    for (auto iDrawing=0; iDrawing<numDrawings; ++iDrawing) {
-        auto drawing = (LKDrawing*) At(iDrawing);
-        drawing -> SetCanvas(fCvs->cd(iDrawing+1));
-        drawing -> Draw();
+    if (numDrawings>0)
+    {
+        ConfigureCanvas();
+
+        for (auto iDrawing=0; iDrawing<numDrawings; ++iDrawing)
+        {
+            auto drawing = (LKDrawing*) At(iDrawing);
+            drawing -> SetCanvas(fCvs->cd(iDrawing+1));
+            drawing -> Draw(option);
+        }
+    }
+
+    if (TString(option)=="all")
+        DrawSubGroups(option);
+}
+
+void LKDrawingGroup::DrawSubGroups(Option_t *option)
+{
+    if (fSubGroupArray!=nullptr)
+    {
+        auto numGroups = fSubGroupArray->GetEntries();
+        for (auto iGroup=0; iGroup<numGroups; ++iGroup)
+        {
+            auto sub = (LKDrawingGroup*) fSubGroupArray->At(iGroup);
+            sub -> Draw();
+        }
     }
 }
 
@@ -52,7 +72,7 @@ bool LKDrawingGroup::ConfigureCanvas()
     else                      { fnx = 12; fny = 10; }
 
     if (fCvs==nullptr)
-        fCvs = LKPainter::GetPainter() -> CanvasResize("", 125*fnx, 100*fny);
+        fCvs = LKPainter::GetPainter() -> CanvasResize(Form("c%s",fName.Data()), 125*fnx, 100*fny);
 
     if (numDrawings==1)
         return true;
@@ -68,4 +88,43 @@ bool LKDrawingGroup::ConfigureCanvas()
         fCvs -> Divide(fnx, fny);
 
     return true;
+}
+
+int LKDrawingGroup::GetNumSubGroups()
+{
+    if (fSubGroupArray==nullptr)
+        return 0;
+    return fSubGroupArray -> GetEntries();
+}
+
+TObjArray* LKDrawingGroup::GetSubGroupArray()
+{
+    if (fSubGroupArray==nullptr)
+        fSubGroupArray = new TObjArray();
+    return fSubGroupArray;
+}
+
+LKDrawingGroup* LKDrawingGroup::GetSubGroup(int ii)
+{
+    GetSubGroupArray();
+    //lk_debug << fSubGroupArray->GetEntries() << endl;
+    if (ii<0 || ii>=fSubGroupArray->GetEntries()) {
+        //e_error << ii << endl;
+        return (LKDrawingGroup*) nullptr;
+    }
+    auto subGroup = (LKDrawingGroup*) fSubGroupArray->At(ii);
+    //lk_debug << subGroup << endl;
+    return subGroup;
+}
+
+LKDrawingGroup* LKDrawingGroup::GetOrCreateSubGroup(int ii)
+{
+    LKDrawingGroup *subGroup = GetSubGroup(ii);
+    //lk_debug << ii << " " <<subGroup << endl;
+    if (subGroup==nullptr) {
+        subGroup = new LKDrawingGroup(Form("%s_%d",GetName(),int(fSubGroupArray->GetEntriesFast())));
+        fSubGroupArray->AddAt(subGroup,ii);
+    }
+    //lk_debug << fSubGroupArray -> GetEntries() << endl;
+    return subGroup;
 }
