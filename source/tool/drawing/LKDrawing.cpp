@@ -27,7 +27,7 @@ void LKDrawing::Add(TObject *obj, TString title, TString drawOption, bool isMain
         fMainIndex = fDrawingArray.GetEntriesFast();
         //fMainIndex = GetEntriesFast();
         fMain = obj;
-        if (obj->InheritsFrom(TH1::Class()))
+        if (obj->InheritsFrom(TH1::Class()) && fHist==nullptr)
             fHist = (TH1*) obj;
         if (obj->InheritsFrom(TH2::Class())) {
             if (drawOption.IsNull())
@@ -42,6 +42,8 @@ void LKDrawing::Add(TObject *obj, TString title, TString drawOption, bool isMain
 
 const char* LKDrawing::GetName() const
 {
+    if (!fName.IsNull())
+        return fName;
     if (fMain!=nullptr)
         return fMain -> GetName();
     return "EmptyDrawing";
@@ -49,6 +51,8 @@ const char* LKDrawing::GetName() const
 
 const char* LKDrawing::GetTitle() const
 {
+    if (!fTitle.IsNull())
+        return fTitle;
     if (fMain!=nullptr)
         return fMain -> GetTitle();
     return "Empty Title";
@@ -72,18 +76,27 @@ void LKDrawing::Draw(Option_t *option)
     //auto numDrawings = GetEntries();
     for (auto iDrawing=0; iDrawing<numDrawings; ++iDrawing)
     {
-        auto drawing = fDrawingArray.At(iDrawing);
-        //auto drawing = At(iDrawing);
+        auto obj = fDrawingArray.At(iDrawing);
+        //auto obj = At(iDrawing);
         auto option = fOptionArray.at(iDrawing);
         option.ToLower();
         if (iDrawing>0 && option.Index("same")<0)
             option = option + " same";
-        drawing -> Draw(option);
+        fCvs -> cd();
+        obj -> Draw(option);
+        if (obj==fHist)
+        {
+            if (fSetXRange) fHist -> GetXaxis() -> SetRangeUser(fX1, fX2);
+            if (fSetYRange) fHist -> GetYaxis() -> SetRangeUser(fY1, fY2);
+        }
+        fCvs -> Modified();
+        fCvs -> Update();
     }
 }
 
 void LKDrawing::Print(Option_t *option) const
 {
+    fDrawingArray.Print(option);
 }
 
 void LKDrawing::Clear(Option_t *option)

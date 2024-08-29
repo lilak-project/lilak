@@ -86,7 +86,7 @@ class LKDataViewer : public TGMainFrame
         bool InitParameters();
         bool InitFrames();
 
-        void AddTab(LKDrawingGroup* group, int iTab=-1); ///< CreateMainCanvas
+        void AddGroupTab(LKDrawingGroup* group, int iTab=-1); ///< CreateMainCanvas
 
         void CreateMainFrame();
         void CreateMainCanvas();
@@ -117,6 +117,7 @@ class LKDataViewer : public TGMainFrame
         void ProcessAccumulateEvents() {}
         void ProcessTabSelection(Int_t id);
         void ProcessLoadAllCanvas();
+        void ProcessReLoadACanvas();
         void ProcessTCutEditorMode(int iMode=-1);
         void ProcessTCutGMode();
         void ProcessTCutGSave();

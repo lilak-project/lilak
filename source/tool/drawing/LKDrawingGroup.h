@@ -28,12 +28,18 @@ class LKDrawingGroup : public TObjArray
         ~LKDrawingGroup() {}
 
         void Init();
-        virtual void Draw(Option_t *option="");
+        virtual void Draw(Option_t *option="all");
         void DrawSubGroups(Option_t *option="");
+        virtual void Print(Option_t *option="") const;
 
         TCanvas* GetCanvas() { return fCvs; }
 
         void SetCanvas(TCanvas* pad) { fCvs = pad; }
+
+        LKDrawingGroup* CreateSubGroup(TString name);
+        LKDrawing* CreateDrawing(TString name);
+        LKDrawing* FindDrawing(TString name, TString option="");
+        TH1* FindHist(TString name);
 
         TObjArray* GetSubGroupArray();
         int GetNumSubGroups();

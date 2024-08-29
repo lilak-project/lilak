@@ -22,11 +22,20 @@ void LKDrawingGroup::Draw(Option_t *option)
     {
         ConfigureCanvas();
 
-        for (auto iDrawing=0; iDrawing<numDrawings; ++iDrawing)
+        if (numDrawings==1)
         {
-            auto drawing = (LKDrawing*) At(iDrawing);
-            drawing -> SetCanvas(fCvs->cd(iDrawing+1));
+            auto drawing = (LKDrawing*) At(0);
+            drawing -> SetCanvas(fCvs);
             drawing -> Draw(option);
+        }
+        else
+        {
+            for (auto iDrawing=0; iDrawing<numDrawings; ++iDrawing)
+            {
+                auto drawing = (LKDrawing*) At(iDrawing);
+                drawing -> SetCanvas(fCvs->cd(iDrawing+1));
+                drawing -> Draw(option);
+            }
         }
     }
 
@@ -43,6 +52,28 @@ void LKDrawingGroup::DrawSubGroups(Option_t *option)
         {
             auto sub = (LKDrawingGroup*) fSubGroupArray->At(iGroup);
             sub -> Draw();
+        }
+    }
+}
+
+void LKDrawingGroup::Print(Option_t *option) const
+{
+    auto numSubGroups = 0;
+    if (fSubGroupArray!=nullptr)
+        numSubGroups = fSubGroupArray->GetEntries();
+
+    if (numSubGroups>0) {
+        for (auto iSub=0; iSub<numSubGroups; ++iSub) {
+            auto sub = (LKDrawingGroup*) fSubGroupArray->At(iSub);
+            sub -> Print(option);
+        }
+    }
+    else {
+        auto numDrawings = GetEntries();
+        for (auto iDrawing=0; iDrawing<numDrawings; ++iDrawing)
+        {
+            auto drawing = (LKDrawing*) At(iDrawing);
+            drawing -> Print(option);
         }
     }
 }
@@ -127,4 +158,68 @@ LKDrawingGroup* LKDrawingGroup::GetOrCreateSubGroup(int ii)
     }
     //lk_debug << fSubGroupArray -> GetEntries() << endl;
     return subGroup;
+}
+
+LKDrawingGroup* LKDrawingGroup::CreateSubGroup(TString name)
+{
+    auto sub = new LKDrawingGroup(name);
+    AddSubGroup(sub);
+    return sub;
+}
+
+LKDrawing* LKDrawingGroup::CreateDrawing(TString name)
+{
+    auto drawing = new LKDrawing(name);
+    AddDrawing(drawing);
+    return drawing;
+}
+
+LKDrawing* LKDrawingGroup::FindDrawing(TString name, TString option)
+{
+    auto numSubGroups = 0;
+    if (fSubGroupArray!=nullptr)
+        numSubGroups = fSubGroupArray->GetEntries();
+    //lk_debug << numSubGroups << endl;
+    if (numSubGroups>0) {
+        for (auto iSub=0; iSub<numSubGroups; ++iSub) {
+            auto sub = (LKDrawingGroup*) fSubGroupArray->At(iSub);
+            //lk_debug << "sub-group "  << iSub << " " << sub << endl;
+            auto drawing = sub -> FindDrawing(name, option);
+            if (drawing!=nullptr)
+                return drawing;
+        }
+    }
+    else {
+        auto numDrawings = GetEntries();
+        for (auto iDrawing=0; iDrawing<numDrawings; ++iDrawing)
+        {
+            auto drawing = (LKDrawing*) At(iDrawing);
+            //lk_debug << "drawing "  << iDrawing << " " << drawing << " " << drawing->GetName()  << endl;
+            if (option=="hist") {
+                auto hist = drawing -> GetMainHist();
+                //lk_debug << hist << endl;
+                if (hist!=nullptr) {
+                    //lk_debug << hist->GetName() << endl;
+                    if (hist->GetName()==name)
+                        return drawing;
+                }
+            }
+            else {
+                if (drawing->GetName()==name)
+                    return drawing;
+            }
+        }
+    }
+    return (LKDrawing*) nullptr;
+}
+
+TH1* LKDrawingGroup::FindHist(TString name)
+{
+    auto drawing = FindDrawing(name, "hist");
+    if (drawing==nullptr)
+        return (TH1*) nullptr;
+    auto hist = drawing -> GetMainHist();
+    if (hist==nullptr)
+        return (TH1*) nullptr;
+    return hist;
 }

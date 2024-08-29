@@ -32,15 +32,18 @@ class LKDrawing : public TNamed
         void SetCanvas(TPad* cvs) { fCvs = (TPad*) cvs; }
         void SetCanvas(TCanvas* cvs) { fCvs = (TPad*) cvs; }
 
+        void SetRangeUser(double x1, double x2, double y1, double y2) { SetRangeUserX(x1, x2); SetRangeUserY(y1, y2); }
+        void SetRangeUserX(double x1, double x2) { fSetXRange = true; fX1 = x1; fX2 = x2; }
+        void SetRangeUserY(double y1, double y2) { fSetYRange = true; fY1 = y1; fY2 = y2; }
+
         int GetNumDrawings() const { return fDrawingArray.GetEntries(); }
-        //int GetNumDrawings() const { return GetEntries(); }
         TString GetTitle(int i) const { return fTitleArray.at(i); }
         TString GetOption(int i) const { return fOptionArray.at(i); }
-        LKDrawing* GetDrawing(int i) const { return (LKDrawing*) fDrawingArray.At(i); }
-        //LKDrawing* GetDrawing(int i) const { return (LKDrawing*) At(i); }
-        TPad* GetCanvas()  const { return fCvs; }
-        TH1* GetMainHist() const { return fHist; }
-        TObject* GetMain() const { return fMain; }
+
+        TObject* Get(int i) { return fDrawingArray.At(i); }
+        TPad* GetCanvas() { return fCvs; }
+        TH1* GetMainHist() { return fHist; }
+        TObject* GetMain() { return fMain; }
 
         void SetCanvasOption(TString value) {
             if (value.Index("logx")>=0)  { value.ReplaceAll("logx","");  fSetLogX  = true; }
@@ -71,6 +74,13 @@ class LKDrawing : public TNamed
         TLegend* fLegend = nullptr;
 
         TH1* fHistPixel = nullptr; //!
+
+        bool fSetXRange = false;
+        double fX1;
+        double fX2;
+        bool fSetYRange = false;
+        double fY1;
+        double fY2;
 
         bool fSetLogX  = false;
         bool fSetLogY  = false;
