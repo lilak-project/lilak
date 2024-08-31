@@ -5,6 +5,7 @@
 #include "TGraph.h"
 #include "TH1.h"
 #include "TCanvas.h"
+#include "TFile.h"
 
 #include "LKDrawing.h"
 #include "LKPainter.h"
@@ -13,47 +14,64 @@ class LKDrawingGroup : public TObjArray
 {
     protected:
         TCanvas *fCvs = nullptr; //!
-        int fnx = 1;
-        int fny = 1;
-        TObjArray *fSubGroupArray = nullptr;
+        int fDivX = 1;
+        int fDivY = 1;
+        int fGroupLevel = 0;
+        bool fIsGroupGroup = false;
+        TString fFileName; //
 
     private:
-        int fID = -1;
-
-    public:
         bool ConfigureCanvas();
+        bool CheckIsGroupGroup(bool add=false);
+        bool CheckIsDrawingGroup(bool add=false);
 
     public:
-        LKDrawingGroup(TString name="");
+        LKDrawingGroup(TString name="", int groupLevel=0);
+        LKDrawingGroup(TString fileName, TString groupName);
         ~LKDrawingGroup() {}
 
         void Init();
         virtual void Draw(Option_t *option="all");
-        void DrawSubGroups(Option_t *option="");
         virtual void Print(Option_t *option="") const;
+        virtual Int_t Write(const char *name = nullptr, Int_t option=TObject::kSingleKey, Int_t bufsize = 0) const;
 
+        int GetGroupDepth() const;
+        bool IsGroupGroup() const { return fIsGroupGroup; }
+        bool IsDrawingGroup() const { return !fIsGroupGroup; }
+
+        int  GetGroupLevel() { return fGroupLevel; }
+        void SetGroupLevel(int level) { fGroupLevel = level; }
+
+        // canvas
         TCanvas* GetCanvas() { return fCvs; }
+        void     SetCanvas(TCanvas* pad) { fCvs = pad; }
+        int GetDivX() const { return fDivX; }
+        int GetDivY() const { return fDivY; }
 
-        void SetCanvas(TCanvas* pad) { fCvs = pad; }
-
-        LKDrawingGroup* CreateSubGroup(TString name);
-        LKDrawing* CreateDrawing(TString name);
+        // find
         LKDrawing* FindDrawing(TString name, TString option="");
-        TH1* FindHist(TString name);
+        TH1*       FindHist(TString name);
 
-        TObjArray* GetSubGroupArray();
-        int GetNumSubGroups();
-        void AddSubGroup(LKDrawingGroup *group) { GetSubGroupArray() -> Add(group); }
-        LKDrawingGroup* GetSubGroup(int ii);
-        LKDrawingGroup* GetOrCreateSubGroup(int ii);
+        // file
+        TString GetFileName() { return fFileName; }
+        bool AddFile(TFile* file, TString groupName="");
+        bool AddFile(TString fileName, TString groupName="");
 
-        void AddDrawing(int ii, LKDrawing* drawing) { auto subGroup = GetOrCreateSubGroup(ii); subGroup -> Add(drawing); }
-        void AddHist   (int ii, TH1 *hist)          { auto subGroup = GetOrCreateSubGroup(ii); subGroup -> Add(new LKDrawing(hist)); }
-        void AddGraph  (int ii, TGraph* graph)      { auto subGroup = GetOrCreateSubGroup(ii); subGroup -> Add(new LKDrawing(graph)); }
+        // sub group
+        void            AddGroup(LKDrawingGroup *sub);
+        bool            FindGroup(LKDrawingGroup *find);
+        LKDrawingGroup* CreateGroup(TString name="");
+        LKDrawingGroup* GetGroup(int i);
+        int             GetNumGroups();
+        int             GetNumAllDrawings() const;
 
-        void AddDrawing(LKDrawing* drawing) { Add(drawing); }
-        void AddHist(TH1 *hist) { Add(new LKDrawing(hist)); }
-        void AddGraph(TGraph* graph) { Add(new LKDrawing(graph)); }
+        // drawing
+        LKDrawing* GetDrawing(int iDrawing);
+        LKDrawing* CreateDrawing(TString name="");
+        void       AddDrawing(LKDrawing* drawing);
+        void       AddGraph(TGraph* graph);
+        void       AddHist(TH1 *hist);
+        int        GetNumDrawings();
 
     ClassDef(LKDrawingGroup, 1)
 };

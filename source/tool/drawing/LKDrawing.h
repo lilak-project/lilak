@@ -11,7 +11,7 @@
 #include <vector>
 using namespace std;
 
-class LKDrawing : public TNamed
+class LKDrawing : public TObjArray
 {
     public:
         LKDrawing(TString name="");
@@ -19,13 +19,14 @@ class LKDrawing : public TNamed
         ~LKDrawing() {}
 
         virtual const char* GetName() const;
-        virtual const char* GetTitle() const;
         virtual void Draw(Option_t *option="");
         virtual void Print(Option_t *option="") const;
         virtual void Clear(Option_t *option="");
+        void CopyTo(LKDrawing* drawing, bool clearFirst=true);
         virtual Double_t GetHistEntries() const;
 
-        void Add(TObject *obj, TString title="", TString drawOption="", bool isMain=false);
+        virtual void Add(TObject *obj);
+        void Add(TObject *obj, TString title, TString drawOption, bool isMain=false);
         void SetTitle(int i, TString title) { fTitleArray[i] = title; }
         void SetOption(int i, TString option) { fOptionArray[i] = option; }
         void SetCanvas(TVirtualPad* cvs) { fCvs = (TPad*) cvs; }
@@ -36,14 +37,12 @@ class LKDrawing : public TNamed
         void SetRangeUserX(double x1, double x2) { fSetXRange = true; fX1 = x1; fX2 = x2; }
         void SetRangeUserY(double y1, double y2) { fSetYRange = true; fY1 = y1; fY2 = y2; }
 
-        int GetNumDrawings() const { return fDrawingArray.GetEntries(); }
+        int GetNumDrawings() const { return GetEntries(); }
         TString GetTitle(int i) const { return fTitleArray.at(i); }
         TString GetOption(int i) const { return fOptionArray.at(i); }
 
-        TObject* Get(int i) { return fDrawingArray.At(i); }
         TPad* GetCanvas() { return fCvs; }
-        TH1* GetMainHist() { return fHist; }
-        TObject* GetMain() { return fMain; }
+        TH1* GetMainHist() { return fMainHist; }
 
         void SetCanvasOption(TString value) {
             if (value.Index("logx")>=0)  { value.ReplaceAll("logx","");  fSetLogX  = true; }
@@ -62,15 +61,14 @@ class LKDrawing : public TNamed
         void MakeLegend();
 
     private:
-        TObjArray       fDrawingArray;
         vector<TString> fTitleArray;
         vector<TString> fOptionArray;
 
         int fMainIndex = -1;
+        TString fTitle;
 
         TPad* fCvs = nullptr; //!
-        TObject* fMain = nullptr;
-        TH1* fHist = nullptr;
+        TH1* fMainHist = nullptr;
         TLegend* fLegend = nullptr;
 
         TH1* fHistPixel = nullptr; //!
