@@ -75,14 +75,16 @@ void LKDrawingGroup::Draw(Option_t *option)
 Int_t LKDrawingGroup::Write(const char *name, Int_t option, Int_t bsize) const
 {
     auto depth = GetGroupDepth();
-    if (option==TObject::kSingleKey && depth>=3) {
-        auto numSub = GetEntries();
+    if (depth>=3) {
+        auto numSub = GetNumGroups();
+        e_info << "Writting " << numSub << " groups" << endl;
         for (auto iSub=0; iSub<numSub; ++iSub) {
             auto sub = (LKDrawingGroup*) At(iSub);
-            lk_debug << "passing to lower level " << sub->GetName() << endl;
             sub -> Write("", option);
         }
+        return numSub;
     }
+
     TString wName = name;
     if (wName.IsNull()) wName = fName;
     if (wName.IsNull()) wName = "DrawingGroup";
@@ -221,9 +223,9 @@ bool LKDrawingGroup::AddFile(TString fileName, TString groupName)
     return AddFile(file,groupName);
 }
 
-int LKDrawingGroup::GetNumGroups()
+int LKDrawingGroup::GetNumGroups() const
 {
-    if (CheckIsGroupGroup())
+    if (fIsGroupGroup)
         return GetEntries();
     return 0;
 }

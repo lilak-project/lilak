@@ -44,8 +44,8 @@ bool LKDataViewer::InitParameters()
 {
     fTopDrawingGroup = new LKDrawingGroup("top");
     fPublicGroup = new LKDrawingGroup("public");
-    auto sub = fPublicGroup -> CreateGroup("p0");
-    sub -> CreateDrawing("pd0");
+    auto pubs = fPublicGroup -> CreateGroup("p0");
+    auto pubd = pubs -> CreateDrawing("pd0");
 
     auto painter = LKPainter::GetPainter();
     painter -> GetSizeResize(fInitWidth, fInitHeight, GetWidth(), GetHeight(), 1);
@@ -60,7 +60,9 @@ bool LKDataViewer::InitParameters()
     fGFont3 = gClient->GetFontPool()->GetFont("helvetica", fRF*12,  kFontWeightNormal,  kFontSlantRoman);
     fSFont3 = fGFont3->GetFontStruct();
 
-    new TColor(3000, 1.0, 0.650, 0.0);
+    fSelectColor = TColor::GetFreeColorIndex();
+    //new TColor(fSelectColor, 1.0, 0.650, 0.0);
+    new TColor(fSelectColor, 221/255.,194/255.,255/255.);
 
     return true;
 }
@@ -76,10 +78,9 @@ void LKDataViewer::AddDrawing(LKDrawing* drawing)
     fTopDrawingGroup -> AddDrawing(drawing);
 }
 
-void LKDataViewer::AddGroup(LKDrawingGroup* group)
+void LKDataViewer::AddGroup(LKDrawingGroup* group, bool addDirect)
 {
-    //if (fTopDrawingGroup==nullptr) fTopDrawingGroup = new LKDrawingGroup("top");
-    if (group -> IsGroupGroup())
+    if (group->IsGroupGroup() && !addDirect)
     {
         auto numSubGroups = group -> GetNumGroups();
         for (auto iSub=0; iSub<numSubGroups; ++iSub)
@@ -104,7 +105,8 @@ bool LKDataViewer::AddFile(TFile* file, TString groupName)
         }
         if (TString(obj->ClassName())=="LKDrawingGroup") {
             auto group = (LKDrawingGroup*) obj;
-            AddGroup(group);
+            e_info << "Adding " << group->GetName() << " from " << file->GetName() << endl;
+            AddGroup(group,true);
         }
         else {
             e_error << groupName << " type is not LKDrawingGroup" << endl;
@@ -119,7 +121,8 @@ bool LKDataViewer::AddFile(TFile* file, TString groupName)
         while ((key=(TKey*)nextKey())) {
             if (TString(key->GetClassName())=="LKDrawingGroup") {
                 auto group = (LKDrawingGroup*) key -> ReadObj();
-                AddGroup(group);
+                e_info << "Adding " << group->GetName() << " from " << file->GetName() << endl;
+                AddGroup(group,true);
             }
         }
     }
@@ -237,8 +240,8 @@ int LKDataViewer::AddGroupTab(LKDrawingGroup* group, int iTab, int iSub)
     }
     else
     {
-        if (iSub<0) tabSpace -> Connect("Selected(Int_t)", "LKDataViewer", this, Form("ProcessGotoTopTab(=%d,=%d,=0)",iTab,iSub));
-        else        tabSpace -> Connect("Selected(Int_t)", "LKDataViewer", this, Form("ProcessGotoSubTab(=%d,=0)",iSub));
+        //if (iSub<0) tabSpace -> Connect("Selected(Int_t)", "LKDataViewer", this, Form("ProcessGotoTopTab(=%d,=%d,=0)",iTab,iSub));
+        //else        tabSpace -> Connect("Selected(Int_t)", "LKDataViewer", this, Form("ProcessGotoSubTab(=%d,=0)",iSub));
         if (isMainTabs) {
             fSubTabSpace.push_back(tabSpace);
             fNumSubTabs.push_back(0);
@@ -288,7 +291,7 @@ void LKDataViewer::CreateControlFrame()
 
 void LKDataViewer::CreateChangeControlSection()
 {
-    TGGroupFrame *section = new TGGroupFrame(fControlFrame, "Mode Control");
+    TGGroupFrame *section = new TGGroupFrame(fControlFrame, "Control Modes");
     section->SetTextFont(fSFont1);
     fControlFrame->AddFrame(section, new TGLayoutHints(kLHintsExpandX | kLHintsBottom, fRF*5, fRF*5, fRF*5, fRF*5));
 
@@ -550,7 +553,6 @@ void LKDataViewer::HandleNumberInput(Int_t id)
 void LKDataViewer::SendOutMessage(TString message)
 {
     e_cout << Form("[%d] %s",fCountMessageUpdate++,message.Data()) << endl;
-    //e_cout << message << std::endl;
     fStatusMessages -> ChangeText(message);
 }
 
@@ -628,7 +630,7 @@ void LKDataViewer::ProcessGotoSubTab(int iSub, bool layout)
     }
     if (layout) fCurrentSubTabSpace->Layout();
     TString tabName = *(fCurrentSubTabSpace->GetTabTab(updateID)->GetText());
-    SendOutMessage(Form("Switched to subtab %s (%d,%d)",tabName.Data(),fCurrentTabID,updateID));
+    SendOutMessage(Form("Switched to sub-tab %s (%d,%d)",tabName.Data(),fCurrentTabID,updateID));
 
     fCurrentSubTabID = updateID;
 }
@@ -895,7 +897,7 @@ void LKDataViewer::ProcessNavigationMode(int iMode)
     }
     else if (iMode==1)
     {
-        fNavControlSection -> SetTitle("Cvs Control");
+        fNavControlSection -> SetTitle("Nav. Control");
 
         //fButtonChangeHJKL -> SetText("(&N)Tab Ctrl. Mode");
         fButton_H->SetText("(&H)Left");
@@ -934,29 +936,46 @@ void LKDataViewer::ProcessNavigateCanvas(int iMode)
         return;
     }
 
+    int drawingNumber = 0;
     int divX = fCurrentGroup -> GetDivX();
     int divY = fCurrentGroup -> GetDivY();
-    if (iMode==0) {
-        fCurrentCanvasX = 0;
-        fCurrentCanvasY = 0;
-    }
-    if (iMode==1) { if (fCurrentCanvasX==0)      return; fCurrentCanvasX--; }
-    if (iMode==2) { if (fCurrentCanvasX==divX-1) return; fCurrentCanvasX++; }
-    if (iMode==3) { if (fCurrentCanvasY==divY-1) return; fCurrentCanvasY++; }
-    if (iMode==4) { if (fCurrentCanvasY==0)      return; fCurrentCanvasY--; }
-    int drawingNumber = fCurrentCanvasY*divX + fCurrentCanvasX;
-    int cvsNumber = 1 + drawingNumber;
-    SendOutMessage(Form("Selected Pad %d (%d,%d)",cvsNumber, fCurrentCanvasX,fCurrentCanvasY));
+    if (divX==1 && divY==1)
+    {
+        drawingNumber = 0;
+        fCurrentTPad = fCurrentCanvas;
+        SendOutMessage("Selected Pad");
 
-    if (fCurrentTPad!=nullptr) {
-        fCurrentTPad -> SetFillColor(0);
-        fCurrentTPad -> Modified();
-        fCurrentTPad -> Update();
+        if (fCurrentTPad!=nullptr) {
+            fCurrentTPad -> SetFillColor(0);
+            fCurrentTPad -> Modified();
+            fCurrentTPad -> Update();
+        }
+    }
+    else
+    {
+        if (iMode==0) {
+            fCurrentCanvasX = 0;
+            fCurrentCanvasY = 0;
+        }
+        if (iMode==1) { if (fCurrentCanvasX==0)      return; fCurrentCanvasX--; }
+        if (iMode==2) { if (fCurrentCanvasX==divX-1) return; fCurrentCanvasX++; }
+        if (iMode==3) { if (fCurrentCanvasY==divY-1) return; fCurrentCanvasY++; }
+        if (iMode==4) { if (fCurrentCanvasY==0)      return; fCurrentCanvasY--; }
+        drawingNumber = fCurrentCanvasY*divX + fCurrentCanvasX;
+        int cvsNumber = 1 + drawingNumber;
+
+        if (fCurrentTPad!=nullptr) {
+            fCurrentTPad -> SetFillColor(0);
+            fCurrentTPad -> Modified();
+            fCurrentTPad -> Update();
+        }
+
+        fCurrentTPad = fCurrentCanvas -> cd(cvsNumber);
+        SendOutMessage(Form("Selected Pad %d (%d,%d)",cvsNumber, fCurrentCanvasX, fCurrentCanvasY));
     }
 
     fCurrentDrawing = fCurrentGroup -> GetDrawing(drawingNumber);
-    fCurrentTPad = fCurrentCanvas -> cd(cvsNumber);
-    fCurrentTPad -> SetFillColor(3000);
+    fCurrentTPad -> SetFillColor(fSelectColor);
     fCurrentTPad -> Modified();
     fCurrentTPad -> Update();
 }

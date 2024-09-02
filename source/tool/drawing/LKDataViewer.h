@@ -32,6 +32,7 @@ class LKDataViewer : public TGMainFrame
         LKDrawing *fCurrentDrawing = nullptr;
         TCanvas *fCurrentCanvas = nullptr;
         TVirtualPad *fCurrentTPad = nullptr;
+        int fSelectColor = kGray;
 
         TGFont*      fGFont1;
         TGFont*      fGFont2;
@@ -94,7 +95,7 @@ class LKDataViewer : public TGMainFrame
 
         void SetUseTRootCanvas(bool value) { fUseTRootCanvas = value; }
         void AddDrawing(LKDrawing* drawing);
-        void AddGroup(LKDrawingGroup* group);
+        void AddGroup(LKDrawingGroup* group, bool addDirect=false);
         bool AddFile(TFile* file, TString groupName="");
         bool AddFile(TString file, TString groupName="");
         void SetRun(LKRun* run) { fRun = run; }

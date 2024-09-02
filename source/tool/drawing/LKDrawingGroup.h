@@ -62,7 +62,7 @@ class LKDrawingGroup : public TObjArray
         bool            FindGroup(LKDrawingGroup *find);
         LKDrawingGroup* CreateGroup(TString name="");
         LKDrawingGroup* GetGroup(int i);
-        int             GetNumGroups();
+        int             GetNumGroups() const;
         int             GetNumAllDrawings() const;
 
         // drawing
