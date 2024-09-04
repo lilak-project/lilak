@@ -420,3 +420,48 @@ void LKMisc::DrawColors(vector<int> colors)
         }
     }
 }
+
+TString LKMisc::FindOption(TString &option, TString name, bool removeAfter, int addValue)
+{
+    TString opcopy = Form(":%s:",option.Data());
+    int idxName = opcopy.Index(Form(":%s",name.Data()));
+    if (idxName<0)
+        return "FINDOPTIONRETURNFALSE";
+    idxName = idxName + 1;
+    int idxColon = opcopy.Index(":",idxName);
+    int idxEqual = opcopy.Index("=",idxName);
+    int idxNext = idxName + name.Sizeof()-1;
+    if (idxNext!=idxEqual && idxNext!=idxColon)
+        return "FINDOPTIONRETURNNOEXACT";
+
+    if (idxEqual<0||idxEqual>idxColon) {
+        if (removeAfter)
+            opcopy.ReplaceAll(Form(":%s:",name.Data()),":");
+        option = opcopy(1,opcopy.Sizeof()-3);
+        return "FINDOPTIONRETURNNOVALUE";
+    }
+    TString value = opcopy(idxEqual+1,idxColon-idxEqual-1);
+    if (removeAfter) {
+        opcopy.ReplaceAll(Form(":%s=%s:",name.Data(),value.Data()),":");
+        option = opcopy(1,opcopy.Sizeof()-3);
+    }
+    if (addValue!=0) {
+        if (removeAfter)
+            e_error << "Cannot add value while removing option!" << endl;
+        if (value.IsDec()==false)
+            e_error << "Cannot add value to non decimal number!" << endl;
+        int valueInt = value.Atoi();
+        valueInt = valueInt + addValue;
+        opcopy.ReplaceAll(Form(":%s=%s:",name.Data(),value.Data()),Form(":%s=%d:",name.Data(),valueInt));
+        option = opcopy(1,opcopy.Sizeof()-3);
+    }
+    return value;
+}
+
+bool LKMisc::CheckOption(TString &option, TString name, bool removeAfter, int addValue)
+{
+    auto value = LKMisc::FindOption(option, name, removeAfter, addValue);
+    if (value=="FINDOPTIONRETURNFALSE"||value=="FINDOPTIONRETURNNOEXACT")
+        return false;
+    return true;
+}
