@@ -426,19 +426,20 @@ TString LKMisc::FindOption(TString &option, TString name, bool removeAfter, int 
     TString opcopy = Form(":%s:",option.Data());
     int idxName = opcopy.Index(Form(":%s",name.Data()));
     if (idxName<0)
-        return "FINDOPTIONRETURNFALSE";
+        return "";
     idxName = idxName + 1;
     int idxColon = opcopy.Index(":",idxName);
     int idxEqual = opcopy.Index("=",idxName);
     int idxNext = idxName + name.Sizeof()-1;
     if (idxNext!=idxEqual && idxNext!=idxColon)
-        return "FINDOPTIONRETURNNOEXACT";
+        return "";
+        //return Form("%s*",name); // found option which is not exact
 
     if (idxEqual<0||idxEqual>idxColon) {
         if (removeAfter)
             opcopy.ReplaceAll(Form(":%s:",name.Data()),":");
         option = opcopy(1,opcopy.Sizeof()-3);
-        return "FINDOPTIONRETURNNOVALUE";
+        return name; // found option but value do not exist
     }
     TString value = opcopy(idxEqual+1,idxColon-idxEqual-1);
     if (removeAfter) {
@@ -461,7 +462,13 @@ TString LKMisc::FindOption(TString &option, TString name, bool removeAfter, int 
 bool LKMisc::CheckOption(TString &option, TString name, bool removeAfter, int addValue)
 {
     auto value = LKMisc::FindOption(option, name, removeAfter, addValue);
-    if (value=="FINDOPTIONRETURNFALSE"||value=="FINDOPTIONRETURNNOEXACT")
+    if (value.IsNull())
         return false;
     return true;
+}
+
+bool LKMisc::RemoveOption(TString &option, TString name)
+{
+    auto value = LKMisc::FindOption(option, name, true);
+    return (value.IsNull()==false);
 }
