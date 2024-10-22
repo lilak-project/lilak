@@ -1107,20 +1107,47 @@ LKParameterContainer* LKParameterContainer::CreateGroupContainer(TString nameGro
     return groupContainer;
 }
 
-LKParameterContainer* LKParameterContainer::CreateMultiParContainer(TString parNameGiven)
+LKParameterContainer* LKParameterContainer::CreateMultiParContainer(TString givenName)
 {
     R__COLLECTION_READ_LOCKGUARD(ROOT::gCoreMutex);
 
+    TString justName;
+    int index = 0;
+    while (index>=0) {
+        index = givenName.Index(" ");
+        if      (index<0)  { justName  = givenName; break; }
+        else if (index==0) { givenName = givenName(1,givenName.Sizeof()-2); continue; }
+        else               { justName  = givenName(0,index); break; }
+    }
+    while (1) {
+        if      (justName[0]=='<') { justName = justName(1,justName.Sizeof()-2); continue; }
+        else if (justName[0]=='*') { justName = justName(1,justName.Sizeof()-2); continue; }
+        else if (justName[0]=='@') { justName = justName(1,justName.Sizeof()-2); continue; }
+        else if (justName[0]=='&') { justName = justName(1,justName.Sizeof()-2); continue; }
+        else if (justName[0]=='!') { justName = justName(1,justName.Sizeof()-2); continue; }
+        else if (justName[0]=='#') { justName = justName(1,justName.Sizeof()-2); continue; }
+        else
+            break;
+    }
+
     auto multiParContainer = new LKParameterContainer();
-    multiParContainer -> SetName(parNameGiven);
+    multiParContainer -> SetName(givenName);
 
     TIter iterator(this);
-    LKParameter *parameter;
+    LKParameter *parameter = nullptr;
+    LKParameter *parameterFound = nullptr;
+    bool parameterIsFound = false;
     while ((parameter = dynamic_cast<LKParameter*>(iterator())))
     {
         if (parameter) {
             auto parName = parameter -> GetName();
-            if (parName==parNameGiven) {
+            if (parameter -> IsConditional()) {
+                auto mainName = parameter -> GetMainName();
+                if (mainName==justName) {
+                    multiParContainer -> Add(parameter);
+                }
+            }
+            else if (parName==justName) {
                 multiParContainer -> Add(parameter);
             }
         }
