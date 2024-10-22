@@ -26,6 +26,10 @@ using namespace std;
 #include "LKDetectorSystem.h"
 #include "LKDetector.h"
 
+class LKDataViewer;
+#include "LKDrawingGroup.h"
+#include "LKDrawing.h"
+
 /**
  *  If output file name is not set, output file name will be named as below.
  *  In general:   [run_name]_[run_id(4-digits)].[lilak_version].root;
@@ -78,8 +82,9 @@ class LKRun : public LKTask
         const char* GetRunName() const { return fRunName.Data(); }
         Int_t GetRunID() const { return fRunID; }
         Int_t GetDivision() const { return fDivision; }
+        TString GetMainName() const { return fMainName; }
         TString GetTag() const { return fTag; }
-        TString MakeFullRunName() const;
+        TString MakeFullRunName(int useparated=false) const;
 
         /// Set data directory path. Default directory : path/to/LILAK/data
         /// Data path will not be used if full path of the input/ouput file is given.
@@ -177,8 +182,9 @@ class LKRun : public LKTask
         Int_t GetNumBranches() const { return fCountBranches; }
 
         void Add(LKDetector *detector) { AddDetector(detector); }
-        void Add(LKDetectorPlane *plane) { ; }
+        void Add(LKDetectorPlane *plane) { AddDetectorPlane(plane); }
         void AddDetector(LKDetector *detector); ///< Set detector
+        void AddDetectorPlane(LKDetectorPlane *plane); ///< Set plane
         LKDetector *GetDetector(Int_t idx=0) const;
         LKDetectorSystem *GetDetectorSystem() const;
         LKDetectorPlane *GetDetectorPlane(Int_t iDetector=0, Int_t iPlane=0);
@@ -267,6 +273,16 @@ class LKRun : public LKTask
         void PrintDrawings();
         TObjArray* GetUserDrawingArray() { return fUserDrawingArray; }
 
+        virtual void Draw(Option_t* option="");
+        LKDrawingGroup* GetTopDrawingGroup();
+        LKDrawingGroup* FindGroup(TString name="")      { return GetTopDrawingGroup() -> FindGroup(name,0); }
+        LKDrawingGroup* CreateGroup(TString name="")    { return GetTopDrawingGroup() -> CreateGroup(name, true); }
+        void            AddGroup(LKDrawingGroup *sub)   {        GetTopDrawingGroup() -> AddGroup(sub); }
+        LKDrawing*      CreateDrawing(TString name="")  { return GetTopDrawingGroup() -> CreateDrawing(name); }
+        void            AddDrawing(LKDrawing* drawing)  { CreateGroup(drawing->GetName()) -> AddDrawing(drawing); }
+        void            AddGraph(TGraph* graph)         { CreateGroup(graph  ->GetName()) -> AddGraph(graph); }
+        void            AddHist(TH1 *hist)              { CreateGroup(hist   ->GetName()) -> AddHist(hist); }
+
     protected:
         void ProcessWriteExitLog();
 
@@ -274,6 +290,7 @@ class LKRun : public LKTask
         bool fRunNameIsSet = false;
         TString fRunName = "run";
         Int_t   fRunID = -1;
+        TString fMainName;
         vector<Int_t> fRunIDList;
         Int_t   fDivision = -1;
 
@@ -375,6 +392,9 @@ class LKRun : public LKTask
         TObjArray* fUserDrawingArray = nullptr;
 
         bool fIsLILAKRun = false;
+
+        LKDataViewer* fDataViewer = nullptr;
+        LKDrawingGroup *fTopDrawingGroup = nullptr;
 
     private:
         static LKRun *fInstance;

@@ -17,6 +17,7 @@
 
 #include "LKRun.h"
 #include "LKClassFactory.h"
+#include "LKDataViewer.h"
 
 ClassImp(LKRun)
 
@@ -194,14 +195,28 @@ bool LKRun::ConfigureRunFromFileName(TString inputName)
     return nameIsInFormat;
 }
 
-TString LKRun::MakeFullRunName() const
+TString LKRun::MakeFullRunName(int useparated) const
 {
-    auto runID = fRunID;
-    if (runID<0) runID = 0;
-    TString fileName = fRunName + Form("_%04d", runID);
-    if (fDivision >= 0) fileName = fileName + Form(".d%d",fDivision);
-    if (!fTag.IsNull()) fileName = fileName + Form(".%s",fTag.Data());
-    if (fSplit != -1)   fileName = fileName + Form(".s%d",fSplit);
+    TString fileName;
+    TString delim = ".";
+    if (useparated) delim = "_";
+
+    //if (runID<0 && runID!=-999) runID = 0;
+    //TString fileName = fRunName + Form("_%04d", runID);
+
+    if (fMainName.IsNull()==false) fileName = fMainName;
+    else {
+        fileName = fileName = fRunName;
+        auto runID = fRunID;
+        if (runID<0) runID = 0;
+        if      (runID>9999) fileName = fileName + Form("_%d",  runID);
+        else if (runID>=0)   fileName = fileName + Form("_%04d",runID);
+    }
+
+    if (fDivision >= 0) fileName = fileName + Form("%sd%d",delim.Data(), fDivision);
+    if (!fTag.IsNull()) fileName = fileName + Form("%s%s", delim.Data(), fTag.Data());
+    if (fSplit != -1)   fileName = fileName + Form("%ss%d",delim.Data(), fSplit);
+
     return fileName;
 }
 
@@ -562,6 +577,8 @@ bool LKRun::Init()
     Long64_t runAfterInit = -1;
     Long64_t exeAfterInit = -1;
     TString collecteParAndPrintTo = "";
+    bool drawAfterRun = false;
+    TString drawOption = "";
     if (fIsLILAKRun)
     {
         LKClassFactory classFactory(this);
@@ -575,6 +592,13 @@ bool LKRun::Init()
             //runAfterInit = lilakPar -> GetParLong("run",0);
             //if (lilakPar->GetParN("run")>1) lilakPar -> UpdatePar(fEventCountForMessage,"run",1);
         }
+        if (lilakPar->CheckPar("draw")) {
+            fAutoTerminate = false;
+            drawAfterRun = true;
+            drawOption = lilakPar -> GetParString("draw");
+        }
+        //else if (lilakPar->CheckPar("auto_exit"))
+        //    fAutoTerminate = lilakPar -> GetParBool("auto_exit");
         else if (lilakPar->CheckPar("execute"))
             exeAfterInit = lilakPar -> GetParLong("execute");
         if (lilakPar->CheckPar("print")) {
@@ -593,7 +617,9 @@ bool LKRun::Init()
     fPar -> Require("lilak/add",          "LKTask",         "add task or detector class", "t/", countParOrder++);
     fPar -> Require("lilak/print",        "all",            "print after init gen:par:out:in:det:task", "t/", countParOrder++);
     fPar -> Require("lilak/collect_par",  "print",          "file name to write collected parameters. 'print' to print out on screen", "t/", countParOrder++);
+    //fPar -> Require("lilak/auto_exit",    "0",              "set(1)/unset(0) auto termination", "t/", countParOrder++);
     fPar -> Require("lilak/run",          "0",              "run [no] after init. Execute all events if [no] is 0", "t/", countParOrder++);
+    fPar -> Require("lilak/draw",         "0",              "execute Draw()", "t/", countParOrder++);
     fPar -> Require("lilak/execute",      "0",              "execute event [no] after init", "t/", countParOrder++);
 
     fPar -> Require("LKRun/Name",         "run",            "name of the run", "",  countParOrder++);
@@ -617,6 +643,7 @@ bool LKRun::Init()
         fPar -> UpdatePar(fTag,      "LKRun/Tag");
         if (fPar -> CheckPar("LKRun/Name"))
             fRunNameIsSet = true;
+        fPar -> UpdatePar(fMainName,  "LKRun/MainName");
     }
 
     if (fPar -> CheckPar("LKRun/RunIDRange"))
@@ -950,6 +977,7 @@ bool LKRun::Init()
             fRunHeader -> AddPar(Form("FriendFile/%d",iFriend),fFriendFileNameArray[iFriend]);
         fRunHeader -> AddPar("OutputFile",fOutputFileName);
         fRunHeader -> AddPar("RunName",fRunName);
+        fRunHeader -> AddPar("MainName",fMainName);
         fRunHeader -> AddPar("RunID",fRunID);
         for (auto i=0; i<fRunIDList.size(); ++i) {
             auto runID = fRunIDList.at(i);
@@ -1037,16 +1065,18 @@ bool LKRun::Init()
     if (!printAfterInit.IsNull())
         Print(printAfterInit);
 
-    if (runAfterInit>=0)
+    if (runAfterInit>=0 || exeAfterInit>=0)
     {
-        if (runAfterInit==0) Run();
-        else Run(runAfterInit);
-        return true;
-    }
-
-    else if (exeAfterInit>=0)
-    {
-        ExecuteEvent(exeAfterInit);
+        if (runAfterInit>=0)
+        {
+            if (runAfterInit==0) Run();
+            else Run(runAfterInit);
+        }
+        else if (exeAfterInit>=0)
+        {
+            ExecuteEvent(exeAfterInit);
+        }
+        if (drawAfterRun) Draw(drawOption);
         return true;
     }
 
@@ -1266,6 +1296,8 @@ bool LKRun::WriteOutputFile()
         fRunObjectPtr[iObject] -> Write(fRunObjectName[iObject],TObject::kSingleKey);
     if (fUserDrawingArray!=nullptr&&fUserDrawingArray->GetEntries()>0)
         fUserDrawingArray -> Write("drawings",TObject::kSingleKey);
+    if (fTopDrawingGroup!=nullptr)
+        fTopDrawingGroup -> Write();
     if (fAutoTerminate)
         fOutputFile -> Close();
 
@@ -1649,6 +1681,14 @@ void LKRun::AddDetector(LKDetector *detector) {
     //fDetectorSystem -> SetPar(fPar);
     fDetectorSystem -> AddDetector(detector);
 }
+
+void LKRun::AddDetectorPlane(LKDetectorPlane *plane) {
+    plane -> SetRun(this);
+    if (fPar==nullptr)
+        CreateParameterContainer();
+    //fDetectorSystem -> SetPar(fPar);
+    fDetectorSystem -> AddDetectorPlane(plane);
+}
 LKDetector *LKRun::GetDetector(Int_t i) const { return (LKDetector *) fDetectorSystem -> At(i); }
 LKDetectorPlane *LKRun::GetDetectorPlane(Int_t iDetector, Int_t iPlane) {
     return GetDetector(iDetector) -> GetDetectorPlane(iPlane);
@@ -1743,6 +1783,7 @@ vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchOption, TSt
 
 bool LKRun::AddDrawing(TObject* drawing, TString label, int i)
 {
+    //lk_note << "This is Legacy method!" << endl;
     if (fUserDrawingArray==nullptr)
         fUserDrawingArray = new TObjArray();
     TObjArray* labelSpace = (TObjArray*) fUserDrawingArray -> FindObject(label);
@@ -1774,6 +1815,7 @@ bool LKRun::AddDrawing(TObject* drawing, TString label, int i)
 
 void LKRun::PrintDrawings()
 {
+    //lk_note << "This is Legacy method!" << endl;
     auto numLabels = fUserDrawingArray -> GetEntries(); 
     for (auto iLabel=0; iLabel<numLabels; ++iLabel)
     {
@@ -1802,4 +1844,24 @@ void LKRun::PrintDrawings()
             }
         }
     }
+}
+
+LKDrawingGroup* LKRun::GetTopDrawingGroup()
+{
+    if (fDataViewer==nullptr) {
+        //fDataViewer = new LKDataViewer("run");
+        fDataViewer = new LKDataViewer();
+        fDataViewer -> SetName(MakeFullRunName(true));
+        fDataViewer -> SetRun(this);
+        fTopDrawingGroup = fDataViewer -> GetTopDrawingGroup();
+    }
+    return fTopDrawingGroup;
+}
+
+void LKRun::Draw(Option_t* option)
+{
+    if (fTopDrawingGroup==nullptr)
+        lk_warning << "No drawings added!" << endl;
+    else
+        fDataViewer -> Draw(TString(option));
 }
