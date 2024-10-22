@@ -111,6 +111,13 @@ void LKDetectorSystem::AddDetector(LKDetector *detector)
     Add(detector);
 }
 
+void LKDetectorSystem::AddDetectorPlane(LKDetectorPlane *plane)
+{
+    auto detector = new LKDetector();
+    detector -> AddPlane(plane);
+    AddDetector(detector);
+}
+
 Int_t LKDetectorSystem::GetNumDetectors() const { return GetEntries(); }
 LKDetector *LKDetectorSystem::GetDetector(Int_t idx) const { return (LKDetector *) At(idx); }
 

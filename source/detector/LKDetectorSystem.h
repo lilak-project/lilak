@@ -32,6 +32,7 @@ class LKDetectorSystem : public TObjArray, public LKGear
         void SetTransparency(Int_t transparency);
 
         void AddDetector(LKDetector *detector);
+        void AddDetectorPlane(LKDetectorPlane *plane);
 
         Int_t GetNumDetectors() const;
         LKDetector *GetDetector(Int_t idx = 0) const;

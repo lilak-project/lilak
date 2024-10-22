@@ -267,7 +267,7 @@ bool LKDetectorPlane::SetDataFromBranch()
         SetPadArray(padArray);
 
     if (hitArray==nullptr && padArray==nullptr) {
-        lk_error << "No data array (hit, pad) are found check if GetEntris has been called!" << endl;
+        lk_error << "Data arrays (hit, pad) not found. Check if GetEntry() has been called!" << endl;
         return false;
     }
 
