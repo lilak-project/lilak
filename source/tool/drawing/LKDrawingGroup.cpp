@@ -45,7 +45,7 @@ void LKDrawingGroup::Draw(Option_t *option)
     TString ops(option);
     ops.ToLower();
     if (ops.Index("v")>=0) {
-        (new LKDataViewer(this))->Draw();
+        (new LKDataViewer(this))->Draw(ops);
         return;
     }
 
@@ -63,7 +63,6 @@ void LKDrawingGroup::Draw(Option_t *option)
         if (numDrawings>0)
         {
             ConfigureCanvas();
-
             if (numDrawings==1) {
                 auto drawing = (LKDrawing*) At(0);
                 drawing -> SetCanvas(fCvs);
@@ -121,23 +120,32 @@ Int_t LKDrawingGroup::Write(const char *name, Int_t option, Int_t bsize) const
     return 1;
 }
 
-void LKDrawingGroup::Save(bool recursive, bool saveRoot, bool savePNG, TString dirName, TString header)
+void LKDrawingGroup::Save(bool recursive, bool saveRoot, bool savePNG, TString dirName, TString header, TString tag)
 {
     if (dirName.IsNull()) {
         dirName = "data_drawing";
-        gSystem -> Exec(Form("mkdir -p %s/",dirName.Data()));
     }
+    gSystem -> Exec(Form("mkdir -p %s/",dirName.Data()));
+
+    TString uheader = header;
+    uheader.ReplaceAll(":","_");
+    uheader.ReplaceAll(" ","_");
+    if (uheader.IsNull()==false) uheader = uheader + "__";
+    TString fullName = fName;//GetFullName();
+    fullName.ReplaceAll(":","_");
+    fullName.ReplaceAll(" ","_");
+    if (!tag.IsNull()) tag = Form(".%s",tag.Data());
 
     if (fIsGroupGroup)
     {
         auto numSub = GetEntries();
         if (saveRoot) {
-            TString fileName = Form("%s/drawings_%s.root",dirName.Data(),fName.Data());
+            TString fileName = dirName + "/" + uheader + fullName + tag + ".root";
+            e_info << "Writting " << fileName << endl;
             auto file = new TFile(fileName,"recreate");
             Write();
         }
 
-        //lk_debug << fName << " " << GetGroupDepth() << endl;
         if (GetGroupDepth()>=3) {
             dirName = dirName + "/" + fName;
             gSystem -> Exec(Form("mkdir -p %s/",dirName.Data()));
@@ -146,22 +154,25 @@ void LKDrawingGroup::Save(bool recursive, bool saveRoot, bool savePNG, TString d
             if (header.IsNull()) header = fName;
             else header = header + "_" + fName;
         }
-        //lk_debug << dirName << " " << header << endl;
         if (savePNG) {
             for (auto iSub=0; iSub<numSub; ++iSub) {
                 auto sub = (LKDrawingGroup*) At(iSub);
-                sub -> Save(recursive, false, savePNG, dirName, header);
+                sub -> Save(recursive, false, savePNG, dirName, header, tag);
             }
         }
     }
     else
     {
-        //auto numDrawings = GetEntries();
-        //e_cout << header << "Group " << fName << " containing " << numDrawings << " drawings" << endl;
-        if (header.IsNull()==false) header = header + "_";
-        TString name = dirName + "/" + header + fName + ".png";
-        //lk_debug << name << endl;
-        fCvs -> SaveAs(name);
+        if (saveRoot) {
+            TString fileName = dirName + "/" + uheader + fullName + tag + ".root";
+            e_info << "Writting " << fileName << endl;
+            auto file = new TFile(fileName,"recreate");
+            Write();
+        }
+        if (savePNG) {
+            TString fileName = dirName + "/" + uheader + fullName + tag + ".png";
+            fCvs -> SaveAs(fileName);
+        }
     }
 }
 
@@ -211,6 +222,7 @@ bool LKDrawingGroup::ConfigureCanvas()
     auto numDrawings = GetEntries();
 
     if      (numDrawings== 1) { fDivX =  1; fDivY =  1; }
+    else if (numDrawings<= 2) { fDivX =  2; fDivY =  1; }
     else if (numDrawings<= 4) { fDivX =  2; fDivY =  2; }
     else if (numDrawings<= 6) { fDivX =  3; fDivY =  2; }
     else if (numDrawings<= 8) { fDivX =  4; fDivY =  2; }
@@ -230,8 +242,23 @@ bool LKDrawingGroup::ConfigureCanvas()
     else if (numDrawings<=80) { fDivX = 10; fDivY =  8; }
     else                      { fDivX = 12; fDivY = 10; }
 
-    if (fCvs==nullptr)
-        fCvs = LKPainter::GetPainter() -> CanvasResize(Form("c%s",fName.Data()), 125*fDivX, 100*fDivY);
+    if (fCvs==nullptr) {
+        if (fDXCvs==0 && fDYCvs==0)
+            fCvs = LKPainter::GetPainter() -> CanvasResize(Form("c%s",fName.Data()), 125*fDivX, 100*fDivY);
+        else
+            fCvs = LKPainter::GetPainter() -> CanvasResize(Form("c%s",fName.Data()), fDXCvs, fDYCvs);
+    }
+
+    if (fPadArray!=nullptr)
+    {
+        auto numPads = fPadArray -> GetEntries();
+        for (auto iPad=0; iPad<numPads; ++iPad) {
+            auto pad = fPadArray -> At(iPad);
+            fCvs -> cd();
+            pad -> Draw();
+        }
+        return true;
+    }
 
     if (numDrawings==1)
         return true;
@@ -378,6 +405,25 @@ int LKDrawingGroup::GetGroupDepth() const
     }
     else
         return 1;
+}
+
+TString LKDrawingGroup::GetFullName() const
+{
+    if (fParentName.IsNull())
+        return fName;
+    else {
+        return fParentName+":"+fName;
+    }
+}
+
+void LKDrawingGroup::Add(TObject *obj)
+{
+    if (obj->InheritsFrom(TH1::Class())) { AddHist((TH1*) obj); return; }
+    if (obj->InheritsFrom(TGraph::Class())) { AddGraph((TGraph*) obj); return; }
+    if (obj->InheritsFrom(LKDrawing::Class()) || obj->InheritsFrom(LKDrawingGroup::Class()))
+        TObjArray::Add(obj);
+    else
+        lk_error << "Cannot add " << obj->ClassName() << " directly!" << endl;
 }
 
 void LKDrawingGroup::AddDrawing(LKDrawing* drawing)

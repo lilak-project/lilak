@@ -5,7 +5,11 @@
 #include "TString.h"
 #include "TLegend.h"
 #include "TNamed.h"
+#include "TGraph.h"
+#include "LKCut.h"
+#include "TTree.h"
 #include "TPad.h"
+#include "TF1.h"
 #include "TH1.h"
 #include "TH2.h"
 #include <vector>
@@ -23,13 +27,20 @@ class LKDrawing : public TObjArray
         virtual const char* GetName() const;
         virtual void Draw(Option_t *option="");
         virtual void Print(Option_t *option="") const;
+        virtual Int_t Write(const char *name = nullptr, Int_t option=TObject::kSingleKey, Int_t bufsize = 0) const;
         virtual void Clear(Option_t *option="");
+        void Init();
         void CopyTo(LKDrawing* drawing, bool clearFirst=true);
         virtual Double_t GetHistEntries() const;
 
-        virtual void Add(TObject *obj) { Add(obj,"","",false); }
-        void Add(TObject *obj, TString drawOption) { Add(obj, "", drawOption, false); }
-        void Add(TObject *obj, TString title, TString drawOption, bool isMain=false);
+        ////////////////////////////////////////////////////////////////////////////////////
+        void Fill(TTree* tree);
+
+        ////////////////////////////////////////////////////////////////////////////////////
+        virtual void Add(TObject *obj) { Add(obj,"",""); }
+        //void Add(TObject *obj, TString drawOption) { Add(obj, "", drawOption); }
+        //void Add(TObject *obj, TString title, TString drawOption);
+        void Add(TObject *obj, TString drawOption, TString title="");
         void AddDrawing(LKDrawing *drawing);
         void SetTitle(int i, TString title) { fTitleArray[i] = title; }
         void SetOption(int i, TString option) { fDrawOptionArray[i] = option; }
@@ -37,81 +48,77 @@ class LKDrawing : public TObjArray
         void SetCanvas(TPad* cvs) { fCvs = (TPad*) cvs; }
         void SetCanvas(TCanvas* cvs) { fCvs = (TPad*) cvs; }
 
-        void SetRangeUser(double x1, double x2, double y1, double y2) { SetRangeUserX(x1, x2); SetRangeUserY(y1, y2); }
-        void SetRangeUserX(double x1, double x2) { fSetXRange = true; fX1 = x1; fX2 = x2; }
-        void SetRangeUserY(double y1, double y2) { fSetYRange = true; fY1 = y1; fY2 = y2; }
-
+        ////////////////////////////////////////////////////////////////////////////////////
         int GetNumDrawings() const { return GetEntries(); }
         TString GetTitle(int i) const { return fTitleArray.at(i); }
         TString GetOption(int i) const { return fDrawOptionArray.at(i); }
-
         TPad* GetCanvas() { return fCvs; }
         TH1* GetMainHist() { return fMainHist; }
+        LKCut* GetCut() { return fCuts; }
 
+        ////////////////////////////////////////////////////////////////////////////////////
         void SetHistColor(TH2* hist, int color, int max);
+        void GetPadCorner(TPad *cvs, int iCorner, double &x_corner, double &y_corner, double &x_unit, double &y_unit);
+        void GetPadCornerBoxDimension(TPad *cvs, int iCorner, double dx, double dy, double &x1, double &y1, double &x2, double &y2);
+        bool MakeStatsCorner(TPad *cvs, int iCorner=0);
+        void MakeLegendBelowStats(TLegend *legend);
+        void MakeLegendCorner(TLegend *legend);
+        void SetMainHist(TPad *pad, TH1* hist);
 
-        void AddOption(TString option);
-        void AddOption(TString option, double value);
+        ////////////////////////////////////////////////////////////////////////////////////
+        bool CheckOption(TString option) { return LKMisc::CheckOption(fGlobalOption,option); }
+        int FindOptionInt(TString option, int value) { return LKMisc::FindOptionInt(fGlobalOption,option,value); }
+        double FindOptionDouble(TString option, double value) { return LKMisc::FindOptionDouble(fGlobalOption,option,value); }
+        TString FindOptionString(TString &option, TString value) { return LKMisc::FindOptionString(fGlobalOption,option,value); }
+
+        ////////////////////////////////////////////////////////////////////////////////////
         void RemoveOption(TString option);
+        /// - log[x,y,z]
+        /// - grid[x,y]
+        /// - stats_corner : place statistics box at top right corner of histogram frame
+        /// - legend_corner : place legend box at top right corner of histogram frame
+        /// - legend_below_stats : place legend just below statistics box
+        /// - histcc : enable color comparisons of 2d-histograms by setting histogram contents to have different values
+        void AddOption(TString option);
+        /// - [x,y][1,2]       : SetRangeUser x,y
+        /// - [l,r,b,t]lmargin : canvas margin
+        /// - statsdx, 0.280   : statistics box dx
+        /// - statsdy, 0.050   : statistics box dy for each line
+        /// - font, 132        : default font
+        /// - [m,x,y,z]_[title/label]_[size/font/offset] : text attributes (m for top main title)
+        void AddOption(TString option, double value);
 
-        void SetLogx (bool add=true) { if (add) AddOption("logx" ); else RemoveOption("logx" ); }
-        void SetLogy (bool add=true) { if (add) AddOption("logy" ); else RemoveOption("logy" ); }
-        void SetLogz (bool add=true) { if (add) AddOption("logz" ); else RemoveOption("logz" ); }
-        void SetGridx(bool add=true) { if (add) AddOption("gridx"); else RemoveOption("gridx"); }
-        void SetGridy(bool add=true) { if (add) AddOption("gridy"); else RemoveOption("gridy"); }
-        void SetHistCCMode(bool value=true) { AddOption("histcc",value); } // 2d-histogram color classification mode
+        ////////////////////////////////////////////////////////////////////////////////////
+        void SetLogx()  { AddOption("logx"); }
+        void SetLogy()  { AddOption("logy"); }
+        void SetLogz()  { AddOption("logz"); }
+        void SetGridx() { AddOption("gridx"); }
+        void SetGridy() { AddOption("gridy"); }
         void SetLeftMargin(double mg)   { AddOption("lmargin",mg); }
         void SetRightMargin(double mg)  { AddOption("rmargin",mg); }
         void SetBottomMargin(double mg) { AddOption("bmargin",mg); }
         void SetTopMargin(double mg)    { AddOption("tmargin",mg); }
-        void SetMargin(double ml, double mr, double mb, double mt) {
-            AddOption("lmargin",ml);
-            AddOption("rmargin",mr);
-            AddOption("bmargin",mb);
-            AddOption("tmargin",mt);
-        }
-
-        bool GetLogx()  { return LKMisc::CheckOption(fGlobalOption,"logx" ); }
-        bool GetLogy()  { return LKMisc::CheckOption(fGlobalOption,"logy" ); }
-        bool GetLogz()  { return LKMisc::CheckOption(fGlobalOption,"logz" ); }
-        bool GetGridx() { return LKMisc::CheckOption(fGlobalOption,"gridx"); }
-        bool GetGridy() { return LKMisc::CheckOption(fGlobalOption,"gridy"); }
-        bool GetHistCCMode() { return LKMisc::CheckOption(fGlobalOption,"histcc"); }
-        double GetLeftMargin()   { auto val=LKMisc::FindOption(fGlobalOption,"lmargin"); return (val.IsNull()?-1:val.Atof()); }
-        double GetRightMargin()  { auto val=LKMisc::FindOption(fGlobalOption,"rmargin"); return (val.IsNull()?-1:val.Atof()); }
-        double GetBottomMargin() { auto val=LKMisc::FindOption(fGlobalOption,"bmargin"); return (val.IsNull()?-1:val.Atof()); }
-        double GetTopMargin()    { auto val=LKMisc::FindOption(fGlobalOption,"tmargin"); return (val.IsNull()?-1:val.Atof()); }
+        void SetRangeUser(double x1, double x2, double y1, double y2) { SetRangeUserX(x1, x2); SetRangeUserY(y1, y2); }
+        void SetRangeUserX(double x1, double x2) { AddOption("x1",x1); AddOption("x2",x2); }
+        void SetRangeUserY(double y1, double y2) { AddOption("y1",y1); AddOption("y2",y2); }
+        void SetHistCCMode() { AddOption("histcc"); }
+        //void SetMainTitleAttribute();
+        //void SetTitleAttribute(int i, int font, double size, double offset);
+        //void SetLabelAttribute(int i, int font, double size, double offset);
 
     private:
         void MakeLegend();
 
     private:
+        TString fGlobalOption = "stats_corner:legend_below_stats:font=132";
         vector<TString> fTitleArray;
         vector<TString> fDrawOptionArray;
-        TString fGlobalOption;
 
-        bool fFirstHistIsSet = false;
-        int fMainIndex = -1;
-        TString fTitle;
-
+        LKCut* fCuts = nullptr; //!
         TPad* fCvs = nullptr; //!
         TH1* fMainHist = nullptr;
-        TLegend* fLegend = nullptr;
-
         TH1* fHistPixel = nullptr; //!
-
-        bool fSetXRange = false;
-        bool fSetYRange = false;
-        double fX1;
-        double fX2;
-        double fY1;
-        double fY2;
-
-        //bool fSetLogX  = false;
-        //bool fSetLogY  = false;
-        //bool fSetLogZ  = false;
-        //bool fSetGridX = false;
-        //bool fSetGridY = false;
+        TLegend* fLegend = nullptr; //!
 
     ClassDef(LKDrawing, 1)
 };
