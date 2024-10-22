@@ -459,6 +459,33 @@ TString LKMisc::FindOption(TString &option, TString name, bool removeAfter, int 
     return value;
 }
 
+int LKMisc::FindOptionInt(TString &option, TString name, int emptyValue)
+{
+    TString value = LKMisc::FindOption(option, name, false, false);
+    if (value.IsNull())
+        return emptyValue;
+    else
+        return value.Atoi();
+}
+
+double LKMisc::FindOptionDouble(TString &option, TString name, double emptyValue)
+{
+    TString value = LKMisc::FindOption(option, name, false, false);
+    if (value.IsNull())
+        return emptyValue;
+    else
+        return value.Atof();
+}
+
+TString LKMisc::FindOptionString(TString &option, TString name, TString emptyValue)
+{
+    TString value = LKMisc::FindOption(option, name, false, false);
+    if (value.IsNull())
+        return emptyValue;
+    else
+        return value;
+}
+
 bool LKMisc::CheckOption(TString &option, TString name, bool removeAfter, int addValue)
 {
     auto value = LKMisc::FindOption(option, name, removeAfter, addValue);
