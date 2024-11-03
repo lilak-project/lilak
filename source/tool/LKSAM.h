@@ -21,6 +21,8 @@ class LKSAM : public TObject
         /// cvCut: stdDev/mean cut for collecting samples used for calculating pedestal.
         double EvalPedestalSamplingMethod(double *buffer, int length,  int sampleLength=50, double cvCut=0.2, bool subtractPedestal=false);
 
+        double GetSmoothLevel(TH1* hist, double thresholdRatio=0.05);
+
     private:
         void InitBufferDouble(int length);
 

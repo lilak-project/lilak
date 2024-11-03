@@ -308,3 +308,40 @@ double LKSAM::FWHM(double *buffer, int length, int iPeak, double amplitude, doub
 
     return width;
 }
+
+double LKSAM::GetSmoothLevel(TH1* hist, double thresholdRatio)
+{
+    auto max = hist -> GetMaximum();
+    auto threshold = max*thresholdRatio;
+    auto nbins = hist -> GetXaxis() -> GetNbins();
+    if (nbins<5) return 1.;
+
+    int countV = 0;
+    int countX = 0;
+    auto value1 = hist -> GetBinContent(1);
+    auto value2 = hist -> GetBinContent(2);
+    for (auto bin=3; bin<=nbins; ++bin)
+    {
+        auto value3 = hist -> GetBinContent(bin);
+        int count0 = 0;
+        if (value1==0) count0++;
+        if (value2==0) count0++;
+        if (value3==0) count0++;
+        if (count0>=2) {
+            countX++;
+        }
+        else {
+            double diff1 = (value2-value1);
+            double diff2 = (value3-value2);
+            if ((diff1>0)!=(diff2>0)) {
+                if (abs(diff1)>threshold||abs(diff2)>threshold) {
+                    countV++;
+                }
+            }
+        }
+        value1 = value2;
+        value2 = value3;
+    }
+    double level = double((nbins-2-countX)-countV)/double(nbins-2-countX);
+    return level;
+}
