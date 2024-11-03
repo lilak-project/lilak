@@ -26,8 +26,10 @@ class LKDataViewer : public TGMainFrame
         double fStatusFrameYRatio = 0.05;
         double fRF = 1; ///< Resize factor (scale factor of your screen compare to the mornitor which has with of 1500)
         double fRFEntry = 0.8; ///< Resize factor for number entry
-        double fReszieFactorX = 1.;
-        double fReszieFactorY = 1.;
+        double fResizeFactorX = 1.;
+        double fResizeFactorY = 1.;
+        int fWindowSizeX = 0;
+        int fWindowSizeY = 0;
         TString fSavePath = "data_viewer";
 
         LKDrawingGroup *fCurrentGroup = nullptr;
@@ -65,6 +67,7 @@ class LKDataViewer : public TGMainFrame
         int fCurrentCanvasY = 0;
         bool fPublicGroupIsAdded = false;
         LKDrawingGroup *fPublicGroup = nullptr;
+        int fCountPublicSub = 0;
         int fPublicTabIndex = 0;
 
         bool fUseTRootCanvas = false;

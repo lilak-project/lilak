@@ -141,7 +141,16 @@ bool LKDataViewer::InitFrames()
     MapSubwindows(); // Map all subwindows of main frame
     //if (GetDefaultSize().fWidth>fInitWidth)
     //    e_warning << "Maybe tab will overflow " << GetDefaultSize().fWidth << " > " << fInitWidth << endl;
-    Resize(fReszieFactorX*fInitWidth,fReszieFactorY*fInitHeight); // Initialize the layout algorithm
+    if (fWindowSizeX>0&&fWindowSizeY>0){
+        auto painter = LKPainter::GetPainter();
+        painter -> GetSizeResize(fWindowSizeX, fWindowSizeY, fWindowSizeX, fWindowSizeY, 1);
+        fRF = 0.6*painter -> GetResizeFactor();
+    }
+    else {
+        fWindowSizeX = fResizeFactorX*fInitWidth;
+        fWindowSizeY = fResizeFactorY*fInitHeight;
+    }
+    Resize(fWindowSizeX,fWindowSizeY); // Initialize the layout algorithm
     //Resize(GetDefaultSize());
     MapWindow(); // Map main frame
 
@@ -157,15 +166,17 @@ bool LKDataViewer::InitFrames()
 
 void LKDataViewer::Draw(TString option)
 {
-    if (LKMisc::CheckOption(option,"resize"))
-    {
-        fReszieFactorX = LKMisc::FindOptionDouble(option,"resize",1);
-        fReszieFactorY = LKMisc::FindOptionDouble(option,"resize",1);
-    }
+    fResizeFactorX = LKMisc::FindOptionDouble(option,"resize",1);
+    fResizeFactorY = LKMisc::FindOptionDouble(option,"resize",1);
+    fWindowSizeX = LKMisc::FindOptionInt(option,"wx",0);
+    fWindowSizeY = LKMisc::FindOptionInt(option,"wy",0);
 
     InitFrames();
 
-    if (LKMisc::CheckOption(option,"saveall"))
+    if (LKMisc::CheckOption(option,"load_all"))
+        ProcessLoadAllCanvas();
+
+    if (LKMisc::CheckOption(option,"save_all"))
         ProcessSaveTab(-2);
 
     //double resize_scale = LKMisc::FindOptionDouble(option,"resize",1);
@@ -193,8 +204,9 @@ void LKDataViewer::CreateMainCanvas()
     LKDrawingGroup *group = nullptr;
 
     TIter next(fTopDrawingGroup);
-    while ((group = (LKDrawingGroup*) next()))
+    while ((group = (LKDrawingGroup*) next())) {
         AddGroupTab(group);
+    }
 
     //fPublicGroupIsAdded = true;
     //fPublicTabIndex = AddGroupTab(fPublicGroup);
@@ -245,7 +257,7 @@ int LKDataViewer::AddGroupTab(LKDrawingGroup* group, int iTab, int iSub)
     }
     else
     {
-        if (iSub<0) tabSpace -> Connect("Selected(Int_t)", "LKDataViewer", this, Form("ProcessGotoTopTabSelected(Int_t)",iTab,iSub));
+        if (iSub<0) tabSpace -> Connect("Selected(Int_t)", "LKDataViewer", this, Form("ProcessGotoTopTab(Int_t)",iTab,iSub));
         else        tabSpace -> Connect("Selected(Int_t)", "LKDataViewer", this, Form("ProcessGotoSubTab(=%d,=0)",iSub));
         //tabSpace -> Print();
         if (isMainTabs) {
@@ -255,6 +267,7 @@ int LKDataViewer::AddGroupTab(LKDrawingGroup* group, int iTab, int iSub)
         if (!fUseTRootCanvas) {
             TRootEmbeddedCanvas *ecvs = new TRootEmbeddedCanvas(cvsName, tabFrame, (1 - fControlFrameXRatio) * fInitWidth, fInitHeight);
             tabFrame->AddFrame(ecvs, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY));
+            //tabFrame->AddFrame(ecvs);//, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY));
             TCanvas *canvas = ecvs->GetCanvas();
             group -> SetCanvas(canvas);
         }
@@ -912,13 +925,13 @@ void LKDataViewer::ProcessReLoadACanvas()
 void LKDataViewer::ProcessLoadAllCanvas()
 {
     int numTabs = fTabGroup.size();
-    SendOutMessage(Form("Loading %d tabs ...",numTabs));
+    SendOutMessage(Form("Loading %d tabs ...",numTabs),1,true);
     for (auto iTab=0; iTab<numTabs; ++iTab)
     {
         int numSubTabs = fSubTabGroup[iTab].size();
         if (numSubTabs>0)
         {
-            SendOutMessage(Form("Loading %d sub-tabs ...",numSubTabs));
+            SendOutMessage(Form("Loading %d sub-tabs ...",numSubTabs),1,true);
             for (auto iSub=0; iSub<numSubTabs; ++iSub)
             {
                 if (fSubTabShouldBeUpdated[iTab][iSub]) {
@@ -939,7 +952,7 @@ void LKDataViewer::ProcessLoadAllCanvas()
         }
     }
 
-    SendOutMessage("All tabs Loaded");
+    SendOutMessage("All tabs Loaded",1,true);
 }
 
 void LKDataViewer::ProcessTCutEditorMode(int iMode)
@@ -1039,7 +1052,7 @@ void LKDataViewer::ProcessCanvasControl(int iMode)
                 }
                 else if (pad->GetGridx()) pad -> SetGridy(1);
                 else if (pad->GetGridy()) pad -> SetGridx(1);
-                else                               pad -> SetGridx(1);
+                else                      pad -> SetGridx(1);
             }
             else if (option==1) { SendOutMessage("Gridx"); if (pad -> GetGridx()) pad -> SetGridx(0); else pad -> SetGridx(1); }
             else if (option==2) { SendOutMessage("Gridy"); if (pad -> GetGridx()) pad -> SetGridx(0); else pad -> SetGridx(1); }
@@ -1210,6 +1223,10 @@ void LKDataViewer::ProcessToggleNavigateCanvas()
     LKDrawingGroup* subGroup = nullptr;
     LKDrawing* drawing = nullptr;
     auto numPub = fPublicGroup -> GetNumGroups();
+
+    /////////// TODO ///////////
+    pNumber = fCountPublicSub++;
+    ////////////////////////////
 
     if (pNumber<numPub) {
         subGroup = fPublicGroup -> GetGroup(pNumber);
