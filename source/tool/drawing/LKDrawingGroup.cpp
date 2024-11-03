@@ -35,17 +35,27 @@ void LKDrawingGroup::Init()
 {
     fName = "drawings";
     fCvs = nullptr;
-    fDivX = 1;
-    fDivY = 1;
+    fDivX = 0;
+    fDivY = 0;
     fGroupLevel = 0;
 }
 
 void LKDrawingGroup::Draw(Option_t *option)
 {
-    TString ops(option);
-    ops.ToLower();
-    if (ops.Index("v")>=0) {
-        (new LKDataViewer(this))->Draw(ops);
+    TString optionString(option);
+    optionString.ToLower();
+    if (LKMisc::CheckOption(optionString,"v",true) || LKMisc::CheckOption(optionString,"viewer",true))
+    {
+        if (fViewer!=nullptr)
+        {
+            //fViewer -> Clear();
+            //fViewer -> Draw();
+            lk_warning << "viewer already exist" << endl;
+            return;
+        }
+
+        fViewer = new LKDataViewer(this);
+        fViewer -> Draw(optionString);
         return;
     }
 
@@ -54,6 +64,7 @@ void LKDrawingGroup::Draw(Option_t *option)
         auto numSub = GetEntries();
         for (auto iSub=0; iSub<numSub; ++iSub) {
             auto sub = (LKDrawingGroup*) At(iSub);
+            sub -> SetGlobalOption(fGlobalOption);
             sub -> Draw(option);
         }
     }
@@ -77,6 +88,7 @@ void LKDrawingGroup::Draw(Option_t *option)
                 }
             }
         }
+        //fCvs -> SetWindowSize(800,800);
     }
 }
 
@@ -120,10 +132,13 @@ Int_t LKDrawingGroup::Write(const char *name, Int_t option, Int_t bsize) const
     return 1;
 }
 
-void LKDrawingGroup::Save(bool recursive, bool saveRoot, bool savePNG, TString dirName, TString header, TString tag)
+void LKDrawingGroup::Save(bool recursive, bool saveRoot, bool saveImage, TString dirName, TString header, TString tag)
 {
     if (dirName.IsNull()) {
         dirName = "data_drawing";
+    }
+    if (fName.IsNull()) {
+        fName = "top";
     }
     gSystem -> Exec(Form("mkdir -p %s/",dirName.Data()));
 
@@ -139,11 +154,9 @@ void LKDrawingGroup::Save(bool recursive, bool saveRoot, bool savePNG, TString d
     if (fIsGroupGroup)
     {
         auto numSub = GetEntries();
-        if (saveRoot) {
-            TString fileName = dirName + "/" + uheader + fullName + tag + ".root";
-            e_info << "Writting " << fileName << endl;
-            auto file = new TFile(fileName,"recreate");
-            Write();
+        if (numSub<0) {
+            lk_warning << "empty group" << endl;
+            return;
         }
 
         if (GetGroupDepth()>=3) {
@@ -154,10 +167,23 @@ void LKDrawingGroup::Save(bool recursive, bool saveRoot, bool savePNG, TString d
             if (header.IsNull()) header = fName;
             else header = header + "_" + fName;
         }
-        if (savePNG) {
+
+        if (saveRoot) {
+            TString fileName = dirName + "/" + uheader + fullName + tag + ".root";
+            e_info << "Writting " << fileName << endl;
+            auto file = new TFile(fileName,"recreate");
+            Write();
+        }
+
+        if (saveImage) {
+            auto sub0 = (LKDrawingGroup*) At(0);
+            auto num0 = sub0 -> GetEntries();
+            if (num0>4) {
+
+            }
             for (auto iSub=0; iSub<numSub; ++iSub) {
                 auto sub = (LKDrawingGroup*) At(iSub);
-                sub -> Save(recursive, false, savePNG, dirName, header, tag);
+                sub -> Save(recursive, false, saveImage, dirName, header, tag);
             }
         }
     }
@@ -169,9 +195,20 @@ void LKDrawingGroup::Save(bool recursive, bool saveRoot, bool savePNG, TString d
             auto file = new TFile(fileName,"recreate");
             Write();
         }
-        if (savePNG) {
-            TString fileName = dirName + "/" + uheader + fullName + tag + ".png";
-            fCvs -> SaveAs(fileName);
+        if (saveImage)
+        {
+            {
+                TString dirNameImage = dirName + "/png";
+                gSystem -> Exec(Form("mkdir -p %s/",dirNameImage.Data()));
+                TString fileName = dirNameImage + "/" + uheader + fullName + tag + ".png";
+                fCvs -> SaveAs(fileName);
+            }
+            {
+                TString dirNameImage = dirName + "/eps";
+                gSystem -> Exec(Form("mkdir -p %s/",dirNameImage.Data()));
+                TString fileName = dirNameImage + "/" + uheader + fullName + tag + ".eps";
+                fCvs -> SaveAs(fileName);
+            }
         }
     }
 }
@@ -221,32 +258,103 @@ bool LKDrawingGroup::ConfigureCanvas()
 {
     auto numDrawings = GetEntries();
 
-    if      (numDrawings== 1) { fDivX =  1; fDivY =  1; }
-    else if (numDrawings<= 2) { fDivX =  2; fDivY =  1; }
-    else if (numDrawings<= 4) { fDivX =  2; fDivY =  2; }
-    else if (numDrawings<= 6) { fDivX =  3; fDivY =  2; }
-    else if (numDrawings<= 8) { fDivX =  4; fDivY =  2; }
-    else if (numDrawings<= 9) { fDivX =  3; fDivY =  3; }
-    else if (numDrawings<=12) { fDivX =  4; fDivY =  3; }
-    else if (numDrawings<=16) { fDivX =  4; fDivY =  4; }
-    else if (numDrawings<=20) { fDivX =  5; fDivY =  4; }
-    else if (numDrawings<=25) { fDivX =  6; fDivY =  4; }
-    else if (numDrawings<=25) { fDivX =  5; fDivY =  5; }
-    else if (numDrawings<=30) { fDivX =  6; fDivY =  5; }
-    else if (numDrawings<=35) { fDivX =  7; fDivY =  5; }
-    else if (numDrawings<=36) { fDivX =  6; fDivY =  6; }
-    else if (numDrawings<=40) { fDivX =  8; fDivY =  5; }
-    else if (numDrawings<=42) { fDivX =  7; fDivY =  6; }
-    else if (numDrawings<=48) { fDivX =  8; fDivY =  6; }
-    else if (numDrawings<=63) { fDivX =  9; fDivY =  7; }
-    else if (numDrawings<=80) { fDivX = 10; fDivY =  8; }
-    else                      { fDivX = 12; fDivY = 10; }
+    if (fDivX==0 || fDivY==0)
+    {
+        if (CheckOption("wide_canvas"))
+        {
+            if      (numDrawings== 1) { fDivX =  1; fDivY =  1; }
+            else if (numDrawings<= 2) { fDivX =  2; fDivY =  1; }
+            else if (numDrawings<= 3) { fDivX =  3; fDivY =  1; }
+            else if (numDrawings<= 6) { fDivX =  3; fDivY =  2; }
+            else if (numDrawings<= 8) { fDivX =  4; fDivY =  2; }
+            else if (numDrawings<= 9) { fDivX =  3; fDivY =  3; }
+            else if (numDrawings<=12) { fDivX =  4; fDivY =  3; }
+            else if (numDrawings<=16) { fDivX =  4; fDivY =  4; }
+            else if (numDrawings<=20) { fDivX =  4; fDivY =  5; }
+            else if (numDrawings<=24) { fDivX =  4; fDivY =  6; }
+            else if (numDrawings<=28) { fDivX =  4; fDivY =  7; }
+            else if (numDrawings<=32) { fDivX =  4; fDivY =  8; }
+            else if (numDrawings<=36) { fDivX =  4; fDivY =  9; }
+            else if (numDrawings<=40) { fDivX =  4; fDivY =  10; }
+            else {
+                lk_error << "Too many drawings!!! " << numDrawings << endl;
+                return false;
+            }
+        }
 
-    if (fCvs==nullptr) {
-        if (fDXCvs==0 && fDYCvs==0)
-            fCvs = LKPainter::GetPainter() -> CanvasResize(Form("c%s",fName.Data()), 125*fDivX, 100*fDivY);
+        else if (CheckOption("vertical_canvas"))
+        {
+            if      (numDrawings== 1) { fDivY =  1; fDivX =  1; }
+            else if (numDrawings<= 2) { fDivY =  2; fDivX =  1; }
+            else if (numDrawings<= 4) { fDivY =  2; fDivX =  2; }
+            else if (numDrawings<= 6) { fDivY =  3; fDivX =  2; }
+            else if (numDrawings<= 8) { fDivY =  4; fDivX =  2; }
+            else if (numDrawings<= 9) { fDivY =  3; fDivX =  3; }
+            else if (numDrawings<=12) { fDivY =  4; fDivX =  3; }
+            else if (numDrawings<=16) { fDivY =  4; fDivX =  4; }
+            else if (numDrawings<=20) { fDivY =  5; fDivX =  4; }
+            else if (numDrawings<=25) { fDivY =  6; fDivX =  4; }
+            else if (numDrawings<=25) { fDivY =  5; fDivX =  5; }
+            else if (numDrawings<=30) { fDivY =  6; fDivX =  5; }
+            else if (numDrawings<=35) { fDivY =  7; fDivX =  5; }
+            else if (numDrawings<=36) { fDivY =  6; fDivX =  6; }
+            else if (numDrawings<=40) { fDivY =  8; fDivX =  5; }
+            else if (numDrawings<=42) { fDivY =  7; fDivX =  6; }
+            else if (numDrawings<=48) { fDivY =  8; fDivX =  6; }
+            else if (numDrawings<=63) { fDivY =  9; fDivX =  7; }
+            else if (numDrawings<=80) { fDivY = 10; fDivX =  8; }
+            else {
+                lk_error << "Too many drawings!!! " << numDrawings << endl;
+                return false;
+            }
+        }
+
         else
-            fCvs = LKPainter::GetPainter() -> CanvasResize(Form("c%s",fName.Data()), fDXCvs, fDYCvs);
+        {
+            if      (numDrawings== 1) { fDivX =  1; fDivY =  1; }
+            else if (numDrawings<= 2) { fDivX =  2; fDivY =  1; }
+            else if (numDrawings<= 4) { fDivX =  2; fDivY =  2; }
+            else if (numDrawings<= 6) { fDivX =  3; fDivY =  2; }
+            else if (numDrawings<= 8) { fDivX =  4; fDivY =  2; }
+            else if (numDrawings<= 9) { fDivX =  3; fDivY =  3; }
+            else if (numDrawings<=12) { fDivX =  4; fDivY =  3; }
+            else if (numDrawings<=16) { fDivX =  4; fDivY =  4; }
+            else if (numDrawings<=20) { fDivX =  5; fDivY =  4; }
+            else if (numDrawings<=25) { fDivX =  6; fDivY =  4; }
+            else if (numDrawings<=25) { fDivX =  5; fDivY =  5; }
+            else if (numDrawings<=30) { fDivX =  6; fDivY =  5; }
+            else if (numDrawings<=35) { fDivX =  7; fDivY =  5; }
+            else if (numDrawings<=36) { fDivX =  6; fDivY =  6; }
+            else if (numDrawings<=40) { fDivX =  8; fDivY =  5; }
+            else if (numDrawings<=42) { fDivX =  7; fDivY =  6; }
+            else if (numDrawings<=48) { fDivX =  8; fDivY =  6; }
+            else if (numDrawings<=63) { fDivX =  9; fDivY =  7; }
+            else if (numDrawings<=80) { fDivX = 10; fDivY =  8; }
+            else {
+                lk_error << "Too many drawings!!! " << numDrawings << endl;
+                return false;
+            }
+        }
+    }
+
+    double resize_factor = 0.5;
+    if      (fDivX>=5||fDivY>=5) resize_factor = 1.00;
+    else if (fDivX>=4||fDivY>=4) resize_factor = 0.95;
+    else if (fDivX>=3||fDivY>=3) resize_factor = 0.80;
+    else if (fDivX>=2||fDivY>=2) resize_factor = 0.65;
+
+    if (fCvs==nullptr)
+    {
+        if (!fFixCvsSize)
+        {
+            if (fDXCvs==0 || fDYCvs==0) {
+                fDXCvs = 800*fDivX;
+                fDYCvs = 600*fDivY;
+            }
+            fCvs = LKPainter::GetPainter() -> CanvasResize(Form("c%s",fName.Data()), fDXCvs, fDYCvs, resize_factor);
+        }
+        else
+            fCvs = new TCanvas(Form("c%s",fName.Data()),Form("c%s",fName.Data()), fDXCvs, fDYCvs);
     }
 
     if (fPadArray!=nullptr)
@@ -432,16 +540,22 @@ void LKDrawingGroup::AddDrawing(LKDrawing* drawing)
         Add(drawing);
 }
 
-void LKDrawingGroup::AddGraph(TGraph* graph)
+void LKDrawingGroup::AddGraph(TGraph* graph, TString drawOption, TString title)
 {
-    if (CheckIsDrawingGroup(true))
-        Add(new LKDrawing(graph));
+    if (CheckIsDrawingGroup(true)) {
+        auto drawing = new LKDrawing();
+        drawing -> Add(graph,drawOption,title);
+        Add(drawing);
+    }
 }
 
-void LKDrawingGroup::AddHist(TH1 *hist)
+void LKDrawingGroup::AddHist(TH1 *hist, TString drawOption, TString title)
 {
-    if (CheckIsDrawingGroup(true))
-        Add(new LKDrawing(hist));
+    if (CheckIsDrawingGroup(true)) {
+        auto drawing = new LKDrawing();
+        drawing -> Add(hist,drawOption,title);
+        Add(drawing);
+    }
 }
 
 int LKDrawingGroup::GetNumDrawings() const
@@ -579,11 +693,11 @@ LKDrawing* LKDrawingGroup::GetDrawing(int iDrawing)
     return drawing;
 }
 
-LKDrawing* LKDrawingGroup::CreateDrawing(TString name)
+LKDrawing* LKDrawingGroup::CreateDrawing(TString name, bool addToList)
 {
     if (CheckIsDrawingGroup(true)) {
         auto drawing = new LKDrawing(name);
-        Add(drawing);
+        if (addToList) Add(drawing);
         return drawing;
     }
     return (LKDrawing*) nullptr;

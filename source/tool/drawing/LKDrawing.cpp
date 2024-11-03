@@ -1,6 +1,5 @@
 #include "LKPainter.h"
 #include "LKDrawing.h"
-#include "TPaveStats.h"
 #include "LKDataViewer.h"
 #include <iostream>
 
@@ -98,6 +97,37 @@ const char* LKDrawing::GetName() const
     return "EmptyDrawing";
 }
 
+
+TH2D* LKDrawing::MakeGraphFrame(TGraph* graph, TString mxyTitle)
+{
+    double x, y;
+    double x1 = DBL_MAX;
+    double x2 = -DBL_MAX;
+    double y1 = DBL_MAX;
+    double y2 = -DBL_MAX;
+    auto numPoints = graph -> GetN();
+    for (auto iPoint=0; iPoint<numPoints; ++iPoint)
+    {
+        graph -> GetPoint(iPoint,x,y);
+        if (x<x1) x1 = x;
+        if (x>x2) x2 = x;
+        if (y<y1) y1 = y;
+        if (y>y2) y2 = y;
+    }
+    double dx = x2 - x1;
+    double dy = y2 - y1;
+    if (dx==0) dx = 1;
+    if (dy==0) dy = 1;
+    x1 = x1 - 0.1*dx;
+    x2 = x2 + 0.1*dx;
+    y1 = y1 - 0.1*dy;
+    y2 = y2 + 0.1*dy;
+    auto hist = new TH2D(Form("frame_%s",graph->GetName()),mxyTitle,100,x1,x2,100,y1,y2);
+    hist -> SetStats(0);
+
+    return hist;
+}
+
 void LKDrawing::MakeLegend()
 {
 }
@@ -116,6 +146,9 @@ void LKDrawing::Draw(Option_t *option)
 
     auto numObjects = GetEntries();
 
+    bool merge_pvtt_stats = CheckOption("merge_pvtt_stats");
+    vector<TPaveText*> listOfPaveTexts;
+
     int countHistCC = 0;
     int maxHistCC = 1;
     if (CheckOption("histcc"))
@@ -128,16 +161,28 @@ void LKDrawing::Draw(Option_t *option)
         }
     }
 
+    for (auto iObj=0; iObj<numObjects; ++iObj)
+    {
+        auto drawOption = fDrawOptionArray.at(iObj);
+        drawOption.ToLower();
+        if (iObj>0 && drawOption.Index("same")<0)
+            drawOption = drawOption + " same";
+        fDrawOptionArray[iObj] = drawOption;
+    }
+
+    if (fDrawOptionArray.at(0).Index("colz")>=0)
+        fCvs -> SetRightMargin(1.3);
+
     fCvs -> cd();
     if (CheckOption("logx" )) fCvs -> SetLogx ();
     if (CheckOption("logy" )) fCvs -> SetLogy ();
     if (CheckOption("logz" )) fCvs -> SetLogz ();
     if (CheckOption("gridx")) fCvs -> SetGridx();
     if (CheckOption("gridy")) fCvs -> SetGridy();
-    double ml = FindOptionDouble("lmargin",-1);
-    double mr = FindOptionDouble("rmargin",-1);
-    double mb = FindOptionDouble("bmargin",-1);
-    double mt = FindOptionDouble("tmargin",-1);
+    double ml = FindOptionDouble("l_margin",-1);
+    double mr = FindOptionDouble("r_margin",-1);
+    double mb = FindOptionDouble("b_margin",-1);
+    double mt = FindOptionDouble("t_margin",-1);
     if (ml>=0) fCvs -> SetLeftMargin  (ml);
     if (mr>=0) fCvs -> SetRightMargin (mr);
     if (mb>=0) fCvs -> SetBottomMargin(mb);
@@ -170,9 +215,6 @@ void LKDrawing::Draw(Option_t *option)
     {
         auto obj = At(iObj);
         auto drawOption = fDrawOptionArray.at(iObj);
-        drawOption.ToLower();
-        if (iObj>0 && drawOption.Index("same")<0)
-            drawOption = drawOption + " same";
         fCvs -> cd();
         if (obj->InheritsFrom(TH1::Class())) {
             if (countHistCC>0 && obj->InheritsFrom(TH2::Class())) {
@@ -185,6 +227,10 @@ void LKDrawing::Draw(Option_t *option)
         }
         if (obj->InheritsFrom(TCut::Class())||obj->InheritsFrom(TCutG::Class()))
             continue;
+        if (merge_pvtt_stats && obj->InheritsFrom(TPaveText::Class())) {
+            listOfPaveTexts.push_back((TPaveText*)obj);
+            continue;
+        }
         obj -> Draw(drawOption);
     }
 
@@ -192,15 +238,43 @@ void LKDrawing::Draw(Option_t *option)
 
     fCvs -> Modified();
     fCvs -> Update();
+    auto stats = MakeStats(fCvs);
+    if (listOfPaveTexts.size()>0 && stats==nullptr)
+    {
+        lk_warning << "Trying to merge TPaveTexts to stats, but stats do not exist!!" << endl;
+    }
+    else {
+        // This deosn't work
+        // may be adding something to stats box is not possible
+        for (auto pv : listOfPaveTexts) {
+            auto listOfLines = pv -> GetListOfLines();
+            TIter nextLine(listOfLines);
+            TText *ttIn;
+            while ((ttIn=(TText*)nextLine())) {
+                auto content = ttIn -> GetTitle();
+                auto ttOut = stats -> AddText(content);
+                ttOut -> SetTextAlign(ttIn->GetTextAlign());
+                ttOut -> SetTextAngle(ttIn->GetTextAngle());
+                ttOut -> SetTextColor(ttIn->GetTextColor());
+                ttOut -> SetTextFont (ttIn->GetTextFont ());
+                ttOut -> SetTextSize (ttIn->GetTextSize ());
+            }
+        }
+    }
+    fCvs -> Modified();
+    fCvs -> Update();
+
     SetMainHist(fCvs,fMainHist);
     auto foundStats = false;
     if (CheckOption("stats_corner"))
-        foundStats = MakeStatsCorner(fCvs);
+        foundStats = MakeStatsCorner(fCvs,FindOptionDouble("stats_corner",0));
     if (legend!=nullptr) {
+        if (legend->GetX1()==0.3&&legend->GetX2()==0.3&&legend->GetY1()==0.15&&legend->GetY2()==0.15)
+            SetLegendBelowStats();
         if (CheckOption("legend_below_stats") && foundStats)
-            MakeLegendBelowStats(legend);
+            MakeLegendBelowStats(fCvs,legend);
         else if ( (CheckOption("legend_below_stats") && !foundStats) || CheckOption("legend_corner"))
-            MakeLegendCorner(legend);
+            MakeLegendCorner(fCvs,legend,FindOptionInt("legend_corner",0));
     }
     fCvs -> Modified();
     fCvs -> Update();
@@ -298,20 +372,47 @@ void LKDrawing::GetPadCornerBoxDimension(TPad *cvs, int iCorner, double dx, doub
         y2 = y_corner;
         y1 = y2 - dy;
         x1 = x_corner;
-        x2 = x2 + dx;
+        x2 = x1 + dx;
     }
     else if (iCorner==2) {
         y1 = y_corner;
-        y2 = y2 + dy;
+        y2 = y1 + dy;
         x1 = x_corner;
-        x2 = x2 + dx;
+        x2 = x1 + dx;
     }
     else if (iCorner==3) {
         y1 = y_corner;
-        y2 = y2 + dy;
+        y2 = y1 + dy;
         x2 = x_corner;
         x1 = x2 - dx;
     }
+}
+
+TPaveStats* LKDrawing::MakeStats(TPad *cvs)
+{
+    TObject *object;
+    TPaveStats* statsbox = nullptr;
+    auto list_primitive = cvs -> GetListOfPrimitives();
+    TIter next_primitive(list_primitive);
+    while ((object = next_primitive())) {
+        if (object->InheritsFrom(TH1::Class())) {
+            statsbox = dynamic_cast<TPaveStats*>(((TH1D*)object)->FindObject("stats"));
+            break;
+        }
+    }
+    if (statsbox==nullptr)
+        return (TPaveStats*)nullptr;
+
+    if (CheckOption("opt_stat")) {
+        auto mode = FindOptionInt("opt_stat",1111);
+        statsbox -> SetOptStat(mode);
+    }
+    if (CheckOption("opt_fit")) {
+        auto mode = FindOptionInt("opt_fit",111);
+        statsbox -> SetOptFit(mode);
+    }
+
+    return statsbox;
 }
 
 bool LKDrawing::MakeStatsCorner(TPad *cvs, int iCorner)
@@ -330,16 +431,20 @@ bool LKDrawing::MakeStatsCorner(TPad *cvs, int iCorner)
         return false;
 
     auto numLines = statsbox -> GetListOfLines() -> GetEntries();
-    auto dx = FindOptionDouble("statsdx",0.280);
-    auto dy = FindOptionDouble("statsdy",0.050) * numLines;
+    auto dx = FindOptionDouble("pave_dx",0.280);
+    auto dy = FindOptionDouble("pave_line_dy",0.050);
+    dx = FindOptionDouble("stat_dx",dx);
+    dy = FindOptionDouble("stat_line_dy",dy);
+    dy = dy * numLines;
 
     double x1, y1, x2, y2;
-    GetPadCornerBoxDimension(cvs, 0, dx, dy, x1, y1, x2, y2);
+    GetPadCornerBoxDimension(cvs, iCorner, dx, dy, x1, y1, x2, y2);
     
-    AddOption("statsx1",x1);
-    AddOption("statsx2",x2);
-    AddOption("statsy1",y1);
-    AddOption("statsy2",y2);
+    AddOption("stats_corner",iCorner);
+    AddOption("stats_x1",x1);
+    AddOption("stats_x2",x2);
+    AddOption("stats_y1",y1);
+    AddOption("stats_y2",y2);
 
     statsbox -> SetX1NDC(x1);
     statsbox -> SetX2NDC(x2);
@@ -352,25 +457,67 @@ bool LKDrawing::MakeStatsCorner(TPad *cvs, int iCorner)
     return true;
 }
 
-void LKDrawing::MakeLegendCorner(TLegend *legend)
+void LKDrawing::MakeLegendCorner(TPad* cvs, TLegend *legend, int iCorner)
 {
+    //auto numLines = legend -> GetListOfPrimitives() -> GetEntries();
+    auto numLines = legend -> GetNRows();
+    auto dx = FindOptionDouble("pave_dx",0.280);
+    auto dy = FindOptionDouble("pave_line_dy",0.050);
+    dx = FindOptionDouble("legend_dx",dx);
+    dy = FindOptionDouble("legend_line_dy",dy);
+    dy = dy * numLines;
+
+    double x1, y1, x2, y2;
+    GetPadCornerBoxDimension(cvs, iCorner, dx, dy, x1, y1, x2, y2);
+
+    //AddOption("stats_corner",iCorner);
+    //AddOption("stats_x1",x1);
+    //AddOption("stats_x2",x2);
+    //AddOption("stats_y1",y1);
+    //AddOption("stats_y2",y2);
+
+    legend -> SetX1NDC(x1);
+    legend -> SetX2NDC(x2);
+    legend -> SetY1NDC(y1);
+    legend -> SetY2NDC(y2);
+    //legend -> SetTextFont(FindOptionint("statsfont",132));
+    //legend -> SetFillStyle(fFillStyleStatsbox);
+    //legend -> SetBorderSize(fBorderSizeStatsbox);
 }
 
-void LKDrawing::MakeLegendBelowStats(TLegend *legend)
+void LKDrawing::MakeLegendBelowStats(TPad* cvs, TLegend *legend)
 {
-    if (CheckOption("statsx1")==false)
+    if (CheckOption("stats_x1")==false)
         return;
 
-    double x1_stat = FindOptionDouble("statsx1",0.);
-    double x2_stat = FindOptionDouble("statsx2",1.);
-    double y1_stat = FindOptionDouble("statsy1",0.);
-    double y2_stat = FindOptionDouble("statsy2",1.);
-    double dy_line = FindOptionDouble("statsdy",0.050);
+    int stats_corner = FindOptionDouble("stats_corner",0);
+    double x1_stat = FindOptionDouble("stats_x1",0.);
+    double x2_stat = FindOptionDouble("stats_x2",1.);
+    double y1_stat = FindOptionDouble("stats_y1",0.);
+    double y2_stat = FindOptionDouble("stats_y2",1.);
+    double dy_line = FindOptionDouble("pave_line_dy",0.050);
+    dy_line = FindOptionDouble("legend_line_dy",dy_line);
+    if (CheckOption("legend_line_dy"))
+        dy_line = FindOptionDouble("legend_line_dy",dy_line);
+    double dy_legend = dy_line*legend->GetNRows();
+    if (CheckOption("legend_dy"))
+        dy_legend = FindOptionDouble("legend_dy",0.5);
 
     double x1_legend = x1_stat;
     double x2_legend = x2_stat;
     double y2_legend = y1_stat;
-    double y1_legend = y2_legend - dy_line*legend->GetNRows();
+    double y1_legend = y2_legend - dy_legend;
+
+    if (CheckOption("legend_dx"))
+    {
+        double x_corner, y_corner, x_unit, y_unit;
+        GetPadCorner(cvs, 0, x_corner, y_corner, x_unit, y_unit);
+        double dx_legend = FindOptionDouble("legend_dx",1);
+        if (stats_corner==0||stats_corner==3)
+            x1_legend = x2_legend - dx_legend*x_unit;
+        else if (stats_corner==1||stats_corner==2)
+            x2_legend = x1_legend + dx_legend*x_unit;
+    }
 
     legend -> SetX1NDC(x1_legend);
     legend -> SetX2NDC(x2_legend);
@@ -455,8 +602,9 @@ void LKDrawing::CopyTo(LKDrawing* drawing, bool clearFirst)
     auto numObjects = GetEntries();
     for (auto iObj=0; iObj<numObjects; ++iObj) {
         auto obj = At(iObj);
-        drawing -> Add(obj,fTitleArray.at(iObj),fDrawOptionArray.at(iObj));
+        drawing -> Add(obj,fDrawOptionArray.at(iObj),fTitleArray.at(iObj));
     }
+    drawing -> SetGlobalOption(fGlobalOption);
 }
 
 Double_t LKDrawing::GetHistEntries() const
@@ -477,15 +625,15 @@ void LKDrawing::RemoveOption(TString option)
     LKMisc::RemoveOption(fGlobalOption,option);
 }
 
-void LKDrawing::AddOption(TString option)
-{
-    if (CheckOption(option)==false)
-        fGlobalOption = fGlobalOption + ":" + option;
-}
-
-void LKDrawing::AddOption(TString option, double value)
-{
-    RemoveOption(option);
-    option = Form("%s=%f",option.Data(),value);
-    fGlobalOption = fGlobalOption + ":" + option;
-}
+//void LKDrawing::AddOption(TString option)
+//{
+//    if (CheckOption(option)==false)
+//        fGlobalOption = fGlobalOption + ":" + option;
+//}
+//
+//void LKDrawing::AddOption(TString option, double value)
+//{
+//    RemoveOption(option);
+//    option = Form("%s=%f",option.Data(),value);
+//    fGlobalOption = fGlobalOption + ":" + option;
+//}

@@ -10,20 +10,26 @@
 #include "LKDrawing.h"
 #include "LKPainter.h"
 
+class LKDataViewer;
+
 class LKDrawingGroup : public TObjArray
 {
     protected:
         TCanvas *fCvs = nullptr; //!
-        int fDivX = 1;
-        int fDivY = 1;
+        int fDivX = 0;
+        int fDivY = 0;
         int fGroupLevel = 0;
         bool fIsGroupGroup = false;
         TString fParentName;
         TString fFileName; //
+        TString fGlobalOption;
 
+        bool fFixCvsSize = false;
         int fDXCvs = 0;
         int fDYCvs = 0;
         TObjArray* fPadArray = nullptr;
+
+        LKDataViewer *fViewer = nullptr; //!
 
     private:
         bool ConfigureCanvas();
@@ -38,12 +44,14 @@ class LKDrawingGroup : public TObjArray
 
         void Init();
         int DrawGroup(TString option="all");
+        /// v : open data viewer
+        /// load_all : Load all canvas from the start
         virtual void Draw(Option_t *option="all");
         virtual void Print(Option_t *option="") const;
         virtual Int_t Write(const char *name = nullptr, Int_t option=TObject::kSingleKey, Int_t bufsize = 0) const;
         void WriteFile(TString fileName="");
 
-        void Save(bool recursive=true, bool saveRoot=true, bool savePNG=true, TString dirName="", TString header="", TString tag="");
+        void Save(bool recursive=true, bool saveRoot=true, bool saveImage=true, TString dirName="", TString header="", TString tag="");
 
         virtual void Add(TObject *obj);
 
@@ -61,9 +69,11 @@ class LKDrawingGroup : public TObjArray
         // canvas
         TCanvas* GetCanvas() { return fCvs; }
         void SetCanvas(TCanvas* pad) { fCvs = pad; }
+        void SetCanvasDivision(int divX, int divY) { fDivX = divX; fDivY = divY; }
         int GetDivX() const { return fDivX; }
         int GetDivY() const { return fDivY; }
-        void SetCanvasSize(int dx, int dy) { fDXCvs = dx; fDYCvs = dy; }
+        void SetCanvasSize(int dx, int dy) { fFixCvsSize = true; fDXCvs = dx; fDYCvs = dy; }
+        void SetCanvasSizeRatio(int dx, int dy) { fDXCvs = dx; fDYCvs = dy; }
         void AddPad(TPad *pad) { if (fPadArray==nullptr) fPadArray = new TObjArray(); fPadArray -> Add(pad); }
 
         // find
@@ -87,13 +97,29 @@ class LKDrawingGroup : public TObjArray
 
         // drawing
         LKDrawing* GetDrawing(int iDrawing);
-        LKDrawing* CreateDrawing(TString name="");
+        LKDrawing* CreateDrawing(TString name="", bool addToList=true);
         void       AddDrawing(LKDrawing* drawing);
-        void       AddGraph(TGraph* graph);
-        void       AddHist(TH1 *hist);
+        void       AddGraph(TGraph* graph, TString drawOption="", TString title="");
+        void       AddHist(TH1 *hist, TString drawOption="", TString title="");
         int        GetNumDrawings() const;
         int        GetNumAllDrawings() const;
         int        GetNumAllDrawingObjects() const;
+
+        ////////////////////////////////////////////////////////////////////////////////////
+        TString GetGlobalOption() const { return fGlobalOption; }
+        void SetGlobalOption(TString option) { fGlobalOption = option; }
+        bool CheckOption(TString option) { return LKMisc::CheckOption(fGlobalOption,option); }
+        int FindOptionInt(TString option, int value) { return LKMisc::FindOptionInt(fGlobalOption,option,value); }
+        double FindOptionDouble(TString option, double value) { return LKMisc::FindOptionDouble(fGlobalOption,option,value); }
+        TString FindOptionString(TString &option, TString value) { return LKMisc::FindOptionString(fGlobalOption,option,value); }
+
+        ////////////////////////////////////////////////////////////////////////////////////
+        void RemoveOption(TString option) { LKMisc::RemoveOption(fGlobalOption,option); }
+        /// - wide_canvas
+        /// - vertical_canvas
+        void AddOption(TString option) { LKMisc::AddOption(fGlobalOption,option); }
+        void AddOption(TString option, double value) { LKMisc::AddOption(fGlobalOption,option,value); }
+
 
     ClassDef(LKDrawingGroup, 1)
 };
