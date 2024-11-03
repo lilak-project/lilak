@@ -29,10 +29,14 @@ class LKCut : public TNamed
         void Add(TObject* cut, bool apply=true);
         void Add(LKCut *cuts);
 
-        virtual int IsInsideAnd(Double_t x, Double_t y) const;
-        virtual int IsInsideOr(Double_t x, Double_t y) const;
-        virtual int IsInside(Double_t x, Double_t y) const { return IsInsideOr(x, y); }
-        virtual int IsInside(int i, Double_t x, Double_t y) const;
+        int IsInsideAnd(Double_t x, Double_t y) const;
+        int IsInsideOr(Double_t x, Double_t y) const;
+        int IsInside(int i, Double_t x, Double_t y) const;
+
+        TString GetCutString(int i, TString varX, TString varY);
+        TString MakeCutString(TString varX, TString varY, TString delim);
+        TString MakeCutStringOr(TString varX, TString varY) { return MakeCutString(varX, varY, "||"); }
+        TString MakeCutStringAnd(TString varX, TString varY) { return MakeCutString(varX, varY, "&&"); }
 
         TObjArray* GetCutArray() { return fCutArray; }
         vector<int> *GetTypeArray() { return &fTypeArray; }
@@ -41,9 +45,6 @@ class LKCut : public TNamed
         int GetNumCuts() const { return fCutArray->GetEntries(); }
 
     private:
-        //TString fVarX;
-        //TString fVarY;
-
         TObjArray* fCutArray = nullptr;
         vector<int> fTypeArray;
         vector<bool> fActiveArray;

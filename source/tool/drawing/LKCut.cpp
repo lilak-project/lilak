@@ -240,3 +240,35 @@ int LKCut::IsInsideAnd(Double_t x, Double_t y) const
     }
     return 1;
 }
+
+TString LKCut::GetCutString(int i, TString varX, TString varY)
+{
+    if (fTypeArray[i]==1) {
+        auto cut = (TCut*) fCutArray -> At(i);
+        TString value = cut->GetTitle();
+        value.ReplaceAll("x",varX.Data());
+        value.ReplaceAll("y",varY.Data());
+        return value;
+    }
+    else if (fTypeArray[i]==2) {
+        auto cut = (TCutG*) fCutArray -> At(i);
+        TString value = cut -> GetName();
+        return value;
+    }
+    return TString("");
+}
+
+TString LKCut::MakeCutString(TString varX, TString varY, TString delim)
+{
+    TString cutString;
+    auto numCuts = fCutArray -> GetEntries();
+    for (auto i=0; i<numCuts; ++i) {
+        if (fActiveArray[i]==false)
+            continue;
+        auto value = GetCutString(i,varX,varY);
+        value = Form("(%s)",value.Data());
+        if (cutString.IsNull()) cutString = Form("(%s)",value.Data());
+        else cutString = cutString + " " + delim + " " + value;
+    }
+    return cutString;
+}
