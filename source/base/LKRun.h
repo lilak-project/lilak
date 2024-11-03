@@ -276,7 +276,7 @@ class LKRun : public LKTask
         virtual void Draw(Option_t* option="");
         LKDrawingGroup* GetTopDrawingGroup();
         LKDrawingGroup* FindGroup(TString name="")      { return GetTopDrawingGroup() -> FindGroup(name,0); }
-        LKDrawingGroup* CreateGroup(TString name="")    { return GetTopDrawingGroup() -> CreateGroup(name, true); }
+        LKDrawingGroup* CreateGroup(TString name="", bool addToList=true)  { return GetTopDrawingGroup() -> CreateGroup(name, addToList); }
         void            AddGroup(LKDrawingGroup *sub)   {        GetTopDrawingGroup() -> AddGroup(sub); }
         LKDrawing*      CreateDrawing(TString name="")  { return GetTopDrawingGroup() -> CreateDrawing(name); }
         void            AddDrawing(LKDrawing* drawing)  { CreateGroup(drawing->GetName()) -> AddDrawing(drawing); }

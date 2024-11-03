@@ -12,6 +12,7 @@
 #include "TApplication.h"
 #include "TSystemDirectory.h"
 #include "TList.h"
+#include "TFile.h"
 
 #include "LKCompiled.h"
 #include "LKParameter.h"
@@ -1365,4 +1366,42 @@ void LKParameterContainer::PrintCollection(TString fileName)
         fCollectedParameterContainer -> Print("!eval line# par# !idx");
     else
         fCollectedParameterContainer -> SaveAs(fileName);
+}
+
+
+LKCut* LKParameterContainer::GetParCut(TString name)
+{
+    TString name2 = name;
+    name2.ReplaceAll("/","_");
+    LKCut* cuts = new LKCut(name2);
+    auto cutList = CreateMultiParContainer(name);
+    auto numCuts = cutList -> GetEntries();
+    for (auto iCut=0; iCut<numCuts; ++iCut)
+    {
+        auto parameter = (LKParameter*) cutList -> At(iCut);
+        TString cutString = parameter -> GetString(0);
+        bool applyCut = true;
+        if (parameter->GetN()>1)
+            applyCut = parameter->GetBool(1);
+        if (cutString.EndsWith(".root")) {
+            auto file = new TFile(cutString,"read");
+            if (file->IsOpen()==false) {
+                lk_error << "Cannnot open " << cutString << endl;
+                return cuts;
+            }
+            auto cutg = (TCutG*) file -> Get("CUTG");
+            if (cutg==nullptr) {
+                lk_error << "CUTG is null in " << cutString << endl;
+                return cuts;
+            }
+            cutg -> SetName(Form("cutg_%d",iCut));
+            cutg -> SetTitle(cutString);
+            cuts -> Add(cutg,applyCut);
+        }
+        else {
+            TCut cut(Form("cut_%d",iCut),cutString);
+            cuts -> Add(cut,applyCut);
+        }
+    }
+    return cuts;
 }

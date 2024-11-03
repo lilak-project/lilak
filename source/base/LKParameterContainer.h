@@ -18,10 +18,13 @@
 #include "TParameter.h"
 #include "TFormula.h"
 #include "TVector3.h"
+#include "TCut.h"
+#include "TCutG.h"
 
 #include "LKVector3.h"
 #include "LKLogger.h"
 #include "LKParameter.h"
+#include "LKCut.h"
 
 typedef LKVector3::Axis axis_t;
 
@@ -207,6 +210,7 @@ class LKParameterContainer : public TObjArray
         Int_t    GetParWidth (TString name, int idx=-1) const { return GetParInt(name,idx); }
         Double_t GetParSize  (TString name, int idx=-1) const { return GetParDouble(name,idx); }
         axis_t   GetParAxis  (TString name, int idx=-1) const { return FindPar(name,true) -> GetAxis(); }
+        LKCut*   GetParCut   (TString name);
 
         std::vector<bool>    GetParVBool  (TString name) const { return FindPar(name,true) -> GetVBool  (); }
         std::vector<int>     GetParVInt   (TString name) const { return FindPar(name,true) -> GetVInt   (); }
