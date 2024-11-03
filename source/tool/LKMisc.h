@@ -27,6 +27,11 @@ class LKMisc : public TObject
         static bool RemoveOption(TString &option, TString name);
         static bool CheckOption(TString &option, TString name, bool removeAfter=false, int addValue=0);
 
+        static void AddOption(TString &original, TString adding);
+        static void AddOption(TString &original, TString adding, TString value);
+        static void AddOption(TString &original, TString adding, double value);
+        static void AddOption(TString &original, TString adding, int value);
+
     public:
         LKMisc();
         virtual ~LKMisc() {}

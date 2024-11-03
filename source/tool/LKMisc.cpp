@@ -499,3 +499,33 @@ bool LKMisc::RemoveOption(TString &option, TString name)
     auto value = LKMisc::FindOption(option, name, true);
     return (value.IsNull()==false);
 }
+
+void LKMisc::AddOption(TString &original, TString adding)
+{
+    if (LKMisc::CheckOption(original,adding)==false)
+        original = original + ":" + adding;
+}
+
+void LKMisc::AddOption(TString &original, TString adding, TString value)
+{
+    LKMisc::RemoveOption(original,adding);
+    TString option = Form("%s=%f",adding.Data(),value.Data());
+    original = original + ":" + option;
+}
+
+void LKMisc::AddOption(TString &original, TString adding, double value)
+{
+    LKMisc::RemoveOption(original,adding);
+    TString option = Form("%s=%f",adding.Data(),value);
+    while (option[option.Sizeof()-2]=='0')
+        option = option(0,option.Sizeof()-2);
+    original = original + ":" + option;
+}
+
+void LKMisc::AddOption(TString &original, TString adding, int value)
+{
+    LKMisc::RemoveOption(original,adding);
+    TString option = Form("%s=%d",adding.Data(),value);
+    original = original + ":" + option;
+}
+
