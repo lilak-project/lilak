@@ -436,16 +436,19 @@ if True:
     scan_directories(lilak_path, search_list)
 
     # Sort the list of classes by the length of the class name
-    list_of_classes.sort(key=lambda x: len(x[0]))
+    #list_of_classes.sort(key=lambda x: len(x[0])) # XXX
+    list_of_classes.sort()
 
     # List of keywords to exclude
     exclude_name = ["LKDetectorSystem", "LKFrameBuilder"]
     exclude_path = ["zzz", "temp", "figures", "data"]
-    include_path = ["detector", "task"]
+    include_path1 = ["detector"]
+    include_path2 = ["task"]
     if build_options["BUILD_MFM_CONVERTER"]==True:
-        include_path.append("mfm")
+        include_path2.append("mfm")
 
     # Construct the lines for adding classes and including headers
+    last_header = ''
     for class_name, path_name in list_of_classes:
         if any(keyword in path_name for keyword in exclude_path):
             continue
@@ -453,11 +456,19 @@ if True:
         if any(keyword in class_name for keyword in exclude_name):
             continue
 
-        if any(keyword in path_name for keyword in include_path):
-            #print(class_name, path_name)
-            if not add_class_lines: add_class_lines  = f'    if      (name=="{class_name}") {{ e_info << "Adding {class_name}" << endl; fRun -> Add(new {class_name}); }}\n'
-            else:                   add_class_lines += f'    else if (name=="{class_name}") {{ e_info << "Adding {class_name}" << endl; fRun -> Add(new {class_name}); }}\n'
-            include_lines += f'#include "{class_name}.h"\n'
+        for i in [1,2]:
+            if i==1: include_path = include_path1
+            if i==2: include_path = include_path2
+            if any(keyword in path_name for keyword in include_path):
+                if not add_class_lines:
+                    add_class_lines  = f'    if      (name=="{class_name}") {{ e_info << "Adding {class_name}" << endl; fRun -> Add(new {class_name}); }} // {path_name}\n'
+                else:
+                    #if last_header!=class_name[:2]: add_class_lines += f'\n'
+                    add_class_lines += f'    else if (name=="{class_name}") {{ e_info << "Adding {class_name}" << endl; fRun -> Add(new {class_name}); }} // {path_name}\n'
+                include_lines += f'#include "{class_name}.h"\n'
+                last_header = class_name[:2]
+
+    add_class_lines += f'\n'
     add_class_lines += f'    else {{ e_warning << "Class " << name << " is not in the class factory!" << endl; }}\n'
 
     # Create the source file content
