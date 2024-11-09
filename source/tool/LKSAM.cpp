@@ -1,8 +1,15 @@
 #include "LKSAM.h"
 #include "LKLogger.h"
+
 #include "TCanvas.h"
 #include "TH1.h"
 #include "TH2.h"
+#include "TH2S.h"
+#include "TGraph.h"
+#include "TEllipse.h"
+#include "TLine.h"
+#include "TLatex.h"
+#include "TVector3.h"
 
 using namespace std;
 
@@ -344,4 +351,212 @@ double LKSAM::GetSmoothLevel(TH1* hist, double thresholdRatio)
     }
     double level = double((nbins-2-countX)-countV)/double(nbins-2-countX);
     return level;
+}
+
+/// Make polar histogram
+/// @param hist : Input histogram running from 0 to 360
+/// @param rMin : Radius of min-axis that represent 0 value of histogram
+/// @param rMax : Radius of max-axis that represent maximum value of histogram
+/// @param numGrids : Number of grids between inner and outer axis
+/// @param numAxisDiv : Number of axis division creating n-polygon. if value is >60, it will use circle to draw the axis
+/// @param drawInfo : Draw histogram stats-like information on the i-th corner with the given value i(=0,1,2,3). Use -1 to ignore
+/// @param usePolygonAxis : False to use circle axis
+/// @param binContentOffRatio : Draw content of each bin in between outer and inner axis using this ratio. Use 0 to ignore
+/// @param labelOffRatio : Draw label of polar angle (if exist) in between inner and outer axis using this ratio. Use 0 to ignore
+/// @param binLabelOffRatio : Draw angle-label of numAxisDiv point with offset equal to dr * binLabelOffRatio. Use 0 to ignore
+/// @param TGraph* graphAtt : Attribute reference graph for drawing histogram bar. Use nullptr to use default (gray-color) attribute.
+LKDrawing* LKSAM::MakeTH1Polar(
+        TH1D* hist,
+        double rMin,
+        double rMax,
+        int numGrids,
+        int numAxisDiv,
+        int drawInfo,
+        bool usePolygonAxis,
+        double binContentOffRatio,
+        double labelOffRatio,
+        double binLabelOffRatio,
+        TGraph* graphAtt
+        )
+{
+    auto draw = new LKDrawing();
+    draw -> SetCanvasSize(500,500);
+    int nBins = hist -> GetNbinsX();
+    double histMax = hist -> GetMaximum();
+    double dr = (rMax - rMin);
+    double rangeValue = (rMin>rMax)?1.2*rMin:1.2*rMax;
+    double rRealMax = (rMax>rMin?rMax:rMin);
+
+    /////////////////////////////////////////////////////////
+    // draw frame histogram
+    /////////////////////////////////////////////////////////
+    auto frame = new TH2S(Form("frame_%s",hist->GetName()),hist->GetTitle(),100,-rangeValue,rangeValue,100,-rangeValue,rangeValue);
+    frame -> SetStats(0);
+    frame -> GetXaxis() -> SetTickSize(0);
+    frame -> GetYaxis() -> SetTickSize(0);
+    frame -> GetXaxis() -> SetLabelOffset(1);
+    frame -> GetYaxis() -> SetLabelOffset(1);
+    draw -> Add(frame);
+
+    /////////////////////////////////////////////////////////
+    // draw polygon or ellipse for inner and outer axis
+    /////////////////////////////////////////////////////////
+    double phiBin = hist -> GetXaxis() -> GetBinWidth(1);
+    double phiBinRad = phiBin*TMath::DegToRad();
+    auto numBins = 360./phiBin;
+    TGraph* graphInner = nullptr;
+    TEllipse* ellpsInner = nullptr;
+    if (!usePolygonAxis||numBins>=90)
+    {
+        TEllipse *ellpsOuter = new TEllipse(0, 0, rMax);
+        ellpsOuter -> SetLineColor(kBlack);
+        //ellpsOuter -> SetLineStyle(2);
+        ellpsOuter -> SetFillStyle(0);
+        draw -> Add(ellpsOuter,"samel");
+        ellpsInner = new TEllipse(0, 0, rMin);
+        ellpsInner -> SetLineColor(kBlack);
+        ellpsInner -> SetFillStyle(0);
+    }
+    else
+    {
+        auto graphOuter = new TGraph();
+        //graphOuter -> SetLineStyle(2);
+        graphInner = new TGraph();
+        for (auto i=0; i<=numBins; ++i) {
+            graphOuter -> SetPoint(i, rMax*cos(i*phiBinRad), rMax*sin(i*phiBinRad));
+            graphInner -> SetPoint(i, rMin*cos(i*phiBinRad), rMin*sin(i*phiBinRad));
+        }
+        draw -> Add(graphOuter,"samel");
+        for (auto iGrid=1; iGrid<=numGrids; ++iGrid) {
+            auto graphGrid = new TGraph();
+            for (auto i=0; i<=numBins; ++i)
+                graphGrid -> SetPoint(i,(rMin+iGrid*dr/(numGrids+1))*cos(i*phiBinRad),(rMin+iGrid*dr/(numGrids+1))*sin(i*phiBinRad));
+            graphGrid -> SetLineColor(kGray);
+            draw -> Add(graphGrid,"samel");
+        }
+    }
+
+    /////////////////////////////////////////////////////////
+    // draw angle label
+    /////////////////////////////////////////////////////////
+    if (labelOffRatio!=0)
+    {
+        double dAngle = 360./numAxisDiv;
+        for (double angle=0; angle<360; angle+=dAngle)
+        {
+            double angleRad = angle * TMath::DegToRad();
+            double x1 = (rMin) * cos(angleRad);
+            double y1 = (rMin) * sin(angleRad);
+            double x2 = rMax * cos(angleRad);
+            double y2 = rMax * sin(angleRad);
+            TLine *line = new TLine(x1, y1, x2, y2);
+            line -> SetLineStyle(2);
+            line -> SetLineColor(kGray+2);
+            draw -> Add(line,"samel");
+            double xl = (rRealMax + labelOffRatio*abs(rRealMax)) * cos(angleRad);
+            double yl = (rRealMax + labelOffRatio*abs(rRealMax)) * sin(angleRad);
+            TString labelString = Form("%f", angle);
+            while (labelString[labelString.Sizeof()-2]=='0') labelString = labelString(0,labelString.Sizeof()-2);
+            if    (labelString[labelString.Sizeof()-2]=='.') labelString = labelString(0,labelString.Sizeof()-2);
+            labelString = labelString + "#circ";
+            TLatex *label = new TLatex(xl, yl, labelString);
+            label -> SetTextAlign(22);
+            label -> SetTextFont(132);
+            label -> SetTextSize(0.025);
+            draw -> Add(label,"same");
+        }
+    }
+
+    /////////////////////////////////////////////////////////
+    // draw histogram made out of TGraph bars
+    /////////////////////////////////////////////////////////
+    if (graphAtt==nullptr) {
+        graphAtt = new TGraph();
+        graphAtt -> SetLineWidth(2);
+        graphAtt -> SetLineColor(kGray+1);
+        graphAtt -> SetFillColor(kGray);
+    }
+    for (int bin=1; bin<=nBins; ++bin)
+    {
+        double phi1 = hist -> GetXaxis() -> GetBinLowEdge(bin) * TMath::DegToRad();
+        double phi2 = hist -> GetXaxis() -> GetBinUpEdge(bin) * TMath::DegToRad();
+        double phiD = 0.5*(phi1+phi2)*TMath::RadToDeg();
+        double value = hist -> GetBinContent(bin);
+        TString binLabelContent = hist -> GetXaxis() -> GetBinLabel(bin);
+        if (value!=0) {
+            double r1 = rMin;
+            double r2 = rMin + (value * dr/histMax);
+            int nDivArc = int(phi2-phi1);
+            double dphi = (phi2-phi1)/nDivArc;
+            TGraph* bar = new TGraph(*graphAtt);
+            bar -> SetPoint(bar->GetN(),r1*cos(phi1),r1*sin(phi1));
+            if (!usePolygonAxis) {
+                for (auto iDivArc=1; iDivArc<nDivArc; ++iDivArc)
+                    bar -> SetPoint(bar->GetN(),r1*cos(phi1+iDivArc*dphi),r1*sin(phi1+iDivArc*dphi));
+            }
+            bar -> SetPoint(bar->GetN(),r1*cos(phi2),r1*sin(phi2));
+            bar -> SetPoint(bar->GetN(),r2*cos(phi2),r2*sin(phi2));
+            if (!usePolygonAxis) {
+                for (auto iDivArc=1; iDivArc<nDivArc; ++iDivArc)
+                    bar -> SetPoint(bar->GetN(),r2*cos(phi2-iDivArc*dphi),r2*sin(phi2-iDivArc*dphi));
+            }
+            bar -> SetPoint(bar->GetN(),r2*cos(phi1),r2*sin(phi1));
+            bar -> SetPoint(bar->GetN(),r1*cos(phi1),r1*sin(phi1));
+            draw -> Add(bar,"samelf");
+        }
+        if (!binLabelContent.IsNull() && binLabelOffRatio!=0)
+        {
+            double xl = (rMin + binLabelOffRatio*dr) * cos(0.5*(phi1+phi2));
+            double yl = (rMin + binLabelOffRatio*dr) * sin(0.5*(phi1+phi2));
+            TLatex *binLabel = new TLatex(xl, yl, binLabelContent);
+            binLabel -> SetTextAlign(22);
+            binLabel -> SetTextAngle(phiD-(rMax>rMin?+1:-1)*90);
+            binLabel -> SetTextFont(132);
+            binLabel -> SetTextSize(0.025);
+            draw -> Add(binLabel,"same");
+        }
+        if (binContentOffRatio!=0)
+        {
+            double xl = (rMax - binContentOffRatio*dr) * cos(0.5*(phi1+phi2));
+            double yl = (rMax - binContentOffRatio*dr) * sin(0.5*(phi1+phi2));
+            TString content = Form("%f",value);
+            while (content[content.Sizeof()-2]=='0') content = content(0,content.Sizeof()-2);
+            if    (content[content.Sizeof()-2]=='.') content = content(0,content.Sizeof()-2);
+            TLatex *binContent = new TLatex(xl, yl, content);
+            binContent -> SetTextAlign(22);
+            binContent -> SetTextAngle(phiD-(rMax>rMin?+1:-1)*90);
+            binContent -> SetTextFont(132);
+            binContent -> SetTextSize(0.025);
+            binContent -> SetTextColor(kBlue);
+            draw -> Add(binContent,"same");
+        }
+    }
+
+    /////////////////////////////////////////////////////////
+    // draw histogram made out of TGraph bars
+    /////////////////////////////////////////////////////////
+    if (graphInner!=nullptr) draw -> Add(graphInner,"samel");
+    if (ellpsInner!=nullptr) draw -> Add(ellpsInner,"samel");
+
+    /////////////////////////////////////////////////////////
+    // draw info
+    /////////////////////////////////////////////////////////
+    if (drawInfo>=0) {
+        auto pv = new TPaveText(0.1,0.85,0.4,0.9,"NDC");
+        pv -> SetTextFont(132);
+        pv -> SetTextAlign(12);
+        pv -> SetFillColor(0);
+        pv -> SetFillStyle(0);
+        pv -> SetBorderSize(0);
+        for (TString content : {Form("Entries=%f",hist->GetEntries()),Form("Max=%f",histMax)}) {
+            while (content[content.Sizeof()-2]=='0') content = content(0,content.Sizeof()-2);
+            if    (content[content.Sizeof()-2]=='.') content = content(0,content.Sizeof()-2);
+            pv -> AddText(content);
+        }
+        draw -> Add(pv);
+        draw -> AddOption("pave_line_dy",0.04);
+        draw -> SetPaveCorner(1);
+    }
+
+    return draw;
 }

@@ -509,7 +509,7 @@ void LKMisc::AddOption(TString &original, TString adding)
 void LKMisc::AddOption(TString &original, TString adding, TString value)
 {
     LKMisc::RemoveOption(original,adding);
-    TString option = Form("%s=%f",adding.Data(),value.Data());
+    TString option = Form("%s=%s",adding.Data(),value.Data());
     original = original + ":" + option;
 }
 
