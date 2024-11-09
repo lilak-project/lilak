@@ -66,6 +66,7 @@ class LKDrawing : public TObjArray
         bool MakeStatsCorner(TPad *cvs, int iCorner=0);
         void MakeLegendBelowStats(TPad* cvs, TLegend *legend);
         void MakeLegendCorner(TPad* cvs, TLegend *legend, int iCorner=0);
+        void MakePaveTextCorner(TPad* cvs, TPaveText *pvtt, int iCorner=0);
         void SetMainHist(TPad *pad, TH1* hist);
 
         ////////////////////////////////////////////////////////////////////////////////////
@@ -133,12 +134,20 @@ class LKDrawing : public TObjArray
         void SetRightMargin(double mg)  { AddOption("r_margin",mg); }
         void SetBottomMargin(double mg) { AddOption("b_margin",mg); }
         void SetTopMargin(double mg)    { AddOption("t_margin",mg); }
+        void SetCanvasMargin(double lmg, double rmg, double bmg, double tmg) {
+            SetLeftMargin(lmg);
+            SetRightMargin(rmg);
+            SetBottomMargin(bmg);
+            SetTopMargin(tmg);
+        }
+        void SetCanvasSize(double dx, double dy) { AddOption("cvs_dx",dx); AddOption("cvs_dy",dy); }
         void SetRangeUser(double x1, double x2, double y1, double y2) { SetRangeUserX(x1, x2); SetRangeUserY(y1, y2); }
         void SetRangeUserX(double x1, double x2) { AddOption("x1",x1); AddOption("x2",x2); }
         void SetRangeUserY(double y1, double y2) { AddOption("y1",y1); AddOption("y2",y2); }
         //void SetLegendCorner(int iCorner) { RemoveOption("legend_below_stats"); AddOption("legend_corner",iCorner); }
         void SetLegendCorner(int iCorner) { AddOption("legend_corner",iCorner); }
         void SetStatCorner(int iCorner) { AddOption("stats_corner",iCorner); }
+        void SetPaveCorner(int iCorner) { AddOption("pave_corner",iCorner); }
         void SetStatTopRightCorner() { AddOption("stats_corner",0); }
         void SetStatTopLeftCorner() { AddOption("stats_corner",1); }
         void SetStatBottomLeftCorner() { AddOption("stats_corner",2); }

@@ -166,17 +166,27 @@ bool LKDataViewer::InitFrames()
 
 void LKDataViewer::Draw(TString option)
 {
-    fResizeFactorX = LKMisc::FindOptionDouble(option,"resize",1);
-    fResizeFactorY = LKMisc::FindOptionDouble(option,"resize",1);
+    fResizeFactorX = LKMisc::FindOptionDouble(option,"r",1);
+    fResizeFactorY = LKMisc::FindOptionDouble(option,"r",1);
     fWindowSizeX = LKMisc::FindOptionInt(option,"wx",0);
     fWindowSizeY = LKMisc::FindOptionInt(option,"wy",0);
+    fMinimumUICompnenents = LKMisc::CheckOption(option,"m");
+    auto loadAllCanvases = LKMisc::CheckOption(option,"l");
+    auto saveAllCanvases = LKMisc::CheckOption(option,"s");
+
+    if (fMinimumUICompnenents) {
+        loadAllCanvases = true;
+        lk_info << "Hiding all UI components" << endl;
+    }
 
     InitFrames();
 
-    if (LKMisc::CheckOption(option,"load_all"))
+    //if (LKMisc::CheckOption(option,"load_all"))
+    if (loadAllCanvases)
         ProcessLoadAllCanvas();
 
-    if (LKMisc::CheckOption(option,"save_all"))
+    //if (LKMisc::CheckOption(option,"save_all"))
+    if (saveAllCanvases)
         ProcessSaveTab(-2);
 
     //double resize_scale = LKMisc::FindOptionDouble(option,"resize",1);
@@ -266,6 +276,7 @@ int LKDataViewer::AddGroupTab(LKDrawingGroup* group, int iTab, int iSub)
         }
         if (!fUseTRootCanvas) {
             TRootEmbeddedCanvas *ecvs = new TRootEmbeddedCanvas(cvsName, tabFrame, (1 - fControlFrameXRatio) * fInitWidth, fInitHeight);
+            //TRootEmbeddedCanvas *ecvs = new TRootEmbeddedCanvas(cvsName, tabFrame, 500,500);
             tabFrame->AddFrame(ecvs, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY));
             //tabFrame->AddFrame(ecvs);//, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY));
             TCanvas *canvas = ecvs->GetCanvas();
@@ -284,26 +295,37 @@ int LKDataViewer::AddGroupTab(LKDrawingGroup* group, int iTab, int iSub)
 
 void LKDataViewer::CreateStatusFrame()
 {
-    TGVerticalFrame *messageFrame = new TGVerticalFrame(this, fInitWidth, fStatusFrameYRatio*fInitHeight);
-    AddFrame(messageFrame, new TGLayoutHints(kLHintsExpandX | kLHintsBottom));
+    if (fMinimumUICompnenents) {
+        fHiddenFrame = new TGHorizontalFrame(this, fInitWidth, fStatusFrameYRatio*fInitHeight);
+        AddFrame(fHiddenFrame, new TGLayoutHints(kLHintsExpandX | kLHintsBottom));
+        return;
+    }
 
-    //for (auto i : {2,1,0}) {
+    fBottomFrame = new TGVerticalFrame(this, fInitWidth, fStatusFrameYRatio*fInitHeight);
+    AddFrame(fBottomFrame, new TGLayoutHints(kLHintsExpandX | kLHintsBottom));
+
     for (auto i : {1,0}) {
-        fStatusMessages[i] = new TGLabel(messageFrame, "");
+        fStatusMessages[i] = new TGLabel(fBottomFrame, "");
         fStatusMessages[i] -> SetTextJustify(ETextJustification::kTextLeft);
-        messageFrame->AddFrame(fStatusMessages[i], new TGLayoutHints(kLHintsLeft | kLHintsExpandX | kLHintsTop, fRF*5, fRF*5, fRF*2, fRF*2));
+        fBottomFrame->AddFrame(fStatusMessages[i], new TGLayoutHints(kLHintsLeft | kLHintsExpandX | kLHintsTop, fRF*5, fRF*5, fRF*2, fRF*2));
         fStatusMessages[i] -> SetTextFont(fGFont1);
         //fStatusMessages[i] -> Connect("Clicked()", "LKDataViewer", this, "ProcessMessageHistory()");
     }
 
-    //fStatusDataName = new TGLabel(messageFrame, "");
-    //messageFrame->AddFrame(fStatusDataName, new TGLayoutHints(kLHintsLeft | kLHintsExpandX | kLHintsBottom, fRF*5, fRF*5, fRF*2, fRF*2));
+    //fStatusDataName = new TGLabel(fBottomFrame, "");
+    //fBottomFrame->AddFrame(fStatusDataName, new TGLayoutHints(kLHintsLeft | kLHintsExpandX | kLHintsBottom, fRF*5, fRF*5, fRF*2, fRF*2));
     //fStatusDataName->SetTextFont(fGFont1);
     //fStatusDataName -> ChangeText(fTitle);
 }
 
 void LKDataViewer::CreateControlFrame()
 {
+    if (fMinimumUICompnenents) {
+        CreateTabControlSection();
+        CreateViewerControlSection();
+        return;
+    }
+
     fControlFrame = new TGVerticalFrame(fMainFrame, fControlFrameXRatio*fInitWidth, fInitHeight);
     fMainFrame->AddFrame(fControlFrame, new TGLayoutHints(kLHintsLeft | kLHintsExpandY));
     //if (fRun!=nullptr) {
@@ -382,6 +404,14 @@ void LKDataViewer::CreateCanvasControlSection()
 
 void LKDataViewer::CreateViewerControlSection()
 {
+    if (fMinimumUICompnenents) {
+        auto buttonReLoadA = new TGTextButton(fHiddenFrame, "&ReLoad");
+        fHiddenFrame->AddFrame(buttonReLoadA, new TGLayoutHints(kLHintsLeft, fRF*2, fRF*2, fRF*2, fRF*2));
+        buttonReLoadA->SetFont(fSFont1);
+        buttonReLoadA->Connect("Clicked()", "LKDataViewer", this, "ProcessReLoadCCanvas()");
+        return;
+    }
+
     TGGroupFrame *section = new TGGroupFrame(fControlFrame, "Viewer Control");
     section->SetTextFont(fSFont1);
     fControlFrame->AddFrame(section, new TGLayoutHints(kLHintsExpandX | kLHintsBottom, fRF*5, fRF*5, fRF*5, fRF*5));
@@ -489,6 +519,23 @@ void LKDataViewer::CreateEventRangeControlSection()
 
 void LKDataViewer::CreateTabControlSection()
 {
+    if (fMinimumUICompnenents) {
+        fButton_H = new TGTextButton(fHiddenFrame, "<(&H)Tab");
+        fButton_L = new TGTextButton(fHiddenFrame, "Tab(&L)>");
+        fButton_J = new TGTextButton(fHiddenFrame, "<(&J)Sub");
+        fButton_K = new TGTextButton(fHiddenFrame, "Sub(&K)>");
+        fHiddenFrame->AddFrame(fButton_H, new TGLayoutHints(kLHintsLeft, fRF*1, fRF*1, fRF*1, fRF*1));
+        fHiddenFrame->AddFrame(fButton_L, new TGLayoutHints(kLHintsLeft, fRF*1, fRF*1, fRF*1, fRF*1));
+        fHiddenFrame->AddFrame(fButton_J, new TGLayoutHints(kLHintsLeft, fRF*1, fRF*1, fRF*1, fRF*1));
+        fHiddenFrame->AddFrame(fButton_K, new TGLayoutHints(kLHintsLeft, fRF*1, fRF*1, fRF*1, fRF*1));
+        fButton_H->SetFont(fSFont1);
+        fButton_L->SetFont(fSFont1);
+        fButton_J->SetFont(fSFont1);
+        fButton_K->SetFont(fSFont1);
+        ProcessNavigationMode(0);
+        return;
+    }
+
     fNavControlSection = new TGGroupFrame(fControlFrame, "Tab Control");
     fNavControlSection->SetTextFont(fSFont1);
     fControlFrame->AddFrame(fNavControlSection, new TGLayoutHints(kLHintsExpandX | kLHintsBottom, fRF*5, fRF*5, fRF*5, fRF*5));
@@ -609,6 +656,9 @@ void LKDataViewer::HandleNumberInput(Int_t id)
 
 void LKDataViewer::SendOutMessage(TString message, int messageType, bool printScreen)
 {
+    if (fMinimumUICompnenents)
+        return;
+
     TString header = Form("[%d",fCountMessageUpdate++);
     if      (messageType==0) ;
     else if (messageType==1) header = header + ":info";
@@ -1090,50 +1140,47 @@ void LKDataViewer::ProcessNavigationMode(int iMode)
 {
     if (iMode==0)
     {
-        fNavControlSection -> SetTitle("Tab Control");
-        //fButtonChangeHJKL -> SetText("&Navigation Mode");
-        fButton_H->SetText("<(&H)Tab");
-        fButton_L->SetText("Tab(&L)>");
-        fButton_J->SetText("<(&J)Sub");
-        fButton_K->SetText("Sub(&K)>");
-        fButton_T->SetText("#&Tab");
-        fButton_U->SetText("#S&ub");
-        fButton_H->Disconnect();
-        fButton_L->Disconnect();
-        fButton_J->Disconnect();
-        fButton_K->Disconnect();
-        fButton_T->Disconnect();
-        fButton_U->Disconnect();
-        fButton_H->Connect("Clicked()", "LKDataViewer", this, "ProcessPrevTab()");
-        fButton_L->Connect("Clicked()", "LKDataViewer", this, "ProcessNextTab()");
-        fButton_J->Connect("Clicked()", "LKDataViewer", this, "ProcessPrevSubTab()");
-        fButton_K->Connect("Clicked()", "LKDataViewer", this, "ProcessNextSubTab()");
-        fButton_T->Connect("Clicked()", "LKDataViewer", this, "ProcessGotoTopTab(=-1,=-1,=1,=1)");
-        //fButton_T->Connect("Clicked()", "LKDataViewer", this, "ProcessLayoutTopTab(=-1, =-1)");
-        fButton_U->Connect("Clicked()", "LKDataViewer", this, "ProcessGotoSubTab()");
+        if (fNavControlSection!=nullptr) fNavControlSection -> SetTitle("Tab Control");
+        if (fButton_H!=nullptr) fButton_H->SetText("<(&H)Tab");
+        if (fButton_L!=nullptr) fButton_L->SetText("Tab(&L)>");
+        if (fButton_J!=nullptr) fButton_J->SetText("<(&J)Sub");
+        if (fButton_K!=nullptr) fButton_K->SetText("Sub(&K)>");
+        if (fButton_T!=nullptr) fButton_T->SetText("#&Tab");
+        if (fButton_U!=nullptr) fButton_U->SetText("#S&ub");
+        if (fButton_H!=nullptr) fButton_H->Disconnect();
+        if (fButton_L!=nullptr) fButton_L->Disconnect();
+        if (fButton_J!=nullptr) fButton_J->Disconnect();
+        if (fButton_K!=nullptr) fButton_K->Disconnect();
+        if (fButton_T!=nullptr) fButton_T->Disconnect();
+        if (fButton_U!=nullptr) fButton_U->Disconnect();
+        if (fButton_H!=nullptr) fButton_H->Connect("Clicked()", "LKDataViewer", this, "ProcessPrevTab()");
+        if (fButton_L!=nullptr) fButton_L->Connect("Clicked()", "LKDataViewer", this, "ProcessNextTab()");
+        if (fButton_J!=nullptr) fButton_J->Connect("Clicked()", "LKDataViewer", this, "ProcessPrevSubTab()");
+        if (fButton_K!=nullptr) fButton_K->Connect("Clicked()", "LKDataViewer", this, "ProcessNextSubTab()");
+        if (fButton_T!=nullptr) fButton_T->Connect("Clicked()", "LKDataViewer", this, "ProcessGotoTopTab(=-1,=-1,=1,=1)");
+        if (fButton_U!=nullptr) fButton_U->Connect("Clicked()", "LKDataViewer", this, "ProcessGotoSubTab()");
     }
     else if (iMode==1)
     {
-        fNavControlSection -> SetTitle("Nav. Control");
-        //fButtonChangeHJKL -> SetText("(&N)Tab Ctrl. Mode");
-        fButton_H->SetText("(&H)Left");
-        fButton_L->SetText("(&L)Right");
-        fButton_J->SetText("(&J)Down");
-        fButton_K->SetText("(&K)Up");
-        fButton_T->SetText("#&Toggle");
-        fButton_U->SetText("#&Undo");
-        fButton_H->Disconnect();
-        fButton_L->Disconnect();
-        fButton_J->Disconnect();
-        fButton_K->Disconnect();
-        fButton_T->Disconnect();
-        fButton_U->Disconnect();
-        fButton_H->Connect("Clicked()", "LKDataViewer", this, "ProcessNavigateCanvas(=1)");
-        fButton_L->Connect("Clicked()", "LKDataViewer", this, "ProcessNavigateCanvas(=2)");
-        fButton_J->Connect("Clicked()", "LKDataViewer", this, "ProcessNavigateCanvas(=3)");
-        fButton_K->Connect("Clicked()", "LKDataViewer", this, "ProcessNavigateCanvas(=4)");
-        fButton_T->Connect("Clicked()", "LKDataViewer", this, "ProcessToggleNavigateCanvas()");
-        fButton_U->Connect("Clicked()", "LKDataViewer", this, "ProcessUndoToggleCanvas()");
+        if (fNavControlSection!=nullptr) fNavControlSection -> SetTitle("Nav. Control");
+        if (fButton_H!=nullptr) fButton_H->SetText("(&H)Left");
+        if (fButton_L!=nullptr) fButton_L->SetText("(&L)Right");
+        if (fButton_J!=nullptr) fButton_J->SetText("(&J)Down");
+        if (fButton_K!=nullptr) fButton_K->SetText("(&K)Up");
+        if (fButton_T!=nullptr) fButton_T->SetText("#&Toggle");
+        if (fButton_U!=nullptr) fButton_U->SetText("#&Undo");
+        if (fButton_H!=nullptr) fButton_H->Disconnect();
+        if (fButton_L!=nullptr) fButton_L->Disconnect();
+        if (fButton_J!=nullptr) fButton_J->Disconnect();
+        if (fButton_K!=nullptr) fButton_K->Disconnect();
+        if (fButton_T!=nullptr) fButton_T->Disconnect();
+        if (fButton_U!=nullptr) fButton_U->Disconnect();
+        if (fButton_H!=nullptr) fButton_H->Connect("Clicked()", "LKDataViewer", this, "ProcessNavigateCanvas(=1)");
+        if (fButton_L!=nullptr) fButton_L->Connect("Clicked()", "LKDataViewer", this, "ProcessNavigateCanvas(=2)");
+        if (fButton_J!=nullptr) fButton_J->Connect("Clicked()", "LKDataViewer", this, "ProcessNavigateCanvas(=3)");
+        if (fButton_K!=nullptr) fButton_K->Connect("Clicked()", "LKDataViewer", this, "ProcessNavigateCanvas(=4)");
+        if (fButton_T!=nullptr) fButton_T->Connect("Clicked()", "LKDataViewer", this, "ProcessToggleNavigateCanvas()");
+        if (fButton_U!=nullptr) fButton_U->Connect("Clicked()", "LKDataViewer", this, "ProcessUndoToggleCanvas()");
         ProcessNavigateCanvas(0);
     }
 
@@ -1272,7 +1319,7 @@ void LKDataViewer::ProcessSizeViewer(double scale, double scaley)
     if (scale<0.1||scale>=1)
         SendOutMessage(Form("Cannot use scale window size by %f",scale),2,true);
     else {
-        SendOutMessage(Form("scaling window size by ",scale),1,true);
+        SendOutMessage(Form("scaling window size by %f",scale),1,true);
         Resize(fInitWidth*scale,fInitHeight*scale);
     }
 }

@@ -31,6 +31,7 @@ class LKDataViewer : public TGMainFrame
         int fWindowSizeX = 0;
         int fWindowSizeY = 0;
         TString fSavePath = "data_viewer";
+        bool fMinimumUICompnenents = false;
 
         LKDrawingGroup *fCurrentGroup = nullptr;
         LKDrawing *fCurrentDrawing = nullptr;
@@ -47,6 +48,8 @@ class LKDataViewer : public TGMainFrame
 
         TGHorizontalFrame *fMainFrame = nullptr;
         TGVerticalFrame *fControlFrame = nullptr;
+        TGVerticalFrame *fBottomFrame = nullptr;
+        TGHorizontalFrame *fHiddenFrame = nullptr;
 
         TGNumberEntry *fEventNumberEntry = nullptr;
         TGNumberEntry *fEventRangeEntry1 = nullptr;
@@ -54,14 +57,13 @@ class LKDataViewer : public TGMainFrame
         TGNumberEntryField *fNumberInput; // Input field for the number pad
         //std::vector<TGTextButton *> fNumberButtons; // Buttons for the number pad
 
-        TGGroupFrame* fNavControlSection;
-        TGTextButton* fButton_H;
-        TGTextButton* fButton_L;
-        TGTextButton* fButton_J;
-        TGTextButton* fButton_K;
-        TGTextButton* fButton_T;
-        TGTextButton* fButton_U;
-        //TGTextButton* fButtonChangeHJKL;
+        TGGroupFrame* fNavControlSection = nullptr;
+        TGTextButton* fButton_H = nullptr;
+        TGTextButton* fButton_L = nullptr;
+        TGTextButton* fButton_J = nullptr;
+        TGTextButton* fButton_K = nullptr;
+        TGTextButton* fButton_T = nullptr;
+        TGTextButton* fButton_U = nullptr;
 
         int fCurrentCanvasX = 0;
         int fCurrentCanvasY = 0;

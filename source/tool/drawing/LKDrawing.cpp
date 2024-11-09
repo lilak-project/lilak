@@ -36,7 +36,7 @@ void LKDrawing::AddDrawing(LKDrawing *drawing)
         auto obj = drawing -> At(i);
         auto title = drawing -> GetTitle(i);
         auto option = drawing -> GetOption(i);
-        Add(obj,title,option);
+        Add(obj,option,title);
     }
 }
 
@@ -141,8 +141,14 @@ void LKDrawing::Draw(Option_t *option)
         return;
     }
 
-    if (fCvs==nullptr)
-        fCvs = LKPainter::GetPainter() -> Canvas();
+    if (fCvs==nullptr) {
+        int dx = FindOptionInt("cvs_dx",-1);
+        int dy = FindOptionInt("cvs_dy",-1);
+        if (dx<0||dy<0)
+            fCvs = LKPainter::GetPainter() -> Canvas();
+        else
+            fCvs = LKPainter::GetPainter() -> CanvasResize("",dx,dy);
+    }
 
     auto numObjects = GetEntries();
 
@@ -209,7 +215,8 @@ void LKDrawing::Draw(Option_t *option)
         //
     }
 
-    TLegend *legend = nullptr;
+    TLegend* legend = nullptr;
+    TPaveText* pvtt = nullptr;
 
     for (auto iObj=0; iObj<numObjects; ++iObj)
     {
@@ -224,6 +231,9 @@ void LKDrawing::Draw(Option_t *option)
         }
         if (obj->InheritsFrom(TLegend::Class())) {
             legend = (TLegend*) obj;
+        }
+        if (obj->InheritsFrom(TPaveText::Class())) {
+            pvtt = (TPaveText*) obj;
         }
         if (obj->InheritsFrom(TCut::Class())||obj->InheritsFrom(TCutG::Class()))
             continue;
@@ -275,6 +285,10 @@ void LKDrawing::Draw(Option_t *option)
             MakeLegendBelowStats(fCvs,legend);
         else if ( (CheckOption("legend_below_stats") && !foundStats) || CheckOption("legend_corner"))
             MakeLegendCorner(fCvs,legend,FindOptionInt("legend_corner",0));
+    }
+    if (pvtt!=nullptr) {
+        if (CheckOption("pave_corner"))
+            MakePaveTextCorner(fCvs,pvtt,FindOptionDouble("pave_corner",0));
     }
     fCvs -> Modified();
     fCvs -> Update();
@@ -455,6 +469,22 @@ bool LKDrawing::MakeStatsCorner(TPad *cvs, int iCorner)
     //statsbox -> SetBorderSize(fBorderSizeStatsbox);
 
     return true;
+}
+
+void LKDrawing::MakePaveTextCorner(TPad* cvs, TPaveText *pvtt, int iCorner)
+{
+    auto numLines = pvtt -> GetSize();
+    auto dx = FindOptionDouble("pave_dx",0.280);
+    auto dy = FindOptionDouble("pave_line_dy",0.050);
+    dy = dy * numLines;
+
+    double x1, y1, x2, y2;
+    GetPadCornerBoxDimension(cvs, iCorner, dx, dy, x1, y1, x2, y2);
+
+    pvtt -> SetX1NDC(x1);
+    pvtt -> SetX2NDC(x2);
+    pvtt -> SetY1NDC(y1);
+    pvtt -> SetY2NDC(y2);
 }
 
 void LKDrawing::MakeLegendCorner(TPad* cvs, TLegend *legend, int iCorner)

@@ -130,12 +130,13 @@ void LKCut::Print(Option_t *option) const
         else if (fTypeArray[iCut]==2) {
             auto cutg = (TCutG*) fCutArray -> At(iCut);
             int numPoints = cutg -> GetN();
-            TString title = Form("cutg with %d points",numPoints," title");
+            TString title = Form("cutg with %d points",numPoints);
             if (numPoints <= 4) {
+                title += ": ";
                  for (auto iPoint=0; iPoint<numPoints; ++iPoint) {
                      double x, y;
                      cutg -> GetPoint(iPoint, x, y);
-                     title += Form("(%d|%.2f,%.2f),",iPoint,x,y);
+                     title += Form(" (%d|%.2f,%.2f),",iPoint,x,y);
                  }
             }
             e_cout << "      [" << iCut << "] " << cutg->GetName() << ", " << cutg->GetTitle() << "; " << title  << endl;

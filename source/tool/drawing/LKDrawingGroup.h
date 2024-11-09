@@ -9,6 +9,7 @@
 
 #include "LKDrawing.h"
 #include "LKPainter.h"
+#include "LKParameterContainer.h"
 
 class LKDataViewer;
 
@@ -30,6 +31,7 @@ class LKDrawingGroup : public TObjArray
         TObjArray* fPadArray = nullptr;
 
         LKDataViewer *fViewer = nullptr; //!
+        LKParameterContainer *fPar = nullptr; //!
 
     private:
         bool ConfigureCanvas();
@@ -45,7 +47,12 @@ class LKDrawingGroup : public TObjArray
         void Init();
         int DrawGroup(TString option="all");
         /// v : open data viewer
-        /// load_all : Load all canvas from the start
+        /// h : Load all UIs
+        /// l : Load all canvas from the start
+        /// s : Save all canvas from the start
+        /// wx=900 : set widow size x
+        /// wy=800 : set widow size x
+        /// resize=1 : resize by factor
         virtual void Draw(Option_t *option="all");
         virtual void Print(Option_t *option="") const;
         virtual Int_t Write(const char *name = nullptr, Int_t option=TObject::kSingleKey, Int_t bufsize = 0) const;

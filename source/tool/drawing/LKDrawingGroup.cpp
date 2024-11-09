@@ -112,6 +112,7 @@ Int_t LKDrawingGroup::Write(const char *name, Int_t option, Int_t bsize) const
             auto sub = (LKDrawingGroup*) At(iSub);
             numWrite += sub -> Write("", option);
         }
+        if (fPar!=nullptr) fPar -> Write();
         return numWrite;
     }
     else if (GetNumAllDrawingObjects()>1280)
@@ -122,6 +123,7 @@ Int_t LKDrawingGroup::Write(const char *name, Int_t option, Int_t bsize) const
             auto sub = (LKDrawingGroup*) At(iSub);
             numWrite += sub -> Write("", option);
         }
+        if (fPar!=nullptr) fPar -> Write();
         return numWrite;
     }
 
@@ -129,6 +131,7 @@ Int_t LKDrawingGroup::Write(const char *name, Int_t option, Int_t bsize) const
     if (wName.IsNull()) wName = fName;
     if (wName.IsNull()) wName = "top";
     TCollection::Write(wName, option, bsize);
+    if (fPar!=nullptr) fPar -> Write();
     return 1;
 }
 
@@ -219,7 +222,7 @@ void LKDrawingGroup::Print(Option_t *opt) const
     bool isTop = false;
     if (LKMisc::CheckOption(option,"level")==false) {
         isTop = true;
-        e_info << "LKDrawingGroup" << endl;
+        e_info << "LKDrawingGroup " << fName << endl;
         option = option + ":level=0";
     }
 
@@ -349,7 +352,7 @@ bool LKDrawingGroup::ConfigureCanvas()
         {
             if (fDXCvs==0 || fDYCvs==0) {
                 fDXCvs = 800*fDivX;
-                fDYCvs = 600*fDivY;
+                fDYCvs = 680*fDivY;
             }
             fCvs = LKPainter::GetPainter() -> CanvasResize(Form("c%s",fName.Data()), fDXCvs, fDYCvs, resize_factor);
         }
