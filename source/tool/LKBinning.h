@@ -1,49 +1,110 @@
+#ifndef LKBINNING_HH
+#define LKBINNING_HH
+
 #include "TNamed.h"
 #include "TH1.h"
 #include "TH1D.h"
 #include "TH2D.h"
 #include "TGraph.h"
 #include "TGraphErrors.h"
+#include "TArrayD.h"
+#include "TArrayI.h"
 
 class LKBinning : public TNamed
 {
-    private:
-        int fN = 0; ///< number of bins
-        double fMin = 0; ///< lower bound
-        double fMax = 0; ///< upper bound
-        double fBinWidth = 0; ///< LKBinning space width
-        int fIterationIndex = 0; ///< index for iteration
-        double fValue = 0; ///< fValue will be set after iteration using next(), back(), nextb()
+    public:
+        int fNX = 1;
+        double fX1 = 0;
+        double fX2 = 0;
+        double fWX = 0;
+
+        int fNY = 1;
+        double fY1 = 0;
+        double fY2 = 0;
+        double fWY = 0;
 
     private:
+        int fIterationIndex = 0; //! < index for iteration
+        double fValue = 0; //! < fValue will be set after iteration using next(), back(), nextb()
+
+    public:
         LKBinning(LKBinning const & binn);
-        LKBinning(const char* name, const char* title, int n=-1, double min=0, double max=0, double w=-1);
-        LKBinning(int n=-1, double min=0, double max=0, double w=-1) : LKBinning("", "", n, min, max, w) {}
-        LKBinning(TH1 *hist, int i=1);
-        LKBinning(TGraph *graph, int i=1);
+        LKBinning(const char* name, const char* title, int nx, double x1, double x2, int ny=1, double y1=0, double y2=0);
+        LKBinning(int nx=1, double x1=0, double x2=0, int ny=1, double y1=0, double y2=0) : LKBinning("", "", nx, x1, x2, ny, y1, y2) {}
+        LKBinning(TH1 *hist);
+        LKBinning(TGraph *graph);
         void operator=(const LKBinning binn); ///< copy LKBinning
+        LKBinning operator*(const LKBinning binn); ///< make xy binning x with this binning and y with input binning
 
-        void Init();
-        void SetN(double n); ///< set number of the bins
-        void SetW(double w); ///< set width of the bin
-        void SetMin(double min); ///< set min
-        void SetMax(double max); ///< set max
-        void SetMM(double min, double max); ///< set min, max
-        void SetNMM(int n, double min, double max); ///< set n, min, max
-        void SetMMW(double min, double max, double w); ///< set min, max, w
+        TH1D* NewH1(TString name="", TString title="");
+        TH2D* NewH2(TString name="", TString title="");
+
+        int    GetNX() const { return fNX; }
+        double GetX1() const { return fX1; }
+        double GetX2() const { return fX2; }
+        double GetWX() const { return fWX; }
+        int    GetNY() const { return fNY; }
+        double GetY1() const { return fY1; }
+        double GetY2() const { return fY2; }
+        double GetWY() const { return fWY; }
+
+        int    n() const { return fNX; }
+        double w() const { return fWX; }
+        int    nx() const { return fNX; }
+        double wx() const { return fWX; }
+        double x1() const { return fX1; }
+        double x2() const { return fX2; }
+        int    ny() const { return fNY; }
+        double wy() const { return fWY; }
+        double y1() const { return fY1; }
+        double y2() const { return fY2; }
+
+        void SetBinning(TH1 *hist);
+        void SetBinning(TGraph *graph);
+
+        void SetN(double nx) { SetNX(nx); }
+        void SetW(double wx) { SetWX(wx); }
+        void SetNX(double nx);
+        void SetWX(double wx);
+        void SetX1(double x1);
+        void SetX2(double x2);
+        void SetXMM(double x1, double x2);
+        void SetXNMM(int nx, double x1, double x2);
+        void SetXMMW(double x1, double x2, double w);
+
+        void SetNY(double ny);
+        void SetWY(double wy);
+        void SetY1(double y1);
+        void SetY2(double y2);
+        void SetYMM(double y1, double y2);
+        void SetYNMM(int ny, double y1, double y2);
+        void SetYMMW(double y1, double y2, double w);
 
         void Reset();
         void End();
         bool Next();
         bool Back();
+        double GetItValue() const { return fValue; }
+        double GetItCenter() const { return fValue+0.5*fWX; }
+        int GetItIndex() const { return fIterationIndex; }
 
-        int GetBin(double invalue) const; ///< find bin corresponding to invalue
-        double GetLowEdge(int i=1) const; ///< return low edge of the i-bin (i=1~n)
-        double GetUpEdge(int i=-1) const; ///< return high edge of the i-bin (i:1~n)
-        double GetBinCenter(int bin) const; ///< find bin center fValue
+        int FindIndex(double value) const;
+        int FindBin(double value) const; ///< find bin corresponding to value
+        double GetIdxLowEdge(int idx) const; ///< return low edge of the i-idx (i=0~nx-1)
+        double GetIdxUpEdge(int idx) const; ///< return high edge of the i-idx (i:0~nx-1)
+        double GetIdxCenter(int idx) const; ///< find bin center value of the i-idx (i:0~nx-1)
+        double GetBinLowEdge(int bin) const; ///< return low edge of the i-bin (i=1~nx)
+        double GetBinUpEdge(int bin) const; ///< return high edge of the i-bin (i:1~nx)
+        double GetBinCenter(int bin) const; ///< find bin center value of the i-idx (i:1~nx)
+
         double GetCenter() const;
         double GetFullWidth() const;
         TString Print(bool show=true) const;
 
+        TArrayD* MakeArrayD() { return (new TArrayD(fNX)); }
+        TGraphErrors* MakeGraph(TArrayD* array);
+
     ClassDef(LKBinning,1);
 };
+
+#endif
