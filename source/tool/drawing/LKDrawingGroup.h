@@ -30,7 +30,7 @@ class LKDrawingGroup : public TObjArray
         int fDYCvs = 0;
         TObjArray* fPadArray = nullptr;
 
-        LKDataViewer *fViewer = nullptr; //!
+        LKDataViewer* fViewer = nullptr; //!
         LKParameterContainer *fPar = nullptr; //!
 
     private:
@@ -57,6 +57,8 @@ class LKDrawingGroup : public TObjArray
         virtual void Print(Option_t *option="") const;
         virtual Int_t Write(const char *name = nullptr, Int_t option=TObject::kSingleKey, Int_t bufsize = 0) const;
         void WriteFile(TString fileName="");
+
+        LKDataViewer* CreateViewer();
 
         void Save(bool recursive=true, bool saveRoot=true, bool saveImage=true, TString dirName="", TString header="", TString tag="");
 
@@ -86,6 +88,7 @@ class LKDrawingGroup : public TObjArray
         // find
         LKDrawing* FindDrawing(TString name);
         TH1*       FindHist(TString name);
+        TGraph*    FindGraph(TString name);
 
         // file
         TString GetFileName() { return fFileName; }

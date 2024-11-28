@@ -96,6 +96,8 @@ class LKDrawing : public TObjArray
          * - [m,x,y,z]_[title/label]_[size/font/offset] : text attributes (m for top main title)
          * - pad_color : pad color (TODO)
          * - stats_corner : place statistics box at the corner of frame (0:TR,1:TL,2:BL,3:BR)
+         * - pave_corner : place pave text at the corner of frame (0:TR,1:TL,2:BL,3:BR)
+         * - pave_attribute : if 0, use default pave text attibute (white bg, black text with 132)
          * - legend_corner : place legend box at top corner of histogram frame (0:TR,1:TL,2:BL,3:BR)
          * - opt_stat : ksiourmen (default is 1111)
          *      k = 1;  kurtosis printed
@@ -148,6 +150,7 @@ class LKDrawing : public TObjArray
         void SetLegendCorner(int iCorner) { AddOption("legend_corner",iCorner); }
         void SetStatCorner(int iCorner) { AddOption("stats_corner",iCorner); }
         void SetPaveCorner(int iCorner) { AddOption("pave_corner",iCorner); }
+        void SetPaveAttribute(int attribute) { AddOption("pave_attribute",attribute); }
         void SetStatTopRightCorner() { AddOption("stats_corner",0); }
         void SetStatTopLeftCorner() { AddOption("stats_corner",1); }
         void SetStatBottomLeftCorner() { AddOption("stats_corner",2); }

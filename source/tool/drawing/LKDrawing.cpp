@@ -141,6 +141,12 @@ void LKDrawing::Draw(Option_t *option)
         return;
     }
 
+    auto numObjects = GetEntries();
+    if (numObjects==0) {
+        lk_warning << "empty drawing" << endl;
+        return;
+    }
+
     if (fCvs==nullptr) {
         int dx = FindOptionInt("cvs_dx",-1);
         int dy = FindOptionInt("cvs_dy",-1);
@@ -149,8 +155,6 @@ void LKDrawing::Draw(Option_t *option)
         else
             fCvs = LKPainter::GetPainter() -> CanvasResize("",dx,dy);
     }
-
-    auto numObjects = GetEntries();
 
     bool merge_pvtt_stats = CheckOption("merge_pvtt_stats");
     vector<TPaveText*> listOfPaveTexts;
@@ -215,6 +219,8 @@ void LKDrawing::Draw(Option_t *option)
         //
     }
 
+    int pvtt_attribute = CheckOption("pave_attribute");
+
     TLegend* legend = nullptr;
     TPaveText* pvtt = nullptr;
 
@@ -234,6 +240,17 @@ void LKDrawing::Draw(Option_t *option)
         }
         if (obj->InheritsFrom(TPaveText::Class())) {
             pvtt = (TPaveText*) obj;
+            if (pvtt_attribute==0) {
+                pvtt -> SetTextFont(132);
+                pvtt -> SetTextAlign(12);
+                pvtt -> SetFillColor(0);
+                pvtt -> SetFillStyle(0);
+                pvtt -> SetBorderSize(0);
+            }
+        }
+        if (obj->InheritsFrom(TGraph::Class())) {
+            if (((TGraph*)obj)->GetN()==0)
+                continue;
         }
         if (obj->InheritsFrom(TCut::Class())||obj->InheritsFrom(TCutG::Class()))
             continue;
@@ -244,7 +261,7 @@ void LKDrawing::Draw(Option_t *option)
         obj -> Draw(drawOption);
     }
 
-    fCuts -> Draw(x1,x2);
+    fCuts -> Draw(x1,x2,y1,y2);
 
     fCvs -> Modified();
     fCvs -> Update();
@@ -575,27 +592,50 @@ void LKDrawing::SetHistColor(TH2* hist, int color, int max)
 
 void LKDrawing::Print(Option_t *opt) const
 {
-    TString printOption = opt;
+    TString printOption(opt);
+    if (LKMisc::CheckOption(printOption,"raw")) {
+        TObjArray::Print();
+        return;
+    }
+
     if (LKMisc::CheckOption(printOption,"!drawing"))
         return;
+
     int tab = LKMisc::FindOptionInt(printOption,"level",0);
-    TString header, drawingTitle;
+    TString header;
     for (auto i=0; i<tab; ++i) header += "  ";
-    header = header + Form("Drawing[%d]",int(GetEntries()));
     auto numObjects = GetEntries();
-    for (auto iObj=0; iObj<numObjects; ++iObj)
+    if (LKMisc::CheckOption(printOption,"all"))
     {
-        auto obj = At(iObj);
-        TString add_title = Form("%s",obj->GetName());
-        if      (obj->InheritsFrom(TH1::Class()))    add_title = Form("H(%s)",add_title.Data());
-        else if (obj->InheritsFrom(TGraph::Class())) add_title = Form("G(%s)",add_title.Data());
-        else if (obj->InheritsFrom(TF1::Class()))    add_title = Form("F(%s)",add_title.Data());
-        if (!add_title.IsNull()) {
-            if (drawingTitle.IsNull()) drawingTitle += add_title;
-            else drawingTitle += TString(", ") + add_title;
+        for (auto iObj=0; iObj<numObjects; ++iObj)
+        {
+            auto obj = At(iObj);
+            TString name = Form("%s",obj->GetName());
+            TString title = fTitleArray[iObj];
+            TString option = fDrawOptionArray[iObj];
+            if      (obj->InheritsFrom(TH1::Class()))    name = Form("H(%s)",name.Data());
+            else if (obj->InheritsFrom(TGraph::Class())) name = Form("G(%s)",name.Data());
+            else if (obj->InheritsFrom(TF1::Class()))    name = Form("F(%s)",name.Data());
+            e_cout << header << name << "; " << title << "; " << option << endl;
         }
     }
-    e_cout << header << " " << drawingTitle << endl;
+    else {
+        TString drawingTitle;
+        header = header + Form("Drawing[%d]",int(GetEntries()));
+        for (auto iObj=0; iObj<numObjects; ++iObj)
+        {
+            auto obj = At(iObj);
+            TString add_title = Form("%s",obj->GetName());
+            if      (obj->InheritsFrom(TH1::Class()))    add_title = Form("H(%s)",add_title.Data());
+            else if (obj->InheritsFrom(TGraph::Class())) add_title = Form("G(%s)",add_title.Data());
+            else if (obj->InheritsFrom(TF1::Class()))    add_title = Form("F(%s)",add_title.Data());
+            if (!add_title.IsNull()) {
+                if (drawingTitle.IsNull()) drawingTitle += add_title;
+                else drawingTitle += TString(", ") + add_title;
+            }
+        }
+        e_cout << header << " " << drawingTitle << endl;
+    }
 }
 
 Int_t LKDrawing::Write(const char *name, Int_t option, Int_t bsize) const
