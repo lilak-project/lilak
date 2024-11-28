@@ -394,7 +394,7 @@ class LKRun : public LKTask
         bool fIsLILAKRun = false;
 
         LKDataViewer* fDataViewer = nullptr;
-        LKDrawingGroup *fTopDrawingGroup = nullptr;
+        LKDrawingGroup* fTopDrawingGroup = nullptr;
 
     private:
         static LKRun *fInstance;
