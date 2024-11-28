@@ -25,6 +25,7 @@
 #include "LKLogger.h"
 #include "LKParameter.h"
 #include "LKCut.h"
+#include "LKBinning.h"
 
 typedef LKVector3::Axis axis_t;
 
@@ -211,6 +212,7 @@ class LKParameterContainer : public TObjArray
         Double_t GetParSize  (TString name, int idx=-1) const { return GetParDouble(name,idx); }
         axis_t   GetParAxis  (TString name, int idx=-1) const { return FindPar(name,true) -> GetAxis(); }
         LKCut*   GetParCut   (TString name);
+        LKBinning GetBinning (TString name);
 
         std::vector<bool>    GetParVBool  (TString name) const { return FindPar(name,true) -> GetVBool  (); }
         std::vector<int>     GetParVInt   (TString name) const { return FindPar(name,true) -> GetVInt   (); }
@@ -228,11 +230,13 @@ class LKParameterContainer : public TObjArray
         void UpdatePar(Double_t &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParDouble(name,idx); } ///< See UpdatePar(Bool_t, TString, int)
         void UpdatePar(TString  &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParString(name,idx); } ///< See UpdatePar(Bool_t, TString, int)
         void UpdatePar(axis_t   &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParAxis  (name,idx); } ///< See UpdatePar(Bool_t, TString, int)
-        void UpdateBinning(TString name, Int_t &n, Double_t &x1, Double_t &x2) const;
+        bool UpdateBinning(TString name, Int_t &n, Double_t &x1, Double_t &x2) const;
+        void UpdateBinning(TString name, LKBinning &binning) const;
         void UpdateV3(TString name, Double_t &x, Double_t &y, Double_t &z) const;
 
-        LKParameterContainer* CreateGroupContainer(TString nameGroup);
-        LKParameterContainer* CreateMultiParContainer(TString parNameGiven);
+        LKParameterContainer* CreateGroupContainer(TString nameGroup); ///< Create new LKParameterContainer that contains all parameters which has group name [name group]
+        LKParameterContainer* CreateMultiParContainer(TString parNameGiven); ///< Create new LKParameterContainer that contains all parameters which has name [parNameGiven]
+        LKParameterContainer* CreateAnyContainer(TString any); ///< Create new LKParameterContainer that contains all parameters which has [group name]==[any] or [full name]==[any].
 
     public:
         /**

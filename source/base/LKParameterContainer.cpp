@@ -1064,14 +1064,24 @@ LKParameter *LKParameterContainer::SetParCont(TString name) {
     return SetLineComment(Form("input container %s", name.Data()));
 }
 
-void LKParameterContainer::UpdateBinning(TString name, Int_t &n, Double_t &x1, Double_t &x2) const
+bool LKParameterContainer::UpdateBinning(TString name, Int_t &n, Double_t &x1, Double_t &x2) const
 {
     if (CheckPar(name) && GetParN(name)>=3)
     {
         n = GetParInt(name,0);
         x1 = GetParDouble(name,1);
         x2 = GetParDouble(name,2);
+        return true;
     }
+    return false;
+}
+
+void LKParameterContainer::UpdateBinning(TString name, LKBinning &binning) const
+{
+    int n;
+    double x1, x2;
+    if (UpdateBinning(name, n, x1, x2))
+        binning.SetXNMM(n, x1, x2);
 }
 
 void LKParameterContainer::UpdateV3(TString name, Double_t &x, Double_t &y, Double_t &z) const
@@ -1155,6 +1165,31 @@ LKParameterContainer* LKParameterContainer::CreateMultiParContainer(TString give
     }
 
     return multiParContainer;
+}
+
+LKParameterContainer* LKParameterContainer::CreateAnyContainer(TString any)
+{
+    R__COLLECTION_READ_LOCKGUARD(ROOT::gCoreMutex);
+
+    auto anyContainer = new LKParameterContainer();
+    anyContainer -> SetName(any);
+
+    TIter iterator(this);
+    LKParameter *parameter;
+    while ((parameter = dynamic_cast<LKParameter*>(iterator())))
+    {
+        if (parameter)
+            if (TString(parameter->GetName()).Index(any)>=0) {
+                TString mainName = parameter -> GetMainName();
+                mainName.ReplaceAll(any+"/","");
+                mainName.ReplaceAll(any,"");
+                if (mainName.IsNull()) mainName = Form("c%d",anyContainer->GetEntries());
+                TString value = parameter -> GetValue();
+                anyContainer -> AddPar(mainName,value);
+            }
+    }
+
+    return anyContainer;
 }
 
 void LKParameterContainer::Require(TString name, TString value, TString comment, TString type, int compare)
@@ -1368,40 +1403,71 @@ void LKParameterContainer::PrintCollection(TString fileName)
         fCollectedParameterContainer -> SaveAs(fileName);
 }
 
-
 LKCut* LKParameterContainer::GetParCut(TString name)
 {
     TString name2 = name;
     name2.ReplaceAll("/","_");
     LKCut* cuts = new LKCut(name2);
-    auto cutList = CreateMultiParContainer(name);
+    auto cutList = CreateAnyContainer(name);
     auto numCuts = cutList -> GetEntries();
-    for (auto iCut=0; iCut<numCuts; ++iCut)
-    {
-        auto parameter = (LKParameter*) cutList -> At(iCut);
-        TString cutString = parameter -> GetString(0);
-        bool applyCut = true;
-        if (parameter->GetN()>1)
-            applyCut = parameter->GetBool(1);
-        if (cutString.EndsWith(".root")) {
-            auto file = new TFile(cutString,"read");
-            if (file->IsOpen()==false) {
-                lk_error << "Cannnot open " << cutString << endl;
-                return cuts;
-            }
-            auto cutg = (TCutG*) file -> Get("CUTG");
-            if (cutg==nullptr) {
-                lk_error << "CUTG is null in " << cutString << endl;
-                return cuts;
-            }
-            cutg -> SetName(Form("cutg_%d",iCut));
-            cutg -> SetTitle(cutString);
-            cuts -> Add(cutg,applyCut);
-        }
-        else {
-            TCut cut(Form("cut_%d",iCut),cutString);
-            cuts -> Add(cut,applyCut);
-        }
-    }
+    cuts -> AddPar(cutList);
     return cuts;
+}
+
+LKBinning LKParameterContainer::GetBinning(TString name)
+{
+    if (CheckPar(name))
+    {
+        TString nm, tl;
+        int nx=1, ny=1;
+        double x1=0, x2=0, y1=0, y2=0;
+        if (GetParN(name)==3) {
+            nx = GetParInt   (name,0);
+            x1 = GetParDouble(name,1);
+            x2 = GetParDouble(name,2);
+        }
+        else if (GetParN(name)==4) {
+            nm = GetParString(name,0);
+            nx = GetParInt   (name,1);
+            x1 = GetParDouble(name,2);
+            x2 = GetParDouble(name,3);
+        }
+        else if (GetParN(name)==5) {
+            nm = GetParString(name,0);
+            tl = GetParString(name,1);
+            nx = GetParInt   (name,2);
+            x1 = GetParDouble(name,3);
+            x2 = GetParDouble(name,4);
+        }
+        else if (GetParN(name)==6) {
+            nx = GetParInt   (name,0);
+            x1 = GetParDouble(name,1);
+            x2 = GetParDouble(name,2);
+            ny = GetParInt   (name,3);
+            y1 = GetParDouble(name,4);
+            y2 = GetParDouble(name,5);
+        }
+        else if (GetParN(name)==7) {
+            nm = GetParString(name,0);
+            nx = GetParInt   (name,1);
+            x1 = GetParDouble(name,2);
+            x2 = GetParDouble(name,3);
+            ny = GetParInt   (name,4);
+            y1 = GetParDouble(name,5);
+            y2 = GetParDouble(name,6);
+        }
+        else if (GetParN(name)==8) {
+            nm = GetParString(name,0);
+            tl = GetParString(name,1);
+            nx = GetParInt   (name,2);
+            x1 = GetParDouble(name,3);
+            x2 = GetParDouble(name,4);
+            ny = GetParInt   (name,5);
+            y1 = GetParDouble(name,6);
+            y2 = GetParDouble(name,7);
+        }
+        LKBinning binn(nm,tl,nx,x1,x2,ny,y1,y2);
+        return binn;
+    }
+    return LKBinning();
 }

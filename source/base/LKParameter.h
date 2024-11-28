@@ -84,6 +84,8 @@ class LKParameter : public TNamed
         void SetCompare(int compare) { fCompare = compare; }
         int GetCompare() const { return fCompare; }
 
+        bool MathchHead(TString head) const;
+
     private:
         void ProcessTypeError(TString type, TString value) const;
         bool CheckFormulaValidity(TString formula, bool isInt=false) const;

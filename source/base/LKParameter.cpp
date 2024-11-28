@@ -60,6 +60,9 @@ void LKParameter::SetPar(TString name, TString raw, TString value, TString comme
 
 void LKParameter::SetValue(TString line)
 {
+    if (line[0]=='\"' && line[line.Length()-1]=='\"')
+        line = TString(line(1,line.Length()-2));
+
     fValue = line;
     fValueArray.clear();
 
