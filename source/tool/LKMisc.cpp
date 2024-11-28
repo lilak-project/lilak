@@ -529,3 +529,26 @@ void LKMisc::AddOption(TString &original, TString adding, int value)
     original = original + ":" + option;
 }
 
+bool LKMisc::ValueIsInArray(TString value, vector<TString> array)
+{
+    for (auto sample : array)
+        if (value==sample)
+            return true;
+    return false;
+}
+
+bool LKMisc::ValueIsInArray(double value, vector<double> array)
+{
+    for (auto sample : array)
+        if (value==sample)
+            return true;
+    return false;
+}
+
+bool LKMisc::ValueIsInArray(int value, vector<int> array)
+{
+    for (auto sample : array)
+        if (value==sample)
+            return true;
+    return false;
+}

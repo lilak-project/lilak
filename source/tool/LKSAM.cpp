@@ -316,7 +316,7 @@ double LKSAM::FWHM(double *buffer, int length, int iPeak, double amplitude, doub
     return width;
 }
 
-double LKSAM::GetSmoothLevel(TH1* hist, double thresholdRatio)
+double LKSAM::ContinuityIndex(TH1* hist, double thresholdRatio)
 {
     auto max = hist -> GetMaximum();
     auto threshold = max*thresholdRatio;
