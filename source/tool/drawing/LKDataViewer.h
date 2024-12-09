@@ -137,6 +137,9 @@ class LKDataViewer : public TGMainFrame
         TGLayoutHints* NewHintsMinimumUI();
         TGLayoutHints* NewHints(int option);
 
+        TGGroupFrame* NewGroupFrame(TString sectionName);
+        TGHorizontalFrame* NewHorizontalFrame(TGGroupFrame* section);
+
         int AddGroupTab(LKDrawingGroup* group, int iTab=-1, int iSub=-1); ///< CreateMainCanvas
 
         void CreateMainFrame();

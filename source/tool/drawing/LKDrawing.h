@@ -69,13 +69,17 @@ class LKDrawing : public TObjArray
         void MakePaveTextCorner(TPad* cvs, TPaveText *pvtt, int iCorner=0);
         void SetMainHist(TPad *pad, TH1* hist);
 
+        TH2D* MakeGraphFrame();
+        TH2D* MakeGraphFrame(TGraph* graph, TString mxyTitle="");
+        void AddGraphFrame(TGraph* graph, TString mxyTitle="", TString drawOption="", TString title="") { Add(MakeGraphFrame(graph,mxyTitle),drawOption,title); }
+
         ////////////////////////////////////////////////////////////////////////////////////
         TString GetGlobalOption() const { return fGlobalOption; }
         void SetGlobalOption(TString option) { fGlobalOption = option; }
         bool CheckOption(TString option) { return LKMisc::CheckOption(fGlobalOption,option); }
         int FindOptionInt(TString option, int value) { return LKMisc::FindOptionInt(fGlobalOption,option,value); }
         double FindOptionDouble(TString option, double value) { return LKMisc::FindOptionDouble(fGlobalOption,option,value); }
-        TString FindOptionString(TString &option, TString value) { return LKMisc::FindOptionString(fGlobalOption,option,value); }
+        TString FindOptionString(TString option, TString value) { return LKMisc::FindOptionString(fGlobalOption,option,value); }
 
         ////////////////////////////////////////////////////////////////////////////////////
         void RemoveOption(TString option);
@@ -85,6 +89,7 @@ class LKDrawing : public TObjArray
          * - legend_below_stats : place legend just below statistics box
          * - histcc : enable color comparisons of 2d-histograms by setting histogram contents to have different values
          * - merge_pvtt_stats : merge TPaveText with stats box
+         * - create_frame : create frame if no frame histogram exist
          */
         void AddOption(TString option) { LKMisc::AddOption(fGlobalOption,option); }
         /**
@@ -121,6 +126,7 @@ class LKDrawing : public TObjArray
          */
         void AddOption(TString option, double value) { LKMisc::AddOption(fGlobalOption,option,value); }
         void AddOption(TString option, int value) { LKMisc::AddOption(fGlobalOption,option,value); }
+        void AddOption(TString option, TString value) { LKMisc::AddOption(fGlobalOption,option,value); }
 
         ////////////////////////////////////////////////////////////////////////////////////
         void SetLogx()  { AddOption("logx"); }
@@ -142,7 +148,7 @@ class LKDrawing : public TObjArray
             SetBottomMargin(bmg);
             SetTopMargin(tmg);
         }
-        void SetCanvasSize(double dx, double dy) { AddOption("cvs_dx",dx); AddOption("cvs_dy",dy); }
+        void SetCanvasSize(double dx, double dy, bool resize=true) { AddOption("cvs_dx",dx); AddOption("cvs_dy",dy); if (resize) AddOption("cvs_resize"); }
         void SetRangeUser(double x1, double x2, double y1, double y2) { SetRangeUserX(x1, x2); SetRangeUserY(y1, y2); }
         void SetRangeUserX(double x1, double x2) { AddOption("x1",x1); AddOption("x2",x2); }
         void SetRangeUserY(double y1, double y2) { AddOption("y1",y1); AddOption("y2",y2); }
@@ -163,9 +169,7 @@ class LKDrawing : public TObjArray
         void SetPaveDx(double dx) { AddOption("pave_dx",dx); }
         void SetPaveLineDy(double dy_line) { AddOption("pave_line_dy",dy_line); }
         void SetPaveSize(double dx, double dy_line) { SetPaveDx(dx); SetPaveLineDy(dy_line); }
-
-        TH2D* MakeGraphFrame(TGraph* graph, TString mxyTitle="");
-        void AddGraphFrame(TGraph* graph, TString mxyTitle="", TString drawOption="", TString title="") { Add(MakeGraphFrame(graph,mxyTitle),drawOption,title); }
+        void SetCreateFrame(TString name="", TString title="") { AddOption("create_gframe"); AddOption("gframe_name",name); AddOption("gframe_title",title); } ///< Create frame if no frame histogram exist.
 
     private:
         void MakeLegend();

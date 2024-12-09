@@ -60,8 +60,15 @@ void LKDrawingGroup::Draw(Option_t *option)
 
     if (usingDataViewer)
     {
-        if (fViewer==nullptr)
-            fViewer = new LKDataViewer(this);
+        if (fViewer==nullptr) {
+            LKDrawingGroup* group = this;
+            if (IsDrawingGroup()) {
+                lk_debug << endl;
+                group = new LKDrawingGroup("top");
+                group -> AddGroup(this);
+            }
+            fViewer = new LKDataViewer(group);
+        }
 
         if (fViewer->IsActive())
             lk_warning << "viewer already running!" << endl;
@@ -394,7 +401,7 @@ bool LKDrawingGroup::ConfigureCanvas()
             nPads++;
     }
     if (nPads<numDrawings)
-        fCvs -> Divide(fDivX, fDivY);
+        fCvs -> Divide(fDivX, fDivY, 0.001, 0.001);
 
     return true;
 }
@@ -406,6 +413,12 @@ bool LKDrawingGroup::AddFile(TFile* file, TString groupSelection)
     else
         fFileName = fFileName + ", " + file->GetName();
     SetName(fFileName);
+
+    bool allowPrint = true;
+    if (groupSelection=="xprint") {
+        allowPrint = false;
+        groupSelection = "";
+    }
 
     if (!groupSelection.IsNull())
     {
@@ -431,20 +444,21 @@ bool LKDrawingGroup::AddFile(TFile* file, TString groupSelection)
                 while ((key=(TKey*)nextKey())) {
                     if (TString(key->GetName()).Index(groupName)==0) {
                         auto group = (LKDrawingGroup*) key -> ReadObj();
-                        e_info << "Adding " << group->GetName() << " from " << file->GetName() << endl;
+                        if (allowPrint) e_info << "Adding " << group->GetName() << " from " << file->GetName() << endl;
                         AddGroupInStructure(group);
                     }
                 }
             }
-            else{
+            else
+            {
                 auto obj = file -> Get(groupName);
                 if (obj==nullptr) {
                     e_error << groupName << " is nullptr" << endl;
-                    return false;
+                    continue;
                 }
                 if (TString(obj->ClassName())=="LKDrawingGroup") {
                     auto group = (LKDrawingGroup*) obj;
-                    e_info << "Adding " << group->GetName() << " from " << file->GetName() << endl;
+                    if (allowPrint) e_info << "Adding " << group->GetName() << " from " << file->GetName() << endl;
                     AddGroupInStructure(group);
                 }
                 else {
@@ -462,7 +476,7 @@ bool LKDrawingGroup::AddFile(TFile* file, TString groupSelection)
         while ((key=(TKey*)nextKey())) {
             if (TString(key->GetClassName())=="LKDrawingGroup") {
                 auto group = (LKDrawingGroup*) key -> ReadObj();
-                e_info << "Adding " << group->GetName() << " from " << file->GetName() << endl;
+                if (allowPrint) e_info << "Adding " << group->GetName() << " from " << file->GetName() << endl;
                 AddGroupInStructure(group);
             }
         }

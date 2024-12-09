@@ -97,6 +97,56 @@ const char* LKDrawing::GetName() const
     return "EmptyDrawing";
 }
 
+TH2D* LKDrawing::MakeGraphFrame()
+{
+    double x, y;
+    double x1 = DBL_MAX;
+    double x2 = -DBL_MAX;
+    double y1 = DBL_MAX;
+    double y2 = -DBL_MAX;
+
+    TGraph* graph0 = nullptr;
+
+    auto numObjects = GetEntries();
+    for (auto iObj=0; iObj<numObjects; ++iObj)
+    {
+        auto obj = At(iObj);
+        auto drawOption = fDrawOptionArray.at(iObj);
+        fCvs -> cd();
+        if (obj->InheritsFrom(TGraph::Class()))
+        {
+            auto graph = (TGraph*) obj;
+            if (graph0==nullptr) graph0 = graph;
+            auto numPoints = graph -> GetN();
+            for (auto iPoint=0; iPoint<numPoints; ++iPoint)
+            {
+                graph -> GetPoint(iPoint,x,y);
+                if (x<x1) x1 = x;
+                if (x>x2) x2 = x;
+                if (y<y1) y1 = y;
+                if (y>y2) y2 = y;
+            }
+        }
+    }
+
+    double dx = x2 - x1;
+    double dy = y2 - y1;
+    if (dx==0) dx = 1;
+    if (dy==0) dy = 1;
+    x1 = x1 - 0.1*dx;
+    x2 = x2 + 0.1*dx;
+    y1 = y1 - 0.1*dy;
+    y2 = y2 + 0.1*dy;
+
+    TString name = FindOptionString("gframe_name","");
+    TString title = FindOptionString("gframe_title","");
+    if (name.IsNull() && graph0!=nullptr) name = Form("frame_%s",graph0->GetName());
+
+    auto hist = new TH2D(name,title,100,x1,x2,100,y1,y2);
+    hist -> SetStats(0);
+
+    return hist;
+}
 
 TH2D* LKDrawing::MakeGraphFrame(TGraph* graph, TString mxyTitle)
 {
@@ -141,20 +191,31 @@ void LKDrawing::Draw(Option_t *option)
         return;
     }
 
+    fGlobalOption = fGlobalOption + ":" + ops;
+
+    bool debug_draw = (CheckOption("debug_draw"));
+
+    if (debug_draw)
+        lk_debug << "Draw option: " << option << endl;
+
     auto numObjects = GetEntries();
     if (numObjects==0) {
         lk_warning << "empty drawing" << endl;
         return;
     }
+    if (debug_draw) lk_debug << "Number of objects in draiwng: " << numObjects << endl;
 
     if (fCvs==nullptr) {
         int dx = FindOptionInt("cvs_dx",-1);
         int dy = FindOptionInt("cvs_dy",-1);
         if (dx<0||dy<0)
             fCvs = LKPainter::GetPainter() -> Canvas();
-        else
+        else if (CheckOption("cvs_dy"))
             fCvs = LKPainter::GetPainter() -> CanvasResize("",dx,dy);
     }
+
+    bool optimize_legend_position = (CheckOption("legend_below_stats") || CheckOption("legend_corner"));
+    if (debug_draw) lk_debug << "Optimize legend position?: " << optimize_legend_position << endl;
 
     bool merge_pvtt_stats = CheckOption("merge_pvtt_stats");
     vector<TPaveText*> listOfPaveTexts;
@@ -163,6 +224,7 @@ void LKDrawing::Draw(Option_t *option)
     int maxHistCC = 1;
     if (CheckOption("histcc"))
     {
+        if (debug_draw) lk_debug << "Make color distinguishable 2d-histograms" << endl;
         countHistCC = 1;
         for (auto iObj=0; iObj<numObjects; ++iObj) {
             auto obj = At(iObj);
@@ -197,7 +259,7 @@ void LKDrawing::Draw(Option_t *option)
     if (mr>=0) fCvs -> SetRightMargin (mr);
     if (mb>=0) fCvs -> SetBottomMargin(mb);
     if (mt>=0) fCvs -> SetTopMargin   (mt);
-
+    if (debug_draw) lk_debug << "Canvas Margin: " << ml << ", " << mr << ", " << mb << ", " << mt << endl;
     double x1 = 0;
     double x2 = 100;
     double y1 = 0;
@@ -215,8 +277,24 @@ void LKDrawing::Draw(Option_t *option)
         if (CheckOption("x1")&&CheckOption("x2")) fMainHist -> GetXaxis() -> SetRangeUser(x1,x2);
         if (CheckOption("y1")&&CheckOption("y2")) fMainHist -> GetYaxis() -> SetRangeUser(y1,y2);
     }
-    else {
-        //
+    else if (CheckOption("create_gframe"))
+    {
+        if (debug_draw) lk_debug << "Creating frame" << endl;
+        fMainHist = MakeGraphFrame();
+        fTitleArray.push_back("");
+        fDrawOptionArray.push_back("");
+        for (auto iObj=numObjects-1; iObj>=0; --iObj) {
+            auto obj = this -> At(iObj);
+            auto title = fTitleArray[iObj];
+            auto draw_option = fDrawOptionArray[iObj];
+            this -> AddAtAndExpand(obj,iObj+1);
+            fTitleArray[iObj+1] = title;
+            fDrawOptionArray[iObj+1] = draw_option;
+        }
+        this -> AddFirst(fMainHist);
+        fTitleArray[0] = "";
+        fDrawOptionArray[0] = "";
+        numObjects = GetEntries();
     }
 
     int pvtt_attribute = CheckOption("pave_attribute");
@@ -237,6 +315,15 @@ void LKDrawing::Draw(Option_t *option)
         }
         if (obj->InheritsFrom(TLegend::Class())) {
             legend = (TLegend*) obj;
+            if (optimize_legend_position && legend->GetX1()==0.3 && legend->GetX2()==0.3 && legend->GetY1()==0.15 && legend->GetY2()==0.15)
+            {
+                legend -> SetX1(0.1);
+                legend -> SetX2(0.4);
+                legend -> SetY1(0.1);
+                legend -> SetY2(0.5);
+                if (debug_draw)
+                    lk_debug << "Set legend xy12 to 0101" << endl;
+            }
         }
         if (obj->InheritsFrom(TPaveText::Class())) {
             pvtt = (TPaveText*) obj;
@@ -257,6 +344,11 @@ void LKDrawing::Draw(Option_t *option)
         if (merge_pvtt_stats && obj->InheritsFrom(TPaveText::Class())) {
             listOfPaveTexts.push_back((TPaveText*)obj);
             continue;
+        }
+        if (debug_draw) {
+            TString oname = obj -> GetName();
+            if (oname.IsNull()) oname = obj -> ClassName();
+            lk_debug << oname << " (" << drawOption << ")" << endl;
         }
         obj -> Draw(drawOption);
     }
