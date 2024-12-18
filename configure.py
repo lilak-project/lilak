@@ -361,6 +361,9 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
                     if subdir in list_prj_subdir_link:
                         is_project_directory = True
                         break
+                    if subdir=="macros":
+                        is_project_directory = True
+                        break
                 if is_project_directory:
                     list_prj_directories.append(directory_name)
 
