@@ -63,7 +63,7 @@ class LKDrawing : public TObjArray
         void GetPadCorner(TPad *cvs, int iCorner, double &x_corner, double &y_corner, double &x_unit, double &y_unit);
         void GetPadCornerBoxDimension(TPad *cvs, int iCorner, double dx, double dy, double &x1, double &y1, double &x2, double &y2);
         TPaveStats* MakeStats(TPad *cvs);
-        bool MakeStatsCorner(TPad *cvs, int iCorner=0);
+        bool MakeStatsBox(TPad *cvs, int iCorner=0, int fillStyle=-1);
         void MakeLegendBelowStats(TPad* cvs, TLegend *legend);
         void MakeLegendCorner(TPad* cvs, TLegend *legend, int iCorner=0);
         void MakePaveTextCorner(TPad* cvs, TPaveText *pvtt, int iCorner=0);
@@ -161,6 +161,7 @@ class LKDrawing : public TObjArray
         void SetStatTopLeftCorner() { AddOption("stats_corner",1); }
         void SetStatBottomLeftCorner() { AddOption("stats_corner",2); }
         void SetStatBottomRightCorner() { AddOption("stats_corner",3); }
+        void SetStatsFillStyle(int fillStyle) { AddOption("stats_fillstyle",fillStyle); }
         void SetOptStat(int mode) { AddOption("opt_stat",mode); }
         void SetOptFit(int mode) { AddOption("opt_fit",mode); }
         //void SetMainTitleAttribute();

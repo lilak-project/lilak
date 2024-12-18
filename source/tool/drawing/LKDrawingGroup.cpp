@@ -226,6 +226,12 @@ void LKDrawingGroup::Save(bool recursive, bool saveRoot, bool saveImage, TString
                 fCvs -> SaveAs(fileName);
             }
             {
+                TString dirNameImage = dirName + "/pdf";
+                gSystem -> Exec(Form("mkdir -p %s/",dirNameImage.Data()));
+                TString fileName = dirNameImage + "/" + uheader + fullName + tag + ".pdf";
+                fCvs -> SaveAs(fileName);
+            }
+            {
                 TString dirNameImage = dirName + "/eps";
                 gSystem -> Exec(Form("mkdir -p %s/",dirNameImage.Data()));
                 TString fileName = dirNameImage + "/" + uheader + fullName + tag + ".eps";
@@ -400,10 +406,66 @@ bool LKDrawingGroup::ConfigureCanvas()
         if (obj->InheritsFrom(TVirtualPad::Class()))
             nPads++;
     }
-    if (nPads<numDrawings)
-        fCvs -> Divide(fDivX, fDivY, 0.001, 0.001);
+    if (nPads<numDrawings) {
+        //fCvs -> Divide(fDivX, fDivY, 0.001, 0.001);
+        DividePad(fCvs,fDivX, fDivY, 0.001, 0.001);
+    }
 
     return true;
+}
+
+void LKDrawingGroup::DividePad(TPad* cvs, Int_t nx, Int_t ny, Float_t xmargin, Float_t ymargin, Int_t color)
+{
+    cvs -> cd();
+    if (nx <= 0) nx = 1;
+    if (ny <= 0) ny = 1;
+    Int_t ix, iy;
+    Double_t x1, y1, x2, y2, dx, dy;
+    TPad *pad;
+    TString name, title;
+    Int_t n = 0;
+    //if (color == 0) color = GetFillColor();
+    //if (xmargin > 0 && ymargin > 0)
+    dy = 1/Double_t(ny);
+    dx = 1/Double_t(nx);
+    if (CheckOption("vertical_pad_numbering")) {
+        //for (ix=0;ix<nx;ix++) {
+        for (ix=nx-1;ix>=0;ix--) {
+            x2 = 1 - ix*dx - xmargin;
+            x1 = x2 - dx + 2*xmargin;
+            if (x1 < 0) x1 = 0;
+            if (x1 > x2) continue;
+            for (iy=ny-1;iy>=0;iy--) {
+                y1 = iy*dy + ymargin;
+                y2 = y1 +dy -2*ymargin;
+                if (y1 > y2) continue;
+                n++;
+                name.Form("%s_%d", GetName(), n);
+                pad = new TPad(name.Data(), name.Data(), x1, y1, x2, y2, color);
+                pad->SetNumber(n);
+                pad->Draw();
+            }
+        }
+    }
+    else { //general case
+        for (iy=0;iy<ny;iy++) {
+            y2 = 1 - iy*dy - ymargin;
+            y1 = y2 - dy + 2*ymargin;
+            if (y1 < 0) y1 = 0;
+            if (y1 > y2) continue;
+            for (ix=0;ix<nx;ix++) {
+                x1 = ix*dx + xmargin;
+                x2 = x1 +dx -2*xmargin;
+                if (x1 > x2) continue;
+                n++;
+                name.Form("%s_%d", GetName(), n);
+                pad = new TPad(name.Data(), name.Data(), x1, y1, x2, y2, color);
+                pad->SetNumber(n);
+                pad->Draw();
+            }
+        }
+    }
+    cvs -> Modified();
 }
 
 bool LKDrawingGroup::AddFile(TFile* file, TString groupSelection)

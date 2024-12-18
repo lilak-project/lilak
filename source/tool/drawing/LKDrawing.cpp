@@ -180,6 +180,20 @@ TH2D* LKDrawing::MakeGraphFrame(TGraph* graph, TString mxyTitle)
 
 void LKDrawing::MakeLegend()
 {
+    if (fLegend==nullptr)
+        fLegend = new TLegend();
+    auto numObjects = GetEntries();
+    for (auto iObj=0; iObj<numObjects; ++iObj)
+    {
+        auto obj = At(iObj);
+        TString name = Form("%s",obj->GetName());
+        TString title = fTitleArray[iObj];
+        TString option = fDrawOptionArray[iObj];
+        if (obj->InheritsFrom(TH1::Class()) || obj->InheritsFrom(TGraph::Class()) || obj->InheritsFrom(TF1::Class()))
+        {
+            fLegend -> AddEntry(obj,title,option);
+        }
+    }
 }
 
 void LKDrawing::Draw(Option_t *option)
@@ -191,6 +205,20 @@ void LKDrawing::Draw(Option_t *option)
         return;
     }
 
+    auto numObjects = GetEntries();
+    if (ops=="raw")
+    {
+        if (fCvs!=nullptr)
+            fCvs -> cd();
+        for (auto iObj=0; iObj<numObjects; ++iObj)
+        {
+            auto obj = At(iObj);
+            auto drawOption = fDrawOptionArray.at(iObj);
+            obj -> Draw(drawOption);
+        }
+        return;
+    }
+
     fGlobalOption = fGlobalOption + ":" + ops;
 
     bool debug_draw = (CheckOption("debug_draw"));
@@ -198,7 +226,6 @@ void LKDrawing::Draw(Option_t *option)
     if (debug_draw)
         lk_debug << "Draw option: " << option << endl;
 
-    auto numObjects = GetEntries();
     if (numObjects==0) {
         lk_warning << "empty drawing" << endl;
         return;
@@ -209,9 +236,9 @@ void LKDrawing::Draw(Option_t *option)
         int dx = FindOptionInt("cvs_dx",-1);
         int dy = FindOptionInt("cvs_dy",-1);
         if (dx<0||dy<0)
-            fCvs = LKPainter::GetPainter() -> Canvas();
+            fCvs = LKPainter::GetPainter() -> Canvas(Form("cvs_%s",fName.Data()));
         else if (CheckOption("cvs_dy"))
-            fCvs = LKPainter::GetPainter() -> CanvasResize("",dx,dy);
+            fCvs = LKPainter::GetPainter() -> CanvasResize(Form("cvs_%s",fName.Data()),dx,dy);
     }
 
     bool optimize_legend_position = (CheckOption("legend_below_stats") || CheckOption("legend_corner"));
@@ -365,6 +392,7 @@ void LKDrawing::Draw(Option_t *option)
     else {
         // This deosn't work
         // may be adding something to stats box is not possible
+        // i found the problem. you have to SetStat(0) before redrawing. but i won't fix it now...
         for (auto pv : listOfPaveTexts) {
             auto listOfLines = pv -> GetListOfLines();
             TIter nextLine(listOfLines);
@@ -386,7 +414,7 @@ void LKDrawing::Draw(Option_t *option)
     SetMainHist(fCvs,fMainHist);
     auto foundStats = false;
     if (CheckOption("stats_corner"))
-        foundStats = MakeStatsCorner(fCvs,FindOptionDouble("stats_corner",0));
+        foundStats = MakeStatsBox(fCvs,FindOptionDouble("stats_corner",0),FindOptionInt("stats_fillstyle",-1));
     if (legend!=nullptr) {
         if (legend->GetX1()==0.3&&legend->GetX2()==0.3&&legend->GetY1()==0.15&&legend->GetY2()==0.15)
             SetLegendBelowStats();
@@ -538,7 +566,7 @@ TPaveStats* LKDrawing::MakeStats(TPad *cvs)
     return statsbox;
 }
 
-bool LKDrawing::MakeStatsCorner(TPad *cvs, int iCorner)
+bool LKDrawing::MakeStatsBox(TPad *cvs, int iCorner, int fillStyle)
 {
     TObject *object;
     TPaveStats* statsbox = nullptr;
@@ -577,6 +605,8 @@ bool LKDrawing::MakeStatsCorner(TPad *cvs, int iCorner)
     //statsbox -> SetFillStyle(fFillStyleStatsbox);
     //statsbox -> SetBorderSize(fBorderSizeStatsbox);
 
+    if (fillStyle>=0)
+        statsbox -> SetFillStyle(fillStyle);
     return true;
 }
 

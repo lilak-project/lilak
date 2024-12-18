@@ -433,7 +433,7 @@ TString LKMisc::FindOption(TString &option, TString name, bool removeAfter, int 
     int idxNext = idxName + name.Sizeof()-1;
     if (idxNext!=idxEqual && idxNext!=idxColon)
         return "";
-        //return Form("%s*",name); // found option which is not exact
+        //return Form("%s*",name); // found option which do not exact
 
     if (idxEqual<0||idxEqual>idxColon) {
         if (removeAfter)
