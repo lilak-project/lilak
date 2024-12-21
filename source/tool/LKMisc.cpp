@@ -6,6 +6,7 @@
 #include "TH2D.h"
 #include "TMath.h"
 #include "TText.h"
+#include "TLatex.h"
 
 #include <cfloat>
 
@@ -418,6 +419,67 @@ void LKMisc::DrawColors(vector<int> colors)
             t -> Draw();
             countColors++;
         }
+    }
+}
+
+void LKMisc::DrawFonts()
+{
+    TString font_names[16][4] = {{"","","",""},
+        {" ", "I", "Free Serif Italic"         ,"Times-Italic"},
+        {"B", " ", "Free Serif Bold"           ,"Times-Bold"},
+        {"B", "I", "Free Serif Bold Italic"    ,"Times-BoldItalic"},
+        {" ", " ", "Tex Gyre Regular"          ,"Helvetica"},
+        {" ", "I", "Tex Gyre Italic"           ,"Helvetica-Oblique"},
+        {"B", " ", "Tex Gyre Bold"             ,"Helvetica-Bold"},
+        {"B", "I", "Tex Gyre Bold Italic"      ,"Helvetica-BoldOblique"},
+        {" ", " ", "Free Mono"                 ,"Courier"},
+        {" ", " ", "Free Mono Oblique"         ,"Courier-Oblique"},
+        {"B", "I", "Free Mono Bold"            ,"Courier-Bold"},
+        {"B", "I", "Free Mono Bold Oblique"    ,"Courier-BoldOblique"},
+        {" ", " ", "Symbol"                    ,"Symbol"},
+        {" ", " ", "Free Serif"                ,"Times-Roman"},
+        {" ", " ", "Wingdings"                 ,"ZapfDingbats"},
+        {" ", " ", "Greek letters"             ,"Greek letters"}};
+    int nt = 15;
+    TString equation_example = "d#sigma/d#Omega = ((Z_{1}Z_{2}e^{2})/(16#pi#epsilon_{0}E_{kin}))^{2}#scale[1.4]{/}sin^{4}(#theta/2)";
+    auto cvs = LKPainter::GetPainter() -> CanvasResize("CvsLKMiscFonts",1300,600,0.8);
+    cvs -> SetMargin(0.02,0.02,0.02,0.02);
+    auto hist = new TH2D("HistLKMiscUserColors","",100,0,12,100,0,nt+1);
+    hist -> SetStats(0);
+    hist -> GetXaxis() -> SetLabelOffset(100);
+    hist -> GetYaxis() -> SetLabelOffset(100);
+    hist -> GetXaxis() -> SetNdivisions(0);
+    hist -> GetYaxis() -> SetNdivisions(0);
+    hist -> Draw();
+    for (auto i=1; i<=nt; ++i)
+    {
+        int font_number = i*10+2;
+        double x = 1.2;
+        double y = nt+1-i;
+        {
+            auto tt3 = new TText(0.40,y,Form("%d",font_number)); tt3 -> SetTextFont(42);
+            auto tt1 = new TText(0.80,y,font_names[i][0]); tt1 -> SetTextFont(62);
+            auto tt2 = new TText(1.00,y,font_names[i][1]); tt2 -> SetTextFont(12);
+            for (auto tt : {tt1,tt2,tt3}) {
+                tt -> SetTextSize(0.03);
+                tt -> SetTextColor(kGray+2);
+                tt -> SetTextAlign(22);
+                tt -> Draw();
+            }
+        }
+        TString text_example, note;
+        if (i==4) note = "*TAxis default";
+        if (i==6) note = "*TText default";
+        TString equation_examples = equation_example;
+        text_example = text_example + note + " [" + font_names[i][2] + "] Equation look like: " + equation_examples;
+        auto tte = new TLatex(x,y,text_example);
+        tte -> SetTextSize(0.03);
+        tte -> SetTextFont(font_number);
+        tte -> SetTextAlign(12);
+        tte -> SetTextColor(kGray+1);
+        if (i==2||i==13) tte -> SetTextColor(kBlue);
+        else if (i==4||i==6) tte -> SetTextColor(kRed+1);
+        tte -> Draw();
     }
 }
 
