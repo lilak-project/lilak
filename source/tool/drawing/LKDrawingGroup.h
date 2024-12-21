@@ -58,7 +58,7 @@ class LKDrawingGroup : public TObjArray
         virtual void Draw(Option_t *option="all");
         virtual void Print(Option_t *option="") const;
         virtual Int_t Write(const char *name = nullptr, Int_t option=TObject::kSingleKey, Int_t bufsize = 0) const;
-        void WriteFile(TString fileName="");
+        void WriteFile(TString fileName="", TString option="");
 
         LKDataViewer* CreateViewer();
 
@@ -92,6 +92,8 @@ class LKDrawingGroup : public TObjArray
         LKDrawing* FindDrawing(TString name);
         TH1*       FindHist(TString name);
         TGraph*    FindGraph(TString name);
+        TF1*       FindFunction(TString name);
+        TObject*   FindObject(TString name, TClass *tclass);
 
         // file
         TString GetFileName() { return fFileName; }

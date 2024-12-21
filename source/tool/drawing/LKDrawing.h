@@ -177,7 +177,7 @@ class LKDrawing : public TObjArray
 
     private:
         //TString fGlobalOption = "stats_corner:legend_below_stats:font=132:opt_stat=1110";
-        TString fGlobalOption = "stats_corner:font=132:opt_stat=1110";
+        TString fGlobalOption = "stats_corner:font=62:opt_stat=1110";
         vector<TString> fTitleArray;
         vector<TString> fDrawOptionArray;
 

@@ -111,17 +111,31 @@ void LKDrawingGroup::Draw(Option_t *option)
     }
 }
 
-void LKDrawingGroup::WriteFile(TString fileName)
+void LKDrawingGroup::WriteFile(TString fileName, TString option)
 {
-    if (fileName.IsNull())
-        fileName = Form("data_lilak/%s.root",fName.Data());
-    e_info << "Writting " << fileName << endl;
-    auto file = new TFile(fileName,"recreate");
-    Write();
+    if (option=="flat")
+    {
+        if (fileName.IsNull())
+            fileName = Form("data_lilak/%s.flat.root",fName.Data());
+        e_info << "Writting " << fileName << endl;
+        auto file = new TFile(fileName,"recreate");
+        Write(".flat");
+    }
+    else {
+        if (fileName.IsNull())
+            fileName = Form("data_lilak/%s.root",fName.Data());
+        e_info << "Writting " << fileName << endl;
+        auto file = new TFile(fileName,"recreate");
+        Write();
+    }
 }
 
 Int_t LKDrawingGroup::Write(const char *name, Int_t option, Int_t bsize) const
 {
+    bool flat = false;
+    if (TString(name)==".flat")
+        flat = true;
+
     int numWrite = 0;
     auto depth = GetGroupDepth();
     if (depth>=3) {
@@ -129,9 +143,9 @@ Int_t LKDrawingGroup::Write(const char *name, Int_t option, Int_t bsize) const
         e_info << "Writting " << numSub << " groups in " << fName << endl;
         for (auto iSub=0; iSub<numSub; ++iSub) {
             auto sub = (LKDrawingGroup*) At(iSub);
-            numWrite += sub -> Write("", option);
+            numWrite += sub -> Write(name, option);
         }
-        if (fPar!=nullptr) fPar -> Write();
+        if (!flat && fPar!=nullptr) fPar -> Write();
         return numWrite;
     }
     else if (GetNumAllDrawingObjects()>1280)
@@ -140,17 +154,20 @@ Int_t LKDrawingGroup::Write(const char *name, Int_t option, Int_t bsize) const
         e_info << "Writting " << numSub << " groups in " << fName << " (" << GetNumAllDrawingObjects() << ")" << endl;
         for (auto iSub=0; iSub<numSub; ++iSub) {
             auto sub = (LKDrawingGroup*) At(iSub);
-            numWrite += sub -> Write("", option);
+            numWrite += sub -> Write(name, option);
         }
-        if (fPar!=nullptr) fPar -> Write();
+        if (!flat && fPar!=nullptr) fPar -> Write();
         return numWrite;
     }
+
+    if (flat)
+        option = 0;
 
     TString wName = name;
     if (wName.IsNull()) wName = fName;
     if (wName.IsNull()) wName = "top";
     TCollection::Write(wName, option, bsize);
-    if (fPar!=nullptr) fPar -> Write();
+    if (!flat && fPar!=nullptr) fPar -> Write();
     return 1;
 }
 
@@ -929,4 +946,72 @@ TGraph* LKDrawingGroup::FindGraph(TString name)
         }
     }
     return (TGraph*) nullptr;
+}
+
+TF1* LKDrawingGroup::FindFunction(TString name)
+{
+    if (CheckIsGroupGroup())
+    {
+        auto numSub = GetEntries();
+        for (auto iSub=0; iSub<numSub; ++iSub) {
+            auto sub = (LKDrawingGroup*) At(iSub);
+            TF1* f1 = sub -> FindFunction(name);
+            if (f1!=nullptr)
+                return f1;
+        }
+    }
+    else
+    {
+        auto numDrawings = GetEntries();
+        for (auto iDrawing=0; iDrawing<numDrawings; ++iDrawing)
+        {
+            auto drawing = (LKDrawing*) At(iDrawing);
+            auto numObjs = drawing -> GetEntries();
+            for (auto iObj=0; iObj<numObjs; ++iObj)
+            {
+                auto obj = drawing -> At(iObj);
+                if (obj->InheritsFrom(TF1::Class()))
+                {
+                    if (obj->GetName()==name) {
+                        return (TF1*) obj;
+                    }
+                }
+            }
+        }
+    }
+    return (TF1*) nullptr;
+}
+
+TObject* LKDrawingGroup::FindObject(TString name, TClass *tclass)
+{
+    if (CheckIsGroupGroup())
+    {
+        auto numSub = GetEntries();
+        for (auto iSub=0; iSub<numSub; ++iSub) {
+            auto sub = (LKDrawingGroup*) At(iSub);
+            TObject* object = sub -> FindObject(name,tclass);
+            if (object!=nullptr)
+                return object;
+        }
+    }
+    else
+    {
+        auto numDrawings = GetEntries();
+        for (auto iDrawing=0; iDrawing<numDrawings; ++iDrawing)
+        {
+            auto drawing = (LKDrawing*) At(iDrawing);
+            auto numObjs = drawing -> GetEntries();
+            for (auto iObj=0; iObj<numObjs; ++iObj)
+            {
+                auto object = drawing -> At(iObj);
+                if (object->InheritsFrom(tclass))
+                {
+                    if (object->GetName()==name) {
+                        return object;
+                    }
+                }
+            }
+        }
+    }
+    return (TObject*) nullptr;
 }

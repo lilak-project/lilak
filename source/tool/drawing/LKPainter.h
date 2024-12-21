@@ -6,11 +6,11 @@
 #include "TCanvas.h"
 
 #define e_painter()                             LKPainter::GetPainter()
-#define e_cvs(name)                             LKPainter::GetPainter() -> CanvasDefault(name);
-#define e_cvs_full(name,ratio)                  LKPainter::GetPainter() -> CanvasFull(name,ratio);
-#define e_cvs_square(name,ratio)                LKPainter::GetPainter() -> CanvasSquare(name,ratio);
-#define e_cvs_default(name,ratio)               LKPainter::GetPainter() -> CanvasDefault(name,ratio);
-#define e_cvs_resize(name,width0,height0,ratio) LKPainter::GetPainter() -> CanvasResize(name, width0, height0,ratio);
+#define e_cvs(name)                             LKPainter::GetPainter() -> CanvasDefault(name)
+#define e_cvs_full(name,ratio)                  LKPainter::GetPainter() -> CanvasFull(name,ratio)
+#define e_cvs_square(name,ratio)                LKPainter::GetPainter() -> CanvasSquare(name,ratio)
+#define e_cvs_default(name,ratio)               LKPainter::GetPainter() -> CanvasDefault(name,ratio)
+#define e_cvs_resize(name,width0,height0,ratio) LKPainter::GetPainter() -> CanvasResize(name, width0, height0,ratio)
 
 class LKPainter : public TObject
 {

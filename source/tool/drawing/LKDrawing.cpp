@@ -355,7 +355,7 @@ void LKDrawing::Draw(Option_t *option)
         if (obj->InheritsFrom(TPaveText::Class())) {
             pvtt = (TPaveText*) obj;
             if (pvtt_attribute==0) {
-                pvtt -> SetTextFont(132);
+                pvtt -> SetTextFont(FindOptionInt("font",132));
                 pvtt -> SetTextAlign(12);
                 pvtt -> SetFillColor(0);
                 pvtt -> SetFillStyle(0);
@@ -452,26 +452,26 @@ void LKDrawing::SetMainHist(TPad *pad, TH1* hist)
     }
     if (CheckOption("title_font"))
     {
-        int font = FindOptionInt("title_font",132);
+        int font = FindOptionInt("title_font",FindOptionInt("font",132));
         hist -> GetXaxis() -> SetTitleFont(font);
         hist -> GetYaxis() -> SetTitleFont(font);
         hist -> GetZaxis() -> SetTitleFont(font);
     }
     if (CheckOption("label_font"))
     {
-        int font = FindOptionInt("label_font",132);
+        int font = FindOptionInt("label_font",FindOptionInt("font",132));
         hist -> GetXaxis() -> SetLabelFont(font);
         hist -> GetYaxis() -> SetLabelFont(font);
         hist -> GetZaxis() -> SetLabelFont(font);
     }
 
-    if (CheckOption("m_title_font")&&mainTitle!=nullptr) mainTitle -> SetTextFont(FindOptionInt("m_title_font",132));
-    if (CheckOption("x_title_font"))           hist -> GetXaxis() -> SetTitleFont(FindOptionInt("x_title_font",132));
-    if (CheckOption("y_title_font"))           hist -> GetYaxis() -> SetTitleFont(FindOptionInt("y_title_font",132));
-    if (CheckOption("z_title_font"))           hist -> GetZaxis() -> SetTitleFont(FindOptionInt("z_title_font",132));
-    if (CheckOption("x_label_font"))           hist -> GetXaxis() -> SetLabelFont(FindOptionInt("x_label_font",132));
-    if (CheckOption("y_label_font"))           hist -> GetYaxis() -> SetLabelFont(FindOptionInt("y_label_font",132));
-    if (CheckOption("z_label_font"))           hist -> GetZaxis() -> SetLabelFont(FindOptionInt("z_label_font",132));
+    if (CheckOption("m_title_font")&&mainTitle!=nullptr) mainTitle -> SetTextFont(FindOptionInt("m_title_font",FindOptionInt("font",132)));
+    if (CheckOption("x_title_font"))           hist -> GetXaxis() -> SetTitleFont(FindOptionInt("x_title_font",FindOptionInt("font",132)));
+    if (CheckOption("y_title_font"))           hist -> GetYaxis() -> SetTitleFont(FindOptionInt("y_title_font",FindOptionInt("font",132)));
+    if (CheckOption("z_title_font"))           hist -> GetZaxis() -> SetTitleFont(FindOptionInt("z_title_font",FindOptionInt("font",132)));
+    if (CheckOption("x_label_font"))           hist -> GetXaxis() -> SetLabelFont(FindOptionInt("x_label_font",FindOptionInt("font",132)));
+    if (CheckOption("y_label_font"))           hist -> GetYaxis() -> SetLabelFont(FindOptionInt("y_label_font",FindOptionInt("font",132)));
+    if (CheckOption("z_label_font"))           hist -> GetZaxis() -> SetLabelFont(FindOptionInt("z_label_font",FindOptionInt("font",132)));
 
     if (CheckOption("m_title_size")&&mainTitle!=nullptr) mainTitle -> SetTextSize(FindOptionDouble("m_title_size",0.05));
     if (CheckOption("x_title_size"))           hist -> GetXaxis() -> SetTitleSize(FindOptionDouble("x_title_size",0.05));
@@ -743,7 +743,7 @@ void LKDrawing::Print(Option_t *opt) const
     }
     else {
         TString drawingTitle;
-        header = header + Form("Drawing[%d]",int(GetEntries()));
+        header = header + Form("%s[%d]",(fName.IsNull()?"Drawing":fName.Data()),int(GetEntries()));
         for (auto iObj=0; iObj<numObjects; ++iObj)
         {
             auto obj = At(iObj);
