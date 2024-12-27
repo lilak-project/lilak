@@ -9,6 +9,7 @@
 #include "TGraphErrors.h"
 #include "TArrayD.h"
 #include "TArrayI.h"
+#include "TRandom.h"
 
 class LKBinning : public TNamed
 {
@@ -29,8 +30,10 @@ class LKBinning : public TNamed
 
     public:
         LKBinning(LKBinning const & binn);
+        LKBinning() : LKBinning("", "", 1, 0, 0, 1, 0, 0) {}
         LKBinning(const char* name, const char* title, int nx, double x1, double x2, int ny=1, double y1=0, double y2=0);
-        LKBinning(int nx=1, double x1=0, double x2=0, int ny=1, double y1=0, double y2=0) : LKBinning("", "", nx, x1, x2, ny, y1, y2) {}
+        LKBinning(int nx, double x1, double x2, int ny=1, double y1=0, double y2=0) : LKBinning("", "", nx, x1, x2, ny, y1, y2) {}
+        LKBinning(double x1, double x2) : LKBinning("", "", 100, x1, x2, 1, 0, 0) {}
         LKBinning(TH1 *hist);
         LKBinning(TGraph *graph);
         void operator=(const LKBinning binn); ///< copy LKBinning
@@ -58,6 +61,11 @@ class LKBinning : public TNamed
         double wy() const { return fWY; }
         double y1() const { return fY1; }
         double y2() const { return fY2; }
+
+        bool IsInside(double x) { if (x>=fX1&&x<fX2) return true; return false; }
+        bool IsInside(double x, double y) { if ((x>=fX1&&x<fX2)&&(y>=fY1&&y<fY2)) return true; return false; }
+        double GetRandomUniform()  { return gRandom -> Uniform(fX1,fX2); }
+        double GetRandomUniformY() { return gRandom -> Uniform(fY1,fY2); }
 
         void SetBinning(TH1 *hist);
         void SetBinning(TGraph *graph);
