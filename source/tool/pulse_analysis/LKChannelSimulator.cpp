@@ -1,10 +1,17 @@
 #include "LKChannelSimulator.h"
+#include "LKChannelSimulator.h"
 #include "TRandom.h"
+#include "LKCompiled.h"
 
 ClassImp(LKChannelSimulator);
 
 LKChannelSimulator::LKChannelSimulator()
 {
+    fPulse = new LKPulse(TString(LILAK_PATH)+"/common/pulseReference.root");
+
+    fBackGroundLevel = fPulse -> GetBackGroundLevel();
+    fPedestalFluctuationLevel = fPulse -> GetFluctuationLevel();
+    fFloorRatio = fPulse -> GetFloorRatio();
 }
 
 void LKChannelSimulator::SetPulse(const char* fileName)
@@ -16,7 +23,7 @@ void LKChannelSimulator::SetPulse(const char* fileName)
     fFloorRatio = fPulse -> GetFloorRatio();
 }
 
-void LKChannelSimulator::SetPedestal(int* buffer)
+void LKChannelSimulator::AddPedestal(int* buffer)
 {
     double pedestalFluctuationLevel = fPedestalFluctuationScale * fPedestalFluctuationLevel;
     for (auto tb=0; tb<fTbMax; ++tb)
@@ -26,7 +33,7 @@ void LKChannelSimulator::SetPedestal(int* buffer)
     Smoothing(buffer,fTbMax,fSmoothingLength,fNumSmoothing);
 }
 
-void LKChannelSimulator::SetFluctuatingPedestal(int* buffer)
+void LKChannelSimulator::AddFluctuatingPedestal(int* buffer)
 {
     int pmFluctuation = 1;
     double pedestalFluctuationLevel = fPedestalFluctuationScale * fPedestalFluctuationLevel;
@@ -110,4 +117,10 @@ void LKChannelSimulator::Smoothing(int* buffer, int n, int smoothingLevel, int n
             }
             buffer[i] = sum / count;
         }
+}
+
+void LKChannelSimulator::FillHist(TH1* hist)
+{
+    for (auto tb=0; tb<fTbMax; ++tb)
+        hist -> SetBinContent(tb+1,fBuffer[tb]);
 }
