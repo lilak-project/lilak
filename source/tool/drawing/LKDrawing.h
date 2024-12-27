@@ -27,6 +27,10 @@ class LKDrawing : public TObjArray
         ~LKDrawing() {}
 
         virtual const char* GetName() const;
+        /// option
+        /// - "v" : Draw with LKDataViewer
+        /// - "raw" : Skip almost all functions of LKDrawing.
+        /// - raw : Skip almost all functions of LKDrawing.
         virtual void Draw(Option_t *option="");
         virtual void Print(Option_t *option="") const;
         virtual Int_t Write(const char *name = nullptr, Int_t option=TObject::kSingleKey, Int_t bufsize = 0) const;
@@ -40,9 +44,18 @@ class LKDrawing : public TObjArray
 
         ////////////////////////////////////////////////////////////////////////////////////
         virtual void Add(TObject *obj) { Add(obj,"",""); }
-        //void Add(TObject *obj, TString drawOption) { Add(obj, "", drawOption); }
-        //void Add(TObject *obj, TString title, TString drawOption);
-        void Add(TObject *obj, TString drawOption, TString title="");
+        /// drawOption will be used to draw the object when Draw method is called. Some specaial cases are:
+        /// - "stat0" : if object is histogram, SetStat(0) will be called to the histogram
+        /// - "drawx" : object will be added to the list but will not be drawn.
+        /// - "[A]>[B]" : object will be drawn with [A] option at it's order and will be drawn
+        /// once more with [B] option after all the objects in the list are drawn. (only for histograms and graphs)
+        ///
+        /// title will be used when creating legend using SetCreateLegend method. Some specaial cases are:
+        /// - "legendx" : This object will not be added to the legend when SetCreateLegend is called.
+        /// - "." : Same as legendx
+        void Add(TObject *dataObj, TString drawOption, TString title="");
+        void AddLegendLine(TString title);
+        void SetFitObjects(TObject *data, TF1 *fit);
         void AddDrawing(LKDrawing *drawing);
         void SetTitle(int i, TString title) { fTitleArray[i] = title; }
         void SetOption(int i, TString option) { fDrawOptionArray[i] = option; }
@@ -57,6 +70,7 @@ class LKDrawing : public TObjArray
         TPad* GetCanvas() { return fCvs; }
         TH1* GetMainHist() { return fMainHist; }
         LKCut* GetCut() { return fCuts; }
+        TObject* FindObjectStartWith(const char* name) const;
 
         ////////////////////////////////////////////////////////////////////////////////////
         void SetHistColor(TH2* hist, int color, int max);
@@ -171,21 +185,30 @@ class LKDrawing : public TObjArray
         void SetPaveLineDy(double dy_line) { AddOption("pave_line_dy",dy_line); }
         void SetPaveSize(double dx, double dy_line) { SetPaveDx(dx); SetPaveLineDy(dy_line); }
         void SetCreateFrame(TString name="", TString title="") { AddOption("create_gframe"); AddOption("gframe_name",name); AddOption("gframe_title",title); } ///< Create frame if no frame histogram exist.
+        void SetCreateLegend(int iCorner=-1, double dx=0, double dyline=0) {
+            AddOption("create_legend");
+            SetLegendBelowStats();
+            if (iCorner>=0) SetLegendCorner(iCorner);
+            if (dx>0) SetPaveDx(dx);
+            if (dyline>0) SetPaveLineDy(dyline);
+        }
 
     private:
-        void MakeLegend();
+        void MakeLegend(bool remake=false);
 
     private:
-        //TString fGlobalOption = "stats_corner:legend_below_stats:font=132:opt_stat=1110";
-        TString fGlobalOption = "stats_corner:font=62:opt_stat=1110";
+        TString fGlobalOption = "stats_corner:font=132:opt_stat=1110";
         vector<TString> fTitleArray;
         vector<TString> fDrawOptionArray;
 
-        LKCut* fCuts = nullptr; //!
-        TPad* fCvs = nullptr; //!
-        TH1* fMainHist = nullptr;
-        TH1* fHistPixel = nullptr; //!
-        TLegend* fLegend = nullptr; //!
+    private:
+        LKCut*   fCuts         = nullptr; //!
+        TPad*    fCvs          = nullptr; //!
+        TH1*     fMainHist     = nullptr;
+        //TGraph*  fMainGraph    = nullptr;
+        //TF1*     fMainFunction = nullptr;
+        TH1*     fHistPixel    = nullptr; //!
+        TLegend* fLegend       = nullptr; //!
 
     ClassDef(LKDrawing, 1)
 };

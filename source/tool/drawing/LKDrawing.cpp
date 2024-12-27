@@ -56,6 +56,12 @@ void LKDrawing::Add(TObject *obj, TString drawOption, TString title)
         return;
     }
 
+    if (obj->InheritsFrom(TLegend::Class())) {
+        auto legend = ((TLegend*) obj);
+        if (TString(legend->GetName())=="TPave")
+            legend -> SetName(Form("legend_%d",GetEntriesFast()));
+    }
+
     bool isMain = false;
     auto numObjects = GetEntries();
     drawOption.ToLower();
@@ -78,16 +84,33 @@ void LKDrawing::Add(TObject *obj, TString drawOption, TString title)
             drawOption += "same";
     }
 
-    if (isMain)
-    {
-        SetName(Form("drawing_%s",obj->GetName()));
-        if (obj->InheritsFrom(TH1::Class()) && fMainHist==nullptr)
-            fMainHist = (TH1*) obj;
+    if (isMain||fMainHist==nullptr) { if (obj->InheritsFrom(TH1::Class())) fMainHist = (TH1*) obj; }
+    //if (isMain||fMainGraph==nullptr) { if (obj->InheritsFrom(TGraph::Class())) fMainGraph = (TGraph*) obj; }
+    //if (isMain||fMainFunction==nullptr) { if (obj->InheritsFrom(TF1::Class())) fMainFunction = (TF1*) obj; }
+
+    if (drawOption.Index("stat0")>=0) {
+        if (obj->InheritsFrom(TH1::Class()))
+            ((TH1*) obj) -> SetStats(0);
+        drawOption.ReplaceAll("stat0","");
     }
 
     TObjArray::Add(obj);
     fTitleArray.push_back(title);
     fDrawOptionArray.push_back(drawOption);
+}
+
+void LKDrawing::AddLegendLine(TString title)
+{
+    LKDrawing::Add((new TObject()),"",title);
+}
+
+void LKDrawing::SetFitObjects(TObject *dataObj, TF1 *fit)
+{
+    if (FindObject(dataObj)==nullptr) lk_warning << "Given data object do not exist in the list!" << endl;
+    if (FindObject(fit)==nullptr) lk_warning << "Given function object do not exist in the list!" << endl;
+    if (dataObj->InheritsFrom(TH1::Class())) fMainHist = (TH1*) dataObj;
+    //else if (dataObj->InheritsFrom(TGraph::Class())) fMainGraph = (TGraph*) dataObj;
+    //if (fit->InheritsFrom(TF1::Class())) fMainFunction = (TF1*) fit;
 }
 
 const char* LKDrawing::GetName() const
@@ -178,20 +201,44 @@ TH2D* LKDrawing::MakeGraphFrame(TGraph* graph, TString mxyTitle)
     return hist;
 }
 
-void LKDrawing::MakeLegend()
+void LKDrawing::MakeLegend(bool remake)
 {
-    if (fLegend==nullptr)
-        fLegend = new TLegend();
+    if (fLegend!=nullptr && remake==false)
+        return;
+
+    bool debug_draw = (CheckOption("debug_draw"));
+    fLegend = new TLegend(0.1,0.1,0.4,0.5);
+    fLegend -> SetName("legend_auto");
     auto numObjects = GetEntries();
     for (auto iObj=0; iObj<numObjects; ++iObj)
     {
         auto obj = At(iObj);
-        TString name = Form("%s",obj->GetName());
         TString title = fTitleArray[iObj];
-        TString option = fDrawOptionArray[iObj];
+        if (title=="legendx"||title==".")
+            continue;
+
+        TString drawOption = fDrawOptionArray[iObj];
+        TString legendOption = drawOption;
+        legendOption.ToLower();
+        legendOption.ReplaceAll("same","");
+        legendOption.ReplaceAll("*","p");
+        legendOption.ReplaceAll("2","f");
+        legendOption.ReplaceAll("3","f");
+        legendOption.ReplaceAll("4","f");
+        legendOption.ReplaceAll("5","f");
+        legendOption.ReplaceAll("z","e");
+        if (obj->InheritsFrom(TH1::Class())) legendOption = legendOption + "hl";
+        if (obj->InheritsFrom(TGraphErrors::Class()) && legendOption.Index("p")>=0) legendOption = legendOption + "e";
+
         if (obj->InheritsFrom(TH1::Class()) || obj->InheritsFrom(TGraph::Class()) || obj->InheritsFrom(TF1::Class()))
         {
-            fLegend -> AddEntry(obj,title,option);
+            if (debug_draw) lk_debug << obj->ClassName() << " | " << obj << " | " << title << " | " << drawOption << " -> " << legendOption << endl;
+            fLegend -> AddEntry(obj,title,legendOption);
+        }
+        if (TString(obj->ClassName())=="TObject")
+        {
+            if (debug_draw) lk_debug << "line | " << obj << " | " << title << " | " << drawOption << " -> " << legendOption << endl;
+            fLegend -> AddEntry((TObject*)0,title,"");
         }
     }
 }
@@ -204,6 +251,9 @@ void LKDrawing::Draw(Option_t *option)
         (new LKDataViewer(this))->Draw(ops);
         return;
     }
+
+    if (CheckOption("create_legend"))
+        MakeLegend();
 
     auto numObjects = GetEntries();
     if (ops=="raw")
@@ -329,10 +379,21 @@ void LKDrawing::Draw(Option_t *option)
     TLegend* legend = nullptr;
     TPaveText* pvtt = nullptr;
 
+    int countAfterDraw = 0;
+    vector<TObject*> afterDrawObjects;
+    vector<TString>  afterDrawOptions;
+
     for (auto iObj=0; iObj<numObjects; ++iObj)
     {
         auto obj = At(iObj);
+        TString nameObj = obj -> GetName();
+        if (nameObj.IsNull()) nameObj = obj -> ClassName();
         auto drawOption = fDrawOptionArray.at(iObj);
+        if (drawOption=="drawx") {
+            if (debug_draw)
+                lk_debug << "Skipping " << nameObj << " (" << drawOption << ")" << endl;
+            continue;
+        }
         fCvs -> cd();
         if (obj->InheritsFrom(TH1::Class())) {
             if (countHistCC>0 && obj->InheritsFrom(TH2::Class())) {
@@ -342,6 +403,7 @@ void LKDrawing::Draw(Option_t *option)
         }
         if (obj->InheritsFrom(TLegend::Class())) {
             legend = (TLegend*) obj;
+            legend -> SetFillColor(fCvs->GetFillColor());
             if (optimize_legend_position && legend->GetX1()==0.3 && legend->GetX2()==0.3 && legend->GetY1()==0.15 && legend->GetY2()==0.15)
             {
                 legend -> SetX1(0.1);
@@ -354,6 +416,7 @@ void LKDrawing::Draw(Option_t *option)
         }
         if (obj->InheritsFrom(TPaveText::Class())) {
             pvtt = (TPaveText*) obj;
+            pvtt -> SetFillColor(fCvs->GetFillColor());
             if (pvtt_attribute==0) {
                 pvtt -> SetTextFont(FindOptionInt("font",132));
                 pvtt -> SetTextAlign(12);
@@ -363,21 +426,52 @@ void LKDrawing::Draw(Option_t *option)
             }
         }
         if (obj->InheritsFrom(TGraph::Class())) {
-            if (((TGraph*)obj)->GetN()==0)
+            if (((TGraph*)obj)->GetN()==0) {
+                if (debug_draw)
+                    lk_debug << "Skipping because no points in " << nameObj << " (" << drawOption << ")" << endl;
                 continue;
+            }
         }
-        if (obj->InheritsFrom(TCut::Class())||obj->InheritsFrom(TCutG::Class()))
+        if (obj->InheritsFrom(TCut::Class())||obj->InheritsFrom(TCutG::Class())) {
+            if (debug_draw)
+                lk_debug << "Skipping cut " << nameObj << " (" << drawOption << ")" << endl;
             continue;
+        }
         if (merge_pvtt_stats && obj->InheritsFrom(TPaveText::Class())) {
             listOfPaveTexts.push_back((TPaveText*)obj);
+            if (debug_draw)
+                lk_debug << "Skipping " << nameObj << " to merge with stats (" << drawOption << ")" << endl;
             continue;
         }
-        if (debug_draw) {
-            TString oname = obj -> GetName();
-            if (oname.IsNull()) oname = obj -> ClassName();
-            lk_debug << oname << " (" << drawOption << ")" << endl;
+        if (obj->InheritsFrom(TH1::Class()) || obj->InheritsFrom(TGraph::Class()))
+        {
+            auto ii = drawOption.Index(">");
+            if (ii>0) {
+                auto drawOption2 = TString(drawOption(ii+1,drawOption.Sizeof()-ii-2));
+                drawOption = TString(drawOption(0,ii));
+                if (drawOption2.IsNull()==false)
+                {
+                    countAfterDraw++;
+                    afterDrawObjects.push_back(obj);
+                    afterDrawOptions.push_back(drawOption2);
+                }
+            }
         }
+        if (debug_draw)
+            lk_debug << nameObj << " (" << drawOption << ")" << endl;
         obj -> Draw(drawOption);
+    }
+
+    while ((countAfterDraw--)>0) {
+        auto obj = afterDrawObjects.back();
+        TString nameObj = obj -> GetName();
+        if (nameObj.IsNull()) nameObj = obj -> ClassName();
+        auto drawOption2 = afterDrawOptions.back();
+        if (debug_draw)
+            lk_debug << nameObj << " (" << drawOption2 << ")" << endl;
+        obj -> Draw(drawOption2);
+        afterDrawObjects.pop_back();
+        afterDrawOptions.pop_back();
     }
 
     fCuts -> Draw(x1,x2,y1,y2);
@@ -407,6 +501,11 @@ void LKDrawing::Draw(Option_t *option)
                 ttOut -> SetTextSize (ttIn->GetTextSize ());
             }
         }
+    }
+
+    if (fLegend!=nullptr) {
+        legend = fLegend;
+        fLegend -> Draw();
     }
     fCvs -> Modified();
     fCvs -> Update();
@@ -554,6 +653,7 @@ TPaveStats* LKDrawing::MakeStats(TPad *cvs)
     if (statsbox==nullptr)
         return (TPaveStats*)nullptr;
 
+    statsbox -> SetFillColor(cvs->GetFillColor());
     if (CheckOption("opt_stat")) {
         auto mode = FindOptionInt("opt_stat",1111);
         statsbox -> SetOptStat(mode);
@@ -694,6 +794,16 @@ void LKDrawing::MakeLegendBelowStats(TPad* cvs, TLegend *legend)
     legend -> SetY2NDC(y2_legend);
 }
 
+TObject* LKDrawing::FindObjectStartWith(const char *name) const
+{
+    Int_t nobjects = GetAbsLast()+1;
+    for (Int_t i = 0; i < nobjects; ++i) {
+        TObject *obj = fCont[i];
+        if (obj && TString(obj->GetName()).Index(name)>=0) return obj;
+    }
+    return nullptr;
+}
+
 void LKDrawing::SetHistColor(TH2* hist, int color, int max)
 {
     auto nx = hist -> GetXaxis() -> GetNbins();
@@ -781,10 +891,13 @@ void LKDrawing::Clear(Option_t *option)
     fTitleArray.clear();
     fDrawOptionArray.clear();
 
+    fCuts = nullptr;
     fCvs = nullptr;
     fMainHist = nullptr;
-    fLegend = nullptr;
-    fHistPixel = nullptr;
+    //fMainGraph = nullptr;
+    //fMainFunction = nullptr;
+    if (fHistPixel!=nullptr) delete fHistPixel;
+    if (fLegend!=nullptr) delete fLegend;
 }
 
 void LKDrawing::CopyTo(LKDrawing* drawing, bool clearFirst)

@@ -33,6 +33,7 @@ class LKDataViewer : public TGMainFrame
         TString fSavePath = "data_lilak";
         bool fMinimumUIComponents = false;
         bool fIsActive = false;
+        int fCanvasFillColor = 0;
 
         LKDrawingGroup *fCurrentGroup = nullptr;
         LKDrawing *fCurrentDrawing = nullptr;
@@ -121,6 +122,7 @@ class LKDataViewer : public TGMainFrame
         /// resize
         /// saveall
         void Draw(TString option="");
+        virtual void Print(Option_t *option="") const;
         virtual void SetName(const char* name);
 
         bool IsActive() const { return fIsActive; }

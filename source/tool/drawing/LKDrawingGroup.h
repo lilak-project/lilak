@@ -93,7 +93,7 @@ class LKDrawingGroup : public TObjArray
         TH1*       FindHist(TString name);
         TGraph*    FindGraph(TString name);
         TF1*       FindFunction(TString name);
-        TObject*   FindObject(TString name, TClass *tclass);
+        TObject*   FindClassObject(TString name, TClass *tclass);
 
         // file
         TString GetFileName() { return fFileName; }

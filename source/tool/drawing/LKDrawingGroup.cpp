@@ -63,11 +63,14 @@ void LKDrawingGroup::Draw(Option_t *option)
         if (fViewer==nullptr) {
             LKDrawingGroup* group = this;
             if (IsDrawingGroup()) {
-                lk_debug << endl;
                 group = new LKDrawingGroup("top");
                 group -> AddGroup(this);
+                lk_debug << endl;
+                group -> Print();
             }
             fViewer = new LKDataViewer(group);
+            lk_debug << endl;
+            fViewer -> Print();
         }
 
         if (fViewer->IsActive())
@@ -446,8 +449,9 @@ void LKDrawingGroup::DividePad(TPad* cvs, Int_t nx, Int_t ny, Float_t xmargin, F
     dy = 1/Double_t(ny);
     dx = 1/Double_t(nx);
     if (CheckOption("vertical_pad_numbering")) {
-        //for (ix=0;ix<nx;ix++) {
-        for (ix=nx-1;ix>=0;ix--) {
+        //for (ix=0;ix<nx;ix++)
+        for (ix=nx-1;ix>=0;ix--)
+        {
             x2 = 1 - ix*dx - xmargin;
             x1 = x2 - dx + 2*xmargin;
             if (x1 < 0) x1 = 0;
@@ -460,6 +464,7 @@ void LKDrawingGroup::DividePad(TPad* cvs, Int_t nx, Int_t ny, Float_t xmargin, F
                 name.Form("%s_%d", GetName(), n);
                 pad = new TPad(name.Data(), name.Data(), x1, y1, x2, y2, color);
                 pad->SetNumber(n);
+                pad->SetFillColor(cvs->GetFillColor());
                 pad->Draw();
             }
         }
@@ -478,6 +483,7 @@ void LKDrawingGroup::DividePad(TPad* cvs, Int_t nx, Int_t ny, Float_t xmargin, F
                 name.Form("%s_%d", GetName(), n);
                 pad = new TPad(name.Data(), name.Data(), x1, y1, x2, y2, color);
                 pad->SetNumber(n);
+                pad->SetFillColor(cvs->GetFillColor());
                 pad->Draw();
             }
         }
@@ -982,14 +988,14 @@ TF1* LKDrawingGroup::FindFunction(TString name)
     return (TF1*) nullptr;
 }
 
-TObject* LKDrawingGroup::FindObject(TString name, TClass *tclass)
+TObject* LKDrawingGroup::FindClassObject(TString name, TClass *tclass)
 {
     if (CheckIsGroupGroup())
     {
         auto numSub = GetEntries();
         for (auto iSub=0; iSub<numSub; ++iSub) {
             auto sub = (LKDrawingGroup*) At(iSub);
-            TObject* object = sub -> FindObject(name,tclass);
+            TObject* object = sub -> FindClassObject(name,tclass);
             if (object!=nullptr)
                 return object;
         }

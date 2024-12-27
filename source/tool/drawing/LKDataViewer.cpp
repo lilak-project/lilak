@@ -182,6 +182,8 @@ void LKDataViewer::Draw(TString option)
     fMinimumUIComponents = LKMisc::CheckOption(option,"m");
     auto loadAllCanvases = LKMisc::CheckOption(option,"l");
     auto saveAllCanvases = LKMisc::CheckOption(option,"s");
+    fCanvasFillColor = (LKMisc::CheckOption(option,"dm")?kGray:0);
+    fCanvasFillColor = LKMisc::FindOptionInt(option,"fc",fCanvasFillColor);
 
     if (fMinimumUIComponents) {
         //loadAllCanvases = true;
@@ -202,6 +204,49 @@ void LKDataViewer::Draw(TString option)
     //if (resize_scale!=1)
     //    ProcessSizeViewer(resize_scale);
     fIsActive = true;
+}
+
+void LKDataViewer::Print(Option_t *opt) const
+{
+    /*
+    TString option = opt;
+    bool isTop = false;
+    if (LKMisc::CheckOption(option,"level")==false) {
+        isTop = true;
+        e_info << "LKDrawingGroup " << fName << endl;
+        option = option + ":level=0";
+    }
+
+    int tab = 0;
+    if (LKMisc::CheckOption(option,"level"))
+        tab = TString(LKMisc::FindOption(option,"level",false,1)).Atoi();
+    TString header; for (auto i=0; i<tab; ++i) header += "  ";
+
+    if (fIsGroupGroup)
+    {
+        auto numSub = GetEntries();
+        TString title = header + Form("DrawingGroup[%d] %s",numSub,fName.Data());
+        e_cout << title << endl;
+
+        for (auto iSub=0; iSub<numSub; ++iSub) {
+            auto sub = (LKDrawingGroup*) At(iSub);
+            sub -> Print(option);
+        }
+    }
+    else
+    {
+        auto numDrawings = GetEntries();
+        e_cout << header << "Group " << fName << " containing " << numDrawings << " drawings" << endl;
+        for (auto iDrawing=0; iDrawing<numDrawings; ++iDrawing)
+        {
+            auto drawing = (LKDrawing*) At(iDrawing);
+            drawing -> Print(option);
+        }
+        if (LKMisc::CheckOption(option,"!drawing")==false) e_cout << endl;
+    }
+    if (isTop)
+        e_info << GetNumAllDrawings() << " drawings in total" << endl;
+    */
 }
 
 void LKDataViewer::SetName(const char* name)
@@ -290,12 +335,14 @@ int LKDataViewer::AddGroupTab(LKDrawingGroup* group, int iTab, int iSub)
             tabFrame->AddFrame(ecvs, NewHintsMainFrame());
             //tabFrame->AddFrame(ecvs);//, NewHintsMainFrame());
             TCanvas *canvas = ecvs->GetCanvas();
+            canvas -> SetFillColor(fCanvasFillColor);
             group -> SetCanvas(canvas);
         }
         else {
             tabFrame->SetEditable();
             TCanvas* canvas = new TCanvas(cvsName, cvsName, 400, 400);
             tabFrame->SetEditable(kFALSE);
+            canvas -> SetFillColor(fCanvasFillColor);
             group -> SetCanvas(canvas);
         }
     }
