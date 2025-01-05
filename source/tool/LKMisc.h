@@ -19,6 +19,7 @@ class LKMisc : public TObject
         static void DrawColors();
         static void DrawMarkers();
         static void DrawColors(vector<int> colors);
+        static void DrawColors(vector<TString> colors);
         static void DrawFonts();
 
         static int     FindOptionInt   (TString &option, TString name, int emptyValue);

@@ -2,6 +2,7 @@
 #include "LKPainter.h"
 
 #include "TColorWheel.h"
+#include "TColor.h"
 #include "TMarker.h"
 #include "TH2D.h"
 #include "TMath.h"
@@ -382,6 +383,50 @@ void LKMisc::DrawMarkers()
             m -> Draw();
             t -> Draw();
             i++;
+        }
+    }
+}
+
+void LKMisc::DrawColors(vector<TString> colors)
+{
+    int nx = 10;
+    int nc = colors.size();
+    int ny = 5;
+    if (nc>nx*ny) { ny = 6; nx = 12; }
+    if (nc>nx*ny) { ny = 7; nx = 14; }
+    if (nc>nx*ny) { ny = 8; nx = 16; }
+    if (nc>nx*ny) { ny = 9; nx = 18; }
+    if (nc>nx*ny) { ny =10; nx = 20; }
+
+    auto cvs = e_painter() -> CanvasResize("CvsLKMiscUserColors",60*nx,80*ny, 0.1*ny);
+    cvs -> SetMargin(0.02,0.02,0.02,0.02);
+    auto hist = new TH2D("HistLKMiscUserColors","",100,0.2,nx+.8,100,0.1,1.1*ny);
+    hist -> SetStats(0);
+    hist -> GetXaxis() -> SetLabelOffset(100);
+    hist -> GetYaxis() -> SetLabelOffset(100);
+    hist -> GetXaxis() -> SetNdivisions(0);
+    hist -> GetYaxis() -> SetNdivisions(0);
+    hist -> Draw();
+    int countColors = 0;
+    for (auto y=ny; y>=1; --y)
+    {
+        for (auto x=1; x<=nx; ++x)
+        {
+            if (countColors>=nc) break;
+            int color = TColor::GetColor(colors[countColors]);
+            auto m = new TMarker(x,y,21);
+            m -> SetMarkerSize(3.5);
+            m -> SetMarkerColor(color);
+            auto t = new TText(x,y-0.42,Form("%s",colors[countColors].Data()));
+            //auto t = new TText(x,y-0.42,Form("%d (%d)",countColors,color));
+            //auto t = new TText(x,y-0.42,Form("%d",countColors));
+            t -> SetTextSize(0.025);
+            t -> SetTextFont(42);
+            t -> SetTextColor(color);
+            t -> SetTextAlign(22);
+            m -> Draw();
+            t -> Draw();
+            countColors++;
         }
     }
 }
