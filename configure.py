@@ -24,6 +24,15 @@ def print_h(*messages):
     bline()
     print(print_head + "##" + print_end + full_message)
 
+def print_e(*messages):
+    print_head = '\033[91m'
+    print_end = '\033[0m'
+    full_message = ""
+    for message in messages:
+        full_message = full_message + " " + message
+    #bline()
+    print(print_head + "ERROR" + print_end + full_message)
+
 print_h("LILAK configuration macro")
 
 lilak_path = os.path.dirname(os.path.abspath(__file__))
@@ -49,7 +58,7 @@ build_options = build_options0.copy()
 GRU_dir = "/usr/local/gru"
 GET_dir = "/usr/local/get"
 
-list_top_directories = ["build", "data", "log", "macros", "source"]
+list_top_directories = ["build", "data", "log", "macros", "source", "examples", ".git", "common"]
 list_prj_subdir_link = ["container", "detector", "tool", "task"]
 list_prj_subdir_xlink = ["source"]
 list_sub_packages = ["geant4", "get", "fftw", "mfm"]
@@ -90,16 +99,22 @@ def input_e0(question="<Enter/0>", possible_options=['0', '']):
             print("Invalid input. Please try again.")
     return user_input
 
-def input_options(options, question="Type option number(s) to Add. Type <Enter> if non: "):
-    list(options)
+def input_options(options, question="Enter <number(s)> to Add. Enter <a> to select all. Hit <Enter> to skip: "):
+    option_list = list(options)
+    if len(option_list)>30:
+        print_e("Too many options: ", len(option_list))
     idx_option = {}
-    for idx, key in enumerate(list(options)):
-        if idx + 1 < 10:
+    for idx, key in enumerate(option_list):
+        if idx < 9:
             idxalp = str(idx + 1)
+        elif idx < 31:
+            idxalp = chr((idx - 10) + 99)
         else:
-            idxalp = chr((idx - 10) + 97)
+            continue
         print(f"    {idxalp}) {key}")
         idx_option[idxalp] = key
+    #print()
+    #print(f"    a) To select all")
     print()
     user_options = input(question)
     print()
@@ -109,6 +124,9 @@ def input_options(options, question="Type option number(s) to Add. Type <Enter> 
     list_chosen_key = []
     if len(user_options) == 0:
         print(f"    --")
+    elif user_options=="a":
+        list_chosen_key = option_list
+        print(f"    All")
     else:
         for idxalp in user_options:
             key = idx_option[idxalp]
@@ -326,7 +344,8 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
     print()
     build_options = build_options0.copy()
 
-    list_chosen_key = input_options(build_options, question="Type option number(s) to Add. Type <Enter> if non: ")
+    #list_chosen_key = input_options(build_options, question="Type option number(s) to Add. Type <Enter> if non: ")
+    list_chosen_key = input_options(build_options)
     for key in list_chosen_key:
         build_options[key] = True
         if key == "BUILD_MFM_CONVERTER":
@@ -364,10 +383,14 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
                     if subdir=="macros":
                         is_project_directory = True
                         break
+                    if subdir==".lilak":
+                        is_project_directory = True
+                        break
                 if is_project_directory:
                     list_prj_directories.append(directory_name)
 
-        list_chosen_key = input_options(list_prj_directories, question="Type project directory number(s) to Add. Type <Enter> if non: ")
+        #list_chosen_key = input_options(list_prj_directories, question="Type project directory number(s) to Add. Type <Enter> if non: ")
+        list_chosen_key = input_options(list_prj_directories)
         for key in list_chosen_key:
             project_list.append(key)
         break
@@ -583,7 +606,7 @@ lilak() {{
         echo
         echo "Project commands:"
         for project in {" ".join(project_list)}; do
-            echo "  $project           Navigate to the macros directory of the project $project."
+            printf "  %-18s Navigate to the macros directory of the project %s.\n" "$project" "$project"
         done
         return
     fi
@@ -663,7 +686,7 @@ lilak() {{
             if [ -z "$2" ]; then
                 echo "Error: Please provide the search term."
             else
-                file=$(find "$LILAK_PATH" -name "*$2*" -print -quit)
+                file=$(find "$LILAK_PATH" -not -path "$LILAK_PATH/build/*" -name "*$2*" -print -quit)
                 if [ -n "$file" ]; then
                     dir=$(dirname "$file")
                     echo "Found '$file'"
@@ -693,7 +716,7 @@ lilak() {{
                 if cd "$target_dir"; then
                     echo "Changed directory to: $(pwd)"
                 else
-                    echo "Directory not found: $target_dir"
+                    cd "/path/to/projects/$1" || return
                 fi
             else
                 echo "Unknown command or project: $1"
