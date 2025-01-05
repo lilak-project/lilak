@@ -46,7 +46,7 @@ void LKChannelSimulator::AddFluctuatingPedestal(int* buffer)
 
     while (tbPointer<fTbMax)
     {
-        int tbFlucLength = gRandom -> Gaus(fPedestalFluctuationLength,fPedestalFluctuationLength*0.2);
+        int tbFlucLength = gRandom -> Gaus(fPedestalFluctuationLength,fPedestalFluctuationLength*fPedestalFluctuationLengthError);
         tbFlucLength = abs(tbFlucLength);
         if (tbFlucLength==0) tbFlucLength = 1;
 

@@ -60,7 +60,7 @@ class LKChannelSimulator : public TObject
         void SetNumSmoothing(int num) { fNumSmoothing = num; }
         void SetSmoothingLength(int length) { fSmoothingLength = length; }
         void SetPedestalFluctuationScale(double scale) { fPedestalFluctuationScale = scale; }
-        void SetPedestalFluctuationLength(int length) { fPedestalFluctuationLength = length; }
+        void SetPedestalFluctuationLength(int length, double error=0.1) { fPedestalFluctuationLength = length; fPedestalFluctuationLengthError = error; }
         void SetBackGroundLevel(double value) { fBackGroundLevel = value; }
         void SetPulseErrorScale(double scale) { fPulseErrorScale = scale; }
         void SetCutBelow0(bool value) { fCutBelow0 = value; }
@@ -95,6 +95,7 @@ class LKChannelSimulator : public TObject
         double       fPedestalFluctuationLevel = 1; ///< Background pedestal will fluctuate around this value. Will be set from pulse data file.
         double       fPedestalFluctuationScale = 1; ///< scale=0 will draw flat background distribution where scale=1 will draw background with standard error. Can be set with SetPedestalFluctuationScale().
         int          fPedestalFluctuationLength = 4; ///< Used for SetFluctuatingPedestal(). The width of bakcground fluctuatation will be around this value. Can be set with SetPedestalFluctuationLength().
+        double       fPedestalFluctuationLengthError = 4;
         double       fPulseErrorScale = 0.05; ///<
         bool         fCutBelow0 = true;
 
