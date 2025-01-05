@@ -273,6 +273,7 @@ class LKRun : public LKTask
         void PrintDrawings();
         TObjArray* GetUserDrawingArray() { return fUserDrawingArray; }
 
+        void DrawAfterRun(Option_t* option="") { fDrawAfterRun = true; fDrawOption = option; }
         virtual void Draw(Option_t* option="");
         LKDrawingGroup* GetTopDrawingGroup();
         LKDrawingGroup* FindGroup(TString name="")      { return GetTopDrawingGroup() -> FindGroup(name,0); }
@@ -390,6 +391,9 @@ class LKRun : public LKTask
         TString fExitLogPath;
 
         TObjArray* fUserDrawingArray = nullptr;
+
+        bool fDrawAfterRun = false;
+        TString fDrawOption;
 
         bool fIsLILAKRun = false;
 

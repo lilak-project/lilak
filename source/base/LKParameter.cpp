@@ -473,8 +473,11 @@ TString LKParameter::GetGroup(int ith) const
 
 TString LKParameter::GetLine(TString printOptions) const
 {
+    bool showRawEvalValues = true;
     bool evaluatePar = true;
     bool showParComments = true;
+    if (printOptions.Index("!vall")>=0) { showRawEvalValues = false; printOptions.ReplaceAll("!vall", ""); }
+    if (printOptions.Index( "vall")>=0) { showRawEvalValues = true;  printOptions.ReplaceAll("vall", ""); }
     if (printOptions.Index("!eval")>=0) { evaluatePar = false; printOptions.ReplaceAll("!eval", ""); }
     if (printOptions.Index( "eval")>=0) { evaluatePar = true;  printOptions.ReplaceAll("eval", ""); }
     if (printOptions.Index("!par#")>=0) { showParComments = false; printOptions.ReplaceAll("!par#", ""); }
@@ -493,7 +496,7 @@ TString LKParameter::GetLine(TString printOptions) const
     else                         vwidth = 20;
 
     if (IsLineComment()) {
-        TString line = TString("# ") + fComment;
+        TString line = TString("    # ") + fComment;
         return line;
     }
 
@@ -505,7 +508,9 @@ TString LKParameter::GetLine(TString printOptions) const
     }
 
     TString value = fValue;
-    if (!evaluatePar)
+    if (showRawEvalValues)
+        value = fTitle + " --> " + fValue;
+    else if (!evaluatePar)
         value = fTitle;
     if (value.Sizeof()<vwidth) {
         auto n = vwidth - value.Sizeof();
@@ -518,7 +523,7 @@ TString LKParameter::GetLine(TString printOptions) const
         line = line + "  # " + fComment;
 
     if (IsCommentOut())
-        line = TString("# ") + line;
+        line = TString("    # ") + line;
 
     return line;
 }

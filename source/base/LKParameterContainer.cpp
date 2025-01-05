@@ -376,7 +376,7 @@ Int_t LKParameterContainer::AddFile(TString parName, TString fileName)
     return countParameters;
 }
 
-Int_t LKParameterContainer::AddParameterContainer(LKParameterContainer *parc)
+Int_t LKParameterContainer::AddParameterContainer(LKParameterContainer *parc, bool addEvalOnly)
 {
     lk_info << "Adding parameter container " << parc -> GetName() << endl;
 
@@ -402,7 +402,8 @@ Int_t LKParameterContainer::AddParameterContainer(LKParameterContainer *parc)
             continue;
         }
         else {
-            SetPar(parameter->GetName(),parameter->GetRaw(),parameter->GetValue(),parameter->GetComment(),parameter->GetType());
+            if (addEvalOnly) SetPar(parameter->GetName(),parameter->GetValue(),parameter->GetValue(),parameter->GetComment(),parameter->GetType());
+            else             SetPar(parameter->GetName(),parameter->GetRaw(),  parameter->GetValue(),parameter->GetComment(),parameter->GetType());
             ++countParameters;
         }
     }
@@ -588,30 +589,20 @@ void LKParameterContainer::Print(Option_t *option) const
         return;
     }
 
-    bool evaluatePar = false;
-    bool showLineComment = true;
-    bool showParComments = true;
     bool showLineIndex = true;
+    bool showLineComment = true;
     bool printToScreen = true;
     bool printToFile = false;
     ofstream fileOut;
 
     if (printOptions.Index("all")>=0) {
-        evaluatePar = true;
+        showLineIndex = true;
         showLineComment = true;
-        showParComments = true;
         printToScreen = true;
     }
     else {
-        if (printOptions.Index("!eval")>=0) { evaluatePar = false; printOptions.ReplaceAll("!eval", ""); }
-        if (printOptions.Index( "eval")>=0) { evaluatePar = true;  printOptions.ReplaceAll("eval", ""); }
-
         if (printOptions.Index("!line#")>=0) { showLineComment = false; printOptions.ReplaceAll("!line#", ""); }
-        if (printOptions.Index( "line#")>=0) { showLineComment = true;  printOptions.ReplaceAll("line#", ""); }
-
-        if (printOptions.Index("!par#")>=0) { showParComments = false; printOptions.ReplaceAll("!par#", ""); }
-        if (printOptions.Index( "par#")>=0) { showParComments = true;  printOptions.ReplaceAll("par#", ""); }
-
+        if (printOptions.Index( "line#")>=0) { showLineComment = true;  printOptions.ReplaceAll(" line#", ""); }
         if (printOptions.Index("!idx")>=0) { showLineIndex = false; printOptions.ReplaceAll("!idx", ""); }
         if (printOptions.Index( "idx")>=0) { showLineIndex = true;  printOptions.ReplaceAll("idx", ""); }
     }
@@ -643,19 +634,9 @@ void LKParameterContainer::Print(Option_t *option) const
     TString preGroup = "";
     while ((parameter = dynamic_cast<LKParameter*>(iterator())))
     {
-        TString parName = parameter -> GetName();
         TString parGroup = parameter -> GetGroup();
-        TString parRaw = parameter -> GetRaw();
-        TString parValue = parameter -> GetValue();
-        TString parComment = parameter -> GetComment();
-
-        if (!evaluatePar)
-            parValue = parRaw;
 
         bool addEmptyLine = false;
-        //if (preGroup!="" && preGroup!=parGroup)
-            //addEmptyLine = true;
-
         bool isLineComment = false;
         bool isParameter = true;
         if (parameter -> IsLineComment()) {
@@ -667,33 +648,6 @@ void LKParameterContainer::Print(Option_t *option) const
             isParameter = true;
         }
 
-        if (isParameter) {
-            if (!showParComments)
-                parComment = "";
-            else if (!parComment.IsNull())
-                parComment = TString(" # ") + parComment;
-        }
-
-        parName = parameter -> GetTypeHeader() + parName;
-
-        int nwidth = 20;
-             if (parName.Sizeof()>60) nwidth = 70;
-        else if (parName.Sizeof()>50) nwidth = 60;
-        else if (parName.Sizeof()>40) nwidth = 50;
-        else if (parName.Sizeof()>30) nwidth = 40;
-        //else if (parName.Sizeof()>20) nwidth = 30;
-        else                          nwidth = 30;
-
-        int vwidth = 5;
-             if (parValue.Sizeof()>60) vwidth = 70;
-        else if (parValue.Sizeof()>50) vwidth = 60;
-        else if (parValue.Sizeof()>40) vwidth = 50;
-        else if (parValue.Sizeof()>30) vwidth = 40;
-        else if (parValue.Sizeof()>20) vwidth = 30;
-        else if (parValue.Sizeof()>10) vwidth = 20;
-        else if (parValue.Sizeof()>5)  vwidth = 10;
-        else                           vwidth = 5;
-
         if (addEmptyLine) {
             if (printToScreen) e_cout << endl;
             if (printToFile)   fileOut << endl;
@@ -701,21 +655,19 @@ void LKParameterContainer::Print(Option_t *option) const
         if (preGroup!=parGroup && printToFile)
             fileOut << endl;
 
-        if (isLineComment && showLineComment) {
+        if (isLineComment && showLineComment)
+        {
             if (showLineComment) {
-                if (printToScreen) e_cout << "# " << parComment << endl;
-                //if (printToFile)   fileOut << "# " << parComment << endl;
+                if (printToScreen) e_cout  << parameter->GetLine(TString(option)) << endl;
                 if (printToFile)   fileOut << parameter->GetLine(TString(option)) << endl;
             }
         }
-        else if (isParameter) {
+        else if (isParameter)
+        {
             if (printToScreen) {
-                //if (showLineIndex) e_list(parNumber) << left << setw(nwidth) << parName << " " << setw(vwidth) << parValue << " " << parComment << endl;
                 if (showLineIndex) e_list(parNumber) << left << parameter->GetLine(TString(option)) << endl;
                 else               e_cout            << left << parameter->GetLine(TString(option)) << endl;
-                //else               e_cout << left << setw(nwidth) << parName << " " << setw(vwidth) << parValue << " " << parComment << endl;
             }
-            //if (printToFile) fileOut << left << setw(nwidth) << parName << " " << setw(vwidth) << parValue << " " << parComment << endl;
             if (printToFile) fileOut << parameter->GetLine(TString(option)) << endl;
         }
 
@@ -727,8 +679,6 @@ void LKParameterContainer::Print(Option_t *option) const
     if (printToScreen)
         lk_info << "End of Parameter Container " << fName << endl;
         e_cout << endl;
-
-    //if (printToFile) fileOut << endl;
 }
 
 LKParameterContainer *LKParameterContainer::CloneParameterContainer(TString name, bool addTemporary) const
@@ -746,7 +696,7 @@ LKParameterContainer *LKParameterContainer::CloneParameterContainer(TString name
         }
         else if (parameter->IsLineComment()) {
             auto comment = parameter->GetComment();
-            new_collection -> SetLineComment(Form("> %s",parameter->GetComment().Data()));
+            new_collection -> SetLineComment(Form(">%s",parameter->GetComment().Data()));
         }
         else
             new_collection -> Add(parameter);

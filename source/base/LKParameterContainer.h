@@ -160,8 +160,8 @@ class LKParameterContainer : public TObjArray
          * parameter name will be set as INPUT_PARAMETER_FILE[fNumInputFiles]
          */
         virtual Int_t AddFile(TString parName, TString fileName); ///< Add parameter file
-        virtual Int_t AddFile(TString fileName) { return AddFile("", fileName); }
-        virtual Int_t AddParameterContainer(LKParameterContainer *parc); ///< Add parameter container pointer
+        virtual Int_t AddFile(TString fileName, bool addEvalOnly=false) { return AddFile("", fileName); }
+        virtual Int_t AddParameterContainer(LKParameterContainer *parc, bool addEvalOnly=false); ///< Add parameter container pointer
         Int_t GetNumInputFiles() const { return fNumInputFiles; } ///< Get number of input parameter files
         bool SearchAndAddPar(TString dirName="");
 

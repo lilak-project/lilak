@@ -11,11 +11,11 @@ void LKGear::SetParameterContainer(LKParameterContainer *par) {
     fPar = par;
 }
 
-void LKGear::AddParameterContainer(LKParameterContainer *par) {
+void LKGear::AddParameterContainer(LKParameterContainer *par, bool addEvalOnly) {
     if (fPar == nullptr)
         fPar = par;
     else
-        fPar -> AddParameterContainer(par);
+        fPar -> AddParameterContainer(par, addEvalOnly);
     fPar -> Recompile();
 }
 

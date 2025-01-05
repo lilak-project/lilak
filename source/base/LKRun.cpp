@@ -290,21 +290,22 @@ void LKRun::Print(Option_t *option) const
             lk_info << "Input tree do not exist" << endl;
         }
         else {
-            lk_info << "Input: " << fInputFileName << endl;
-            lk_info << "  Entries " << fInputTree -> GetEntries() << endl;
-            lk_info << "  * Main " << endl;
+            lk_info << "Input:" << endl;
+            e_cout << "   " << fInputFileName << endl;
+            e_cout << "      Entries " << fInputTree -> GetEntries() << endl;
+            e_cout << "      * Main " << endl;
             auto branchList = fInputTree -> GetListOfBranches();
             auto numBranches = branchList -> GetEntries();
             for (auto ib=0; ib<numBranches; ++ib)
-                lk_info << "    Branch " << ((TBranch *) branchList -> At(ib)) -> GetName() << endl;
+                e_cout << "        Branch " << ((TBranch *) branchList -> At(ib)) -> GetName() << endl;
 
             for (Int_t iFriend = 0; iFriend < fNumFriends; iFriend++) {
-                lk_info << "  * Friend(" << iFriend << ")" <<endl;
+                e_cout << "      * Friend(" << iFriend << ")" <<endl;
                 auto friendTree = (TChain*) fFriendTrees -> At(iFriend);
                 branchList = friendTree -> GetListOfBranches();
                 numBranches = branchList -> GetEntries();
                 for (auto ib=0; ib<numBranches; ++ib)
-                    lk_info << "    Branch " << ((TBranch *) branchList -> At(ib)) -> GetName() << endl;
+                    e_cout << "        Branch " << ((TBranch *) branchList -> At(ib)) -> GetName() << endl;
             }
         }
     }
@@ -316,12 +317,13 @@ void LKRun::Print(Option_t *option) const
             lk_info << "Output tree do not exist" << endl;
         }
         else {
-            lk_info << "Output: " << fOutputFileName << endl;
-            lk_info << "  Entries " << fOutputTree -> GetEntries() << endl;
+            lk_info << "Output: " << endl;
+            e_cout << "   " << fOutputFileName << endl;
+            e_cout << "      Entries " << fOutputTree -> GetEntries() << endl;
             auto branchList = fOutputTree -> GetListOfBranches();
             auto numBranches = branchList -> GetEntries();
             for (auto ib=0; ib<numBranches; ++ib)
-                lk_info << "  Branch " << ((TBranch *) branchList -> At(ib)) -> GetName() << endl;
+                e_cout << "      Branch " << ((TBranch *) branchList -> At(ib)) -> GetName() << endl;
         }
     }
 
@@ -862,7 +864,7 @@ bool LKRun::Init()
 
         if (fInputFile -> Get("ParameterContainer") != nullptr) {
             auto par = (LKParameterContainer *) fInputFile -> Get("ParameterContainer");
-            AddParameterContainer(par->CloneParameterContainer());
+            AddParameterContainer(par->CloneParameterContainer(),true);
 
             if (fRunName.IsNull() ) fPar -> UpdatePar(fRunName,  "LKRun/Name");
             if (fRunID<0) fPar -> UpdatePar(fRunID,    "LKRun/RunID");
@@ -1637,6 +1639,11 @@ bool LKRun::EndOfRun()
 
     ProcessWriteExitLog();
 
+    if (fDrawAfterRun) {
+        SetAutoTermination(false);
+        Draw(fDrawOption);
+    }
+
     if (fAutoTerminate) Terminate(this, "good!");
 
     return true;
@@ -1860,6 +1867,7 @@ LKDrawingGroup* LKRun::GetTopDrawingGroup()
 
 void LKRun::Draw(Option_t* option)
 {
+    fDrawOption = option;
     if (fTopDrawingGroup->GetEntries()==0) {
         lk_warning << "Not using drawings..." << endl;
         return;
@@ -1870,5 +1878,5 @@ void LKRun::Draw(Option_t* option)
     }
     fDataViewer = fTopDrawingGroup -> CreateViewer();
     fDataViewer -> SetRun(this);
-    fTopDrawingGroup -> Draw(TString(option));
+    fTopDrawingGroup -> Draw(TString(fDrawOption));
 }

@@ -20,11 +20,11 @@ class LKGear
         void CreateParameterContainer();
 
         virtual void SetParameterContainer(LKParameterContainer *par);
-        virtual void AddParameterContainer(LKParameterContainer *par);
+        virtual void AddParameterContainer(LKParameterContainer *par, bool addEvalOnly=false);
         virtual void AddParameterContainer(TString fname);
 
         void SetPar(LKParameterContainer *par) { SetParameterContainer(par); }
-        void AddPar(LKParameterContainer *par) { AddParameterContainer(par); }
+        void AddPar(LKParameterContainer *par, bool addEvalOnly=false) { AddParameterContainer(par, addEvalOnly); }
         void AddPar(TString fname) { AddParameterContainer(fname); }
 
         LKParameterContainer *GetParameterContainer() const;
