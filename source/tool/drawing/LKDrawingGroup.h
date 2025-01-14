@@ -61,7 +61,6 @@ class LKDrawingGroup : public TObjArray
         void WriteFile(TString fileName="", TString option="");
         void WriteFitParameterFile();
 
-
         LKDataViewer* CreateViewer();
 
         void Save(bool recursive=true, bool saveRoot=true, bool saveImage=true, TString dirName="", TString header="", TString tag="");
@@ -140,7 +139,7 @@ class LKDrawingGroup : public TObjArray
         void AddOption(TString option, double value) { LKMisc::AddOption(fGlobalOption,option,value); }
 
 
-    ClassDef(LKDrawingGroup, 1)
+    ClassDef(LKDrawingGroup, 2)
 };
 
 #endif

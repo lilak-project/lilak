@@ -2,6 +2,7 @@
 #include "LKDrawing.h"
 #include "LKDataViewer.h"
 #include <iostream>
+#include "TGraphAsymmErrors.h"
 
 ClassImp(LKDrawing)
 
@@ -38,6 +39,36 @@ void LKDrawing::AddDrawing(LKDrawing *drawing)
         auto option = drawing -> GetOption(i);
         Add(obj,option,title);
     }
+}
+
+void LKDrawing::SetOn(int iObj, bool on)
+{
+    if (iObj>GetEntries()) {
+        lk_warning << "index " << iObj << " out of limit " << GetEntries() << endl;
+        return;
+    }
+
+    auto obj = At(iObj);
+    auto drawOption = fDrawOptionArray.at(iObj);
+    if (on) {
+        if (drawOption.Index("drawx")==0) {
+             drawOption = drawOption(4,drawOption.Sizeof()-4);
+             fDrawOptionArray[iObj] = drawOption;
+        }
+    }
+    else {
+        if (drawOption.Index("drawx")!=0) {
+             drawOption = TString("drawx") + drawOption;
+             fDrawOptionArray[iObj] = drawOption;
+        }
+    }
+}
+
+bool LKDrawing::GetOn(int iObj)
+{
+    if (fDrawOptionArray.at(iObj).Index("drawx")==0)
+        return false;
+    return true;
 }
 
 void LKDrawing::Add(TObject *obj, TString drawOption, TString title)
@@ -149,6 +180,8 @@ TH2D* LKDrawing::MakeGraphFrame()
     double x2 = -DBL_MAX;
     double y1 = DBL_MAX;
     double y2 = -DBL_MAX;
+    double eyl = DBL_MAX;
+    double eyh = -DBL_MAX;
 
     TGraph* graph0 = nullptr;
 
@@ -158,7 +191,39 @@ TH2D* LKDrawing::MakeGraphFrame()
         auto obj = At(iObj);
         auto drawOption = fDrawOptionArray.at(iObj);
         fCvs -> cd();
-        if (obj->InheritsFrom(TGraph::Class()))
+        if (obj->InheritsFrom(TGraphAsymmErrors::Class()))
+        {
+            auto graph = (TGraphAsymmErrors*) obj;
+            if (graph0==nullptr) graph0 = graph;
+            auto numPoints = graph -> GetN();
+            for (auto iPoint=0; iPoint<numPoints; ++iPoint)
+            {
+                graph -> GetPoint(iPoint,x,y);
+                eyl = graph -> GetErrorYlow(iPoint);
+                eyh = graph -> GetErrorYhigh(iPoint);
+                if (x<x1) x1 = x;
+                if (x>x2) x2 = x;
+                if (y-eyl<y1) y1 = y-eyl;
+                if (y+eyh>y2) y2 = y+eyh;
+            }
+        }
+        else if (obj->InheritsFrom(TGraphErrors::Class()))
+        {
+            auto graph = (TGraphErrors*) obj;
+            if (graph0==nullptr) graph0 = graph;
+            auto numPoints = graph -> GetN();
+            for (auto iPoint=0; iPoint<numPoints; ++iPoint)
+            {
+                graph -> GetPoint(iPoint,x,y);
+                eyl = graph -> GetErrorY(iPoint);
+                eyh = eyl;
+                if (x<x1) x1 = x;
+                if (x>x2) x2 = x;
+                if (y-eyl<y1) y1 = y-eyl;
+                if (y+eyh>y2) y2 = y+eyh;
+            }
+        }
+        else if (obj->InheritsFrom(TGraph::Class()))
         {
             auto graph = (TGraph*) obj;
             if (graph0==nullptr) graph0 = graph;
@@ -185,7 +250,9 @@ TH2D* LKDrawing::MakeGraphFrame()
 
     TString name = FindOptionString("gframe_name","");
     TString title = FindOptionString("gframe_title","");
+    TString option = FindOptionString("gframe_option","");
     if (name.IsNull() && graph0!=nullptr) name = Form("frame_%s",graph0->GetName());
+    if (LKMisc::CheckOption(option,"y0")) y1 = 0;
 
     auto hist = new TH2D(name,title,100,x1,x2,100,y1,y2);
     hist -> SetStats(0);
@@ -416,6 +483,39 @@ void LKDrawing::Draw(Option_t *option)
         numObjects = GetEntries();
     }
 
+    if (fFitFunction!=nullptr)
+    {
+        TString fitFormula = fFitFunction -> GetExpFormula();
+        auto nPar = fFitFunction -> GetNpar();
+        vector<TString> parNames;
+        for (auto iPar=0; iPar<nPar; ++iPar)
+            parNames.push_back(fFitFunction->GetParName(iPar));
+        for (auto iObj=0; iObj<numObjects; ++iObj)
+        {
+            auto obj = At(iObj);
+            if (obj->InheritsFrom(TF1::Class())==false)
+                continue;
+            auto f1 = (TF1*) obj;
+            for (auto iPar=0; iPar<nPar; ++iPar)
+            {
+                for (auto jPar=0; jPar<nPar; ++jPar)
+                {
+                    TString parNameJ = f1->GetParName(jPar);
+                    //if (parNameJ==Form("p%d",jPar)||parNameJ=="Constant"||parNameJ=="Mean"||parNameJ=="Sigma"||parNameJ=="Slope")
+                    //    continue;
+                    if (parNameJ.Index("lk")!=0)
+                        continue;
+                    if (parNameJ==parNames[iPar]) {
+                        f1 -> SetParameter(iPar,fFitFunction->GetParameter(iPar));
+                        double limit1, limit2;
+                        fFitFunction -> GetParLimits(iPar,limit1,limit2);
+                        f1 -> SetParLimits(iPar,limit1,limit2);
+                    }
+                }
+            }
+        }
+    }
+
     int pvtt_attribute = CheckOption("pave_attribute");
 
     TLegend* legend = nullptr;
@@ -431,7 +531,7 @@ void LKDrawing::Draw(Option_t *option)
         TString nameObj = obj -> GetName();
         if (nameObj.IsNull()) nameObj = obj -> ClassName();
         auto drawOption = fDrawOptionArray.at(iObj);
-        if (drawOption=="drawx") {
+        if (drawOption.Index("drawx")==0) {
             if (debug_draw)
                 lk_debug << "Skipping " << nameObj << " (" << drawOption << ")" << endl;
             continue;
@@ -988,7 +1088,7 @@ void LKDrawing::CopyTo(LKDrawing* drawing, bool clearFirst)
     if (CheckOption("idx_data")) {
         auto idxData = FindOptionInt("idx_data",0);
         auto idxFit = FindOptionInt("idx_fit",0);
-        SetFitObjects(At(idxData), (TF1*) At(idxFit));
+        drawing -> SetFitObjects(At(idxData), (TF1*) At(idxFit));
     }
 }
 

@@ -41,7 +41,7 @@
  * - A : [See navigation modes below]
  * - B : Backspace for number entry.
  * - C : Clear number entry.
- * - D :
+ * - D : [See navigation modes below]
  * - E : ? Execute an event with the given event number `#`.
  * - F : [See navigation modes below]
  * - G : Start a primitive Graph.
@@ -85,6 +85,10 @@
  * - L : Move to the right tab.
  * - T : Layout tab by the tab number `#` (default=0).
  * - U : Layout sub-tab by the sub-tab number `#` (default=0).
+ * - F :
+ * - D :
+ * - P :
+ * - A :
  *
  * #### Canvas navigation mode (Alt+N)
  * - H : Move to the left pad.
@@ -94,12 +98,33 @@
  * - T : Toggle the selected pad and copy the drawing to a new canvas.
  * - U : Undo the layout of the previous tab.
  * - F : Enter data fitting mode.
+ * - D : Enter manage drawing mode
+ * - P :
+ * - A :
  *
  * #### Data fitting mode (Alt+N and Alt+F)
- * - A : Apply current parameters and redraw.
- * - F : Apply current parameters and fit data.
- * - P : Create file that contains fit objects in all drawings
+ * - H : Enter canvas navigation mode and Move to the left pad.
+ * - J : Enter canvas navigation mode and Move to the bottom pad.
+ * - K : Enter canvas navigation mode and Move to the top pad.
+ * - L : Enter canvas navigation mode and Move to the right pad.
+ * - T :
  * - U :
+ * - F : Apply current parameters and fit data.
+ * - D :
+ * - P : Create file which contains fit-objects through all drawings
+ * - A : Apply current parameters and redraw.
+ *
+ * #### Manage drawing mode (Alt+N and Alt+D)
+ * - H : Enter canvas navigation mode and Move to the left pad.
+ * - J : Enter canvas navigation mode and Move to the bottom pad.
+ * - K : Enter canvas navigation mode and Move to the top pad.
+ * - L : Enter canvas navigation mode and Move to the right pad.
+ * - T :
+ * - U :
+ * - F :
+ * - D :
+ * - P :
+ * - A : Apply current parameters and redraw.
  */
 
 class LKDataViewer : public TGMainFrame
@@ -119,17 +144,23 @@ class LKDataViewer : public TGMainFrame
         TString fSavePath = "data_lilak";
         bool fMinimumUIComponents = false;
         bool fIsActive = false;
-        int fCanvasFillColor = 0;
-        int fHighlightButtonColor;
-        int fNormalButtonColor;
 
         LKDrawingGroup *fCurrentGroup = nullptr;
         LKDrawing *fCurrentDrawing = nullptr;
+        LKDrawing *fDrawingSetFit = nullptr;
         TCanvas *fCurrentCanvas = nullptr;
         TVirtualPad *fCurrentTPad = nullptr;
+        TVirtualPad *fLastFitTPad = nullptr;
         int fSelectColor = kGray;
         int fNaviagationColor = kGray+1;
+        int fFitAnalysisColor = kGray+1;
+        int fManageDrawingColor = kGray+1;
         int fDataAnalysisColor = kGray+2;
+        int fCanvasFillColor = 0;
+        int fHighlightButtonColor = 0;
+        int fNormalButtonColor = 0;
+
+        int fLastNavMode = 0;
 
         TGFont*      fGFont1;
         TGFont*      fGFont2;
@@ -142,6 +173,7 @@ class LKDataViewer : public TGMainFrame
         TGTab *fTopControlTab = nullptr;
         TGCompositeFrame *fControlCanvasTab = nullptr;
         TGCompositeFrame *fControlDataTab = nullptr;
+        TGCompositeFrame *fControlDrawingTab = nullptr;
         TGVerticalFrame *fStatusFrame = nullptr;
         TGHorizontalFrame *fBottomFrame = nullptr;
 
@@ -150,14 +182,21 @@ class LKDataViewer : public TGMainFrame
         TGNumberEntry *fEventRangeEntry2 = nullptr;
         TGNumberEntryField *fNumberInput; // Input field for the number pad
 
-        const int fNumMaxFitParameters = 8;
+        const int fNumMaxFitParameters = 10;
         TGNumberEntryField* fFitParLimit1Entry[10];
         TGNumberEntryField* fFitParLimit2Entry[10];
         TGNumberEntryField* fFitParValueEntry[10];
         TGNumberEntryField* fFitRangeEntry[2];
         TGCheckButton* fFitParFixCheckBx[10];
         TGLabel* fFitParNameLabel[10];
+        TGLabel* fFitName;
+        TGTextButton* fButtonPrintFit = nullptr;
+        TString fCurrentFitExpFormula;
         bool fFitAnalsisIsSet = false;
+
+        const int fNumMaxDrawingObjects = 20;
+        TGCheckButton* fCheckDrawingObject[20]; ///< should be same as fNumMaxDrawingObjects
+        TGLabel* fDrawingName;
 
         TGGroupFrame* fNavControlSection = nullptr;
         TGTextButton* fButton_H = nullptr;
@@ -167,9 +206,12 @@ class LKDataViewer : public TGMainFrame
         TGTextButton* fButton_T = nullptr;
         TGTextButton* fButton_U = nullptr;
         TGTextButton* fButton_F = nullptr;
+        TGTextButton* fButton_F2 = nullptr;
         TGTextButton* fButton_M = nullptr;
         TGTextButton* fButton_N = nullptr;
-        TGTextButton* fButton_F2 = nullptr;
+        TGTextButton* fButton_D = nullptr;
+        TGTextButton* fButton_A = nullptr;
+        TGTextButton* fButton_A2 = nullptr;
 
         int fCurrentCanvasX = 0;
         int fCurrentCanvasY = 0;
@@ -197,6 +239,7 @@ class LKDataViewer : public TGMainFrame
         int fSaveSubTabID = 0;
         bool fLayoutButIgnoreSelectedSignal = false;
 
+        int fCountPrimitives = 0;
         int fCountMessageUpdate = 0;
         //TGLabel* fStatusMessages[3];
         TGLabel* fStatusMessages[2];
@@ -266,16 +309,20 @@ class LKDataViewer : public TGMainFrame
         void CreateNumberPad(); ///< CreateControlFrame
 
         void CreateFitAction();
+        void CreateManageDrawing();
 
         bool SetButtonTitleMethod(TGTextButton* button, TString title="", TString method="");
         TGTextButton* NewTextButton(TGHorizontalFrame* frame, TString buttonTitle="", int hintNumber=6);
+        TGLabel* NewLabel(TGCompositeFrame* frame, TString text);
         TGHorizontal3DLine* NewSplitLine(TGGroupFrame* section);
         TGNumberEntryField* NewNumberEntryField(TGCompositeFrame* frame, int type);
+        TGTextEntry* NewTextEntry(TGCompositeFrame* frame);
 
         /// messageType 0:default 1:info 2:warning
         void SendOutMessage(TString message, int messageType=0, bool printScreen=false);
 
         bool SetParameterFromDrawing(LKDrawing* drawing);
+        void SetManageDrawing(LKDrawing* drawing);
 
     public:
         void ProcessPrevEvent();
@@ -309,13 +356,18 @@ class LKDataViewer : public TGMainFrame
         void ProcessCanvasControl(int iMode);
         void ProcessChangeViewerMode(int iMode);
         void ProcessDataAnalysisMode();
+        void ProcessManageDrawingMode();
         void ProcessNavigateCanvas(int iMode);
+        void ProcessSetCanvasColor(int preMode, int curMode);
         void ProcessToggleNavigateCanvas();
         void ProcessUndoToggleCanvas();
         void ProcessToggleAnalysis();
+        void ProcessToggleManageDrawing();
         void ProcessUndoAnalysis();
         void ProcessSizeViewer(double scale=1, double scaley=1);
         void ProcessApplyFitData(int i);
+        void ProcessPrintFitExpFormula();
+        void ProcessApplyDrawing();
 
         void HandleNumberInput(Int_t id);
         void LayoutControlTab(int i);

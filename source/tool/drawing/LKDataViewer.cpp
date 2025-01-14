@@ -11,6 +11,7 @@
 #include "TGResourcePool.h"
 #include "TGLayout.h"
 #include "TGComboBox.h"
+#include "TQConnection.h"
 
 #include "LKPainter.h"
 #include "LKDataViewer.h"
@@ -66,7 +67,7 @@ bool LKDataViewer::InitParameters()
     auto pubd = pubs -> CreateDrawing("pd0");
 
     auto painter = LKPainter::GetPainter();
-    painter -> GetSizeResize(fInitWidth, fInitHeight, GetWidth(), GetHeight(), 1);
+    painter -> GetSizeResize(fInitWidth, fInitHeight, GetWidth(), GetHeight(), 0.93);
     fRF = 0.6*painter -> GetResizeFactor();
     //if (fRF<1) fRF = 1;
     //lk_debug << "Painter resize factor is " << painter -> GetResizeFactor() << endl;
@@ -85,7 +86,9 @@ bool LKDataViewer::InitParameters()
     //new TColor(fNaviagationColor, 221/255.,194/255.,255/255.);
     //fDataAnalysisColor = kCyan-10;
     fNaviagationColor = kCyan-10;
-    fHighlightButtonColor = TColor::RGB2Pixel(255, 255, 0); // RGB for fHighlightButtonColor
+    fFitAnalysisColor = kYellow-10;
+    fManageDrawingColor = kYellow-10;
+    fHighlightButtonColor = TColor::RGB2Pixel(255, 255, 204); // RGB for fHighlightButtonColor
     fNormalButtonColor = gClient->GetResourcePool()->GetFrameBgndColor();
 
     return true;
@@ -149,13 +152,13 @@ bool LKDataViewer::InitFrames()
     if (fWindowSizeX>0&&fWindowSizeY>0){
         auto painter = LKPainter::GetPainter();
         e_info << "Resizing window with " << fWindowSizeX << ", " << fWindowSizeY << endl;
-        painter -> GetSizeResize(fWindowSizeX, fWindowSizeY, fWindowSizeX, fWindowSizeY, 1);
+        painter -> GetSizeResize(fWindowSizeX, fWindowSizeY, fWindowSizeX, fWindowSizeY, 0.93);
         e_info << "to " << fWindowSizeX << " " << fWindowSizeY << endl;
         fRF = 0.6*painter -> GetResizeFactor();
     }
     else if (fMinimumUIComponents)
     {
-        LKPainter::GetPainter() -> GetSizeResize(fWindowSizeX, fWindowSizeY, 1600, 1000, 1);
+        LKPainter::GetPainter() -> GetSizeResize(fWindowSizeX, fWindowSizeY, 1600, 1000, 0.93);
         e_info << "Resizing window to " << fWindowSizeX << " " << fWindowSizeY << endl;
     }
     else {
@@ -325,17 +328,11 @@ void LKDataViewer::CreateStatusFrame()
     AddFrame(fStatusFrame, new TGLayoutHints(kLHintsExpandX | kLHintsBottom));
 
     for (auto i : {1,0}) {
-        fStatusMessages[i] = new TGLabel(fStatusFrame, "");
-        fStatusMessages[i] -> SetTextJustify(ETextJustification::kTextLeft);
-        fStatusFrame->AddFrame(fStatusMessages[i], new TGLayoutHints(kLHintsLeft | kLHintsExpandX | kLHintsTop, fRF*5, fRF*5, fRF*2, fRF*2));
+        fStatusMessages[i] = NewLabel(fStatusFrame, "");
+        //fStatusFrame->AddFrame(fStatusMessages[i], new TGLayoutHints(kLHintsLeft | kLHintsExpandX | kLHintsTop, fRF*5, fRF*5, fRF*2, fRF*2));
         fStatusMessages[i] -> SetTextFont(fGFont1);
         //fStatusMessages[i] -> Connect("Clicked()", "LKDataViewer", this, "ProcessMessageHistory()");
     }
-
-    //fStatusDataName = new TGLabel(fStatusFrame, "");
-    //fStatusFrame->AddFrame(fStatusDataName, new TGLayoutHints(kLHintsLeft | kLHintsExpandX | kLHintsBottom, fRF*5, fRF*5, fRF*2, fRF*2));
-    //fStatusDataName->SetTextFont(fGFont1);
-    //fStatusDataName -> ChangeText(fTitle);
 }
 
 void LKDataViewer::CreateControlFrame()
@@ -357,6 +354,7 @@ void LKDataViewer::CreateControlFrame()
         fCurrentControlTab = 0;
         fControlCanvasTab = fTopControlTab -> AddTab("General"); fCountControlTab++;
         fControlDataTab = fTopControlTab -> AddTab("Action"); fCountControlTab++;
+        fControlDrawingTab = fTopControlTab -> AddTab("Drawing"); fCountControlTab++;
 
         CreateViewerControlSection();
         CreateCanvasControlSection();
@@ -365,6 +363,7 @@ void LKDataViewer::CreateControlFrame()
         CreateNumberPad();
 
         CreateFitAction();
+        CreateManageDrawing();
     }
 }
 
@@ -385,6 +384,14 @@ TGTextButton* LKDataViewer::NewTextButton(TGHorizontalFrame* frame, TString butt
     return button;
 }
 
+TGLabel* LKDataViewer::NewLabel(TGCompositeFrame* frame, TString text)
+{
+    auto label = new TGLabel(frame, text);
+    label -> SetTextJustify(ETextJustification::kTextLeft);
+    label -> SetTextFont(fGFont1);
+    frame -> AddFrame(label, new TGLayoutHints(kLHintsExpandX | kLHintsLeft | kLHintsCenterY, fRF*1,fRF*1,fRF*1,fRF*1));
+    return label;
+}
 
 TGNumberEntryField* LKDataViewer::NewNumberEntryField(TGCompositeFrame* frame, int type)
 {
@@ -401,17 +408,36 @@ TGNumberEntryField* LKDataViewer::NewNumberEntryField(TGCompositeFrame* frame, i
     return numberEntryField;
 }
 
+TGTextEntry* LKDataViewer::NewTextEntry(TGCompositeFrame* frame)
+{
+    auto textEntry = new TGTextEntry(frame);
+    textEntry -> SetFont(fGFont1);
+    textEntry -> SetHeight(fRFNumber*textEntry->GetHeight());
+    //if (type==1)
+        frame -> AddFrame(textEntry, NewHintsNumberEntry());
+    //if (type==2) {
+    //    textEntry -> SetWidth(0.75*textEntry->GetWidth());
+    //    frame -> AddFrame(textEntry, NewHintsNumberEntry2());
+    //}
+    textEntry -> Clear();
+    return textEntry;
+}
+
 void LKDataViewer::CreateChangeControlSection()
 {
     auto section = NewGroupFrame("Control Modes");
     fButton_M = NewTextButton(NewHzFrame(section,1),"LONG-");
     fButton_N = NewTextButton(NewHzFrame(section,0),"LONG-");
     NewSplitLine(section);
-    fButton_F2 = NewTextButton(NewHzFrame(section,0),"LONG-");
+    fButton_F2= NewTextButton(NewHzFrame(section,0),"LONG-");
+    fButton_D = NewTextButton(NewHzFrame(section,0),"LONG-");
 
-    SetButtonTitleMethod(fButton_M,"(&M)Tab Ctrl. Mode","ProcessChangeViewerMode(=0)");
-    SetButtonTitleMethod(fButton_N,"&Navigation Mode","ProcessChangeViewerMode(=1)");
-    SetButtonTitleMethod(fButton_F2,"Data Fitting Mode","");
+    SetButtonTitleMethod(fButton_M,"(&M)Tab Ctrl. Mode","ProcessChangeViewerMode(=1)");
+    SetButtonTitleMethod(fButton_N,"&Navigation Mode","ProcessChangeViewerMode(=2)");
+    SetButtonTitleMethod(fButton_F2,"Data &Fitting Mode","ProcessDataAnalysisMode()");
+    SetButtonTitleMethod(fButton_D, "Manage &Drawing Mode","ProcessManageDrawingMode()");
+
+    ProcessChangeViewerMode(1);
 }
 
 void LKDataViewer::CreateCanvasControlSection()
@@ -509,7 +535,7 @@ void LKDataViewer::CreateTabControlSection()
     fButton_J = NewTextButton(frame3);
     fButton_K = NewTextButton(frame3);
 
-    ProcessChangeViewerMode(0);
+    ProcessChangeViewerMode(1);
 }
 
 void LKDataViewer::CreateNumberPad()
@@ -566,8 +592,10 @@ void LKDataViewer::CreateFitAction()
     fControlDataTab->AddFrame(section, (new TGLayoutHints(kLHintsExpandX | kLHintsTop, fRF*5,  fRF*5,  fRF*5,  fRF*5 )));
 
     auto frame1 = NewHzFrame(section,1);
-    SetButtonTitleMethod(NewTextButton(frame1,""), "&Apply par",   "ProcessApplyFitData(=0)");
+    fButton_A = NewTextButton(frame1,"");
+    SetButtonTitleMethod(fButton_A, "&Apply par", "ProcessApplyFitData(=0)");
     fButton_F = NewTextButton(frame1,"Fit data");
+    SetButtonTitleMethod(fButton_F, "&Fit data", "ProcessApplyFitData(=1)");
 
     auto frame2 = NewHzFrame(section,0);
     SetButtonTitleMethod(NewTextButton(frame2,""), "Undo", "ProcessApplyFitData(=2)");
@@ -576,30 +604,36 @@ void LKDataViewer::CreateFitAction()
     NewSplitLine(section);
 
     auto frame3 = NewHzFrame(section,0);
-    auto fitRangeLabel = new TGLabel(frame3, "Fit range");
-    fitRangeLabel -> SetTextJustify(ETextJustification::kTextLeft);
-    fitRangeLabel -> SetTextFont(fGFont1);
-    frame3 -> AddFrame(fitRangeLabel, new TGLayoutHints(kLHintsExpandX | kLHintsLeft | kLHintsCenterY, fRF*1,fRF*1,fRF*1,fRF*1));
+    fFitName = NewLabel(frame3,"Fit name");
+    fButtonPrintFit = NewTextButton(frame3,"Info");
+    SetButtonTitleMethod(fButtonPrintFit, "Info", "ProcessPrintFitExpFormula()");
 
-    auto frame4 = NewHzFrame(section,0);
-    fFitRangeEntry[0] = NewNumberEntryField(frame4,2);
-    fFitRangeEntry[1] = NewNumberEntryField(frame4,2);
+    //auto frame4 = NewHzFrame(section,0);
+    //fButtonPrintFit = NewTextEntry(frame4);
+
+    NewSplitLine(section);
+
+    auto frame5 = NewHzFrame(section,0);
+    auto fitRangeLabel = NewLabel(frame5, "Fit range");
+
+    auto frame6 = NewHzFrame(section,0);
+    fFitRangeEntry[0] = NewNumberEntryField(frame6,2);
+    fFitRangeEntry[1] = NewNumberEntryField(frame6,2);
+
+    NewSplitLine(section);
 
     auto createParameterRow = [this,section](int i)
     {
-        NewSplitLine(section);
+        //NewSplitLine(section);
 
         auto frameA = NewHzFrame(section,0);
-        fFitParNameLabel[i] = new TGLabel(frameA, "");
-        fFitParNameLabel[i] -> SetTextJustify(ETextJustification::kTextLeft);
-        fFitParNameLabel[i] -> SetTextFont(fGFont1);
-        frameA -> AddFrame(fFitParNameLabel[i], new TGLayoutHints(kLHintsExpandX | kLHintsLeft | kLHintsCenterY, fRF*1,fRF*1,fRF*1,fRF*1));
+        //auto fFitParNameLabel[i] = NewLabel(frameA, "");
 
         auto frameB = NewHzFrame(section,0);
         fFitParValueEntry[i] = NewNumberEntryField(frameB,2);
         fFitParFixCheckBx[i] = new TGCheckButton(frameB, "Fix");
         fFitParFixCheckBx[i] -> SetFont(fSFont1);
-        frameB -> AddFrame(fFitParFixCheckBx[i], new TGLayoutHints(kLHintsLeft | kLHintsCenterY, fRF*1,fRF*1,fRF*1,fRF*1));
+        frameB -> AddFrame(fFitParFixCheckBx[i], new TGLayoutHints(kLHintsExpandX | kLHintsLeft | kLHintsCenterY, fRF*1,fRF*1,fRF*1,fRF*1));
 
         auto frameC = NewHzFrame(section,0);
         fFitParLimit1Entry[i] = NewNumberEntryField(frameC,2);
@@ -607,6 +641,27 @@ void LKDataViewer::CreateFitAction()
     };
 
     for (auto i=0; i<fNumMaxFitParameters; ++i) createParameterRow(i);
+}
+
+void LKDataViewer::CreateManageDrawing()
+{
+    auto section = new TGGroupFrame(fControlDrawingTab, "List");
+    section->SetTextFont(fSFont1);
+    fControlDrawingTab->AddFrame(section, (new TGLayoutHints(kLHintsExpandX | kLHintsTop, fRF*5,  fRF*5,  fRF*5,  fRF*5 )));
+
+    auto frame1 = NewHzFrame(section,0);
+    fDrawingName = NewLabel(frame1,"");
+
+    auto frame2 = NewHzFrame(section,1);
+    fButton_A2 = NewTextButton(frame2,"");
+    SetButtonTitleMethod(fButton_A2, "&Apply", "ProcessApplyDrawing()");
+
+    for (auto i=0; i<fNumMaxDrawingObjects; ++i) {
+        auto frameA = NewHzFrame(section,0);
+        fCheckDrawingObject[i] = new TGCheckButton(frameA, "");
+        fCheckDrawingObject[i] -> SetFont(fSFont1);
+        frameA -> AddFrame(fCheckDrawingObject[i], new TGLayoutHints(kLHintsExpandX | kLHintsLeft | kLHintsCenterY, fRF*1,fRF*1,fRF*1,fRF*1));
+    }
 }
 
 void LKDataViewer::HandleNumberInput(Int_t id)
@@ -636,31 +691,13 @@ void LKDataViewer::HandleNumberInput(Int_t id)
     }
 }
 
-void LKDataViewer::SendOutMessage(TString message, int messageType, bool printScreen)
-{
-    if (fMinimumUIComponents)
-        return;
-
-    TString header = Form("[%d",fCountMessageUpdate++);
-    if      (messageType==0) ;
-    else if (messageType==1) header = header + ":info";
-    else if (messageType==2) header = header + ":warn";
-    header = header + "] ";
-    //fStatusMessages[2] -> SetText(fStatusMessages[1]->GetText()->GetString());
-    fStatusMessages[1] -> SetText(fStatusMessages[0]->GetText()->GetString());
-    fStatusMessages[0] -> SetText(header + message);
-    if (printScreen)
-    {
-        if      (messageType==0) e_cout << message << endl;
-        else if (messageType==1) e_info << message << endl;
-        else if (messageType==2) e_warning << message << endl;
-    }
-}
-
 bool LKDataViewer::SetParameterFromDrawing(LKDrawing* drawing)
 {
+    fDrawingSetFit = drawing;
+    fFitName -> SetText("");
+    fCurrentFitExpFormula = "";
     for (auto iPar=0; iPar<fNumMaxFitParameters; ++iPar) {
-        fFitParNameLabel[iPar]   -> SetText("");
+        //fFitParNameLabel[iPar]   -> SetText("");
         fFitParFixCheckBx[iPar]  -> SetOn(false);
         fFitParValueEntry[iPar]  -> SetNumber(0);
         fFitParLimit1Entry[iPar] -> SetNumber(0);
@@ -686,6 +723,10 @@ bool LKDataViewer::SetParameterFromDrawing(LKDrawing* drawing)
         return false;
     }
 
+    fFitName -> SetText(fit->GetName());
+    fCurrentFitExpFormula = "\n";
+    fCurrentFitExpFormula = fCurrentFitExpFormula + fit -> GetName() + "\n";
+    fCurrentFitExpFormula = fCurrentFitExpFormula + fit -> GetExpFormula();
     double range1, range2;
     fit -> GetRange(range1, range2);
     fFitRangeEntry[0] -> SetNumber(range1);
@@ -697,15 +738,46 @@ bool LKDataViewer::SetParameterFromDrawing(LKDrawing* drawing)
         double limit1, limit2;
         fit -> GetParLimits(iPar,limit1,limit2);
 
-        fFitParNameLabel[iPar] -> SetText(name);
+        //fFitParNameLabel[iPar] -> SetText(name);
         fFitParValueEntry[iPar] -> SetNumber(value);
         fFitParLimit1Entry[iPar] -> SetNumber(limit1);
         fFitParLimit2Entry[iPar] -> SetNumber(limit2);
+        fFitParFixCheckBx[iPar] -> SetText(name);
         fFitParFixCheckBx[iPar] -> SetEnabled(true);
         if (limit1==1&&limit2==1&&value==0) fFitParFixCheckBx[iPar] -> SetOn(true);
         else if (limit1==limit2) fFitParFixCheckBx[iPar] -> SetOn(true);
     }
     return true;
+}
+
+
+void LKDataViewer::SetManageDrawing(LKDrawing* drawing)
+{
+    fDrawingName -> SetText("");
+    for (auto i=0; i<fNumMaxDrawingObjects; ++i) {
+        fCheckDrawingObject[i] -> SetText("");
+        fCheckDrawingObject[i] -> SetOn(false);
+        fCheckDrawingObject[i] -> SetDisabledAndSelected(false);
+    }
+
+    auto numObjects = drawing -> GetEntries();
+    if (numObjects>fNumMaxDrawingObjects) 
+        numObjects = fNumMaxDrawingObjects;
+
+    fDrawingName -> SetText(drawing->GetName());
+    for (auto iObj=0; iObj<numObjects; ++iObj)
+    {
+        auto obj = drawing -> At(iObj);
+        TString nameObj = obj -> GetName();
+        TString className = obj -> ClassName();
+        if (nameObj.IsNull()) nameObj = className;
+        nameObj = Form("(%s) %s",TString(className[1]).Data(),nameObj.Data());
+        //auto drawOption = fDrawOptionArray.at(iObj);
+
+        fCheckDrawingObject[iObj] -> SetText(nameObj);
+        fCheckDrawingObject[iObj] -> SetEnabled(true);
+        fCheckDrawingObject[iObj] -> SetOn(drawing->GetOn(iObj));
+    }
 }
 
 void LKDataViewer::ProcessLayoutTopTab(int iTab, int iSub)
@@ -1084,7 +1156,7 @@ void LKDataViewer::ProcessSaveTab(int ipad)
         fTopDrawingGroup -> Save(true,true,true,fSavePath,"",tag);
     }
     if (ipad==-3) { // save only fit functions
-        SendOutMessage(Form("Saving fit functions"),1,true);
+        SendOutMessage(Form("Saving fits"),1,true);
         if (tag.IsNull()) tag = "FITPARAMETERS";
         else tag = Form("FITPARAMETERS_%s",tag.Data());
         fTopDrawingGroup -> Save(true,true,false,fSavePath,"",tag);
@@ -1104,6 +1176,8 @@ void LKDataViewer::ProcessWaitPrimitive(int iMode)
     }
     else
         return;
+
+    TString afterName = pname+(fCountPrimitives++);
     int objNumber = fNumberInput->GetIntNumber();
     fNumberInput->Clear();
     SendOutMessage(Form("Starting editor mode %s (%d)",emode.Data(),objNumber));
@@ -1114,8 +1188,11 @@ void LKDataViewer::ProcessWaitPrimitive(int iMode)
     TString oFileName = Form("%s/%s/%s.%s.%d.root",fSavePath.Data(),GetName(),fullName.Data(),pname.Data(),objNumber);
     gSystem -> Exec(Form("mkdir -p %s/%s/",fSavePath.Data(),GetName()));
     SendOutMessage(Form("Writting %s",oFileName.Data()),1,true);
+    SendOutMessage(Form("After name is %s",afterName.Data()),1,true);
     auto file = new TFile(oFileName,"recreate");
     obj -> Write();
+    if (iMode==0) ((TCutG*) obj) -> SetName(afterName);
+    else if (iMode==1) ((TGraph*) obj) -> SetName(afterName);
 }
 
 void LKDataViewer::ProcessCanvasControl(int iMode)
@@ -1184,54 +1261,82 @@ void LKDataViewer::ProcessCanvasControl(int iMode)
 
 void LKDataViewer::ProcessChangeViewerMode(int iNavMode)
 {
-    if (iNavMode==0)
+    if (iNavMode==1)
     {
         if (fButton_M !=nullptr) fButton_M -> ChangeBackground(fHighlightButtonColor);
         if (fButton_N !=nullptr) fButton_N -> ChangeBackground(fNormalButtonColor);
-        if (fButton_F2!=nullptr) fButton_F2 -> ChangeBackground(fNormalButtonColor);
-        if (fNavControlSection!=nullptr) fNavControlSection -> SetTitle("Tab Control");
+        if (fButton_F2!=nullptr) fButton_F2-> ChangeBackground(fNormalButtonColor);
+        if (fButton_D !=nullptr) fButton_D -> ChangeBackground(fNormalButtonColor);
         SetButtonTitleMethod(fButton_H, "<(&H)Tab", "ProcessPrevTab()");
         SetButtonTitleMethod(fButton_L, "Tab(&L)>", "ProcessNextTab()");
         SetButtonTitleMethod(fButton_J, "<(&J)Sub", "ProcessPrevSubTab()");
         SetButtonTitleMethod(fButton_K, "Sub(&K)>", "ProcessNextSubTab()");
         SetButtonTitleMethod(fButton_T, "#&Tab",    "ProcessGotoTopTabT()");
         SetButtonTitleMethod(fButton_U, "#S&ub",    "ProcessGotoSubTab()");
-        SetButtonTitleMethod(fButton_F, "Fit data", "");
-        SetButtonTitleMethod(fButton_F2,"Data Fitting Mode","");
-        ProcessNavigateCanvas(-1);
+        SetButtonTitleMethod(fButton_A, "&Apply par", "");
+        SetButtonTitleMethod(fButton_A2, "&Apply",    "");
+        SetButtonTitleMethod(fButton_F, "&Fit data", "");
+        SetButtonTitleMethod(fButton_F2,"Data &Fitting Mode","");
+        SetButtonTitleMethod(fButton_D, "Manage &Drawing Mode","");
     }
-    else if (iNavMode==1)
+    else if (iNavMode==2)
     {
         if (fButton_M !=nullptr) fButton_M -> ChangeBackground(fNormalButtonColor);
         if (fButton_N !=nullptr) fButton_N -> ChangeBackground(fHighlightButtonColor);
-        if (fButton_F2!=nullptr) fButton_F2 -> ChangeBackground(fNormalButtonColor);
-        if (fNavControlSection!=nullptr) fNavControlSection -> SetTitle("Nav. Control");
+        if (fButton_F2!=nullptr) fButton_F2-> ChangeBackground(fNormalButtonColor);
+        if (fButton_D !=nullptr) fButton_D -> ChangeBackground(fNormalButtonColor);
         SetButtonTitleMethod(fButton_H, "(&H)Left",  "ProcessNavigateCanvas(=1)");
         SetButtonTitleMethod(fButton_L, "(&L)Right", "ProcessNavigateCanvas(=2)");
         SetButtonTitleMethod(fButton_J, "(&J)Down",  "ProcessNavigateCanvas(=3)");
         SetButtonTitleMethod(fButton_K, "(&K)Up",    "ProcessNavigateCanvas(=4)");
         SetButtonTitleMethod(fButton_T, "#&Toggle",  "ProcessToggleNavigateCanvas()");
         SetButtonTitleMethod(fButton_U, "#&Undo",    "ProcessUndoToggleCanvas()");
+        SetButtonTitleMethod(fButton_A, "&Apply par", "");
+        SetButtonTitleMethod(fButton_A2,"&Apply",    "");
         SetButtonTitleMethod(fButton_F, "&Fit data", "ProcessDataAnalysisMode()");
         SetButtonTitleMethod(fButton_F2,"Data &Fitting Mode","ProcessDataAnalysisMode()");
+        SetButtonTitleMethod(fButton_D, "Manage &Drawing Mode","ProcessManageDrawingMode()");
         fSelectColor = fNaviagationColor;
-        ProcessNavigateCanvas(0);
     }
-    else if (iNavMode==2)
+    else if (iNavMode==3)
     {
         if (fButton_M !=nullptr) fButton_M -> ChangeBackground(fNormalButtonColor);
         if (fButton_N !=nullptr) fButton_N -> ChangeBackground(fNormalButtonColor);
-        if (fButton_F2!=nullptr) fButton_F2 -> ChangeBackground(fHighlightButtonColor);
-        if (fNavControlSection!=nullptr) fNavControlSection -> SetTitle("Nav. Control");
-        SetButtonTitleMethod(fButton_H, "(&H)Left",  "ProcessNavigateCanvas(=1)");
-        SetButtonTitleMethod(fButton_L, "(&L)Right", "ProcessNavigateCanvas(=2)");
-        SetButtonTitleMethod(fButton_J, "(&J)Down",  "ProcessNavigateCanvas(=3)");
-        SetButtonTitleMethod(fButton_K, "(&K)Up",    "ProcessNavigateCanvas(=4)");
+        if (fButton_F2!=nullptr) fButton_F2-> ChangeBackground(fHighlightButtonColor);
+        if (fButton_D !=nullptr) fButton_D -> ChangeBackground(fNormalButtonColor);
+        SetButtonTitleMethod(fButton_H, "(&H)Left",  "ProcessNavigateCanvas(=91)");
+        SetButtonTitleMethod(fButton_L, "(&L)Right", "ProcessNavigateCanvas(=92)");
+        SetButtonTitleMethod(fButton_J, "(&J)Down",  "ProcessNavigateCanvas(=93)");
+        SetButtonTitleMethod(fButton_K, "(&K)Up",    "ProcessNavigateCanvas(=94)");
         SetButtonTitleMethod(fButton_T, "", "");
         SetButtonTitleMethod(fButton_U, "", "");
+        SetButtonTitleMethod(fButton_A, "&Apply par", "ProcessApplyFitData(=0)");
+        SetButtonTitleMethod(fButton_A2, "&Apply",    "ProcessApplyFitData(=0)");
         SetButtonTitleMethod(fButton_F, "&Fit data", "ProcessApplyFitData(=1)");
         SetButtonTitleMethod(fButton_F2,"Data &Fitting Mode","ProcessApplyFitData(=1)");
+        SetButtonTitleMethod(fButton_D, "Manage &Drawing Mode","");
     }
+    else if (iNavMode==4)
+    {
+        if (fButton_M !=nullptr) fButton_M -> ChangeBackground(fNormalButtonColor);
+        if (fButton_N !=nullptr) fButton_N -> ChangeBackground(fNormalButtonColor);
+        if (fButton_F2!=nullptr) fButton_F2-> ChangeBackground(fNormalButtonColor);
+        if (fButton_D !=nullptr) fButton_D -> ChangeBackground(fHighlightButtonColor);
+        SetButtonTitleMethod(fButton_H, "(&H)Left",  "ProcessNavigateCanvas(=91)");
+        SetButtonTitleMethod(fButton_L, "(&L)Right", "ProcessNavigateCanvas(=92)");
+        SetButtonTitleMethod(fButton_J, "(&J)Down",  "ProcessNavigateCanvas(=93)");
+        SetButtonTitleMethod(fButton_K, "(&K)Up",    "ProcessNavigateCanvas(=94)");
+        SetButtonTitleMethod(fButton_T, "", "");
+        SetButtonTitleMethod(fButton_U, "", "");
+        SetButtonTitleMethod(fButton_A, "&Apply par", "ProcessApplyDrawing()");
+        SetButtonTitleMethod(fButton_A2, "&Apply",    "ProcessApplyDrawing()");
+        SetButtonTitleMethod(fButton_F, "&Fit data", "");
+        SetButtonTitleMethod(fButton_F2,"Data &Fitting Mode","");
+        SetButtonTitleMethod(fButton_D, "Manage &Drawing Mode","");
+    }
+
+    ProcessSetCanvasColor(fLastNavMode,iNavMode);
+    fLastNavMode = iNavMode;
 }
 
 bool LKDataViewer::SetButtonTitleMethod(TGTextButton* button, TString buttonTitle, TString method)
@@ -1243,28 +1348,73 @@ bool LKDataViewer::SetButtonTitleMethod(TGTextButton* button, TString buttonTitl
     if (method.IsNull()==false)
         button -> Connect("Clicked()", "LKDataViewer", this, method);
 
-    //asad board for atomx
     return true;
 }
 
 void LKDataViewer::ProcessDataAnalysisMode()
 {
-    ProcessChangeViewerMode(2);
+    ProcessChangeViewerMode(3);
     ProcessToggleAnalysis();
 }
 
-void LKDataViewer::ProcessNavigateCanvas(int iMode)
+void LKDataViewer::ProcessManageDrawingMode()
 {
-    if (iMode==-1) {
+    ProcessChangeViewerMode(4);
+    ProcessToggleManageDrawing();
+}
+
+void LKDataViewer::ProcessSetCanvasColor(int preMode, int iMode)
+{
+    if (preMode==2)
+    {
         if (fCurrentTPad!=nullptr) {
             fCurrentTPad -> SetFillColor(0);
             fCurrentTPad -> Modified();
             fCurrentTPad -> Update();
         }
-        fCurrentTPad = nullptr;
-        return;
+    }
+    if (preMode==3||preMode==4)
+    {
+        if (fLastFitTPad!=nullptr) {
+            fLastFitTPad -> SetFillColor(0);
+            fLastFitTPad -> Modified();
+            fLastFitTPad -> Update();
+        }
     }
 
+    if (iMode==1) {
+        fCurrentTPad = nullptr;
+    }
+    if (iMode==2) {
+        if (preMode==3)
+            ProcessNavigateCanvas(-1); // do not reset TPad selection position
+        else
+            ProcessNavigateCanvas(0); // reset TPad selection position
+    }
+    if (iMode==3) {
+        if (fCurrentTPad!=nullptr) {
+            fCurrentTPad -> SetFillColor(fFitAnalysisColor);
+            fCurrentTPad -> Modified();
+            fCurrentTPad -> Update();
+            fLastFitTPad = fCurrentTPad;
+        }
+    }
+    if (iMode==3) {
+        if (fCurrentTPad!=nullptr) {
+            fCurrentTPad -> SetFillColor(fManageDrawingColor);
+            fCurrentTPad -> Modified();
+            fCurrentTPad -> Update();
+            fLastFitTPad = fCurrentTPad;
+        }
+    }
+}
+
+void LKDataViewer::ProcessNavigateCanvas(int iMode)
+{
+    if (iMode>90) {
+        iMode = iMode-90;
+        ProcessChangeViewerMode(2);
+    }
     int drawingNumber = 0;
     int divX = fCurrentGroup -> GetDivX();
     int divY = fCurrentGroup -> GetDivY();
@@ -1286,10 +1436,11 @@ void LKDataViewer::ProcessNavigateCanvas(int iMode)
             fCurrentCanvasX = 0;
             fCurrentCanvasY = 0;
         }
-        if (iMode==1) { if (fCurrentCanvasX==0)      return; fCurrentCanvasX--; }
-        if (iMode==2) { if (fCurrentCanvasX==divX-1) return; fCurrentCanvasX++; }
-        if (iMode==3) { if (fCurrentCanvasY==divY-1) return; fCurrentCanvasY++; }
-        if (iMode==4) { if (fCurrentCanvasY==0)      return; fCurrentCanvasY--; }
+        else if (iMode==-1) {}
+        else if (iMode==1) { if (fCurrentCanvasX==0)      return; fCurrentCanvasX--; }
+        else if (iMode==2) { if (fCurrentCanvasX==divX-1) return; fCurrentCanvasX++; }
+        else if (iMode==3) { if (fCurrentCanvasY==divY-1) return; fCurrentCanvasY++; }
+        else if (iMode==4) { if (fCurrentCanvasY==0)      return; fCurrentCanvasY--; }
         drawingNumber = fCurrentCanvasY*divX + fCurrentCanvasX;
         int cvsNumber = 1 + drawingNumber;
 
@@ -1332,7 +1483,7 @@ void LKDataViewer::ProcessToggleNavigateCanvas()
         return;
     }
 
-    ProcessNavigateCanvas(-1);
+    ProcessSetCanvasColor(2,1);
 
     LKDrawingGroup* subGroup = nullptr;
     LKDrawing* drawing = nullptr;
@@ -1378,7 +1529,6 @@ void LKDataViewer::ProcessUndoToggleCanvas()
 
 void LKDataViewer::ProcessToggleAnalysis()
 {
-    lk_debug << "This method is under development" << endl;
     fCurrentDrawing -> Print();
     bool setPar = SetParameterFromDrawing(fCurrentDrawing);
     if (setPar) {
@@ -1388,6 +1538,18 @@ void LKDataViewer::ProcessToggleAnalysis()
     else {
         fFitAnalsisIsSet = false;
     }
+}
+
+void LKDataViewer::ProcessToggleManageDrawing()
+{
+    lk_debug << "This method is under development" << endl;
+    if (fCurrentDrawing==nullptr) {
+        SendOutMessage("Current drawing is nullptr!", 2, true);
+        return;
+    }
+    fCurrentDrawing -> Print();
+    SetManageDrawing(fCurrentDrawing);
+    LayoutControlTab(2);
 }
 
 void LKDataViewer::LayoutControlTab(int i)
@@ -1435,6 +1597,11 @@ void LKDataViewer::ProcessApplyFitData(int i)
         return;
     }
 
+    if (fDrawingSetFit!=fCurrentDrawing) {
+        lk_error << "Fit parameters are not from current drawing!" << endl;
+        return;
+    }
+
     auto fit = fCurrentDrawing -> GetFitFunction();
     auto numParameters = fit -> GetNpar();
 
@@ -1470,6 +1637,34 @@ void LKDataViewer::ProcessApplyFitData(int i)
     ProcessReLoadCCanvas();
 }
 
+void LKDataViewer::ProcessPrintFitExpFormula()
+{
+    SendOutMessage(fCurrentFitExpFormula, 0, true);
+}
+
+void LKDataViewer::ProcessApplyDrawing()
+{
+    lk_debug << "This method currently has a speed issue..." << endl;
+    auto drawing = fCurrentDrawing;
+
+    auto numObjects = drawing -> GetEntries();
+    if (numObjects>fNumMaxDrawingObjects)
+        numObjects = fNumMaxDrawingObjects;
+
+    fDrawingName -> SetText(drawing->GetName());
+    lk_debug << numObjects << endl;
+    for (auto iObj=0; iObj<numObjects; ++iObj)
+    {
+        lk_debug << iObj << " "<< fCheckDrawingObject[iObj]->IsOn() << endl;
+        auto obj = drawing -> At(iObj);
+        lk_debug << iObj << " "<< fCheckDrawingObject[iObj]->IsOn() << endl;
+        drawing -> SetOn(iObj, fCheckDrawingObject[iObj]->IsOn());
+        lk_debug << iObj << " "<< fCheckDrawingObject[iObj]->IsOn() << endl;
+        drawing -> Draw();
+        lk_debug << iObj << " "<< fCheckDrawingObject[iObj]->IsOn() << endl;
+    }
+}
+
 TGLayoutHints* LKDataViewer::NewHintsMainFrame()    { return (new TGLayoutHints(kLHintsExpandX | kLHintsExpandY)); }
 TGLayoutHints* LKDataViewer::NewHintsFrame()        { return (new TGLayoutHints(kLHintsExpandX | kLHintsBottom, fRF*5,  fRF*5,  fRF*5,  fRF*5 )); }
 TGLayoutHints* LKDataViewer::NewHintsInnerFrame()   { return (new TGLayoutHints(kLHintsExpandX                , fRF*5,  fRF*5,  fRF*2,  fRF*2 )); }
@@ -1493,4 +1688,25 @@ TGLayoutHints* LKDataViewer::NewHints(int option) {
     }
     if (option==7) return NewHintsInnerButton2();
     return NewHintsMainFrame();
+}
+
+void LKDataViewer::SendOutMessage(TString message, int messageType, bool printScreen)
+{
+    if (fMinimumUIComponents)
+        return;
+
+    TString header = Form("[%d",fCountMessageUpdate++);
+    if      (messageType==0) ;
+    else if (messageType==1) header = header + ":info";
+    else if (messageType==2) header = header + ":warn";
+    header = header + "] ";
+    //fStatusMessages[2] -> SetText(fStatusMessages[1]->GetText()->GetString());
+    fStatusMessages[1] -> SetText(fStatusMessages[0]->GetText()->GetString());
+    fStatusMessages[0] -> SetText(header + message);
+    if (printScreen)
+    {
+        if      (messageType==0) e_cout << message << endl;
+        else if (messageType==1) e_info << message << endl;
+        else if (messageType==2) e_warning << message << endl;
+    }
 }

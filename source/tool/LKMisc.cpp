@@ -566,7 +566,7 @@ TString LKMisc::FindOption(TString &option, TString name, bool removeAfter, int 
     return value;
 }
 
-int LKMisc::FindOptionInt(TString &option, TString name, int emptyValue)
+int LKMisc::FindOptionInt(TString option, TString name, int emptyValue)
 {
     TString value = LKMisc::FindOption(option, name, false, false);
     if (value.IsNull())
@@ -575,7 +575,7 @@ int LKMisc::FindOptionInt(TString &option, TString name, int emptyValue)
         return value.Atoi();
 }
 
-double LKMisc::FindOptionDouble(TString &option, TString name, double emptyValue)
+double LKMisc::FindOptionDouble(TString option, TString name, double emptyValue)
 {
     TString value = LKMisc::FindOption(option, name, false, false);
     if (value.IsNull())
@@ -584,7 +584,7 @@ double LKMisc::FindOptionDouble(TString &option, TString name, double emptyValue
         return value.Atof();
 }
 
-TString LKMisc::FindOptionString(TString &option, TString name, TString emptyValue)
+TString LKMisc::FindOptionString(TString option, TString name, TString emptyValue)
 {
     TString value = LKMisc::FindOption(option, name, false, false);
     if (value.IsNull())
@@ -658,4 +658,24 @@ bool LKMisc::ValueIsInArray(int value, vector<int> array)
         if (value==sample)
             return true;
     return false;
+}
+
+TString LKMisc::RemoveTrailing0(TString value, bool removeLastDot)
+{
+    auto posDot = value.Index(".");
+    auto posLast = value.Sizeof()-2;
+    auto lastStr = TString(value(posLast));
+    if (posDot>=0&&posDot<posLast) {
+        while (lastStr=="0") {
+            value.Remove(posLast);
+            posLast = value.Sizeof()-2;
+            lastStr = TString(value(posLast));
+        }
+    }
+    if (removeLastDot) {
+        lastStr = TString(value(posLast));
+        if (lastStr==".")
+            value.Remove(posLast);
+    }
+    return value;
 }

@@ -66,6 +66,10 @@ class LKDrawing : public TObjArray
         void SetCanvas(TCanvas* cvs) { fCvs = (TPad*) cvs; }
 
         ////////////////////////////////////////////////////////////////////////////////////
+        void SetOn(int iObj, bool on);
+        bool GetOn(int iObj);
+
+        ////////////////////////////////////////////////////////////////////////////////////
         int GetNumDrawings() const { return GetEntries(); }
         TString GetTitle(int i) const { return fTitleArray.at(i); }
         TString GetOption(int i) const { return fDrawOptionArray.at(i); }
@@ -188,7 +192,7 @@ class LKDrawing : public TObjArray
         void SetPaveDx(double dx) { AddOption("pave_dx",dx); }
         void SetPaveLineDy(double dy_line) { AddOption("pave_line_dy",dy_line); }
         void SetPaveSize(double dx, double dy_line) { SetPaveDx(dx); SetPaveLineDy(dy_line); }
-        void SetCreateFrame(TString name="", TString title="") { AddOption("create_gframe"); AddOption("gframe_name",name); AddOption("gframe_title",title); } ///< Create frame if no frame histogram exist.
+        void SetCreateFrame(TString name="", TString title="", TString option="") { AddOption("create_gframe"); AddOption("gframe_name",name); AddOption("gframe_title",title); if (option.IsNull()==false) AddOption("gframe_option",option); } ///< Create frame if no frame histogram exist.
         void SetCloneReplaceMainHist(TString name="") { AddOption("cr_mainh"); if (name.IsNull()==false) AddOption("cr_mainh_name",name); } ///< Clone fMainHist and replace fMainHist
         void SetCreateLegend(int iCorner=-1, double dx=0, double dyline=0) {
             AddOption("create_legend");
@@ -224,7 +228,7 @@ class LKDrawing : public TObjArray
         TH1*     fHistPixel    = nullptr; //!
         TLegend* fLegend       = nullptr; //!
 
-    ClassDef(LKDrawing, 1)
+    ClassDef(LKDrawing, 2)
 };
 
 #endif

@@ -207,7 +207,9 @@ TH1D* LKBinning::ProjectionY(TH2D* hist2, int i_proj)
     if (title.IsNull()==false) title += " ";
     double x1 = GetBinLowEdge(bin1);
     double x2 = GetBinUpEdge(bin2);
-    title += Form("(%f,%f)",x1,x2);
+    TString x1String = LKMisc::RemoveTrailing0(Form("%f",x1),true);
+    TString x2String = LKMisc::RemoveTrailing0(Form("%f",x2),true);
+    title += Form("(%d | %s, %s)",i_proj,x1String.Data(),x2String.Data());
     histProj -> SetTitle(title);
     return histProj;
 }
@@ -246,6 +248,11 @@ double LKBinning::GetProjectionUpEdge(int i_proj) const
     FindProjectionRange(i_proj, bin1, bin2);
     double x2 = GetBinUpEdge(bin2);
     return x2;
+}
+
+double LKBinning::GetProjectionBinWidth(int i_proj) const
+{
+    return (GetProjectionUpEdge(i_proj) - GetProjectionLowEdge(i_proj));
 }
 
 TH1D* LKBinning::NextProjectionX(TH2D* hist2)

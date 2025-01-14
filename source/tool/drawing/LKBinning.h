@@ -122,15 +122,18 @@ class LKBinning : public TNamed
         TH1D* ProjectionY(TH2D* hist2, int i_proj);
 
         void ResetNextProjection();
+        bool NextProjection() { return fBinningProjection.Next(); }
         TH1D* NextProjectionX(TH2D* hist2);
         TH1D* NextProjectionY(TH2D* hist2);
         int GetCurrentProjectionIt() const;
-        double GetProjectionCenter (int i_proj) const;
-        double GetProjectionLowEdge(int i_proj) const;
-        double GetProjectionUpEdge (int i_proj) const;
-        double GetCurrentProjectionCenter () const { return GetProjectionCenter (fBinningProjection.GetItIndex()); }
-        double GetCurrentProjectionLowEdge() const { return GetProjectionLowEdge(fBinningProjection.GetItIndex()); }
-        double GetCurrentProjectionUpEdge () const { return GetProjectionUpEdge (fBinningProjection.GetItIndex()); }
+        double GetProjectionCenter  (int i_proj) const;
+        double GetProjectionLowEdge (int i_proj) const;
+        double GetProjectionUpEdge  (int i_proj) const;
+        double GetProjectionBinWidth(int i_proj) const;
+        double GetCurrentProjectionCenter  () const { return GetProjectionCenter  (fBinningProjection.GetItIndex()); }
+        double GetCurrentProjectionLowEdge () const { return GetProjectionLowEdge (fBinningProjection.GetItIndex()); }
+        double GetCurrentProjectionUpEdge  () const { return GetProjectionUpEdge  (fBinningProjection.GetItIndex()); }
+        double GetCurrentProjectionBinWidth() const { return GetProjectionBinWidth(fBinningProjection.GetItIndex()); }
 
     ClassDef(LKBinning,1);
 };
