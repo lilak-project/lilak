@@ -59,7 +59,7 @@ class LKDrawingGroup : public TObjArray
         virtual void Print(Option_t *option="") const;
         virtual Int_t Write(const char *name = nullptr, Int_t option=TObject::kSingleKey, Int_t bufsize = 0) const;
         void WriteFile(TString fileName="", TString option="");
-        void WriteFitParameterFile();
+        void WriteFitParameterFile(TString tag="");
 
         LKDataViewer* CreateViewer();
 

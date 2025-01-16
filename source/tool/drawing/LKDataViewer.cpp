@@ -73,7 +73,7 @@ bool LKDataViewer::InitParameters()
     //lk_debug << "Painter resize factor is " << painter -> GetResizeFactor() << endl;
     e_info << "Resize factor is " << fRF << endl;
     fRFEntry = fRF*0.8;
-    fRFNumber = fRF*1.2;
+    fRFNumber = fRF*1.05;
 
     fGFont1 = gClient->GetFontPool()->GetFont("helvetica", fRF*10.5,  kFontWeightNormal,  kFontSlantRoman);
     fSFont1 = fGFont1->GetFontStruct();
@@ -1143,8 +1143,15 @@ void LKDataViewer::ProcessTCutEditorMode(int iMode)
 
 void LKDataViewer::ProcessSaveTab(int ipad)
 {
-    TString tag = fNumberInput -> GetText();
-    fNumberInput->Clear();
+    SaveTab(ipad);
+}
+
+void LKDataViewer::SaveTab(int ipad, TString tag)
+{
+    if (tag.IsNull()) {
+        TString tag = fNumberInput -> GetText();
+        fNumberInput->Clear();
+    }
 
     if (ipad==-1) { // save this tab
         SendOutMessage(Form("Saving <%s>",fCurrentGroup->GetName()),1,true);
@@ -1157,9 +1164,10 @@ void LKDataViewer::ProcessSaveTab(int ipad)
     }
     if (ipad==-3) { // save only fit functions
         SendOutMessage(Form("Saving fits"),1,true);
-        if (tag.IsNull()) tag = "FITPARAMETERS";
-        else tag = Form("FITPARAMETERS_%s",tag.Data());
-        fTopDrawingGroup -> Save(true,true,false,fSavePath,"",tag);
+        fTopDrawingGroup -> WriteFitParameterFile(tag);
+        //if (tag.IsNull()) tag = "FITPARAMETERS";
+        //else tag = Form("FITPARAMETERS%s",tag.Data());
+        //fTopDrawingGroup -> Save(true,true,false,fSavePath,"",tag);
     }
 }
 
@@ -1628,13 +1636,16 @@ void LKDataViewer::ProcessApplyFitData(int i)
     {
         fCurrentDrawing -> Fit();
         SetParameterFromDrawing(fCurrentDrawing);
+        fit -> Print("value");
     }
     if (i==2) // undo
     {
         lk_debug << endl;
     }
 
-    ProcessReLoadCCanvas();
+    fCurrentDrawing -> Draw();
+
+    //ProcessReLoadCCanvas();
 }
 
 void LKDataViewer::ProcessPrintFitExpFormula()

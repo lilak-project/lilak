@@ -71,11 +71,11 @@ bool LKDrawing::GetOn(int iObj)
     return true;
 }
 
-void LKDrawing::Add(TObject *obj, TString drawOption, TString title)
+int LKDrawing::Add(TObject *obj, TString drawOption, TString title)
 {
     if (obj==nullptr) {
         e_warning << "trying to add nullptr to " << fName << endl;
-        return;
+        return -1;
     }
 
     if      (obj->InheritsFrom(TCut::Class()))  { fCuts -> Add(obj); }
@@ -84,7 +84,7 @@ void LKDrawing::Add(TObject *obj, TString drawOption, TString title)
 
     if (obj->InheritsFrom(LKDrawing::Class())) {
         AddDrawing((LKDrawing*)obj);
-        return;
+        return -1;
     }
 
     if (obj->InheritsFrom(TLegend::Class())) {
@@ -119,9 +119,12 @@ void LKDrawing::Add(TObject *obj, TString drawOption, TString title)
         drawOption.ReplaceAll("stat0","");
     }
 
+    auto idx = GetEntries();
     TObjArray::Add(obj);
     fTitleArray.push_back(title);
     fDrawOptionArray.push_back(drawOption);
+
+    return idx;
 }
 
 void LKDrawing::SetMainTitle(TString title)
@@ -133,9 +136,9 @@ void LKDrawing::SetMainTitle(TString title)
     fMainHist -> SetTitle(title);
 }
 
-void LKDrawing::AddLegendLine(TString title)
+int LKDrawing::AddLegendLine(TString title)
 {
-    LKDrawing::Add((new TObject()),"",title);
+    return LKDrawing::Add((new TObject()),"",title);
 }
 
 void LKDrawing::SetFitObjects(TObject *dataObj, TF1 *fit)
@@ -486,30 +489,32 @@ void LKDrawing::Draw(Option_t *option)
     if (fFitFunction!=nullptr)
     {
         TString fitFormula = fFitFunction -> GetExpFormula();
-        auto nPar = fFitFunction -> GetNpar();
+        auto numParMain = fFitFunction -> GetNpar();
         vector<TString> parNames;
-        for (auto iPar=0; iPar<nPar; ++iPar)
+        for (auto iPar=0; iPar<numParMain; ++iPar) {
             parNames.push_back(fFitFunction->GetParName(iPar));
+        }
         for (auto iObj=0; iObj<numObjects; ++iObj)
         {
             auto obj = At(iObj);
             if (obj->InheritsFrom(TF1::Class())==false)
                 continue;
             auto f1 = (TF1*) obj;
-            for (auto iPar=0; iPar<nPar; ++iPar)
+            auto numParCompare = f1 -> GetNpar();
+            for (auto iPar=0; iPar<numParMain; ++iPar)
             {
-                for (auto jPar=0; jPar<nPar; ++jPar)
+                for (auto jPar=0; jPar<numParCompare; ++jPar)
                 {
                     TString parNameJ = f1->GetParName(jPar);
                     //if (parNameJ==Form("p%d",jPar)||parNameJ=="Constant"||parNameJ=="Mean"||parNameJ=="Sigma"||parNameJ=="Slope")
                     //    continue;
-                    if (parNameJ.Index("lk")!=0)
+                    if (parNameJ.Index("v")!=0)
                         continue;
                     if (parNameJ==parNames[iPar]) {
-                        f1 -> SetParameter(iPar,fFitFunction->GetParameter(iPar));
+                        f1 -> SetParameter(jPar,fFitFunction->GetParameter(iPar));
                         double limit1, limit2;
                         fFitFunction -> GetParLimits(iPar,limit1,limit2);
-                        f1 -> SetParLimits(iPar,limit1,limit2);
+                        f1 -> SetParLimits(jPar,limit1,limit2);
                     }
                 }
             }
@@ -981,14 +986,15 @@ void LKDrawing::Print(Option_t *opt) const
 
 TString LKDrawing::GetPrintLine(TString printOption) const
 {
-    TString line;
-
+    TString line, tabSpace;
     int tab = LKMisc::FindOptionInt(printOption,"level",0);
-    TString header;
-    for (auto i=0; i<tab; ++i) header += "  ";
+    for (auto i=0; i<tab; ++i) tabSpace += "  ";
+    TString name_drawing = Form("%s[%d] ",(fName.IsNull()?"Drawing":fName.Data()),int(GetEntries()));
+
     auto numObjects = GetEntries();
     if (LKMisc::CheckOption(printOption,"all"))
     {
+        line += tabSpace + name_drawing;
         for (auto iObj=0; iObj<numObjects; ++iObj)
         {
             auto obj = At(iObj);
@@ -1001,13 +1007,12 @@ TString LKDrawing::GetPrintLine(TString printOption) const
             if      (obj->InheritsFrom(TH1::Class()))    name = Form("H(%s)",name.Data());
             else if (obj->InheritsFrom(TGraph::Class())) name = Form("G(%s)",name.Data());
             else if (obj->InheritsFrom(TF1::Class()))    name = Form("F(%s)",name.Data());
-            line += tab + name + "; " + title + "; " + option + "\n";
+            line += tabSpace + name + "; " + title + "; " + option + "\n";
         }
     }
     else
     {
-        TString drawingTitle;
-        header = header + Form("%s[%d]",(fName.IsNull()?"Drawing":fName.Data()),int(GetEntries()));
+        TString titleJoined;
         for (auto iObj=0; iObj<numObjects; ++iObj)
         {
             auto obj = At(iObj);
@@ -1019,11 +1024,11 @@ TString LKDrawing::GetPrintLine(TString printOption) const
             else if (obj->InheritsFrom(TGraph::Class())) add_title = Form("G(%s)",add_title.Data());
             else if (obj->InheritsFrom(TF1::Class()))    add_title = Form("F(%s)",add_title.Data());
             if (!add_title.IsNull()) {
-                if (drawingTitle.IsNull()) drawingTitle += add_title;
-                else drawingTitle += TString(", ") + add_title;
+                if (titleJoined.IsNull()) titleJoined += add_title;
+                else titleJoined += TString(", ") + add_title;
             }
         }
-        line = tab + drawingTitle;
+        line = tabSpace + name_drawing + titleJoined;
     }
 
     return line;
@@ -1036,8 +1041,9 @@ Int_t LKDrawing::Write(const char *name, Int_t option, Int_t bsize) const
     bool write_only_fit = LKMisc::CheckOption(name0,"FITPARAMETERS");
 
     if (write_only_fit) {
-        if (fFitFunction!=nullptr)
+        if (fFitFunction!=nullptr) {
             fFitFunction -> Write();
+        }
     }
     else if (option==TObject::kSingleKey) {
         return TCollection::Write("", option, bsize);

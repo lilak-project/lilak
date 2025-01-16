@@ -111,9 +111,9 @@ void LKDrawingGroup::Draw(Option_t *option)
     }
 }
 
-void LKDrawingGroup::WriteFitParameterFile()
+void LKDrawingGroup::WriteFitParameterFile(TString tag)
 {
-    Save(true,true,false,"data_lilak","","FITPARAMETERS");
+    Save(true,true,false,"data_lilak","",Form("FITPARAMETERS%s",tag.Data()));
 }
 
 void LKDrawingGroup::WriteFile(TString fileName, TString option)

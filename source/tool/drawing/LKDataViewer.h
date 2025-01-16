@@ -369,9 +369,10 @@ class LKDataViewer : public TGMainFrame
         void ProcessPrintFitExpFormula();
         void ProcessApplyDrawing();
 
+        void SaveTab(int ipad, TString tag="");
         void HandleNumberInput(Int_t id);
         void LayoutControlTab(int i);
-        void WriteFitParameterFile() { ProcessSaveTab(-3); }
+        void WriteFitParameterFile(TString tag="") { SaveTab(-3, tag); }
 
 
     ClassDef(LKDataViewer,1)

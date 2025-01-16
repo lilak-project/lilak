@@ -54,8 +54,8 @@ class LKDrawing : public TObjArray
         /// title will be used when creating legend using SetCreateLegend method. Some specaial cases are:
         /// - "legendx" : This object will not be added to the legend when SetCreateLegend is called.
         /// - "." : Same as legendx
-        void Add(TObject *dataObj, TString drawOption, TString title="");
-        void AddLegendLine(TString title);
+        int  Add(TObject *dataObj, TString drawOption, TString title="");
+        int  AddLegendLine(TString title);
         void SetFitObjects(TObject *data, TF1 *fit);
         bool Fit(TString option="RQ0B");
         void AddDrawing(LKDrawing *drawing);
