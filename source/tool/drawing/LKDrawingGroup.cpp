@@ -33,7 +33,7 @@ LKDrawingGroup::LKDrawingGroup(TFile* file, TString groupSelection)
 
 void LKDrawingGroup::Init()
 {
-    fName = "drawings";
+    fName = "DrawingGroup";
     fCvs = nullptr;
     fDivX = 0;
     fDivY = 0;
@@ -82,7 +82,7 @@ void LKDrawingGroup::Draw(Option_t *option)
             auto numSub = GetEntries();
             for (auto iSub=0; iSub<numSub; ++iSub) {
                 auto sub = (LKDrawingGroup*) At(iSub);
-                sub -> SetGlobalOption(fGlobalOption);
+                sub -> AppenGlobalOption(fGlobalOption);
                 sub -> Draw(optionString);
             }
         }
@@ -122,7 +122,7 @@ void LKDrawingGroup::WriteFile(TString fileName, TString option)
     {
         if (fileName.IsNull())
             fileName = Form("data_lilak/%s.flat.root",fName.Data());
-        e_info << "Writting" << endl;
+        lk_info << "Writting" << endl;
         e_cout << "    " << fileName << endl;
         auto file = new TFile(fileName,"recreate");
         Write(".flat");
@@ -130,7 +130,7 @@ void LKDrawingGroup::WriteFile(TString fileName, TString option)
     else {
         if (fileName.IsNull())
             fileName = Form("data_lilak/%s.root",fName.Data());
-        e_info << "Writting" << endl;
+        lk_info << "Writting" << endl;
         e_cout << "    " << fileName << endl;
         auto file = new TFile(fileName,"recreate");
         Write();
@@ -172,7 +172,7 @@ Int_t LKDrawingGroup::Write(const char *name, Int_t option, Int_t bsize) const
     else if (GetGroupDepth()>=3 || GetNumAllDrawingObjects()>1280)
     {
         auto numSub = GetNumGroups();
-        e_info << "Writting " << numSub << " groups in " << fName << " (" << GetNumAllDrawingObjects() << ")" << endl;
+        lk_info << "Writting " << numSub << " groups in " << fName << " (" << GetNumAllDrawingObjects() << ")" << endl;
         for (auto iSub=0; iSub<numSub; ++iSub) {
             auto sub = (LKDrawingGroup*) At(iSub);
             LKMisc::AddOption(name0,"draw_count",countDrawings);
@@ -196,6 +196,22 @@ Int_t LKDrawingGroup::Write(const char *name, Int_t option, Int_t bsize) const
     }
 
     return countDrawingsLocal;
+}
+
+void LKDrawingGroup::Browse(TBrowser *b)
+{
+    if (fIsGroupGroup)
+        TObjArray::Browse(b);
+    else {
+        //TObjArray::Browse(b);
+        if (gPad!=nullptr)
+            SetCanvas(gPad);
+        auto gPadBackup = gPad;
+        gPad -> Clear();
+        Draw(b ? b->GetDrawOption() : "");
+        gPad = gPadBackup;
+        gPad -> Update();
+    }
 }
 
 void LKDrawingGroup::Save(bool recursive, bool saveRoot, bool saveImage, TString dirName, TString header, TString tag)
@@ -242,7 +258,7 @@ void LKDrawingGroup::Save(bool recursive, bool saveRoot, bool saveImage, TString
 
         if (saveRoot) {
             TString fileName = dirName + "/" + uheader + fullName + tag + ".root";
-            e_info << "Writting" << endl;
+            lk_info << "Writting" << endl;
             e_cout << "    " << fileName << endl;
             auto file = new TFile(fileName,"recreate");
             Write(write_name);
@@ -264,7 +280,7 @@ void LKDrawingGroup::Save(bool recursive, bool saveRoot, bool saveImage, TString
     {
         if (saveRoot) {
             TString fileName = dirName + "/" + uheader + fullName + tag + ".root";
-            e_info << "Writting" << endl;
+            lk_info << "Writting" << endl;
             e_cout << "    " << fileName << endl;
             auto file = new TFile(fileName,"recreate");
             Write(write_name);
@@ -299,9 +315,12 @@ void LKDrawingGroup::Print(Option_t *opt) const
     bool isTop = false;
     if (LKMisc::CheckOption(option,"level")==false) {
         isTop = true;
-        e_info << "LKDrawingGroup " << fName << endl;
+        lk_info << "LKDrawingGroup " << fName << endl;
         option = option + ":level=0";
     }
+    bool print_all = false;
+    if (LKMisc::CheckOption(option,"all"))
+        print_all = true;
 
     int tab = 0;
     if (LKMisc::CheckOption(option,"level"))
@@ -323,6 +342,11 @@ void LKDrawingGroup::Print(Option_t *opt) const
     {
         auto numDrawings = GetEntries();
         e_cout << header << "Group " << fName << " containing " << numDrawings << " drawings" << endl;
+        if (print_all) {
+            e_cout << "  - level=" << fGroupLevel << endl;
+            e_cout << "  - div=(" << fDivX << "," << fDivY << ")" << endl;
+            e_cout << "  - option=" << fGlobalOption << endl;
+        }
         for (auto iDrawing=0; iDrawing<numDrawings; ++iDrawing)
         {
             auto drawing = (LKDrawing*) At(iDrawing);
@@ -331,7 +355,7 @@ void LKDrawingGroup::Print(Option_t *opt) const
         if (LKMisc::CheckOption(option,"!drawing")==false) e_cout << endl;
     }
     if (isTop)
-        e_info << GetNumAllDrawings() << " drawings in total" << endl;
+        lk_info << GetNumAllDrawings() << " drawings in total" << endl;
 }
 
 bool LKDrawingGroup::ConfigureCanvas()
@@ -563,7 +587,7 @@ bool LKDrawingGroup::AddFile(TFile* file, TString groupSelection)
                 while ((key=(TKey*)nextKey())) {
                     if (TString(key->GetName()).Index(groupName)==0) {
                         auto group = (LKDrawingGroup*) key -> ReadObj();
-                        if (allowPrint) e_info << "Adding " << group->GetName() << " from " << file->GetName() << endl;
+                        if (allowPrint) lk_info << "Adding " << group->GetName() << " from " << file->GetName() << endl;
                         AddGroupInStructure(group);
                     }
                 }
@@ -572,16 +596,16 @@ bool LKDrawingGroup::AddFile(TFile* file, TString groupSelection)
             {
                 auto obj = file -> Get(groupName);
                 if (obj==nullptr) {
-                    e_error << groupName << " is nullptr" << endl;
+                    lk_error << groupName << " is nullptr" << endl;
                     continue;
                 }
                 if (TString(obj->ClassName())=="LKDrawingGroup") {
                     auto group = (LKDrawingGroup*) obj;
-                    if (allowPrint) e_info << "Adding " << group->GetName() << " from " << file->GetName() << endl;
+                    if (allowPrint) lk_info << "Adding " << group->GetName() << " from " << file->GetName() << endl;
                     AddGroupInStructure(group);
                 }
                 else {
-                    e_error << groupName << " type is not LKDrawingGroup" << endl;
+                    lk_error << groupName << " type is not LKDrawingGroup" << endl;
                     return false;
                 }
             }
@@ -595,19 +619,19 @@ bool LKDrawingGroup::AddFile(TFile* file, TString groupSelection)
         while ((key=(TKey*)nextKey())) {
             if (TString(key->GetClassName())=="LKDrawingGroup") {
                 auto group = (LKDrawingGroup*) key -> ReadObj();
-                if (allowPrint) e_info << "Adding group (" << group->GetName() << ") from " << file->GetName() << endl;
+                if (allowPrint) lk_info << "Adding group (" << group->GetName() << ") from " << file->GetName() << endl;
                 AddGroupInStructure(group);
             }
             else if (TString(key->GetClassName())=="LKDrawing") {
                 auto draw = (LKDrawing*) key -> ReadObj();
-                if (allowPrint) e_info << "Adding drawing (" << draw->GetName() << ") from " << file->GetName() << endl;
+                if (allowPrint) lk_info << "Adding drawing (" << draw->GetName() << ") from " << file->GetName() << endl;
                 if (sub==nullptr)
                     sub = CreateGroup("sub");
                 sub -> AddDrawing(draw);
             }
             else if (TString(key->GetClassName())=="TObjArray") {
                 auto array = (TObjArray*) key -> ReadObj();
-                if (allowPrint) e_info << "Adding TObjArray (" << array->GetName() << ") from " << file->GetName() << endl;
+                if (allowPrint) lk_info << "Adding TObjArray (" << array->GetName() << ") from " << file->GetName() << endl;
                 if (sub==nullptr)
                     sub = CreateGroup("sub");
                 sub -> AddDrawing(array);
@@ -694,6 +718,71 @@ void LKDrawingGroup::Add(TObject *obj)
         TObjArray::Add(obj);
     else
         lk_error << "Cannot add " << obj->ClassName() << " directly!" << endl;
+}
+
+int LKDrawingGroup::HAdd(TString fileName)
+{
+    lk_info << "Adding histograms in " << fileName << " (";
+    int numHistograms = HAdd(new LKDrawingGroup(fileName,"xprint"));
+    e_cout << numHistograms << ")" << endl;
+    return numHistograms;
+}
+
+int LKDrawingGroup::HAdd(LKDrawingGroup* atop)
+{
+    if (GetEntries()==0)
+    {
+        auto numGroupA = atop -> GetEntries();
+        for (auto iGroupA=0; iGroupA<numGroupA; ++iGroupA)
+        {
+            auto groupA = (LKDrawingGroup*) atop -> At(iGroupA);
+            AddGroup(groupA);
+        }
+        return 0;
+    }
+
+    auto nameArray = MakeHistNameArray();
+    int countHist = 0;
+    for (auto name : nameArray) {
+        auto hist0 = FindHist(name);
+        auto hist1 = atop -> FindHist(name);
+        auto added = hist0 -> Add(hist1);
+        countHist++;
+    }
+    return countHist;
+}
+
+vector<TString> LKDrawingGroup::MakeHistNameArray()
+{
+    vector<TString> nameArray;
+
+    if (CheckIsGroupGroup())
+    {
+        auto numSub = GetEntries();
+        for (auto iSub=0; iSub<numSub; ++iSub) {
+            auto sub = (LKDrawingGroup*) At(iSub);
+            auto nameArraySub = sub -> MakeHistNameArray();
+            for (auto name : nameArraySub)
+                nameArray.push_back(name);
+        }
+    }
+    else
+    {
+        auto numDrawings = GetEntries();
+        for (auto iDrawing=0; iDrawing<numDrawings; ++iDrawing)
+        {
+            auto drawing = (LKDrawing*) At(iDrawing);
+            auto numObjects = drawing -> GetEntries();
+            for (auto iObj=0; iObj<numObjects; ++iObj)
+            {
+                auto obj = drawing -> At(iObj);
+                if (obj->InheritsFrom(TH1::Class()))
+                    nameArray.push_back(obj->GetName());
+            }
+        }
+    }
+
+    return nameArray;
 }
 
 void LKDrawingGroup::AddDrawing(LKDrawing* drawing)

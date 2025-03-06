@@ -1,9 +1,11 @@
 #ifndef LKDRAWING_HH
 #define LKDRAWING_HH
 
+#include "LKRunTimeMeasure.h"
 #include "TPaveStats.h"
 #include "TPaveText.h"
 #include "TObjArray.h"
+#include "TBrowser.h"
 #include "TString.h"
 #include "TLegend.h"
 #include "TNamed.h"
@@ -35,6 +37,7 @@ class LKDrawing : public TObjArray
         virtual void Print(Option_t *option="") const;
         virtual Int_t Write(const char *name = nullptr, Int_t option=TObject::kSingleKey, Int_t bufsize = 0) const;
         virtual void Clear(Option_t *option="");
+        virtual void Browse(TBrowser *b);
         void Init();
         void CopyTo(LKDrawing* drawing, bool clearFirst=true);
         virtual Double_t GetHistEntries() const;
@@ -64,6 +67,7 @@ class LKDrawing : public TObjArray
         void SetCanvas(TVirtualPad* cvs) { fCvs = (TPad*) cvs; }
         void SetCanvas(TPad* cvs) { fCvs = (TPad*) cvs; }
         void SetCanvas(TCanvas* cvs) { fCvs = (TPad*) cvs; }
+        void DetachCanvas() { fCvs = nullptr; }
 
         ////////////////////////////////////////////////////////////////////////////////////
         void SetOn(int iObj, bool on);
@@ -77,13 +81,14 @@ class LKDrawing : public TObjArray
         TH1* GetMainHist() { return fMainHist; }
         LKCut* GetCut() { return fCuts; }
         TObject* FindObjectStartWith(const char* name) const;
+        TObject* FindObjectNameClass(TString name, TClass *tclass) const;
 
         ////////////////////////////////////////////////////////////////////////////////////
         void SetHistColor(TH2* hist, int color, int max);
         void GetPadCorner(TPad *cvs, int iCorner, double &x_corner, double &y_corner, double &x_unit, double &y_unit);
         void GetPadCornerBoxDimension(TPad *cvs, int iCorner, double dx, double dy, double &x1, double &y1, double &x2, double &y2);
         TPaveStats* MakeStats(TPad *cvs);
-        bool MakeStatsBox(TPad *cvs, int iCorner=0, int fillStyle=-1);
+        TPaveStats* MakeStatsBox(TPad *cvs, int iCorner=0, int fillStyle=-1);
         void MakeLegendBelowStats(TPad* cvs, TLegend *legend);
         void MakeLegendCorner(TPad* cvs, TLegend *legend, int iCorner=0);
         void MakePaveTextCorner(TPad* cvs, TPaveText *pvtt, int iCorner=0);
@@ -175,7 +180,8 @@ class LKDrawing : public TObjArray
         void SetRangeUserX(double x1, double x2) { AddOption("x1",x1); AddOption("x2",x2); }
         void SetRangeUserY(double y1, double y2) { AddOption("y1",y1); AddOption("y2",y2); }
         //void SetLegendCorner(int iCorner) { RemoveOption("legend_below_stats"); AddOption("legend_corner",iCorner); }
-        void SetLegendCorner(int iCorner) { AddOption("legend_corner",iCorner); }
+        void SetLegendCorner(int iCorner, double dx=0, double dyline=0) { AddOption("legend_corner",iCorner); if (dx>0) SetPaveDx(dx); if (dyline>0) SetPaveLineDy(dyline); }
+
         void SetStatCorner(int iCorner) { AddOption("stats_corner",iCorner); }
         void SetPaveCorner(int iCorner) { AddOption("pave_corner",iCorner); }
         void SetPaveAttribute(int attribute) { AddOption("pave_attribute",attribute); }
@@ -190,17 +196,12 @@ class LKDrawing : public TObjArray
         //void SetTitleAttribute(int i, int font, double size, double offset);
         //void SetLabelAttribute(int i, int font, double size, double offset);
         void SetPaveDx(double dx) { AddOption("pave_dx",dx); }
-        void SetPaveLineDy(double dy_line) { AddOption("pave_line_dy",dy_line); }
-        void SetPaveSize(double dx, double dy_line) { SetPaveDx(dx); SetPaveLineDy(dy_line); }
-        void SetCreateFrame(TString name="", TString title="", TString option="") { AddOption("create_gframe"); AddOption("gframe_name",name); AddOption("gframe_title",title); if (option.IsNull()==false) AddOption("gframe_option",option); } ///< Create frame if no frame histogram exist.
+        void SetPaveLineDy(double dyline) { AddOption("pave_line_dy",dyline); }
+        void SetPaveSize(double dx, double dyline) { SetPaveDx(dx); SetPaveLineDy(dyline); }
         void SetCloneReplaceMainHist(TString name="") { AddOption("cr_mainh"); if (name.IsNull()==false) AddOption("cr_mainh_name",name); } ///< Clone fMainHist and replace fMainHist
-        void SetCreateLegend(int iCorner=-1, double dx=0, double dyline=0) {
-            AddOption("create_legend");
-            SetLegendBelowStats();
-            if (iCorner>=0) SetLegendCorner(iCorner);
-            if (dx>0) SetPaveDx(dx);
-            if (dyline>0) SetPaveLineDy(dyline);
-        }
+        void SetCreateFrame(TString name="", TString title="", TString option=""); ///< Create frame if no frame histogram exist.
+        void SetCreateLegend(int iCorner=-1, double dx=0, double dyline=0);
+        void SetLegendTransparent();
 
         ////////////////////////////////////////////////////////////////////////////////////
         bool GetFit() const { if (fFitFunction!=nullptr) return true; return false; }
@@ -227,6 +228,8 @@ class LKDrawing : public TObjArray
         TF1*     fFitFunction  = nullptr; //!
         TH1*     fHistPixel    = nullptr; //!
         TLegend* fLegend       = nullptr; //!
+
+        //LKRunTimeMeasure* fRM = nullptr; //!
 
     ClassDef(LKDrawing, 2)
 };

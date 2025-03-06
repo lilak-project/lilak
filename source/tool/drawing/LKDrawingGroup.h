@@ -10,6 +10,8 @@
 #include "LKDrawing.h"
 #include "LKPainter.h"
 #include "LKParameterContainer.h"
+#include <vector>
+using namespace std;
 
 class LKDataViewer;
 
@@ -58,6 +60,7 @@ class LKDrawingGroup : public TObjArray
         virtual void Draw(Option_t *option="all");
         virtual void Print(Option_t *option="") const;
         virtual Int_t Write(const char *name = nullptr, Int_t option=TObject::kSingleKey, Int_t bufsize = 0) const;
+        virtual void Browse(TBrowser *b);
         void WriteFile(TString fileName="", TString option="");
         void WriteFitParameterFile(TString tag="");
 
@@ -66,6 +69,10 @@ class LKDrawingGroup : public TObjArray
         void Save(bool recursive=true, bool saveRoot=true, bool saveImage=true, TString dirName="", TString header="", TString tag="");
 
         virtual void Add(TObject *obj);
+
+        int HAdd(TString fileName);
+        int HAdd(LKDrawingGroup* group);
+        vector<TString> MakeHistNameArray();
 
         int GetGroupDepth() const;
         bool IsGroupGroup() const { return fIsGroupGroup; }
@@ -80,6 +87,9 @@ class LKDrawingGroup : public TObjArray
 
         // canvas
         TCanvas* GetCanvas() { return fCvs; }
+        void DetachCanvas() { fCvs = nullptr; }
+        void SetCanvas(TVirtualPad* cvs) { fCvs = (TCanvas*) cvs; }
+        void SetCanvas(TPad* cvs) { fCvs = (TCanvas*) cvs; }
         void SetCanvas(TCanvas* pad) { fCvs = pad; }
         void SetCanvasDivision(int divX, int divY) { fDivX = divX; fDivY = divY; }
         int GetDivX() const { return fDivX; }
@@ -126,6 +136,7 @@ class LKDrawingGroup : public TObjArray
         ////////////////////////////////////////////////////////////////////////////////////
         TString GetGlobalOption() const { return fGlobalOption; }
         void SetGlobalOption(TString option) { fGlobalOption = option; }
+        void AppenGlobalOption(TString option) { fGlobalOption = fGlobalOption + ":" + option; }
         bool CheckOption(TString option) { return LKMisc::CheckOption(fGlobalOption,option); }
         int FindOptionInt(TString option, int value) { return LKMisc::FindOptionInt(fGlobalOption,option,value); }
         double FindOptionDouble(TString option, double value) { return LKMisc::FindOptionDouble(fGlobalOption,option,value); }

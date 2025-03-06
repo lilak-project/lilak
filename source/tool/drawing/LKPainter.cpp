@@ -234,3 +234,11 @@ TCanvas *LKPainter::CanvasResize(TString name, int width0, int height0, double r
     auto cvs = NewCanvas(name,name, fXCurrentCanvas, fYCurrentCanvas, width, height);
     return cvs;
 }
+
+
+TCanvas *LKPainter::CanvasSize(TString name, int width, int height)
+{
+    UpdateNextCanvasPosition();
+    auto cvs = NewCanvas(name,name, fXCurrentCanvas, fYCurrentCanvas, width, height);
+    return cvs;
+}

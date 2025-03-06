@@ -288,8 +288,8 @@ int LKDataViewer::AddGroupTab(LKDrawingGroup* group, int iTab, int iSub)
     }
     else
     {
-        if (iSub<0) tabSpace -> Connect("Selected(Int_t)", "LKDataViewer", this, Form("ProcessGotoTopTab(=%d)",iTab));
-        else        tabSpace -> Connect("Selected(Int_t)", "LKDataViewer", this, Form("ProcessGotoSubTabX(=%d)",iSub));
+        if (iSub<0) tabSpace -> Connect("Selected(Int_t)", "LKDataViewer", this, Form("ProcessReloadTab(=%d)",iTab));
+        //else        tabSpace -> Connect("Selected(Int_t)", "LKDataViewer", this, Form("ProcessReloadTab(=%d)",iSub));
         //tabSpace -> Print();
         if (isMainTabs) {
             fSubTabSpace.push_back(tabSpace);
@@ -401,7 +401,7 @@ TGNumberEntryField* LKDataViewer::NewNumberEntryField(TGCompositeFrame* frame, i
     if (type==1)
         frame -> AddFrame(numberEntryField, NewHintsNumberEntry());
     if (type==2) {
-        numberEntryField -> SetWidth(0.75*numberEntryField->GetWidth());
+        numberEntryField -> SetWidth(fRFNumber*0.5*numberEntryField->GetWidth());
         frame -> AddFrame(numberEntryField, NewHintsNumberEntry2());
     }
     numberEntryField -> Clear();
@@ -429,15 +429,20 @@ void LKDataViewer::CreateChangeControlSection()
     fButton_M = NewTextButton(NewHzFrame(section,1),"LONG-");
     fButton_N = NewTextButton(NewHzFrame(section,0),"LONG-");
     NewSplitLine(section);
-    fButton_F2= NewTextButton(NewHzFrame(section,0),"LONG-");
-    fButton_D = NewTextButton(NewHzFrame(section,0),"LONG-");
+    fButton_F_N = NewTextButton(NewHzFrame(section,0),"LONG-");
+    fButton_D_N = NewTextButton(NewHzFrame(section,0),"LONG-");
+    //NewSplitLine(section);
+    fButton_P_NM = NewTextButton(NewHzFrame(section,0),"LONG-");
+    fButton_A_N = NewTextButton(NewHzFrame(section,0),"LONG-");
 
-    SetButtonTitleMethod(fButton_M,"(&M)Tab Ctrl. Mode","ProcessChangeViewerMode(=1)");
-    SetButtonTitleMethod(fButton_N,"&Navigation Mode","ProcessChangeViewerMode(=2)");
-    SetButtonTitleMethod(fButton_F2,"Data &Fitting Mode","ProcessDataAnalysisMode()");
-    SetButtonTitleMethod(fButton_D, "Manage &Drawing Mode","ProcessManageDrawingMode()");
+    SetButtonTitleMethod(fButton_M,    "(&M)Tab Ctrl. Mode",  "ProcessChangeViewerMode(=1)");
+    SetButtonTitleMethod(fButton_N,    "&Navigation Mode",    "ProcessChangeViewerMode(=2)");
+    SetButtonTitleMethod(fButton_F_N,  "Data &Fitting Mode",  "ProcessFitAnalysisMode()");
+    SetButtonTitleMethod(fButton_D_N,  "Manage &Drawing Mode","ProcessManageDrawingMode()");
+    SetButtonTitleMethod(fButton_P_NM, "(&P) Draw on Canvas", "ProcessDrawOnNewCanvas()");
+    SetButtonTitleMethod(fButton_A_N,  "(&A) Analysis Mode",  "ProcessDataAnalysisMode()");
 
-    ProcessChangeViewerMode(1);
+    ProcessChangeViewerMode(kTabCtrlMode);
 }
 
 void LKDataViewer::CreateCanvasControlSection()
@@ -488,7 +493,7 @@ void LKDataViewer::CreateViewerControlSection()
 
     auto frame1 = NewHzFrame(section,0);
     SetButtonTitleMethod(NewTextButton(frame1), "Load All" , "ProcessLoadAllCanvas()");
-    SetButtonTitleMethod(NewTextButton(frame1), "Reload", "ProcessReLoadCCanvas()");
+    SetButtonTitleMethod(NewTextButton(frame1), "Reload(&=)", "ProcessReLoadCCanvas()");
 
     auto frame2 = NewHzFrame(section,0);
     SetButtonTitleMethod(NewTextButton(frame2), "&Save"    , "ProcessSaveTab(=-1)");
@@ -525,7 +530,7 @@ void LKDataViewer::CreateTabControlSection()
 
     auto frame1 = NewHzFrame(section,1);
     fButton_T = NewTextButton(frame1);
-    fButton_U = NewTextButton(frame1);
+    fButton_U_M = NewTextButton(frame1);
 
     auto frame2 = NewHzFrame(section,0);
     fButton_H = NewTextButton(frame2);
@@ -535,7 +540,7 @@ void LKDataViewer::CreateTabControlSection()
     fButton_J = NewTextButton(frame3);
     fButton_K = NewTextButton(frame3);
 
-    ProcessChangeViewerMode(1);
+    ProcessChangeViewerMode(kTabCtrlMode);
 }
 
 void LKDataViewer::CreateNumberPad()
@@ -592,19 +597,22 @@ void LKDataViewer::CreateFitAction()
     fControlDataTab->AddFrame(section, (new TGLayoutHints(kLHintsExpandX | kLHintsTop, fRF*5,  fRF*5,  fRF*5,  fRF*5 )));
 
     auto frame1 = NewHzFrame(section,1);
-    fButton_A = NewTextButton(frame1,"");
-    SetButtonTitleMethod(fButton_A, "&Apply par", "ProcessApplyFitData(=0)");
-    fButton_F = NewTextButton(frame1,"Fit data");
-    SetButtonTitleMethod(fButton_F, "&Fit data", "ProcessApplyFitData(=1)");
+    fButton_A_F = NewTextButton(frame1,"");
+    fButton_F_F = NewTextButton(frame1,"&Fit data");
 
     auto frame2 = NewHzFrame(section,0);
-    SetButtonTitleMethod(NewTextButton(frame2,""), "Undo", "ProcessApplyFitData(=2)");
-    SetButtonTitleMethod(NewTextButton(frame2,""), "#Save &Par", "WriteFitParameterFile()");
+    fButton_U_F = NewTextButton(frame2,"");
+    fButton_P_F = NewTextButton(frame2,"");
+
+    SetButtonTitleMethod(fButton_A_F, "&Apply par", "ProcessApplyFitData(=0)");
+    SetButtonTitleMethod(fButton_F_F, "&Fit data",  "ProcessApplyFitData(=1)");
+    SetButtonTitleMethod(fButton_U_F, "Undo",       "ProcessUndoToggleCanvas()");
+    SetButtonTitleMethod(fButton_P_F, "#Save &Par", "WriteFitParameterFile()");
 
     NewSplitLine(section);
 
     auto frame3 = NewHzFrame(section,0);
-    fFitName = NewLabel(frame3,"Fit name");
+    //fFitName = NewLabel(frame3,"Fit name");
     fButtonPrintFit = NewTextButton(frame3,"Info");
     SetButtonTitleMethod(fButtonPrintFit, "Info", "ProcessPrintFitExpFormula()");
 
@@ -624,10 +632,10 @@ void LKDataViewer::CreateFitAction()
 
     auto createParameterRow = [this,section](int i)
     {
-        //NewSplitLine(section);
+        NewSplitLine(section);
 
         auto frameA = NewHzFrame(section,0);
-        //auto fFitParNameLabel[i] = NewLabel(frameA, "");
+        fFitParNameLabel[i] = NewLabel(frameA, "");
 
         auto frameB = NewHzFrame(section,0);
         fFitParValueEntry[i] = NewNumberEntryField(frameB,2);
@@ -653,8 +661,8 @@ void LKDataViewer::CreateManageDrawing()
     fDrawingName = NewLabel(frame1,"");
 
     auto frame2 = NewHzFrame(section,1);
-    fButton_A2 = NewTextButton(frame2,"");
-    SetButtonTitleMethod(fButton_A2, "&Apply", "ProcessApplyDrawing()");
+    fButton_A_D = NewTextButton(frame2,"");
+    SetButtonTitleMethod(fButton_A_D, "&Apply", "ProcessApplyDrawing()");
 
     for (auto i=0; i<fNumMaxDrawingObjects; ++i) {
         auto frameA = NewHzFrame(section,0);
@@ -694,10 +702,11 @@ void LKDataViewer::HandleNumberInput(Int_t id)
 bool LKDataViewer::SetParameterFromDrawing(LKDrawing* drawing)
 {
     fDrawingSetFit = drawing;
-    fFitName -> SetText("");
+    //fFitName -> SetText("");
+    fButtonPrintFit -> SetText("");
     fCurrentFitExpFormula = "";
     for (auto iPar=0; iPar<fNumMaxFitParameters; ++iPar) {
-        //fFitParNameLabel[iPar]   -> SetText("");
+        fFitParNameLabel[iPar]   -> SetText("");
         fFitParFixCheckBx[iPar]  -> SetOn(false);
         fFitParValueEntry[iPar]  -> SetNumber(0);
         fFitParLimit1Entry[iPar] -> SetNumber(0);
@@ -723,7 +732,8 @@ bool LKDataViewer::SetParameterFromDrawing(LKDrawing* drawing)
         return false;
     }
 
-    fFitName -> SetText(fit->GetName());
+    //fFitName -> SetText(fit->GetName());
+    fButtonPrintFit -> SetText(fit->GetName());
     fCurrentFitExpFormula = "\n";
     fCurrentFitExpFormula = fCurrentFitExpFormula + fit -> GetName() + "\n";
     fCurrentFitExpFormula = fCurrentFitExpFormula + fit -> GetExpFormula();
@@ -738,11 +748,11 @@ bool LKDataViewer::SetParameterFromDrawing(LKDrawing* drawing)
         double limit1, limit2;
         fit -> GetParLimits(iPar,limit1,limit2);
 
-        //fFitParNameLabel[iPar] -> SetText(name);
+        fFitParNameLabel[iPar] -> SetText(name);
         fFitParValueEntry[iPar] -> SetNumber(value);
         fFitParLimit1Entry[iPar] -> SetNumber(limit1);
         fFitParLimit2Entry[iPar] -> SetNumber(limit2);
-        fFitParFixCheckBx[iPar] -> SetText(name);
+        //fFitParFixCheckBx[iPar] -> SetText(name);
         fFitParFixCheckBx[iPar] -> SetEnabled(true);
         if (limit1==1&&limit2==1&&value==0) fFitParFixCheckBx[iPar] -> SetOn(true);
         else if (limit1==limit2) fFitParFixCheckBx[iPar] -> SetOn(true);
@@ -1269,78 +1279,100 @@ void LKDataViewer::ProcessCanvasControl(int iMode)
 
 void LKDataViewer::ProcessChangeViewerMode(int iNavMode)
 {
-    if (iNavMode==1)
+    if (fButton_M   !=nullptr) fButton_M   -> ChangeBackground(fNormalButtonColor);
+    if (fButton_N   !=nullptr) fButton_N   -> ChangeBackground(fNormalButtonColor);
+    if (fButton_F_N !=nullptr) fButton_F_N -> ChangeBackground(fNormalButtonColor);
+    if (fButton_D_N !=nullptr) fButton_D_N -> ChangeBackground(fNormalButtonColor);
+    if (fButton_A_N !=nullptr) fButton_A_N -> ChangeBackground(fNormalButtonColor);
+    SetButtonTitleMethod(fButton_H, "(&H)Left",  "ProcessNavigateCanvas(=1)");
+    SetButtonTitleMethod(fButton_L, "(&L)Right", "ProcessNavigateCanvas(=2)");
+    SetButtonTitleMethod(fButton_J, "(&J)Down",  "ProcessNavigateCanvas(=3)");
+    SetButtonTitleMethod(fButton_K, "(&K)Up",    "ProcessNavigateCanvas(=4)");
+    if (iNavMode==kTabCtrlMode)
     {
         if (fButton_M !=nullptr) fButton_M -> ChangeBackground(fHighlightButtonColor);
-        if (fButton_N !=nullptr) fButton_N -> ChangeBackground(fNormalButtonColor);
-        if (fButton_F2!=nullptr) fButton_F2-> ChangeBackground(fNormalButtonColor);
-        if (fButton_D !=nullptr) fButton_D -> ChangeBackground(fNormalButtonColor);
-        SetButtonTitleMethod(fButton_H, "<(&H)Tab", "ProcessPrevTab()");
-        SetButtonTitleMethod(fButton_L, "Tab(&L)>", "ProcessNextTab()");
-        SetButtonTitleMethod(fButton_J, "<(&J)Sub", "ProcessPrevSubTab()");
-        SetButtonTitleMethod(fButton_K, "Sub(&K)>", "ProcessNextSubTab()");
-        SetButtonTitleMethod(fButton_T, "#&Tab",    "ProcessGotoTopTabT()");
-        SetButtonTitleMethod(fButton_U, "#S&ub",    "ProcessGotoSubTab()");
-        SetButtonTitleMethod(fButton_A, "&Apply par", "");
-        SetButtonTitleMethod(fButton_A2, "&Apply",    "");
-        SetButtonTitleMethod(fButton_F, "&Fit data", "");
-        SetButtonTitleMethod(fButton_F2,"Data &Fitting Mode","");
-        SetButtonTitleMethod(fButton_D, "Manage &Drawing Mode","");
+        SetButtonTitleMethod(fButton_H,   "<(&H)Tab", "ProcessPrevTab()");
+        SetButtonTitleMethod(fButton_L,   "Tab(&L)>", "ProcessNextTab()");
+        SetButtonTitleMethod(fButton_J,   "<(&J)Sub", "ProcessPrevSubTab()");
+        SetButtonTitleMethod(fButton_K,   "Sub(&K)>", "ProcessNextSubTab()");
+        SetButtonTitleMethod(fButton_T,   "#&Tab",    "ProcessGotoTopTabT()");
+        SetButtonTitleMethod(fButton_U_M, "#S&ub",    "ProcessGotoSubTab()");
+        SetButtonTitleMethod(fButton_U_F, "#Undo",    "ProcessGotoSubTab()");
+        SetButtonTitleMethod(fButton_P_F, "-", "ProcessDrawOnNewCanvas()");
+        SetButtonTitleMethod(fButton_P_NM,"-", "ProcessDrawOnNewCanvas()");
+        SetButtonTitleMethod(fButton_A_N, "-", "");
+        SetButtonTitleMethod(fButton_A_F, "-", "");
+        SetButtonTitleMethod(fButton_A_D, "-", "");
+        SetButtonTitleMethod(fButton_F_F, "-", "");
+        SetButtonTitleMethod(fButton_F_N, "-", "");
+        SetButtonTitleMethod(fButton_D_N, "-", "");
+        LayoutControlTab(0);
     }
-    else if (iNavMode==2)
+    else if (iNavMode==kCvsNaviMode)
     {
-        if (fButton_M !=nullptr) fButton_M -> ChangeBackground(fNormalButtonColor);
         if (fButton_N !=nullptr) fButton_N -> ChangeBackground(fHighlightButtonColor);
-        if (fButton_F2!=nullptr) fButton_F2-> ChangeBackground(fNormalButtonColor);
-        if (fButton_D !=nullptr) fButton_D -> ChangeBackground(fNormalButtonColor);
-        SetButtonTitleMethod(fButton_H, "(&H)Left",  "ProcessNavigateCanvas(=1)");
-        SetButtonTitleMethod(fButton_L, "(&L)Right", "ProcessNavigateCanvas(=2)");
-        SetButtonTitleMethod(fButton_J, "(&J)Down",  "ProcessNavigateCanvas(=3)");
-        SetButtonTitleMethod(fButton_K, "(&K)Up",    "ProcessNavigateCanvas(=4)");
-        SetButtonTitleMethod(fButton_T, "#&Toggle",  "ProcessToggleNavigateCanvas()");
-        SetButtonTitleMethod(fButton_U, "#&Undo",    "ProcessUndoToggleCanvas()");
-        SetButtonTitleMethod(fButton_A, "&Apply par", "");
-        SetButtonTitleMethod(fButton_A2,"&Apply",    "");
-        SetButtonTitleMethod(fButton_F, "&Fit data", "ProcessDataAnalysisMode()");
-        SetButtonTitleMethod(fButton_F2,"Data &Fitting Mode","ProcessDataAnalysisMode()");
-        SetButtonTitleMethod(fButton_D, "Manage &Drawing Mode","ProcessManageDrawingMode()");
+        SetButtonTitleMethod(fButton_T,   "#&Toggle","ProcessToggleNavigateCanvas()");
+        SetButtonTitleMethod(fButton_U_M, "#S&ub",   "ProcessUndoToggleCanvas()");
+        SetButtonTitleMethod(fButton_U_F, "#&Undo",  "ProcessUndoToggleCanvas()");
+        SetButtonTitleMethod(fButton_P_F, "-", "ProcessDrawOnNewCanvas()");
+        SetButtonTitleMethod(fButton_P_NM,"-", "ProcessDrawOnNewCanvas()");
+        SetButtonTitleMethod(fButton_A_N, "-", "ProcessDataAnalysisMode()");
+        SetButtonTitleMethod(fButton_A_F, "-", "ProcessDataAnalysisMode()");
+        SetButtonTitleMethod(fButton_A_D, "-", "ProcessDataAnalysisMode()");
+        SetButtonTitleMethod(fButton_F_F, "-", "ProcessFitAnalysisMode()");
+        SetButtonTitleMethod(fButton_F_N, "-", "ProcessFitAnalysisMode()");
+        SetButtonTitleMethod(fButton_D_N, "-", "ProcessManageDrawingMode()");
         fSelectColor = fNaviagationColor;
+        LayoutControlTab(0);
     }
-    else if (iNavMode==3)
+    else if (iNavMode==kFittingMode)
     {
-        if (fButton_M !=nullptr) fButton_M -> ChangeBackground(fNormalButtonColor);
-        if (fButton_N !=nullptr) fButton_N -> ChangeBackground(fNormalButtonColor);
-        if (fButton_F2!=nullptr) fButton_F2-> ChangeBackground(fHighlightButtonColor);
-        if (fButton_D !=nullptr) fButton_D -> ChangeBackground(fNormalButtonColor);
-        SetButtonTitleMethod(fButton_H, "(&H)Left",  "ProcessNavigateCanvas(=91)");
-        SetButtonTitleMethod(fButton_L, "(&L)Right", "ProcessNavigateCanvas(=92)");
-        SetButtonTitleMethod(fButton_J, "(&J)Down",  "ProcessNavigateCanvas(=93)");
-        SetButtonTitleMethod(fButton_K, "(&K)Up",    "ProcessNavigateCanvas(=94)");
-        SetButtonTitleMethod(fButton_T, "", "");
-        SetButtonTitleMethod(fButton_U, "", "");
-        SetButtonTitleMethod(fButton_A, "&Apply par", "ProcessApplyFitData(=0)");
-        SetButtonTitleMethod(fButton_A2, "&Apply",    "ProcessApplyFitData(=0)");
-        SetButtonTitleMethod(fButton_F, "&Fit data", "ProcessApplyFitData(=1)");
-        SetButtonTitleMethod(fButton_F2,"Data &Fitting Mode","ProcessApplyFitData(=1)");
-        SetButtonTitleMethod(fButton_D, "Manage &Drawing Mode","");
+        if (fButton_F_N!=nullptr) fButton_F_N-> ChangeBackground(fHighlightButtonColor);
+        SetButtonTitleMethod(fButton_T,   "", "");
+        SetButtonTitleMethod(fButton_U_M, "",        "ProcessApplyFitData(=2)");
+        SetButtonTitleMethod(fButton_U_F, "#&Undo",  "ProcessApplyFitData(=2)");
+        SetButtonTitleMethod(fButton_P_F, "-", "WriteFitParameterFile()");
+        SetButtonTitleMethod(fButton_P_NM,"-", "WriteFitParameterFile()");
+        SetButtonTitleMethod(fButton_A_N, "-", "ProcessApplyFitData(=0)");
+        SetButtonTitleMethod(fButton_A_F, "-", "ProcessApplyFitData(=0)");
+        SetButtonTitleMethod(fButton_A_D, "-", "ProcessApplyFitData(=0)");
+        SetButtonTitleMethod(fButton_F_F, "-", "ProcessApplyFitData(=1)");
+        SetButtonTitleMethod(fButton_F_N, "-", "ProcessApplyFitData(=1)");
+        SetButtonTitleMethod(fButton_D_N, "-", "");
     }
-    else if (iNavMode==4)
+    else if (iNavMode==kDrawingMode)
     {
-        if (fButton_M !=nullptr) fButton_M -> ChangeBackground(fNormalButtonColor);
-        if (fButton_N !=nullptr) fButton_N -> ChangeBackground(fNormalButtonColor);
-        if (fButton_F2!=nullptr) fButton_F2-> ChangeBackground(fNormalButtonColor);
-        if (fButton_D !=nullptr) fButton_D -> ChangeBackground(fHighlightButtonColor);
-        SetButtonTitleMethod(fButton_H, "(&H)Left",  "ProcessNavigateCanvas(=91)");
-        SetButtonTitleMethod(fButton_L, "(&L)Right", "ProcessNavigateCanvas(=92)");
-        SetButtonTitleMethod(fButton_J, "(&J)Down",  "ProcessNavigateCanvas(=93)");
-        SetButtonTitleMethod(fButton_K, "(&K)Up",    "ProcessNavigateCanvas(=94)");
-        SetButtonTitleMethod(fButton_T, "", "");
-        SetButtonTitleMethod(fButton_U, "", "");
-        SetButtonTitleMethod(fButton_A, "&Apply par", "ProcessApplyDrawing()");
-        SetButtonTitleMethod(fButton_A2, "&Apply",    "ProcessApplyDrawing()");
-        SetButtonTitleMethod(fButton_F, "&Fit data", "");
-        SetButtonTitleMethod(fButton_F2,"Data &Fitting Mode","");
-        SetButtonTitleMethod(fButton_D, "Manage &Drawing Mode","");
+        if (fButton_D_N !=nullptr) fButton_D_N -> ChangeBackground(fHighlightButtonColor);
+        SetButtonTitleMethod(fButton_H,   "",  "");
+        SetButtonTitleMethod(fButton_L,   "",  "");
+        SetButtonTitleMethod(fButton_J,   "",  "");
+        SetButtonTitleMethod(fButton_K,   "",  "");
+        SetButtonTitleMethod(fButton_T,   "",  "");
+        SetButtonTitleMethod(fButton_U_M, "",  "");
+        SetButtonTitleMethod(fButton_U_F, "",  "");
+        SetButtonTitleMethod(fButton_P_F, "",  "");
+        SetButtonTitleMethod(fButton_P_NM,"-", "");
+        SetButtonTitleMethod(fButton_A_N, "-", "ProcessApplyDrawing()");
+        SetButtonTitleMethod(fButton_A_F, "-", "ProcessApplyDrawing()");
+        SetButtonTitleMethod(fButton_A_D, "-", "ProcessApplyDrawing()");
+        SetButtonTitleMethod(fButton_F_F, "-", "");
+        SetButtonTitleMethod(fButton_F_N, "-", "");
+        SetButtonTitleMethod(fButton_D_N, "-", "");
+    }
+    else if (iNavMode==kAnaHTMode) 
+    {
+        if (fButton_D_N !=nullptr) fButton_A_N -> ChangeBackground(fHighlightButtonColor);
+        SetButtonTitleMethod(fButton_T,   "",  "");
+        SetButtonTitleMethod(fButton_U_M, "",  "");
+        SetButtonTitleMethod(fButton_U_F, "",  "");
+        SetButtonTitleMethod(fButton_P_F, "",  "");
+        SetButtonTitleMethod(fButton_P_NM,"-", "");
+        SetButtonTitleMethod(fButton_A_N, "-", "");
+        SetButtonTitleMethod(fButton_A_F, "-", "");
+        SetButtonTitleMethod(fButton_A_D, "-", "");
+        SetButtonTitleMethod(fButton_F_F, "-", "");
+        SetButtonTitleMethod(fButton_F_N, "-", "");
+        SetButtonTitleMethod(fButton_D_N, "-", "");
     }
 
     ProcessSetCanvasColor(fLastNavMode,iNavMode);
@@ -1349,9 +1381,14 @@ void LKDataViewer::ProcessChangeViewerMode(int iNavMode)
 
 bool LKDataViewer::SetButtonTitleMethod(TGTextButton* button, TString buttonTitle, TString method)
 {
-    if (button==nullptr) return false;
-    if (buttonTitle.IsNull()) buttonTitle = "--------";
-    button -> SetText(buttonTitle);
+    if (button==nullptr)
+        return false;
+
+    if (buttonTitle=="-") {;}
+    else {
+        if (buttonTitle.IsNull()) buttonTitle = "--------";
+        button -> SetText(buttonTitle);
+    }
     button -> Disconnect();
     if (method.IsNull()==false)
         button -> Connect("Clicked()", "LKDataViewer", this, method);
@@ -1361,13 +1398,41 @@ bool LKDataViewer::SetButtonTitleMethod(TGTextButton* button, TString buttonTitl
 
 void LKDataViewer::ProcessDataAnalysisMode()
 {
-    ProcessChangeViewerMode(3);
-    ProcessToggleAnalysis();
+    int analysisNumber = fNumberInput->GetIntNumber();
+    fNumberInput -> Clear();
+    if (analysisNumber==0) {
+        ProcessChangeViewerMode(kAnaHTMode);
+        ProcessAnaHTMode();
+    }
+}
+
+void LKDataViewer::ProcessFitAnalysisMode()
+{
+    ProcessChangeViewerMode(kFittingMode);
+    ProcessToggleFitAnalysis();
+}
+
+void LKDataViewer::ProcessDrawOnNewCanvas()
+{
+    if (fLastNavMode==kTabCtrlMode) // M
+    {
+        auto cvsDV = fCurrentGroup -> GetCanvas();
+        fCurrentGroup -> DetachCanvas();
+        fCurrentGroup -> Draw();
+        fCurrentGroup -> SetCanvas(cvsDV);
+    }
+    if (fLastNavMode==kCvsNaviMode) // N
+    {
+        auto cvsDV = fCurrentDrawing -> GetCanvas();
+        fCurrentDrawing -> DetachCanvas();
+        fCurrentDrawing -> Draw();
+        fCurrentDrawing -> SetCanvas(cvsDV);
+    }
 }
 
 void LKDataViewer::ProcessManageDrawingMode()
 {
-    ProcessChangeViewerMode(4);
+    ProcessChangeViewerMode(kDrawingMode);
     ProcessToggleManageDrawing();
 }
 
@@ -1395,9 +1460,9 @@ void LKDataViewer::ProcessSetCanvasColor(int preMode, int iMode)
     }
     if (iMode==2) {
         if (preMode==3)
-            ProcessNavigateCanvas(-1); // do not reset TPad selection position
+            ProcessNavigateCanvas(0); // do not reset TPad selection position
         else
-            ProcessNavigateCanvas(0); // reset TPad selection position
+            ProcessNavigateCanvas(-1); // reset TPad selection position
     }
     if (iMode==3) {
         if (fCurrentTPad!=nullptr) {
@@ -1421,7 +1486,7 @@ void LKDataViewer::ProcessNavigateCanvas(int iMode)
 {
     if (iMode>90) {
         iMode = iMode-90;
-        ProcessChangeViewerMode(2);
+        ProcessChangeViewerMode(kCvsNaviMode);
     }
     int drawingNumber = 0;
     int divX = fCurrentGroup -> GetDivX();
@@ -1440,11 +1505,8 @@ void LKDataViewer::ProcessNavigateCanvas(int iMode)
     }
     else
     {
-        if (iMode==0) {
-            fCurrentCanvasX = 0;
-            fCurrentCanvasY = 0;
-        }
-        else if (iMode==-1) {}
+        if      (iMode==-1) { fCurrentCanvasX = 0; fCurrentCanvasY = 0; }
+        else if (iMode==0) {}
         else if (iMode==1) { if (fCurrentCanvasX==0)      return; fCurrentCanvasX--; }
         else if (iMode==2) { if (fCurrentCanvasX==divX-1) return; fCurrentCanvasX++; }
         else if (iMode==3) { if (fCurrentCanvasY==divY-1) return; fCurrentCanvasY++; }
@@ -1535,7 +1597,13 @@ void LKDataViewer::ProcessUndoToggleCanvas()
     ProcessGotoTopTab(fSaveTabID, fSaveSubTabID, 1, 11);
 }
 
-void LKDataViewer::ProcessToggleAnalysis()
+void LKDataViewer::ProcessAnaHTMode()
+{
+    ProcessToggleNavigateCanvas();
+    fCurrentGroup -> Print();
+}
+
+void LKDataViewer::ProcessToggleFitAnalysis()
 {
     fCurrentDrawing -> Print();
     bool setPar = SetParameterFromDrawing(fCurrentDrawing);
@@ -1566,16 +1634,11 @@ void LKDataViewer::LayoutControlTab(int i)
     if (i==98) moveToTab = fCurrentControlTab-1;
     else if (i==99) moveToTab = fCurrentControlTab+1;
     else moveToTab = i;
-    if (moveToTab<0) { lk_debug << endl; return; }
-    if (moveToTab>=fCountControlTab) { lk_debug << endl; return; }
+    if (moveToTab<0) { return; }
+    if (moveToTab>=fCountControlTab) { return; }
     fTopControlTab -> SetTab(moveToTab);
     fTopControlTab -> GetTabTab(moveToTab) -> Layout();
     fCurrentControlTab = moveToTab;
-}
-
-void LKDataViewer::ProcessUndoAnalysis()
-{
-    lk_debug << "This method is under development" << endl;
 }
 
 void LKDataViewer::ProcessSizeViewer(double scale, double scaley)
@@ -1666,14 +1729,10 @@ void LKDataViewer::ProcessApplyDrawing()
     lk_debug << numObjects << endl;
     for (auto iObj=0; iObj<numObjects; ++iObj)
     {
-        lk_debug << iObj << " "<< fCheckDrawingObject[iObj]->IsOn() << endl;
         auto obj = drawing -> At(iObj);
-        lk_debug << iObj << " "<< fCheckDrawingObject[iObj]->IsOn() << endl;
         drawing -> SetOn(iObj, fCheckDrawingObject[iObj]->IsOn());
-        lk_debug << iObj << " "<< fCheckDrawingObject[iObj]->IsOn() << endl;
-        drawing -> Draw();
-        lk_debug << iObj << " "<< fCheckDrawingObject[iObj]->IsOn() << endl;
     }
+    drawing -> Draw();
 }
 
 TGLayoutHints* LKDataViewer::NewHintsMainFrame()    { return (new TGLayoutHints(kLHintsExpandX | kLHintsExpandY)); }

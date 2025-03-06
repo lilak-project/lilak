@@ -7,17 +7,23 @@ ClassImp(LKBinning);
 
 LKBinning::LKBinning(LKBinning const & binn)
 {
+    SetName(binn.GetName());
+    SetTitle(binn.GetTitle());
     SetXNMM(binn.nx(), binn.x1(), binn.x2());
     SetYNMM(binn.ny(), binn.y1(), binn.y2());
 }
 
 LKBinning::LKBinning(LKBinning1 const & binn)
 {
+    SetName(binn.GetName());
+    SetTitle(binn.GetTitle());
     SetXNMM(binn.nx(), binn.x1(), binn.x2());
 }
 
 LKBinning::LKBinning(LKBinning1 const & binnx, LKBinning1 const & binny)
 {
+    SetName(Form("%s_%s",binnx.GetName(),binny.GetName()));
+    SetTitle(Form("%s;%s",binnx.GetTitle(),binny.GetTitle()));
     SetXNMM(binnx.nx(), binnx.x1(), binnx.x2());
     SetYNMM(binny.nx(), binny.x1(), binny.x2());
 }
@@ -41,19 +47,25 @@ LKBinning::LKBinning(TGraph *graph)
 }
 
 void LKBinning::operator=(const LKBinning binn) {
+    SetName(binn.GetName());
+    SetTitle(binn.GetTitle());
     SetXNMM(binn.nx(), binn.x1(), binn.x2());
     SetYNMM(binn.ny(), binn.y1(), binn.y2());
 }
 
 LKBinning LKBinning::operator*(const LKBinning binn) {
-    return LKBinning("", "", fBinningX.nx(), fBinningX.x1(), fBinningX.x2(), binn.nx(), binn.x1(), binn.x2());
+    return LKBinning(fName+"_"+binn.GetName(), fTitle+";"+binn.GetTitle(), fBinningX.nx(), fBinningX.x1(), fBinningX.x2(), binn.nx(), binn.x1(), binn.x2());
 }
 
 TH1D* LKBinning::NewH1(TString name, TString title)
 {
     if (name.IsNull()) name = fName;
     if (name.IsNull()) name = "hist1";
-    if (title.IsNull()) title = fTitle;
+
+    TString title1 = Form(";%s",fTitle.Data());
+    if (title.IsNull()) title = title1;
+    else if (title.Index(";")<0) title += title1;
+
     auto hist = new TH1D(name, title, fBinningX.nx(), fBinningX.x1(), fBinningX.x2());
     return hist;
 }
@@ -62,7 +74,11 @@ TH2D* LKBinning::NewH2(TString name, TString title)
 {
     if (name.IsNull()) name = fName;
     if (name.IsNull()) name = "hist2";
-    if (title.IsNull()) title = fTitle;
+
+    TString title1 = Form(";%s",fTitle.Data());
+    if (title.IsNull()) title = title1;
+    else if (title.Index(";")<0) title += title1;
+
     auto hist = new TH2D(name, title, fBinningX.nx(), fBinningX.x1(), fBinningX.x2(), fBinningY.nx(), fBinningY.x1(), fBinningY.x2());
     return hist;
 }
@@ -70,16 +86,22 @@ TH2D* LKBinning::NewH2(TString name, TString title)
 void LKBinning::SetBinning(TH1 *hist)
 {
     if (hist->InheritsFrom(TH2::Class())) {
+        TString title = hist -> GetXaxis() -> GetTitle();
+        fBinningX.SetTitle(title);
         int    nx = hist -> GetNbinsX();
         double x1 = hist -> GetXaxis() -> GetBinLowEdge(1);
         double x2 = hist -> GetXaxis() -> GetBinUpEdge(nx);
         fBinningX.SetXNMM(nx,x1,x2);
+        TString titley = hist -> GetYaxis() -> GetTitle();
+        fBinningY.SetTitle(titley);
         int    ny = hist -> GetNbinsY();
         double y1 = hist -> GetYaxis() -> GetBinLowEdge(1);
         double y2 = hist -> GetYaxis() -> GetBinUpEdge(ny);
         fBinningY.SetXNMM(ny,y1,y2);
     }
     else if (hist->InheritsFrom(TH1::Class())) {
+        TString title = hist -> GetXaxis() -> GetTitle();
+        fBinningX.SetTitle(title);
         int    nx = hist -> GetNbinsX();
         double x1 = hist -> GetXaxis() -> GetBinLowEdge(1);
         double x2 = hist -> GetXaxis() -> GetBinUpEdge(nx);
@@ -203,7 +225,7 @@ TH1D* LKBinning::ProjectionY(TH2D* hist2, int i_proj)
     TString name = hist2 -> GetName();
     name = name + "_" + i_proj;
     auto histProj = hist2 -> ProjectionY(name,bin1,bin2);
-    TString title = histProj -> GetTitle();
+    TString title = hist2 -> GetTitle();
     if (title.IsNull()==false) title += " ";
     double x1 = GetBinLowEdge(bin1);
     double x2 = GetBinUpEdge(bin2);

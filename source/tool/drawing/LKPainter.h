@@ -62,6 +62,7 @@ class LKPainter : public TObject
         TCanvas *CanvasFull      (TString name="cvs_lilak", double ratio=1, double ratio2=-1);
         TCanvas *CanvasSquare    (TString name="cvs_lilak", double ratio=1);
         TCanvas *CanvasResize    (TString name, int width0, int height0, double ratio=-1);
+        TCanvas *CanvasSize      (TString name, int width, int height);
 
         void GetSizeDefault  (int &width, int &height, double ratio=1);
         void GetSizeFull     (int &width, int &height, double ratio=1, double ratio2=-1);

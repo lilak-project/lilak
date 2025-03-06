@@ -58,6 +58,9 @@ class LKBinning : public TNamed
         double y1() const { return fBinningY.fX1; }
         double y2() const { return fBinningY.fX2; }
 
+        double xmid() const { return 0.5*(fBinningX.fX1+fBinningX.fX2); }
+        double ymid() const { return 0.5*(fBinningY.fX1+fBinningY.fX2); }
+
         bool IsInside(double x) { if (fBinningX.IsInside(x)) return true; return false; }
         bool IsInside(double x, double y) { if (fBinningX.IsInside(x)&&fBinningY.IsInside(y)) return true; return false; }
         double GetRandomUniform()  { return fBinningX.GetRandomUniform(); }
@@ -120,6 +123,8 @@ class LKBinning : public TNamed
         LKDrawing* CreateProjectionYGrid();
         TH1D* ProjectionX(TH2D* hist2, int i_proj);
         TH1D* ProjectionY(TH2D* hist2, int i_proj);
+        LKBinning GetProjectionBinning() { return fBinningProjection; }
+        LKBinning GetProjectionValueBinning() { return LKBinning(fBinningProjection.n(),GetIdxLowEdge(fBinningProjection.x1()),GetIdxUpEdge(fBinningProjection.x2())); }
 
         void ResetNextProjection();
         bool NextProjection() { return fBinningProjection.Next(); }
