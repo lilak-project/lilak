@@ -40,7 +40,7 @@ void LKBufferI::Draw(Option_t *option)
 
 TH1D* LKBufferI::GetHist(TString name)
 {
-    if (fHist==nullptr) {
+    if (fHist==nullptr||name.IsNull()==false) {
         if (name.IsNull()) name = "LKBufferIHist";
         fHist = new TH1D(name,";tb;y",512,0,512);
     }
