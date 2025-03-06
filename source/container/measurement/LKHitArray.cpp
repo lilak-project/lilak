@@ -520,31 +520,31 @@ TCanvas *LKHitArray::DrawFitCircle(axis_t ref)
         cvs1 -> cd(); markProjection -> DrawMarker(vProjection2,      posProjection2.K()); markOriginal -> DrawMarker(vPos,0);
         cvs2 -> cd(); markProjection -> DrawMarker(posProjection2.I(),posProjection2.J()); markOriginal -> DrawMarker(pos.I(),pos.J());
 
-        auto lst1 = LKGeoLine(tPos ,0, 0, tRiemann, 2*rRiemann, 0).DrawArrowXY(); lst1 -> SetLineStyle(2);
-        auto lst2 = LKGeoLine(vPos ,0, 0, vRiemann, 2*rRiemann, 0).DrawArrowXY(); lst2 -> SetLineStyle(2);
+        auto lst1 = LKGeoLine(tPos ,0, 0, tRiemann, 2*rRiemann, 0).GetArrowXY(); lst1 -> SetLineStyle(2);
+        auto lst2 = LKGeoLine(vPos ,0, 0, vRiemann, 2*rRiemann, 0).GetArrowXY(); lst2 -> SetLineStyle(2);
 
         cvs0 -> cd(); lst1 -> Draw("samel");
         cvs1 -> cd(); lst2 -> Draw("samel");
     }
 
     cvs0 -> cd();
-    auto riemannCircle0 = LKGeoSphere(0,tRiemann,rRiemann,rRiemann).DrawCircleYZ(); riemannCircle0 -> SetLineStyle(2);
+    auto riemannCircle0 = LKGeoSphere(0,tRiemann,rRiemann,rRiemann).GetCircleYZ(); riemannCircle0 -> SetLineStyle(2);
     riemannCircle0 -> Draw("same");
 
     auto markRiemann0 = new TMarker(tRiemann,posRiemann.K(),24);
     markRiemann0 -> Draw("samep");
 
     cvs1 -> cd();
-    auto riemannCircle1 = LKGeoSphere(0,vRiemann,rRiemann,rRiemann).DrawCircleYZ();
+    auto riemannCircle1 = LKGeoSphere(0,vRiemann,rRiemann,rRiemann).GetCircleYZ();
     riemannCircle1 -> SetLineStyle(2);
 
-    auto lineToPlane1    = LKGeoLine(vRiemann, rRiemann, 0, vPocaPlane, kPocaPlane, 0).DrawArrowXY();
-    auto lineToEndP1     = LKGeoLine(vPocaPlane, kPocaPlane, 0, vPocaPlane+dvPlaneCut, kPocaPlane+rPlaneCut*vecU.K(), 0).DrawArrowXY();
-    auto lineToEndM1     = LKGeoLine(vPocaPlane, kPocaPlane, 0, vPocaPlane-dvPlaneCut, kPocaPlane-rPlaneCut*vecU.K(), 0).DrawArrowXY();
-    auto lineFromPlaneP1 = LKGeoLine(vRiemann, rRiemann, 0, vRiemann+vp, rRiemann+wp.K(), 0).DrawArrowXY();
-    auto lineFromPlaneM1 = LKGeoLine(vRiemann, rRiemann, 0, vRiemann+vm, rRiemann+wm.K(), 0).DrawArrowXY();
-    auto lineFromTopP1   = LKGeoLine(vRiemann, 2*rRiemann, 0, vRiemann+(vp>0?1:-1)*2*rRiemann*tangentP, 0, 0).DrawArrowXY();
-    auto lineFromTopM1   = LKGeoLine(vRiemann, 2*rRiemann, 0, vRiemann+(vm>0?1:-1)*2*rRiemann*tangentM, 0, 0).DrawArrowXY();
+    auto lineToPlane1    = LKGeoLine(vRiemann, rRiemann, 0, vPocaPlane, kPocaPlane, 0).GetArrowXY();
+    auto lineToEndP1     = LKGeoLine(vPocaPlane, kPocaPlane, 0, vPocaPlane+dvPlaneCut, kPocaPlane+rPlaneCut*vecU.K(), 0).GetArrowXY();
+    auto lineToEndM1     = LKGeoLine(vPocaPlane, kPocaPlane, 0, vPocaPlane-dvPlaneCut, kPocaPlane-rPlaneCut*vecU.K(), 0).GetArrowXY();
+    auto lineFromPlaneP1 = LKGeoLine(vRiemann, rRiemann, 0, vRiemann+vp, rRiemann+wp.K(), 0).GetArrowXY();
+    auto lineFromPlaneM1 = LKGeoLine(vRiemann, rRiemann, 0, vRiemann+vm, rRiemann+wm.K(), 0).GetArrowXY();
+    auto lineFromTopP1   = LKGeoLine(vRiemann, 2*rRiemann, 0, vRiemann+(vp>0?1:-1)*2*rRiemann*tangentP, 0, 0).GetArrowXY();
+    auto lineFromTopM1   = LKGeoLine(vRiemann, 2*rRiemann, 0, vRiemann+(vm>0?1:-1)*2*rRiemann*tangentM, 0, 0).GetArrowXY();
     auto markPocaPlane1  = new TMarker(vPocaPlane,kPocaPlane,20);
     auto markRiemann1    = new TMarker(vRiemann,posRiemann.K(),24);
 
@@ -555,7 +555,7 @@ TCanvas *LKHitArray::DrawFitCircle(axis_t ref)
     lineFromTopP1   -> SetLineColor(kGray);
     lineFromTopM1   -> SetLineColor(kGray);
 
-    //auto lineVecN = LKGeoLine(vRiemann, rRiemann, 0, 20*vecN.Dot(vecV), 20*vecN.K(), 0).DrawArrowXY();
+    //auto lineVecN = LKGeoLine(vRiemann, rRiemann, 0, 20*vecN.Dot(vecV), 20*vecN.K(), 0).GetArrowXY();
     //lineVecN -> SetLineWidth(2);
     //lineVecN -> Draw("same>");
 
@@ -571,9 +571,9 @@ TCanvas *LKHitArray::DrawFitCircle(axis_t ref)
     markRiemann1 -> Draw("samep");
 
     cvs2 -> cd();
-    auto riemannCircle2 = LKGeoSphere(posRiemann.I(),posRiemann.J(),0,rRiemann).DrawCircleXY();
-    auto lineToPlane2 = LKGeoLine(posRiemann.I(),posRiemann.J(),0,distToPlane*vecN.I()+posRiemann.I(),distToPlane*vecN.J()+posRiemann.J(),0).DrawArrowXY();
-    auto lineToEndu2 = LKGeoLine(pocaPlane.I()-dvPlaneCut*vecV.I(),pocaPlane.J()-dvPlaneCut*vecV.J(),0, pocaPlane.I()+dvPlaneCut*vecV.I(),pocaPlane.J()+dvPlaneCut*vecV.J(),0).DrawArrowXY();
+    auto riemannCircle2 = LKGeoSphere(posRiemann.I(),posRiemann.J(),0,rRiemann).GetCircleXY();
+    auto lineToPlane2 = LKGeoLine(posRiemann.I(),posRiemann.J(),0,distToPlane*vecN.I()+posRiemann.I(),distToPlane*vecN.J()+posRiemann.J(),0).GetArrowXY();
+    auto lineToEndu2 = LKGeoLine(pocaPlane.I()-dvPlaneCut*vecV.I(),pocaPlane.J()-dvPlaneCut*vecV.J(),0, pocaPlane.I()+dvPlaneCut*vecV.I(),pocaPlane.J()+dvPlaneCut*vecV.J(),0).GetArrowXY();
     auto markPocaPlane2 = new TMarker(pocaPlane.I(),pocaPlane.J(),29);
     auto markRiemann2 = new TMarker(posRiemann.I(),posRiemann.J(),24);
 
@@ -594,13 +594,13 @@ TCanvas *LKHitArray::DrawFitCircle(axis_t ref)
 
     cvs1 -> cd();
     markMeanProjection -> DrawMarker(vMeanProjection+vRiemann,meanProjection.K());
-    //auto finalCircleFitv = LKGeoLine(vCenterHelix-rHelix, 0, 0, vCenterHelix+rHelix, 0, 0).DrawArrowXY();
+    //auto finalCircleFitv = LKGeoLine(vCenterHelix-rHelix, 0, 0, vCenterHelix+rHelix, 0, 0).GetArrowXY();
     //finalCircleFitv -> SetLineColor(kRed);
     //finalCircleFitv -> Draw("samel");
 
     cvs2 -> cd();
     markMeanProjection -> DrawMarker(meanProjection2.I(),meanProjection2.J());
-    auto finalCircleFit = fitCircle.DrawCircle();
+    auto finalCircleFit = fitCircle.GetGraph();
     finalCircleFit -> SetLineColor(kRed);
     finalCircleFit -> Draw("samel");
 
