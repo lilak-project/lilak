@@ -651,6 +651,8 @@ bool LKRun::Init()
 
     if (fPar -> CheckPar("LKRun/RunIDRange"))
     {
+        fRunIDList = fPar -> GetParIntRange("LKRun/RunIDRange");
+        /*
         auto n = fPar -> GetParN("LKRun/RunIDRange");
         if (n%2!=0) {
             lk_error << "LKRun/RunIDRange number of parameter is " << n << "!!" << endl;
@@ -663,6 +665,7 @@ bool LKRun::Init()
             for (auto runID=runID1; runID<=runID2; ++runID)
                 fRunIDList.push_back(runID);
         }
+        */
     }
     else if (fPar -> CheckPar("LKRun/RunIDList"))
     {
@@ -700,7 +703,7 @@ bool LKRun::Init()
     else if (fPar->CheckPar("LKRun/SearchRun"))
         useSearchRunParameter = true;
 
-    TString searchOption;
+    TString searchTag;
     TString searchOption2;
 
     Int_t idxInput = 1;
@@ -732,28 +735,28 @@ bool LKRun::Init()
 
             auto numSearchOptions = fPar -> GetParN("LKRun/SearchRun");
             if (numSearchOptions==1)
-                searchOption = fPar -> GetParString("LKRun/SearchRun");
+                searchTag = fPar -> GetParString("LKRun/SearchRun");
             if (numSearchOptions==2) {
-                searchOption = fPar -> GetParString("LKRun/SearchRun",0);
+                searchTag = fPar -> GetParString("LKRun/SearchRun",0);
                 searchOption2 = fPar -> GetParString("LKRun/SearchRun",1);
             }
             if (fRunIDList.size()>0)
             {
                 for (auto runID : fRunIDList)
                 {
-                    vector<TString> inputFiles = SearchRunFiles(runID,searchOption, searchOption2);
+                    vector<TString> inputFiles = SearchRunFiles(runID,searchTag, searchOption2);
                     for (auto fileName : inputFiles)
                         fInputFileNameArray.push_back(fileName);
                 }
             }
             else {
-                vector<TString> inputFiles = SearchRunFiles(fRunID,searchOption, searchOption2);
+                vector<TString> inputFiles = SearchRunFiles(fRunID,searchTag, searchOption2);
                 for (auto fileName : inputFiles)
                     fInputFileNameArray.push_back(fileName);
             }
         }
 
-        if (searchOption!="mfm" && fInputFileNameArray.size()>0) {
+        if (searchTag!="mfm" && fInputFileNameArray.size()>0) {
             fInputFileName = fInputFileNameArray[0];
             idxInput = 1;
         }
@@ -1022,7 +1025,7 @@ bool LKRun::Init()
         lk_info << "Initializing event trigger task " << fEventTrigger -> GetName() << "." << endl;
 
         for (auto fileName : fInputFileNameArray)
-            fEventTrigger -> AddTriggerInputFile(fileName, searchOption);
+            fEventTrigger -> AddTriggerInputFile(fileName, searchTag);
 
         if (fEventTrigger -> Init() == false) {
             lk_warning << "Initialization failed!" << endl;
@@ -1179,7 +1182,7 @@ TClonesArray* LKRun::RegisterBranchA(TString name, const char* className, Int_t 
 
     if (persistent) {
         if (fOutputTree != nullptr)
-            fOutputTree -> Branch(name, array, 32000, 0);
+            fOutputTree -> Branch(name, array, 32000, 1);
         fPersistentBranchArray -> Add(array);
     } else {
         fTemporaryBranchArray -> Add(array);
@@ -1708,7 +1711,7 @@ LKDetectorSystem *LKRun::GetDetectorSystem() const { return fDetectorSystem; }
 LKDetector *LKRun::FindDetector(const char *name) { return fDetectorSystem -> FindDetector(name); }
 LKDetectorPlane *LKRun::FindDetectorPlane(const char *name) { return fDetectorSystem -> FindDetectorPlane(name); }
 
-vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchOption, TString searchOption2)
+vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchTag, TString searchOption2)
 {
     //fInputPathArray.push_back("/home/cens-alpha-00/data/ganacq_manip/test/acquisition/run");
     //fInputPathArray.push_back("/root/lilak/stark/macros/data");
@@ -1718,13 +1721,13 @@ vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchOption, TSt
     int countPath = 0;
     for (auto path : fInputPathArray)
     {
-        lk_info << "Looking for " << searchRunNo << "(" << searchOption << ") in " << path << endl;
+        lk_info << "Looking for " << searchRunNo << "(" << searchTag << ") in " << path << endl;
         TIter nextFile(TSystemDirectory(Form("search_path_%d",countPath),path).GetListOfFiles());
         while ((sysFile=(TSystemFile*)nextFile()))
         {
             TString fileName = sysFile -> GetName();
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////
-            if (searchOption=="mfm")
+            if (searchTag=="mfm")
             {
                 if (sysFile->IsDirectory()==false && fileName.Index("run_")==0 && fileName.Sizeof()>=32)
                 {
@@ -1742,9 +1745,9 @@ vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchOption, TSt
                 }
             }
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////
-            else if (!searchOption.IsNull())
+            else if (!searchTag.IsNull())
             {
-                if (sysFile->IsDirectory()==false && fileName.Index((fRunName+"_"))==0 && fileName.EndsWith(searchOption+".root"))
+                if (sysFile->IsDirectory()==false && fileName.Index((fRunName+"_"))==0 && fileName.EndsWith(searchTag+".root"))
                 {
                     int runNo = TString(fileName(fRunName.Sizeof(),4)).Atoi();
                     int division = 0;
@@ -1764,7 +1767,7 @@ vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchOption, TSt
                     if (numTokens>=3)
                     {
                         TString tag = TString(((TObjString*)tokens->At(numTokens-2))->GetString());
-                        if (runNo==searchRunNo && tag==searchOption)
+                        if (runNo==searchRunNo && tag==searchTag)
                             matchingFiles.push_back(path+"/"+fileName);
                     }
                 }
@@ -1773,7 +1776,7 @@ vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchOption, TSt
         }
     }
 
-    if (searchOption=="mfm")
+    if (searchTag=="mfm")
     {
         auto customComparator = [](const TString &a, const TString &b) {
             if (a[a.Length()-1]=='s') return true;

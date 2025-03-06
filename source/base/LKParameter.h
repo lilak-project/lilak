@@ -17,6 +17,7 @@ class LKParameter : public TNamed
     public:
         LKParameter();
         LKParameter(TString name, TString raw, TString value="", TString comment="", int parameterType=0, int compare=-1);
+        LKParameter(TString value);
         LKParameter(int parameterType);
         virtual ~LKParameter();
 
@@ -71,6 +72,8 @@ class LKParameter : public TNamed
         double   GetX    ()          const { return GetDouble(0); }
         double   GetY    ()          const { return GetDouble(1); }
         double   GetZ    ()          const { return GetDouble(2); }
+
+        std::vector<int>     GetIntRange() const;
 
         std::vector<bool>    GetVBool  () const;
         std::vector<int>     GetVInt   () const;

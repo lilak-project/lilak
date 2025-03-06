@@ -213,6 +213,7 @@ class LKParameterContainer : public TObjArray
         axis_t   GetParAxis  (TString name, int idx=-1) const { return FindPar(name,true) -> GetAxis(); }
         LKCut*   GetParCut   (TString name);
         LKBinning GetBinning (TString name);
+        std::vector<int> GetParIntRange(TString name) const { return FindPar(name,true) -> GetIntRange(); }
 
         std::vector<bool>    GetParVBool  (TString name) const { return FindPar(name,true) -> GetVBool  (); }
         std::vector<int>     GetParVInt   (TString name) const { return FindPar(name,true) -> GetVInt   (); }

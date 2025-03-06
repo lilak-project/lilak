@@ -21,6 +21,11 @@ LKParameter::LKParameter(TString name, TString raw, TString value, TString comme
     SetPar(name, raw, value, comment, parameterType, compare);
 }
 
+LKParameter::LKParameter(TString value)
+{
+    SetPar("lkpar", value, value, "");
+}
+
 LKParameter::~LKParameter()
 {
 }
@@ -42,7 +47,8 @@ void LKParameter::SetPar(TString name, TString raw, TString value, TString comme
     if (compare>=0)
         fCompare = compare;
 
-    int iSlash = fName.Index("/");
+    //int iSlash = fName.Index("/");
+    int iSlash = fName.Last('/');
     if (iSlash>=0) {
         fGroup    = fName(0,iSlash);
         fMainName = fName(iSlash+1,fName.Sizeof()-iSlash-2);
@@ -387,6 +393,48 @@ TVector3 LKParameter::GetV3() const
     return TVector3(GetDouble(0), GetDouble(1), GetDouble(2));
 }
 
+std::vector<int> LKParameter::GetIntRange() const
+{
+    TString value = fValue;
+    auto array = value.Tokenize(",");
+    TIter nextBlock(array);
+    vector<int> numberList;
+    while (auto block = (TObjString*) nextBlock())
+    {
+        TString stringb = block -> GetString();
+        stringb = stringb.Strip(TString::kLeading);
+        stringb = stringb.Strip(TString::kTrailing);
+        int idx_c = stringb.Index(":");
+        int idx_e = stringb.Index("!");
+        if (idx_c>0) {
+            auto string12 = stringb.Tokenize(":");
+            if (string12->GetEntries()!=2) { e_error << stringb << " ?" << endl; return numberList; }
+            TString string1 = ((TObjString*) string12->At(0))->GetString();
+            TString string2 = ((TObjString*) string12->At(1))->GetString();
+            if (string1.IsDec()==false) { e_error << string1 << " ?" << endl; return numberList; }
+            if (string2.IsDec()==false) { e_error << string2 << " ?" << endl; return numberList; }
+            int number1 = string1.Atoi();
+            int number2 = string2.Atoi();
+            for (auto number=number1; number<=number2; ++number)
+                numberList.push_back(number);
+        }
+        else if (idx_e==0) {
+            TString string1(stringb(1,stringb.Sizeof()-2));
+            if (string1.IsDec()==false) { e_error << string1 << " ?" << endl; return numberList; }
+            int number_to_remove = string1.Atoi();
+            auto it = std::find(numberList.begin(), numberList.end(), number_to_remove);
+            if (it != numberList.end()) {
+                numberList.erase(it);  // Remove the first occurrence
+            }
+        }
+        else {
+            if (stringb.IsDec()==false) { e_error << stringb << " ?" << endl; return numberList; }
+            numberList.push_back(stringb.Atoi());
+        }
+    }
+    return numberList;
+}
+
 std::vector<bool> LKParameter::GetVBool() const
 {
     std::vector<bool> array;
@@ -483,22 +531,16 @@ TString LKParameter::GetLine(TString printOptions) const
     if (printOptions.Index("!par#")>=0) { showParComments = false; printOptions.ReplaceAll("!par#", ""); }
     if (printOptions.Index( "par#")>=0) { showParComments = true;  printOptions.ReplaceAll("par#", ""); }
 
+    if (IsLineComment()) {
+        TString line = TString("## ") + fComment;
+        return line;
+    }
+
     int nwidth = 30;
     if      (fName.Sizeof()>60) nwidth = 80;
     else if (fName.Sizeof()>50) nwidth = 60;
     else if (fName.Sizeof()>30) nwidth = 50;
     else                        nwidth = 30;
-
-    int vwidth = 20;
-    if      (fValue.Sizeof()>60) vwidth = 80;
-    else if (fValue.Sizeof()>40) vwidth = 60;
-    else if (fValue.Sizeof()>20) vwidth = 40;
-    else                         vwidth = 20;
-
-    if (IsLineComment()) {
-        TString line = TString("    # ") + fComment;
-        return line;
-    }
 
     TString name = fName;
     if (name.Sizeof()<nwidth) {
@@ -507,11 +549,22 @@ TString LKParameter::GetLine(TString printOptions) const
             name = name  + " ";
     }
 
+    TString comment = fComment;
+
     TString value = fValue;
-    if (showRawEvalValues)
-        value = fTitle + " --> " + fValue;
+    if (showRawEvalValues) {
+        value = fTitle;
+        comment =  TString("--> ") + fValue + " # " + comment;
+    }
     else if (!evaluatePar)
         value = fTitle;
+
+    int vwidth = 20;
+    if      (value.Sizeof()>60) vwidth = 80;
+    else if (value.Sizeof()>40) vwidth = 60;
+    else if (value.Sizeof()>20) vwidth = 40;
+    else                        vwidth = 20;
+
     if (value.Sizeof()<vwidth) {
         auto n = vwidth - value.Sizeof();
         for (auto i=0; i<n; ++i)
@@ -520,10 +573,10 @@ TString LKParameter::GetLine(TString printOptions) const
 
     TString line = name + " " + value;
     if (showParComments)
-        line = line + "  # " + fComment;
+        line = line + "  # " + comment;
 
     if (IsCommentOut())
-        line = TString("    # ") + line;
+        line = TString("#") + line;
 
     return line;
 }

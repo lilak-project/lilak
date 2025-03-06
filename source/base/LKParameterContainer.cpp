@@ -314,7 +314,7 @@ Int_t LKParameterContainer::AddFile(TString parName, TString fileName)
         else
         {
             //fileNameFull = TString(gSystem -> Getenv("LILAK_PATH")) + "/input/" + fileName;
-            fileNameFull = TString(LILAK_PATH) + "/input/" + fileName;
+            fileNameFull = TString(LILAK_PATH) + "/common/" + fileName;
             if (!TString(gSystem -> Which(".", fileNameFull.Data())).IsNull())
                 existFile = true;
         }
