@@ -25,6 +25,7 @@ using namespace std;
 #include "LKPulseFitParameter.h"
 #include "LKPadInteractive.h"
 #include "LKPadInteractiveManager.h"
+#include "LKDrawing.h"
 
 //#define NUMBER_OF_PEDESTAL_TEST_REGIONS 6
 //#define NUMBER_OF_PEDESTAL_TEST_REGIONS 7
@@ -158,6 +159,7 @@ class LKChannelAnalyzer : public LKPadInteractive
         void Clear(Option_t *option="");
         void Print(Option_t *option="") const;
         void Draw(Option_t *option="");
+        LKDrawing* GetDrawing();
 
         /// Set pulse function and related parameter from pulse data file created from LKPulseAnalyzer
         void SetSigAtMaximum() { fAnalyzerMode = kSigAtMaximumMode; }
@@ -236,7 +238,7 @@ class LKChannelAnalyzer : public LKPadInteractive
         int GetThreshold() const  { return fThreshold; }
         int GetThresholdOneTbStep() const  { return fThresholdOneStep; }
         int GetNumTbAcendingCut() const  { return fNumTbAcendingCut; }
-        int GetPedestal() const  { return fPedestal; }
+        double GetPedestal() const  { return fPedestal; }
         int GetDynamicRange() const  { return fDynamicRange; }
         int GetNDF() const  { return fNDFFit; }
         int GetIterMax() const  { return fIterMax; }

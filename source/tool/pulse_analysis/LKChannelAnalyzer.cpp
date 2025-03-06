@@ -258,6 +258,84 @@ void LKChannelAnalyzer::Draw(Option_t *option)
     legend -> Draw("same");
 }
 
+LKDrawing* LKChannelAnalyzer::GetDrawing()
+{
+    auto draw = new LKDrawing();
+
+    TLegend* legend = nullptr;
+
+    if (fNumHits>0 && GetTbHit(0)>fTbMax/2.)
+        legend = new TLegend(0.17, 0.70, 0.40, 0.90);
+    else
+        legend = new TLegend(0.72, 0.70, 0.95, 0.90);
+
+    if      (fAnalyzerMode==kPulseFittingMode)   fHistBuffer = new TH1D(Form("hbuffer_PulseAit_%d",fNumHists++),";tb",fTbMax,0,fTbMax);
+    else if (fAnalyzerMode==kSigAtMaximumMode)   fHistBuffer = new TH1D(Form("hbuffer_SigAtMax_%d",fNumHists++),";tb",fTbMax,0,fTbMax);
+    else if (fAnalyzerMode==kSigAtThresholdMode) fHistBuffer = new TH1D(Form("hbuffer_SigAtThr_%d",fNumHists++),";tb",fTbMax,0,fTbMax);
+
+
+    for (auto tb=0; tb<fTbMax; ++tb)
+        fHistBuffer -> SetBinContent(tb+1,fBufferOrigin[tb]);
+    fHistBuffer -> SetStats(0);
+
+    draw -> Add(fHistBuffer);
+    legend -> AddEntry(fHistBuffer,"data","f");
+
+    auto graphPedestal = new TGraph();
+    graphPedestal -> SetPoint(0,0,fPedestal);
+    graphPedestal -> SetPoint(1,fTbMax,fPedestal);
+    graphPedestal -> SetLineColor(kOrange-2);
+    graphPedestal -> SetLineWidth(4);
+    draw -> Add(graphPedestal,"samel");
+    legend -> AddEntry(graphPedestal,"pedestal","l");
+
+    for (auto iSample=0; iSample<fNumPedestalSamples; ++iSample) {
+        auto x1 = fNumTbSample*iSample;
+        auto x2 = fNumTbSample*(iSample+1);
+        auto y = fPedestalSample[iSample];
+        if (iSample==fNumPedestalSamplesM1)
+            x2 = x2 - fNumTbSample + fNumTbSampleLast;
+        auto line = new TLine(x1,y,x2,y);
+        line -> SetLineStyle(2);
+        line -> SetLineColor(kGreen+1);
+        line -> SetLineWidth(2);
+        if (fUsedSample[iSample])
+            line -> SetLineStyle(1);
+        draw -> Add(line,"samel");
+        if (iSample==0)
+            legend -> AddEntry(line,"PD-sample","l");
+    }
+
+    draw -> Add(fHistBuffer);
+
+#ifdef DEBUG_CHANA_FINDPEAK
+    if (dGraphA->GetN()>0) {
+        legend -> AddEntry(dGraphA,"ascending","l");
+        draw -> Add(dGraphA,"samel");
+    }
+
+    auto listGraph = dMGraphFP -> GetListOfGraphs();
+    if (listGraph!=nullptr && listGraph->GetEntries()>0) {
+        legend -> AddEntry((TGraph*) listGraph->At(0),"find peak","l");
+        draw -> Add(dMGraphFP,"same");
+    }
+#endif
+
+    for (auto iHit=0; iHit<fNumHits; ++iHit) {
+        auto tbHit = GetTbHit(iHit);
+        auto amplitude = GetAmplitude(iHit);
+        auto graphHit = GetPulseGraph(tbHit,amplitude,fPedestal);
+        if (graphHit -> GetN()>1) {
+            draw -> Add(graphHit,"samelx");
+            legend -> AddEntry(graphHit,"hit","l");
+        }
+    }
+
+    draw -> Add(legend);
+
+    return draw;
+}
+
 TGraphErrors* LKChannelAnalyzer::FillPulseGraph(TGraphErrors* graph, double tbHit, double amplitude, double pedestal)
 {
     if      (fAnalyzerMode==kPulseFittingMode) return FillGraphPulseFitting(graph,tbHit,amplitude,pedestal);
@@ -1105,7 +1183,7 @@ TGraphErrors* LKChannelAnalyzer::FillGraphSigAtMaximum(TGraphErrors* graph, doub
     graph -> SetPoint(1,tb0  ,pedestal);
     graph -> SetPoint(2,tb0  ,amplitude+pedestal);
     graph -> SetPoint(3,tb0+5,amplitude+pedestal);
-    graph -> SetPoint(4,tb0+5,pedestal);
+    //graph -> SetPoint(4,tb0+5,pedestal);
     graph -> SetLineColor(kRed);
     graph -> SetMarkerColor(kRed);
     return graph;

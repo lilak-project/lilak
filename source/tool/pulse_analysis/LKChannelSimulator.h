@@ -52,11 +52,15 @@ class LKChannelSimulator : public TObject
         LKChannelSimulator();
         virtual ~LKChannelSimulator() { ; }
 
-        void CreateBuffer() { fBuffer = new int[fTbMax]; }
+        void Print(Option_t *option="") const;
+
+        void Init() { if (fBuffer==nullptr) fBuffer = new int[fTbMax]; }
+        void Reset() { Init(); memset(fBuffer, 0, fTbMax); }
 
         void SetPulse(const char* fileName);
+
         void SetYMax(int yMax) { fYMax = yMax; }
-        void SetTbMax(int yMax) { fTbMax = yMax; CreateBuffer(); }
+        void SetTbMax(int yMax) { fTbMax = yMax; }
         void SetNumSmoothing(int num) { fNumSmoothing = num; }
         void SetSmoothingLength(int length) { fSmoothingLength = length; }
         void SetPedestalFluctuationScale(double scale) { fPedestalFluctuationScale = scale; }
@@ -67,21 +71,16 @@ class LKChannelSimulator : public TObject
 
         double GetPedestalFluctuationLevel() { return (fPedestalFluctuationScale * fPedestalFluctuationLevel); }
 
-        void AddPedestal(int* buffer);
-        void AddFluctuatingPedestal(int* buffer);
-        void AddHit(int* buffer, double tb0, double amplitude);
-
-        //void ResetBuffer() { memset(fBuffer, 0, sizeof(fBuffer)); }
-        void ResetBuffer() { memset(fBuffer, 0, fTbMax); }
-        void AddPedestal() { AddPedestal(fBuffer); }
-        void AddFluctuatingPedestal() { AddFluctuatingPedestal(fBuffer); }
-        void AddHit(double tb0, double amplitude) { AddHit(fBuffer, tb0, amplitude); }
+        void AddPedestal();
+        void AddFluctuatingPedestal();
+        void AddHit(double tb0, double amplitude);
 
         int* GetBuffer() { return fBuffer; }
         void FillHist(TH1* hist);
+        TH1D* GetHist(TString name);
 
     protected:
-        void Smoothing(int* buffer, int n, int smoothLevel, int numSmoothing);
+        void Smoothing(int n, int smoothLevel, int numSmoothing);
 
     private:
         LKPulse*     fPulse = nullptr;
@@ -95,11 +94,11 @@ class LKChannelSimulator : public TObject
         double       fPedestalFluctuationLevel = 1; ///< Background pedestal will fluctuate around this value. Will be set from pulse data file.
         double       fPedestalFluctuationScale = 1; ///< scale=0 will draw flat background distribution where scale=1 will draw background with standard error. Can be set with SetPedestalFluctuationScale().
         int          fPedestalFluctuationLength = 4; ///< Used for SetFluctuatingPedestal(). The width of bakcground fluctuatation will be around this value. Can be set with SetPedestalFluctuationLength().
-        double       fPedestalFluctuationLengthError = 4;
+        double       fPedestalFluctuationLengthError = 0;
         double       fPulseErrorScale = 0.05; ///<
         bool         fCutBelow0 = true;
 
-        int* fBuffer;
+        int*         fBuffer = nullptr;
 
     ClassDef(LKChannelSimulator,1);
 };
