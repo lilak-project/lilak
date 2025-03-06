@@ -1,4 +1,4 @@
-#include "LKWindowManager.h" // for lk_win
+#include "LKPainter.h"
 
 void hough_transform_histogram_input()
 {
@@ -28,7 +28,7 @@ void hough_transform_histogram_input()
         hist -> Fill(x,y);
     }
 
-    auto cvs = lk_win() -> CanvasResize("cvs",100,50,0.6);
+    auto cvs = e_painter() -> CanvasResize("cvs",100,50,0.6);
     cvs -> Divide(2,1);
 
     auto tracker = new LKHTLineTracker();

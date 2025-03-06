@@ -1,8 +1,3 @@
-//#include "LKDrawing.cpp"
-//#include "LKDrawingGroup.cpp"
-//#include "LKDrawingSet.cpp"
-//#include "LKDataViewer.cpp"
-
 struct function_data { TString formula; int npar; };
 vector<function_data> functions;
 void make_functions();

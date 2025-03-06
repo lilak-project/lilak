@@ -1,5 +1,3 @@
-#include "LKWindowManager.h"
-
 void odr_fitter_and_weight()
 {
     int nx = 25;
@@ -59,7 +57,7 @@ void odr_fitter_and_weight()
         e_cout << "point-" << iHit << " (x,y,dx,dy) = (" << hit->X() << ", " << hit->Y() << ", " << hit->GetDX() << ", " << hit->GetDY() << ")" << endl;
     }
 
-    auto cvs = lk_win() -> CanvasSquare("cvs",0.7);
+    auto cvs = LKPainter::GetPainter() -> CanvasSquare("cvs",0.7);
     hist -> Draw();
     graph -> SetFillColor(kYellow);
     graph -> Draw("samee2");
@@ -108,7 +106,7 @@ void odr_fitter_and_weight()
         LKGeoLine fitLine(centroid - size*direction, centroid + size*direction);
         fitLine.SetRange(&rangeBox);
 
-        auto line = fitLine.DrawArrowXY();
+        auto line = fitLine.GetArrowXY();
         if (weightByPositionError==1) line -> SetLineColor(kRed);
         else line -> SetLineColor(kBlue);
         line -> Draw("samel");

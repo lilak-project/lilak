@@ -1,4 +1,4 @@
-#include "LKWindowManager.h"
+#include "LKPainter.h"
 
 void hough_transform_hit_input()
 {
@@ -59,7 +59,7 @@ void hough_transform_hit_input()
         e_cout << "point-" << iHit << " (x,y,dx,dy) = (" << hit->X() << ", " << hit->Y() << ", " << hit->GetDX() << ", " << hit->GetDY() << ")" << endl;
     }
 
-    auto cvs = lk_win() -> CanvasSquare("cvs",0.7);
+    auto cvs = e_painter() -> CanvasSquare("cvs",0.7);
     hist -> Draw();
     graph -> SetFillColor(kYellow);
     graph -> Draw("samee2");

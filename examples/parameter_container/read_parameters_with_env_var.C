@@ -13,6 +13,7 @@ void read_parameters_with_env_var()
     run -> AddPar("environment_var.mac");
     run -> Init();
     auto parc = run->GetParameterContainer();
+    parc -> Print();
 
     cout << "type is " << parc -> GetParString("type") << endl;
     cout << "type id: " << parc -> GetParString("LKRun/RunIDRange") << endl;

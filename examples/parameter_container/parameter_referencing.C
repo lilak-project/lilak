@@ -5,6 +5,6 @@ void parameter_referencing()
 
     vector<int> colorArray = par -> GetParVInt("user/color_rainbow");
     for (auto i=0; i<colorArray.size(); ++i)
-        cout << "color-" << i << " = " << colorArray[i] << endl;
+        cout << "color_rainbow[" << i << "] = " << colorArray[i] << endl;
     LKMisc::DrawColors(colorArray);
 }

@@ -1,4 +1,4 @@
-#include "LKWindowManager.h"
+#include "LKPainter.h"
 
 void hough_transform_point_input()
 {
@@ -46,7 +46,7 @@ void hough_transform_point_input()
 
     tracker -> Transform();
 
-    auto cvs = lk_win() -> CanvasResize("cvs",100,50,0.6);
+    auto cvs = e_painter() -> CanvasResize("cvs",100,50,0.6);
     cvs -> Divide(2,1);
     auto paramPoint = tracker -> FindNextMaximumParamPoint();
     tracker -> Draw(cvs->cd(1),cvs->cd(2),paramPoint,"graph:samepz:colz");

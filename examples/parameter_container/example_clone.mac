@@ -1,0 +1,60 @@
+# example_clone.mac created from LKParameterContainer::Print
+
+LKRun/Name                    run                  # --> run # --> run # name of the run
+LKRun/RunID                   0                    # --> 0 # --> 0 # run number
+LKRun/OutputPath              {lilak_data}         # --> /home/ejungwoo/lilak/data # --> /home/ejungwoo/lilak/data # path to the output. Default path {lilak_data} is lilak/data/
+LKRun/UpdateOutputFile        # -->  #             # --> # -->  # # 
+LKRun/MainName                # -->  #             # --> # -->  # # 
+LKRun/AutoTerminate           true                 # --> true # --> true # automatically terminate root after end of run
+
+LKHTTrackingTask/binning_r    100, 0, 0            # --> 100, 0, 0 # --> 100, 0, 0 # range 0, 0 will set range automatically
+LKHTTrackingTask/binning_y    100, -100, 100       # --> 100, -100, 100 # --> 100, -100, 100 # y-axis binning for hough transform image space
+LKHTTrackingTask/binning_z    100, -100, 100       # --> 100, -100, 100 # --> 100, -100, 100 # z-axis binning for hough transform image space
+LKHTTrackingTask/binning_x    100, -100, 100       # --> 100, -100, 100 # --> 100, -100, 100 # x-axis binning for hough transform image space
+LKHTTrackingTask/transform_ct 0, 0, 0              # --> 0, 0, 0 # --> 0, 0, 0 # transform center, is center point where transform is performed.
+LKHTTrackingTask/binning_t    100, 0, 0            # --> 100, 0, 0 # --> 100, 0, 0 # range 0, 0 will set range automatically
+LKHTTrackingTask/mode         xy, zy               # --> xy, zy # --> xy, zy # Choose from xy, yz, yz, yx, zx, zy. If two different modes are selected, two HT-trackers will be created
+LKHTTrackingTask/num_hits_cut 3                    # --> 3 # --> 3 # Skip event if number of hits in event is lower than this cut
+LKHTTrackingTask/hit_branch   Hit                  # --> Hit # --> Hit # branch name containing LKHit
+
+persistency/Hit               true                 # --> true # --> true #
+persistency/Track             true                 # --> true # --> true #
+
+## >lilak/draw                    0                    # --> 0 # execute Draw()
+## >lilak/run                     0                    # --> 0 # run [no] after init. Execute all events if [no] is 0
+## >lilak/collect_par             print                # --> print # file name to write collected parameters. 'print' to print out on screen
+## >input_par_0 21 parameters were added
+## >lilak/execute                 0                    # --> 0 # execute event [no] after init
+## >[BranchName]/markerSize       1                    # --> 1 # track marker size  of [BranchName].
+## >lilak/add                     LKTask               # --> LKTask # add task or detector class
+## >[BranchName]/markerStyle      20                   # --> 20 # track marker style of [BranchName].
+## >[BranchName]/markerColor      kBlue                # --> 600 # track marker style of [BranchName].
+## >lilak/print                   all                  # --> all # print after init gen:par:out:in:det:task
+## >[BranchName]/lineStyle        1                    # --> 1 # track line style of [BranchName].
+## >[BranchName]/lineColor        kBlack               # --> 1 # track line color of [BranchName].
+## >[BranchName]/lineWidth        1                    # --> 1 # track line width of [BranchName].
+## >input_par_0 /home/ejungwoo/lilak/examples/parameter_container/example.mac
+## >LKRun/RunIDList               1, 2, 3, 4           # --> 1, 2, 3, 4 # list of run numbers separated by ,
+## >LKRun/RunIDRange              1, 10                # --> 1, 10 # list of run numbers ranged by ,
+## >LKRun/FriendFile              to/friend/file       # --> to/friend/file # input friend file
+## t LKRun/InputFile               to/input/file        # --> to/input/file # --> to/input/file # input file. Cannot be used with LKRun/SearchRun
+## t LKRun/EventCountForMessage    20000                # --> 20000 # --> 20000 #
+## >LKRun/EntriesLimit            100000               # --> 100000 # limit number of run entries
+## >LKEveTask/selectTrackIDs      0                    # --> 0 #
+## >example.mac created from LKParameterContainer::Print
+## t LKRun/Tag                     tag                  # --> tag # --> tag # tag
+## >LKRun/Division                0                    # --> 0 # division within the run [optional]
+## t LKRun/SearchRun               mfm                  # --> mfm # --> mfm # search input files with LKRun/RunID. opt=mfm: search mfm files, opt=[tag]: search run_runNo.*.[tag].root
+## >LKRun/InputPath               /path/to/in/         # --> /path/to/in/ # LKRun will search files from input paths when LKRun/SearchRun
+## >LKEveTask/drawPlane           true                 # --> true # draw 2d planes using detector plane class
+## >LKEveTask/selectHitParentIDs  0                    # --> 0 #
+## >LKEveTask/ignoreHitParentIDs  0                    # --> 0 #
+## >LKEveTask/ignoreMCIDs         0                    # --> 0 #
+## >LKEveTask/drawEve3D           false                # --> false # draw 3d event display using ROOT EVE package and root geometry defined in detector class
+## >LKEveTask/selectBranches      0                    # --> 0 #
+## >LKEveTask/ignoreTrackIDs      0                    # --> 0 #
+## >LKEveTask/selectTrackParentIDs                    0                    # --> 0 #
+## >LKEveTask/ignoreTrackParentIDs                    0                    # --> 0 #
+## >LKEveTask/selectMCIDs         0                    # --> 0 #
+## >LKEveTask/ignoreTrackPDGs     0                    # --> 0 #
+## >LKEveTask/selectTrackPDGs     0                    # --> 0 #

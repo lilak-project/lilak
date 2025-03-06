@@ -69,5 +69,6 @@ void run_pulse_shape_analysis()
 
     file_input_histogram = new TFile("histograms.root");
     next_key = TIter(file_input_histogram -> GetListOfKeys());
+
     next_example();
 }

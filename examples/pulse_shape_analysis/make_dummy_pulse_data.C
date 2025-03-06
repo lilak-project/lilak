@@ -1,57 +1,59 @@
-int GetTbSomehow() { return 123; }
-int GetAmplitudeSomehow() { return 1234; }
+int GetTbSomehow() { return int(gRandom -> Uniform(200,410)); }
+int GetAmplitudeSomehow() { return int(gRandom -> Uniform(500,4000)); }
+int GetBackgrondLevelSomehow() { return int(gRandom -> Uniform(100,200)); }
 
 void make_dummy_pulse_data()
 {
-    bool drawAna = false;
-    int numSimulations = 10;
-
     gRandom -> SetSeed(time(0));
-
-    ofstream file("out.dat");
+    TString pulseFileName = "../../common/pulseReference.root";
+    int numSimulations = 12;
 
     auto sim = new LKChannelSimulator();
-    sim -> SetPulse("../../common/pulseReference.root");
+    sim -> SetPulse(pulseFileName);
     sim -> SetYMax(4096);
     sim -> SetTbMax(512);
-    sim -> SetNumSmoothing(2);
-    sim -> SetSmoothingLength(2);
-    sim -> SetPedestalFluctuationLength(5);
-    sim -> SetPedestalFluctuationScale(0.4);
-    sim -> SetPulseErrorScale(0.2);
-    sim -> SetBackGroundLevel(500);
+    sim -> SetNumSmoothing(3);
+    sim -> SetSmoothingLength(3);
+    sim -> SetPedestalFluctuationLength(15);
+    sim -> SetPedestalFluctuationScale(0.2);
+    sim -> SetPulseErrorScale(0.1);
+    sim -> SetPulseErrorScale(0);
 
     auto ana = new LKChannelAnalyzer();
+    ana -> SetPulse(pulseFileName);
+    ana -> SetThreshold(400);
 
-    int buffer[512] = {0};
+    auto top = new LKDrawingGroup();
+
     for (auto iSim=0; iSim<numSimulations; ++iSim)
     {
-        memset(buffer, 0, sizeof(buffer));
-        sim -> SetFluctuatingPedestal(buffer);
-        //timebucket
         auto tbSim = GetTbSomehow();
-        auto amplitudeSim = GetAmplitudeSomehow();
-        sim -> AddHit(buffer,tbSim,amplitudeSim);
+        auto ampSim = GetAmplitudeSomehow();
+        auto pdSim = GetBackgrondLevelSomehow();
+        sim -> SetBackGroundLevel(pdSim);
+        sim -> Reset();
+        sim -> AddFluctuatingPedestal();
+        //sim -> AddHit(tbSim,ampSim);
 
-        ana -> Analyze(buffer);
-
-        auto pedestal = 0;
-        auto amplitude = 0;
-        auto tb = 0;
-        if (ana -> GetNumHits()>=0) {
-            pedestal = ana -> GetPedestal();
-            amplitude = ana -> GetAmplitude(0);
-            tb = ana -> GetTbHit(0);
+        auto lg = new TLegend();
+        ana -> Analyze(sim->GetBuffer());
+        if (ana -> GetNumHits()>0) {
+            auto tbReco = ana -> GetTbHit(0);
+            auto ampReco = ana -> GetAmplitude(0);
+            //lg -> AddEntry((TObject*)0,Form("tb = %d -> %.1f",tbSim,tbReco),"");
+            //lg -> AddEntry((TObject*)0,Form("amp = %d -> %.1f",ampSim,ampReco),"");
         }
-        file << iSim << ", " << tbSim << ", " << amplitudeSim << ", " << pedestal << ", " << tb << ", " << amplitude << endl;
-        for (auto i=0; i<512; ++i)
-            file << buffer[i] << ", ";
-        file << endl;
+        auto pdReco = ana -> GetPedestal();
+        lg -> AddEntry((TObject*)0,Form("pd = %d -> %.1f",pdSim,pdReco),"");
 
-        if (drawAna) {
-            auto cvs = new TCanvas(Form("cvs%d",iSim),"",800,600);
-            ana -> Draw();
-            cvs -> SaveAs(Form("figures/%s.png",cvs->GetName()));
-        }
+        //top -> AddHist(sim -> GetHist(Form("hsim%d",iSim)));
+        auto draw = ana -> GetDrawing();
+        auto lg0 = draw -> FindObjectNameClass("",TLegend::Class());
+        draw -> Remove(lg0);
+        draw -> Add(lg);
+        //draw -> SetLegendCorner(1,0.45,0.08);
+        top -> AddDrawing(draw);
     }
+
+    top -> Draw();
 }
