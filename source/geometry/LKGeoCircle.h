@@ -28,7 +28,9 @@ class LKGeoCircle : public LKGeometry
         Double_t GetR() const;
         Double_t GetRadius() const;
 
-        TGraph *DrawCircle(Int_t n = 100, Double_t theta1 = 0, Double_t theta2 = 0);
+        TGraph *GetGraph(TVector3 offset=TVector3(0,0,0), Int_t n = 100, Double_t theta1 = 0, Double_t theta2 = 0);
+        TGraph *GetGraph(Int_t n, Double_t theta1, Double_t theta2) { return GetGraph(TVector3(0,0,0),n,theta1,theta2); }
+        virtual TGraph *GetGraph(TVector3 offset) { return GetGraph(offset,100,0,0); }
 
         TVector3 ClosestPointToCircle(Double_t x, Double_t y);
         TVector3 PointAtPhi(Double_t phi);

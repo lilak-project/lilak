@@ -116,11 +116,11 @@ LKGeoLine LKGeo2DBox::GetEdge(Int_t xpm, Int_t ypm) const
     return line;
 }
 
-TGraph *LKGeo2DBox::DrawGraph()
+TGraph *LKGeo2DBox::GetGraph(TVector3 center)
 {
     auto graph = new TGraph();
     for (auto i : {0,1,2,3,0}) {
-        TVector3 cn = GetCorner(i);
+        TVector3 cn = GetCorner(i) + center;
         graph -> SetPoint(graph -> GetN(),cn.X(),cn.Y());
     }
 

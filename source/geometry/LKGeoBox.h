@@ -53,7 +53,7 @@ class LKGeoBox : public LKGeoRotated
         bool TestPointInsidePlane(int iPlane, TVector3 point) const;
         bool GetCrossingPoints(LKGeoLine line, TVector3 &point1,TVector3 &point2) const;
 
-        TGraph *Draw2DBox(axis_t axis1 = LKVector3::kX, axis_t axis2 = LKVector3::kY);
+        TGraph *Get2DBoxGraph(axis_t axis1 = LKVector3::kX, axis_t axis2 = LKVector3::kY);
 
         bool IsInside(TVector3 pos) const;
         bool IsInside(Double_t x, Double_t y, Double_t z) const;

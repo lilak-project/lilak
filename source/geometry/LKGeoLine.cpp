@@ -210,11 +210,19 @@ bool LKGeoLine::SetRange(LKGeoBox* box)
     return inside;
 }
 
-TArrow *LKGeoLine::DrawArrowXY(Double_t asize) { return new TArrow(fX1, fY1, fX2, fY2, asize); }
-TArrow *LKGeoLine::DrawArrowYZ(Double_t asize) { return new TArrow(fY1, fZ1, fY2, fZ2, asize); }
-TArrow *LKGeoLine::DrawArrowZY(Double_t asize) { return new TArrow(fZ1, fY1, fZ2, fY2, asize); }
-TArrow *LKGeoLine::DrawArrowZX(Double_t asize) { return new TArrow(fZ1, fX1, fZ2, fX2, asize); }
-TArrow *LKGeoLine::DrawArrowXZ(Double_t asize) { return new TArrow(fX1, fZ1, fX2, fZ2, asize); }
+TGraph* LKGeoLine::GetGraph(TVector3 offset)
+{
+    auto graph = new TGraph();
+    graph -> SetPoint(0,fX1, fY1);
+    graph -> SetPoint(0,fX2, fY2);
+    return graph;
+}
+
+TArrow *LKGeoLine::GetArrowXY(Double_t asize) { return new TArrow(fX1, fY1, fX2, fY2, asize); }
+TArrow *LKGeoLine::GetArrowYZ(Double_t asize) { return new TArrow(fY1, fZ1, fY2, fZ2, asize); }
+TArrow *LKGeoLine::GetArrowZY(Double_t asize) { return new TArrow(fZ1, fY1, fZ2, fY2, asize); }
+TArrow *LKGeoLine::GetArrowZX(Double_t asize) { return new TArrow(fZ1, fX1, fZ2, fX2, asize); }
+TArrow *LKGeoLine::GetArrowXZ(Double_t asize) { return new TArrow(fX1, fZ1, fX2, fZ2, asize); }
 
 TGraph2D *LKGeoLine::GetGraphXYZ()
 {

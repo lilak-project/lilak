@@ -42,7 +42,7 @@ Double_t LKGeoCircle::GetZ() const { return fZ; }
 Double_t LKGeoCircle::GetR() const { return fR; }
 Double_t LKGeoCircle::GetRadius() const { return fR; }
 
-TGraph *LKGeoCircle::DrawCircle(Int_t n, Double_t theta1, Double_t theta2)
+TGraph *LKGeoCircle::GetGraph(TVector3 offset, Int_t n, Double_t theta1, Double_t theta2)
 {
     if (theta1 == theta2 && theta1 == 0)
         theta2 = 2*TMath::Pi();
@@ -53,7 +53,7 @@ TGraph *LKGeoCircle::DrawCircle(Int_t n, Double_t theta1, Double_t theta2)
     {
         TVector3 pointer(fR,0,0);
         pointer.RotateZ(i*(theta2-theta1)/n);
-        auto point = center + pointer;
+        auto point = center + pointer + offset;
         graph -> SetPoint(graph->GetN(), point.X(), point.Y());
     }
 

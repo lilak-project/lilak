@@ -239,9 +239,9 @@ bool LKGeoBox::GetCrossingPoints(LKGeoLine line, TVector3 &point1, TVector3 &poi
     return false;
 }
 
-TGraph *LKGeoBox::Draw2DBox(LKVector3::Axis axis1, LKVector3::Axis axis2)
+TGraph *LKGeoBox::Get2DBoxGraph(LKVector3::Axis axis1, LKVector3::Axis axis2)
 {
-    return GetFace(axis1,axis2).DrawGraph();
+    return GetFace(axis1,axis2).GetGraph();
 }
 
 bool LKGeoBox::IsInside(TVector3 pos) const

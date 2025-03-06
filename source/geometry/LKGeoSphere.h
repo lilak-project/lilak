@@ -27,9 +27,9 @@ class LKGeoSphere : public LKGeometry
         virtual TVector3 GetCenter() const;
         Double_t GetRadius() const;
 
-        TGraph *DrawCircleXY(Int_t n = 100, Double_t theta1 = 0, Double_t theta2 = 0);
-        TGraph *DrawCircleYZ(Int_t n = 100, Double_t theta1 = 0, Double_t theta2 = 0);
-        TGraph *DrawCircleZX(Int_t n = 100, Double_t theta1 = 0, Double_t theta2 = 0);
+        TGraph *GetCircleXY(Int_t n = 100, Double_t theta1 = 0, Double_t theta2 = 0);
+        TGraph *GetCircleYZ(Int_t n = 100, Double_t theta1 = 0, Double_t theta2 = 0);
+        TGraph *GetCircleZX(Int_t n = 100, Double_t theta1 = 0, Double_t theta2 = 0);
 
         TVector3 StereographicProjection(Double_t x, Double_t y);
 

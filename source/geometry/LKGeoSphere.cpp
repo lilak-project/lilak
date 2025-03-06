@@ -42,16 +42,16 @@ Double_t LKGeoSphere::GetR() const { return fR; }
 TVector3 LKGeoSphere::GetCenter() const { return TVector3(fX, fY, fZ); }
 Double_t LKGeoSphere::GetRadius() const { return fR; }
 
-TGraph *LKGeoSphere::DrawCircleXY(Int_t n, Double_t theta1, Double_t theta2) {
-    return LKGeoCircle(fX,fY,fR).DrawCircle(n, theta1, theta2);
+TGraph *LKGeoSphere::GetCircleXY(Int_t n, Double_t theta1, Double_t theta2) {
+    return LKGeoCircle(fX,fY,fR).GetGraph(n, theta1, theta2);
 }
 
-TGraph *LKGeoSphere::DrawCircleYZ(Int_t n, Double_t theta1, Double_t theta2) {
-    return LKGeoCircle(fY,fZ,fR).DrawCircle(n, theta1, theta2);
+TGraph *LKGeoSphere::GetCircleYZ(Int_t n, Double_t theta1, Double_t theta2) {
+    return LKGeoCircle(fY,fZ,fR).GetGraph(n, theta1, theta2);
 }
 
-TGraph *LKGeoSphere::DrawCircleZX(Int_t n, Double_t theta1, Double_t theta2) {
-    return LKGeoCircle(fZ,fX,fR).DrawCircle(n, theta1, theta2);
+TGraph *LKGeoSphere::GetCircleZX(Int_t n, Double_t theta1, Double_t theta2) {
+    return LKGeoCircle(fZ,fX,fR).GetGraph(n, theta1, theta2);
 }
 
 TVector3 LKGeoSphere::StereographicProjection(Double_t x, Double_t y)

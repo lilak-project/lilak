@@ -52,9 +52,9 @@ class LKGeoBoxStack : public LKGeometry
 
         LKGeoBox GetBox(Int_t idx) const;
 
-        TMultiGraph *DrawStackGraph   (axis_t a1 = LKVector3::kNon, axis_t a2 = LKVector3::kNon);
-        TH2D        *DrawStackHist    (TString name="", TString title="", axis_t a1 = LKVector3::kNon, axis_t a2 = LKVector3::kNon);
-        TH2Poly     *DrawStackHistPoly(TString name="", TString title="", axis_t a1 = LKVector3::kNon, axis_t a2 = LKVector3::kNon);
+        TMultiGraph *GetStackGraph   (axis_t a1 = LKVector3::kNon, axis_t a2 = LKVector3::kNon);
+        TH2D        *GetStackHist    (TString name="", TString title="", axis_t a1 = LKVector3::kNon, axis_t a2 = LKVector3::kNon);
+        TH2Poly     *GetStackHistPoly(TString name="", TString title="", axis_t a1 = LKVector3::kNon, axis_t a2 = LKVector3::kNon);
 
         Int_t FindBoxIndex(TVector3 pos) const;
         Int_t FindBoxIndex(Double_t x, Double_t y, Double_t z) const;

@@ -69,7 +69,7 @@ LKGeoBox LKGeoBoxStack::GetBox(Int_t idx) const
     return LKGeoBox(pos.X(), pos.Y(), pos.Z(), fdX, fdY, fdZ);
 }
 
-TMultiGraph *LKGeoBoxStack::DrawStackGraph(axis_t a1, axis_t a2)
+TMultiGraph *LKGeoBoxStack::GetStackGraph(axis_t a1, axis_t a2)
 {
     if (a1 == LKVector3::kNon || a2 == LKVector3::kNon) {
         a1 = fFaceAxis%fStackAxis;
@@ -80,7 +80,7 @@ TMultiGraph *LKGeoBoxStack::DrawStackGraph(axis_t a1, axis_t a2)
 
     auto mgraph = new TMultiGraph();
     for (auto idx = 0; idx < fNumStacks; ++idx) {
-        auto box = GetBox(idx).Draw2DBox(a1,a2);
+        auto box = GetBox(idx).Get2DBoxGraph(a1,a2);
         if (idx%2!=0)
             box -> SetFillColor(kGray);
         mgraph -> Add(box,"lf");
@@ -89,7 +89,7 @@ TMultiGraph *LKGeoBoxStack::DrawStackGraph(axis_t a1, axis_t a2)
     return mgraph;
 }
 
-TH2D *LKGeoBoxStack::DrawStackHist(TString name, TString title, axis_t a1, axis_t a2)
+TH2D *LKGeoBoxStack::GetStackHist(TString name, TString title, axis_t a1, axis_t a2)
 {
     if (a1 == LKVector3::kNon || a2 == LKVector3::kNon) {
         a1 = fFaceAxis%fStackAxis;
@@ -134,7 +134,7 @@ TH2D *LKGeoBoxStack::DrawStackHist(TString name, TString title, axis_t a1, axis_
     return hist;
 }
 
-TH2Poly *LKGeoBoxStack::DrawStackHistPoly(TString name, TString title, axis_t a1, axis_t a2)
+TH2Poly *LKGeoBoxStack::GetStackHistPoly(TString name, TString title, axis_t a1, axis_t a2)
 {
     if (a1 == LKVector3::kNon || a2 == LKVector3::kNon) {
         a1 = fFaceAxis%fStackAxis;

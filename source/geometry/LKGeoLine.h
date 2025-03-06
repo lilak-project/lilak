@@ -72,11 +72,13 @@ class LKGeoLine : public LKGeometry
 
         bool SetRange(LKGeoBox* box);
 
-        TArrow *DrawArrowXY(Double_t asize = 0.02);
-        TArrow *DrawArrowYZ(Double_t asize = 0.02);
-        TArrow *DrawArrowZY(Double_t asize = 0.02);
-        TArrow *DrawArrowZX(Double_t asize = 0.02);
-        TArrow *DrawArrowXZ(Double_t asize = 0.02);
+        virtual TGraph* GetGraph(TVector3 offset=TVector3(0,0,0));
+
+        TArrow *GetArrowXY(Double_t asize = 0.02);
+        TArrow *GetArrowYZ(Double_t asize = 0.02);
+        TArrow *GetArrowZY(Double_t asize = 0.02);
+        TArrow *GetArrowZX(Double_t asize = 0.02);
+        TArrow *GetArrowXZ(Double_t asize = 0.02);
 
         TGraph2D* GetGraphXYZ();
         TGraph2D* GetGraphZXY();

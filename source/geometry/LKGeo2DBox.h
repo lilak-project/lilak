@@ -39,7 +39,7 @@ class LKGeo2DBox : public LKGeoRotated
         void Translate(Double_t x, Double_t y);
         void Rotate(Double_t deg, Double_t x, Double_t y);
 
-        TGraph *DrawGraph();
+        virtual TGraph *GetGraph(TVector3 center=TVector3(0,0,0));
 
         //bool IsInside(Double_t x, Double_t y);
 

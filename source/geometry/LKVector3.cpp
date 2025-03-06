@@ -164,9 +164,9 @@ Double_t LKVector3::K() const { return At(GetGlobalAxis(kK)); }
 TVector3 LKVector3::GetXYZ() const { return TVector3(X(), Y(), Z()); }
 TVector3 LKVector3::GetIJK() const { return TVector3(I(), J(), K()); }
 
-TArrow *LKVector3::ArrowXY() { return LKGeoLine(TVector3(),GetXYZ()).DrawArrowXY(); }
-TArrow *LKVector3::ArrowYZ() { return LKGeoLine(TVector3(),GetXYZ()).DrawArrowYZ(); }
-TArrow *LKVector3::ArrowZX() { return LKGeoLine(TVector3(),GetXYZ()).DrawArrowZX(); }
+TArrow *LKVector3::ArrowXY() { return LKGeoLine(TVector3(),GetXYZ()).GetArrowXY(); }
+TArrow *LKVector3::ArrowYZ() { return LKGeoLine(TVector3(),GetXYZ()).GetArrowYZ(); }
+TArrow *LKVector3::ArrowZX() { return LKGeoLine(TVector3(),GetXYZ()).GetArrowZX(); }
 
 void LKVector3::Rotate(Double_t angle, Axis ka)
 {
