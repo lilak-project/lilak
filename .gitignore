@@ -1,35 +1,17 @@
-#geometry file
-*.gdml
-
 #build
 CMakeLists.txt
 build
 *.swp
 *.o
 
-#simulation/analysis data
-data
-input
-output
+#data
+data/*
+!.data
+input/
+output/
 *.root
 *.graw
-test*/
-
-#geant4 executable
-*.g4sim
-
-#log files created from build/run
-log/*
-*.log
-
-#cmake configuration log files
-!log/*.in
-
-#common
-common/
-
-#temporary directories
-temp*/
+*.gdml
 
 #figures
 figures/
@@ -39,21 +21,28 @@ figures/
 *.jpg
 *.jpeg
 
-#trash
-trash
+#executables
+*.g4sim
+*.exe
 
-#python
+#configurations and logs
+macros/command_lilak.sh
+log/*
+*.log
+!log/*.in
+
+#updating
+common/
+doc/
+LKClassFactory*
+
+#test
+test*/
+temp*/
+zzz/
+trash/
+
+#others
 __pycache__
-
-#mac
 .AppleDouble
 .DS_Store
-
-#documetation directory(doxygen)
-doc
-
-zzz/
-
-lilak.sh
-
-LKClassFactory*

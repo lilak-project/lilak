@@ -18,29 +18,15 @@ git clone git@github.com:lilak-project/atomx.git
 ---
 
 ### Build
-Run `cofigure.py` and follow the instructions.
+Run `lilak.sh` and follow the instructions.
 ```sh
-./configure.py
+./lilak.sh
 ```
-
----
-
-### Create project
-Run `create_project.py` and follow the instructions.
-```sh
-./create_project.py
-```
-
----
 
 ### Deactivate
 Remove or comment out (#) Rint.Logon line as below in ~/.rootrc:
 ```
 #Rint.Logon: /path/to/lilak/macros/rootlogon.C
-```
-or run root with `-n` option when you run root to execute without logon and logoff macros.
-```
-root -n
 ```
 
 ---

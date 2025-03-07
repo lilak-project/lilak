@@ -1,10 +1,15 @@
+#!/usr/bin/env python3
+
 import os
+import sys
+
+#class lilakcc:
+#class project_class_creator:
 
 class lilakcc:
     """
     Write lilak class
     - methods:
-
         [x] add(self, input_lines)
             [x] set_class(self,line0, acc_spec, method_source)
                 [x] set_file_name(self,name)
@@ -19,7 +24,6 @@ class lilakcc:
                 [x] make_par(self, par_type, par_name, par_init, par_comments)
             [x] add_data_branch(self, data_type, data_bclass, data_gname, data_bname, data_lname,
                                 single_data_name, input_comment, data_persistency):
-
         [x] break_data_array(self,lines)
         [x] break_line(self,lines)
         [x] check_method_or_par(self,line)
@@ -27,7 +31,6 @@ class lilakcc:
         [x] include_headers(self,includes)
         [x] simply_comment_out(self,lines,comment_notation="//")
         [x] count_lspace(self,line)
-
         [x] print_container     (self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance='')
         [x] print_task          (self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance='')
         [x] print_detector      (self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance='')
@@ -35,11 +38,9 @@ class lilakcc:
         [x] print_pad_plane     (self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance='')
         [x] print_tool          (self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance='')
         [x] print_geant4dc      (self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance='')
-
         [x] print_class(self, mode=0, to_screen=False, to_file=True, print_example_comments=True, includes='LKContainer.h', inheritance='')
         [x] make_geant4dc_macros(self)
     """
-
     def __init__(self, input_lines=''):
         self.name = ""
         self.path = "./output"
@@ -2082,6 +2083,177 @@ G4/ # instead of using separate geant4 macro users can put the commands under G4
     def print_geant4dc(self, to_screen=False, to_file=True, print_example_comments=True, includes='', inheritance=''):
         self.print_class(mode=6, to_screen=to_screen, to_file=to_file, print_example_comments=print_example_comments, includes=includes, inheritance=inheritance)
 
+class project_class_creator:
+    def __init__(self):
+        pass
+
+    def print_header(self, message, rank=0):
+        if rank>1:
+            print(f'\033[94m##\033[0m' + message)
+            return
+        self.count_headers[rank] = self.count_headers[rank] + 1
+        section = str(self.count_headers[rank])
+        if rank==1 : section = str(self.count_headers[0]) + "-" + str(self.count_headers[1])
+        else: self.count_headers[1] = 0
+        print(f'\n\033[94m== {section} ===============================================================================\033[0m')
+        print(f'\033[94m## \033[0m' + message)
+        print()
+
+    def print_warn(self, *messages):
+        print_head = '\033[93m'
+        print_end = '\033[0m'
+        full_message = ""
+        for message in messages:
+            full_message = full_message + " " + message
+        print(print_head + "WARN" + print_end + full_message)
+
+    def print_error(self, *messages):
+        print_head = '\033[91m'
+        print_end = '\033[0m'
+        full_message = ""
+        for message in messages:
+            full_message = full_message + " " + message
+        print(print_head + "ERROR" + print_end + full_message)
+
+    def select_one_option(self, question="", possible_options=[], dir_name=''):
+        any_input = False
+        if question=='1':
+            question = f"""   Q. Create {dir_name}?
+   - [Enter] Create {dir_name} directory?
+   - [0]     Pass without creating {dir_name}
+   - [x/q]   Exit creator
+:"""
+            possible_options = ['','0','q','x']
+        elif question=='2':
+            any_input = True
+            question = f"""   Q. Create class for {dir_name}?
+   - [Name]  Create class with given [Name]
+   - [0]     Pass without creating {dir_name}
+   - [x/q]   Exit creator
+:"""
+            possible_options = ['','0','q','x']
+        elif question=='3':
+            any_input = True
+            question = f"""   Q. Create class for {dir_name}?
+   - [Name]  Create detector construction class with given [Name]
+   - [0]     Pass without creating {dir_name}
+   - [x/q]   Exit creator
+:"""
+            possible_options = ['','0','q','x']
+        while True:
+            user_input = input(question)
+            if user_input in ['x','q']: exit()
+            elif any_input==False:
+                if user_input in possible_options:
+                    return user_input
+                else:
+                    print("Invalid input. Please try again.")
+            else:
+                break
+        return user_input
+
+    def run_creator(self):
+        self.init_creator()
+        self.create_project_directory()
+        self.create_sub_directories()
+        self.summary()
+
+    def init_creator(self):
+        self.count_headers = [0,0]
+        self.print_header("Init creator");
+        #self.current_path = os.path.dirname(os.path.abspath(__file__))
+        self.current_path = os.getcwd()
+        self.lilak_path = os.getenv('LILAK_PATH')
+        if self.lilak_path is None:
+            self.lilak_path = self.current_path
+        #sys.path.append(self.lilak_path+'/macros/dummy_class_writter/')
+        #from lilakcc import lilakcc
+        #
+        self.lf_top_directories = ["build","data","log","macros","source"]
+        self.lf_project_subdir = ["macros","container","detector","common","tool","task","geant4"]
+        self.lf_creator_subdir = ["container","detector","tool","task","geant4"]
+        ls_top = os.listdir("./")
+        self.lf_prj_directories = []
+        for directory_name in ls_top:
+            if directory_name in self.lf_top_directories:
+                continue
+            if (os.path.isdir(directory_name)):
+                self.lf_prj_directories.append(directory_name)
+        print(f"LILAK   path is {self.lilak_path}")
+        print(f"Current path is {self.current_path}")
+
+    def create_project_directory(self):
+        self.print_header("Creating new project");
+        self.project_name = ""
+        self.project_comment = ""
+        if len(sys.argv)>=2:
+            self.project_name = sys.argv[1]
+        while True:
+            if self.project_name in self.lf_top_directories:
+                self.print_error(f'Project name cannot be {self.lf_top_directories}')
+                self.project_name = ""
+            elif self.project_name in self.lf_prj_directories:
+                self.print_error(f'Project already exist with name "{self.project_name}"')
+                self.project_name = ""
+            elif len(self.project_name)>0:
+                break
+            else:
+                user_input = ""
+                while len(user_input)==0:
+                    user_input = input("Enter project name: ")
+                    self.project_name = user_input
+        user_input = input("What is this project about?: ")
+        self.project_comment = user_input.strip()
+        self.project_path = os.path.join(self.current_path,self.project_name)
+        print(f"Project name    : {self.project_name}")
+        print(f"Project comment : {self.project_comment}")
+        print(f"Project path    : {self.project_path}")
+        os.system(f'mkdir -p {self.project_path}')
+        os.system(f'cp {self.lilak_path}/.gitignore {self.project_path}/')
+        with open(f'{self.project_path}/.lilak', 'w') as f1: print(self.project_comment,file=f1)
+
+    def create_sub_directories(self):
+        self.print_header("Creating sub directories")
+        #print(f"You can create dummy classes using scripts in macros/dummy_class_writer/")
+        os.chdir(self.project_path)
+        for subdir_name in self.lf_project_subdir:
+            self.print_header(f'Creating {subdir_name}')
+            user_input = self.select_one_option('1', dir_name=subdir_name)
+            if user_input=='0':
+                continue
+            subdir_path = os.path.join(self.project_path,subdir_name)
+            os.system(f'mkdir -p {subdir_path}')
+            os.chdir(subdir_path)
+            #os.system(f'touch .{subdir_name}')
+            if subdir_name=="macros":
+                os.system(f'mkdir -p data')
+                os.chdir('data')
+                os.system(f'touch .data')
+            elif subdir_name in self.lf_creator_subdir:
+                while True:
+                    if subdir_name=="geant4":
+                        class_name = self.select_one_option('3', dir_name=subdir_name)
+                    else:
+                        class_name = self.select_one_option('2', dir_name=subdir_name)
+                    if class_name=='':
+                        break
+                    else:
+                        content = f"+class {class_name}\n+path {subdir_path}"
+                        content_dp = f"+class {class_name}Plane\n+path {subdir_path}"
+                        if subdir_name=="container": lilakcc(content).print_container()
+                        if subdir_name=="geant4": lilakcc(content).print_geant4dc()
+                        if subdir_name=="task": lilakcc(content).print_task()
+                        if subdir_name=="tool": lilakcc(content).print_tool()
+                        if subdir_name=="detector":
+                            lilakcc(content).print_detector()
+                            lilakcc(content_dp).print_detector_plane()
+
+    def summary(self):
+        self.print_header("summary");
+        print(f"Project path is {self.project_path}")
+        print()
+
 if __name__ == "__main__":
-    help(lilakcc)
-    lilakcc()
+    pc = project_class_creator()
+    pc.run_creator()
+    #help(lilakcc)
