@@ -117,10 +117,10 @@ class lilak_configuration:
         self.fn_build_option = os.path.join(os.path.join(self.lilak_path, "log"), "build_options.cmake")
         self.nm_main_project = "lilak"
         self.df_build_options0 = {
-            "ACTIVATE_EVE": False,
+            #"ACTIVATE_EVE": False,
             "BUILD_GEANT4_SIM": False,
             "BUILD_MFM_CONVERTER": False,
-            "BUILD_JSONCPP": False,
+            #"BUILD_JSONCPP": False,
             #"BUILD_DOXYGEN_DOC": False,
             #"CREATE_GIT_LOG": True,
         }
@@ -533,8 +533,8 @@ set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
         scan_directories(self.lilak_path, lf_search_path)
         # Sort the list of classes by the length of the class name
         lf_classes.sort()
-        if self.df_build_options["BUILD_MFM_CONVERTER"]==True:
-            include_path2.append("mfm")
+        #if self.df_build_options["BUILD_MFM_CONVERTER"]==True:
+        #    include_path.append("mfm")
         # Construct the lines for adding classes and including headers
         last_header = ''
         for class_name, path_name in lf_classes:
@@ -864,7 +864,7 @@ echo "LILAK is set. Use 'lilak {{home|build|0build|new|update|example|doc|find|r
             with open(fn_rootrc, "r") as f:
                 for line in f:
                     line = line.strip()
-                    if f'Rint.Logon: {self.lilak_path}/macros/rootlogon.C' in line:
+                    if (f'Rint.Logon: {self.lilak_path}/macros/rootlogon.C' in line) and line[0]!='#':
                         print_out_root_logon=False
                         break
         else:
@@ -879,20 +879,20 @@ echo "LILAK is set. Use 'lilak {{home|build|0build|new|update|example|doc|find|r
 {source_lilak_sh}""")
             if print_out_login_script:
                 print(f"""
-== Add following to {shell_script}:
+== Add following to {shell_script}
 {source_lilak_sh}""")
             if print_out_create_rootrc:
                 print("You don't have rootrc!")
                 print(f"""
-== Create .rootrc and set logon script:
+== Create .rootrc and set logon script
 echo Rint.Logon: {self.lilak_path}/macros/rootlogon.C >> {fn_rootrc}""")
             elif print_out_root_logon:
 #                print(f"""
-#== Add following to .rootrc at $HOME:
+#== Add following to .rootrc at $HOME
 #Rint.Logon: {self.lilak_path}/macros/rootlogon.C
 #""")
                 print(f"""
-== Add following to {os.getenv('HOME')}/.rootrc:
+== Add following to {os.getenv('HOME')}/.rootrc
 Rint.Logon: {self.lilak_path}/macros/rootlogon.C
 """)
 

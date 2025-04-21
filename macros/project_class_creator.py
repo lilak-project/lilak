@@ -2119,25 +2119,25 @@ class project_class_creator:
         any_input = False
         if question=='1':
             question = f"""   Q. Create {dir_name}?
-   - [Enter] Create {dir_name} directory?
-   - [0]     Pass without creating {dir_name}
-   - [x/q]   Exit creator
+   - [Enter] Yes
+   - [0]     No
+   - [x/q]   Exit
 :"""
             possible_options = ['','0','q','x']
         elif question=='2':
             any_input = True
             question = f"""   Q. Create class for {dir_name}?
-   - [Name]  Create class with given [Name]
-   - [0]     Pass without creating {dir_name}
-   - [x/q]   Exit creator
+   - [Name]  Yes
+   - [0]     No
+   - [x/q]   Exit
 :"""
             possible_options = ['','0','q','x']
         elif question=='3':
             any_input = True
             question = f"""   Q. Create class for {dir_name}?
-   - [Name]  Create detector construction class with given [Name]
-   - [0]     Pass without creating {dir_name}
-   - [x/q]   Exit creator
+   - [Name]  Yes
+   - [0]     No
+   - [x/q]   Exit
 :"""
             possible_options = ['','0','q','x']
         while True:
