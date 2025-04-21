@@ -163,6 +163,7 @@ class lilak_configuration:
    - [Enter] Skip
    - [index] Add project of index ex) 125c
    - [a]     Add all ex) a, a-3
+   - [x]     Exit configuration
 :"""
         option_list = list(options)
         option_list.sort()
@@ -186,6 +187,7 @@ class lilak_configuration:
         lf_final_keys = []
         if len(user_options) == 0:
             print(f"    --")
+        elif user_options in ['x','q']: exit()
         elif user_options in ['a','*']:
             lf_final_keys = option_list
             print(f"    All")
@@ -261,8 +263,8 @@ class lilak_configuration:
     def confirm_build_options(self):
         self.print_header("Confirm build options")
         if self.first_lilak_configuration:
-            print("First LILAK configuration!",1)
-            return False
+            print("First LILAK configuration!")
+            #return False
         print("Loading configuration from", self.fn_build_option)
         print()
         for key, value in self.df_build_options.items():
@@ -579,8 +581,14 @@ class LKClassFactory
         update_header = False
         source_file_path = os.path.join(self.lilak_path, "source/base/LKClassFactory.cpp")
         header_file_path = os.path.join(self.lilak_path, "source/base/LKClassFactory.h")
-        with open(source_file_path, "r") as source_file: update_source = (source_file.read().strip() != source_content)
-        with open(header_file_path, "r") as header_file: update_header = (header_file.read().strip() != header_content)
+        exist_source = os.path.exists(source_file_path)
+        exist_header = os.path.exists(header_file_path)
+        update_source = (exist_source==False)
+        update_header = (exist_header==False)
+        if exist_source:
+            with open(source_file_path, "r") as source_file: update_source = (source_file.read().strip() != source_content)
+        if exist_header:
+            with open(header_file_path, "r") as header_file: update_header = (header_file.read().strip() != header_content)
         if update_source:
             print("Updating", source_file_path)
             with open(source_file_path, "w") as source_file: print(source_content, file=source_file)
@@ -827,7 +835,7 @@ echo "LILAK is set. Use 'lilak {{home|build|0build|new|update|example|doc|find|r
         print_out_root_logon = True
         pt_home = os.environ['HOME']
         lf_shell_info = [
-            ['bash','.bash_profile','.bashr'],
+            ['bash','.bash_profile','.bashrc'],
             ['zsh' ,'.zprofile'    ,'.zshrc'],
             ['ksh' ,'.profile'     ,'.kshrc'],
             ['csh' ,'.login'       ,'.cshrc'],
@@ -879,9 +887,14 @@ echo "LILAK is set. Use 'lilak {{home|build|0build|new|update|example|doc|find|r
 == Create .rootrc and set logon script:
 echo Rint.Logon: {self.lilak_path}/macros/rootlogon.C >> {fn_rootrc}""")
             elif print_out_root_logon:
+#                print(f"""
+#== Add following to .rootrc at $HOME:
+#Rint.Logon: {self.lilak_path}/macros/rootlogon.C
+#""")
                 print(f"""
-== Add following to .rootrc at $HOME:
-Rint.Logon: {self.lilak_path}/macros/rootlogon.C""")
+== Add following to {os.getenv('HOME')}/.rootrc:
+Rint.Logon: {self.lilak_path}/macros/rootlogon.C
+""")
 
 if __name__ == "__main__":
     conf = lilak_configuration()
