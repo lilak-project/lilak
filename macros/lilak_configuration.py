@@ -157,11 +157,12 @@ class lilak_configuration:
                 print("Invalid input. Please try again.")
         return user_input
 
-    def select_multiple_options(self, options, question=""):
+    def select_multiple_options(self, options, question="", prev_options=[]):
         if len(question)==0:
             question = """   Q. Select options
    - [Enter] Skip
    - [index] Add project of index ex) 125c
+   - [p]     Use previous options
    - [a]     Add all ex) a, a-3
    - [x]     Exit configuration
 :"""
@@ -187,6 +188,8 @@ class lilak_configuration:
         lf_final_keys = []
         if len(user_options) == 0:
             print(f"    --")
+        elif user_options in ['p','=']:
+            lf_final_keys = prev_options
         elif user_options in ['x','q']: exit()
         elif user_options in ['a','*']:
             lf_final_keys = option_list
@@ -249,8 +252,7 @@ class lilak_configuration:
                             if   tokens[0] == "LILAK_PROJECT_MAIN": self.nm_main_project = tokens[1]
                             elif tokens[0] == "GRUDIR": self.GRU_path = tokens[1]
                             elif tokens[0] == "GETDIR": self.GET_path = tokens[1]
-                            #elif tokens[0] != "LILAK_PROJECT_LIST":
-                            elif tokens[0] != "LILAK_PROJECT_LIST":
+                            elif tokens[0] not in ["LILAK_PROJECT_LIST", "LILAK_BIND_LIST"]:
                                 self.df_build_options[tokens[0]] = (True if tokens[1] == "ON" else False)
                     elif len(line) > 0 and line != ")" and line.strip().find("CACHE INTERNAL") < 0 and line.strip().find("LILAK") != 0:
                         comment = ""
@@ -276,8 +278,9 @@ class lilak_configuration:
 
     def select_build_options(self):
         self.print_header("Build options")
+        prev_build_options = [key for key, value in self.df_build_options.items() if value]
         self.df_build_options = self.df_build_options0.copy()
-        lf_chosen_key = set(self.select_multiple_options(self.df_build_options))
+        lf_chosen_key = set(self.select_multiple_options(self.df_build_options, prev_options=prev_build_options))
         for key in lf_chosen_key:
             self.df_build_options[key] = True
             if key == "BUILD_MFM_CONVERTER":
@@ -298,6 +301,7 @@ class lilak_configuration:
         self.print_header("Add Project")
         print()
         user_input_project = "x"
+        prev_lilak_projects = self.lf_lilak_projects
         self.lf_lilak_projects = []
         while len(user_input_project) > 0:
             ls_top = os.listdir("./")
@@ -320,7 +324,7 @@ class lilak_configuration:
                             break
                     if is_project_directory:
                         list_prj_directories.append(directory_name)
-            lf_chosen_key = set(self.select_multiple_options(list_prj_directories))
+            lf_chosen_key = set(self.select_multiple_options(list_prj_directories, prev_options=prev_lilak_projects))
             for key in lf_chosen_key:
                 self.lf_lilak_projects.append(key)
             break
