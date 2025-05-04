@@ -406,6 +406,8 @@ void LKDrawing::Draw(Option_t *option)
             else
                 fCvs = LKPainter::GetPainter() -> CanvasSize(Form("cvs_%s",fName.Data()),dx,dy);
         }
+        if (CheckOption("debug_draw"))
+            lk_debug << fCvs->GetName() << " " << fCvs->GetTitle() << " " << fCvs->GetWw() << " " << fCvs->GetWh() << endl;
     }
     //fRM -> Stop(4);
 

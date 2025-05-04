@@ -595,10 +595,10 @@ TH2D* LKEvePlane::GetHistControlEvent2()
 TH2* LKEvePlane::GetHist(Option_t *option)
 {
     GetHistEventDisplay1();
-    GetHistEventDisplay2();
-    GetHistChannelBuffer();
-    GetHistControlEvent1();
-    GetHistControlEvent2();
+    //GetHistEventDisplay2();
+    //GetHistChannelBuffer();
+    //GetHistControlEvent1();
+    //GetHistControlEvent2();
     return (TH2*) fHistEventDisplay1;
 }
 
@@ -814,21 +814,23 @@ void LKEvePlane::FillDataToHistEventDisplay1(Option_t *option)
             fHistEventDisplay1 -> Fill(i,j,energy);
         }
     }
+
     else if (optionString.Index("preview")==0)
     {
         if (fRawDataArray!=nullptr)
         {
             title = "Preview Data";
-            TIter nextRawData(fChannelArray);
+            TIter nextRawData(fRawDataArray);
             while ((pad = (LKPad*) nextRawData()))
             {
                 auto idx = pad -> GetDataIndex();
                 if (idx<0)
                     continue;
-                auto channel = (GETChannel*) fRawDataArray -> At(idx);
+                //auto channel = (GETChannel*) fRawDataArray -> At(idx);
                 auto i = pad -> GetI();
                 auto j = pad -> GetJ();
-                auto energy = channel -> GetEnergy();
+                //auto energy = channel -> GetEnergy();
+                auto energy = 1;
                 fHistEventDisplay1 -> Fill(i,j,energy);
             }
         }
@@ -964,7 +966,6 @@ void LKEvePlane::ClickedControlEvent1(int selectedBin)
             //SetActive(false);
             fJustFill = true;
             auto ecm = fRun -> GetEventCountForMessage();
-            lk_debug << ecm << endl;
             //if (fAllowControlLogger) fRun -> SetAllowControlLogger(false);
             if (fAllowControlLogger) fRun -> SetEventCountForMessage(fECMForAccumulation);
             if (fAllowControlLogger) lk_set_message(false);
