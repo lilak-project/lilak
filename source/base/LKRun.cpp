@@ -205,7 +205,7 @@ TString LKRun::MakeFullRunName(int useparated) const
     //if (runID<0 && runID!=-999) runID = 0;
     //TString fileName = fRunName + Form("_%04d", runID);
 
-    if (fMainName.IsNull()==false) fileName = fMainName;
+    if (fFileName.IsNull()==false) fileName = fFileName;
     else {
         fileName = fileName = fRunName;
         auto runID = fRunID;
@@ -586,10 +586,15 @@ bool LKRun::Init()
     {
         LKClassFactory classFactory(this);
         auto lilakPar = fPar -> CreateGroupContainer("lilak");
+        int verbose = 0;
+        lilakPar -> UpdatePar(verbose,"verbose");
+        if (verbose>0) lilakPar -> Print();
         TIter nextAdd(lilakPar->CreateMultiParContainer("add"));
         LKParameter* parameter;
-        while ((parameter=(LKParameter*)nextAdd()))
+        while ((parameter=(LKParameter*)nextAdd())) {
+            if (verbose>0) lk_debug << parameter->GetString() << endl;
             classFactory.Add(parameter->GetString());
+        }
         if (lilakPar->CheckPar("run")) {
             runAfterInit = lilakPar -> GetParLong("run");
             //runAfterInit = lilakPar -> GetParLong("run",0);
@@ -638,6 +643,9 @@ bool LKRun::Init()
     fPar -> Require("LKRun/RunIDRange",   "1, 10",          "list of run numbers ranged by ,",    "t/", countParOrder++);
     fPar -> Require("LKRun/EntriesLimit",         100000,   "limit number of run entries",        "t/", countParOrder++);
     fPar -> Require("LKRun/EventCountForMessage", 20000,    "",                                   "t", countParOrder++);
+    fPar -> Require("LKRun/UpdateOutputFile",     false,    "update root file with option update","t/", countParOrder++);
+    fPar -> Require("LKRun/FileName",             "",       "file name will be fixed to this name if it is not null string","t/", countParOrder++);
+
 
     if (!fRunNameIsSet) {
         fPar -> UpdatePar(fRunName,  "LKRun/Name");
@@ -646,7 +654,7 @@ bool LKRun::Init()
         fPar -> UpdatePar(fTag,      "LKRun/Tag");
         if (fPar -> CheckPar("LKRun/Name"))
             fRunNameIsSet = true;
-        fPar -> UpdatePar(fMainName,  "LKRun/MainName");
+        fPar -> UpdatePar(fFileName,  "LKRun/FileName");
     }
 
     if (fPar -> CheckPar("LKRun/RunIDRange"))
@@ -986,7 +994,7 @@ bool LKRun::Init()
             fRunHeader -> AddPar(Form("FriendFile/%d",iFriend),fFriendFileNameArray[iFriend]);
         fRunHeader -> AddPar("OutputFile",fOutputFileName);
         fRunHeader -> AddPar("RunName",fRunName);
-        fRunHeader -> AddPar("MainName",fMainName);
+        fRunHeader -> AddPar("FileName",fFileName);
         fRunHeader -> AddPar("RunID",fRunID);
         for (auto i=0; i<fRunIDList.size(); ++i) {
             auto runID = fRunIDList.at(i);
@@ -1588,9 +1596,11 @@ bool LKRun::StartOfRun(Long64_t numEvents)
         struct tm *now = localtime(&start_time);
         TString start_ymd = Form("%04d.%02d.%02d",now->tm_year+1900,now->tm_mon+1,now->tm_mday);
         TString start_hms = Form("%02d:%02d:%02d",now->tm_hour,now->tm_min,now->tm_sec);
-        fRunHeader -> AddPar("start_time",Long64_t(start_time));
-        fRunHeader -> AddPar("start_ymd",start_ymd);
-        fRunHeader -> AddPar("start_hms",start_hms);
+        fRunHeader -> AddPar("start_time(t)",Long64_t(start_time));
+        //fRunHeader -> AddPar("start_time",Long64_t(start_time));
+        //fRunHeader -> AddPar("start_ymd",start_ymd);
+        //fRunHeader -> AddPar("start_hms",start_hms);
+        //fRunHeader -> AddPar("start",start_ymd + " " + start_hms);
     }
 
     fEventCount = 1;
@@ -1619,19 +1629,21 @@ bool LKRun::EndOfRun()
     Print("gen:out:in");
 
     {
-        Long64_t start_time = fRunHeader -> GetParInt("start_time");
+        Long64_t start_time = TString(fRunHeader -> GetParRaw("start_time(t)")).Atoll();
         time_t end_time = time(0);
         struct tm *now = localtime(&end_time);
         TString end_ymd = Form("%04d.%02d.%02d",now->tm_year+1900,now->tm_mon+1,now->tm_mday);
         TString end_hms = Form("%02d:%02d:%02d",now->tm_hour,now->tm_min,now->tm_sec);
-        fRunHeader -> AddPar("end_time",Long64_t(end_time));
-        fRunHeader -> AddPar("end_ymd",end_ymd);
-        fRunHeader -> AddPar("end_hms",end_hms);
-        time_t run_time = end_time - start_time + 54000;
+        fRunHeader -> AddPar("end_time(t)",Long64_t(end_time));
+        //fRunHeader -> AddPar("end_ymd",end_ymd);
+        //fRunHeader -> AddPar("end_hms",end_hms);
+        //fRunHeader -> AddPar("end",end_ymd + " " + end_hms);
+        //time_t run_time = end_time - start_time + 54000;
+        time_t run_time = end_time - start_time;
         now = localtime(&run_time);
-        fRunHeader -> AddPar("run_time",Long64_t(run_time));
-        TString run_time_s = Form("%ddays %dh %dm %ds",now->tm_mday-2,now->tm_hour,now->tm_min,now->tm_sec);
-        fRunHeader -> AddPar("run_time_s",run_time_s);
+        fRunHeader -> AddPar("run_time(t)",Long64_t(run_time));
+        //TString run_time_s = Form("%ddays %dh %dm %ds",now->tm_mday-2,now->tm_hour,now->tm_min,now->tm_sec);
+        //fRunHeader -> AddPar("run_time_s",run_time_s);
         fRunHeader -> AddPar("num_events",fEndEventID - fStartEventID + 1);
     }
 
@@ -1729,7 +1741,8 @@ vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchTag, TStrin
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////
             if (searchTag=="mfm")
             {
-                if (sysFile->IsDirectory()==false && fileName.Index("run_")==0 && fileName.Sizeof()>=32)
+                //if (sysFile->IsDirectory()==false && fileName.Index("run_")==0 && fileName.Sizeof()>=32)
+                if (sysFile->IsDirectory()==false && fileName.Index("run_")==0)
                 {
                     int runNo = TString(fileName(5,4)).Atoi();
                     int division = (fileName.Sizeof()>32) ? TString(fileName(32,fileName.Sizeof()-32-1)).Atoi() : 0;

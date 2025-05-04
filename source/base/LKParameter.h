@@ -30,6 +30,7 @@ class LKParameter : public TNamed
         void SetLineComment(TString comment);
         void SetPar(TString name, TString raw, TString value, TString comment, int parameterType=1, int compare=-1);
         void SetValue(TString value);
+        void TranslateValue(TString value, TString unit);
 
         //const char *GetName()
         TString GetGroup()      const { return fGroup; }

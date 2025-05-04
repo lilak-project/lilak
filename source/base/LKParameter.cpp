@@ -3,6 +3,7 @@
 #include "TFormula.h"
 #include "TApplication.h"
 #include <regex>
+#include <ctime>
 
 #include "LKParameter.h"
 
@@ -62,6 +63,26 @@ void LKParameter::SetPar(TString name, TString raw, TString value, TString comme
     if (!fTitle.IsNull() && fValue.IsNull()) fValue = fTitle;
 
     SetValue(value);
+    if (name.EndsWith(")") && value.IsDec()) {
+        int i1 = name.Index("(");
+        int i2 = name.Index(")");
+        if (i2>i1) {
+            int nn = i2 - i1 - 1;
+            TString unit = name(name.Index("(")+1,nn);
+            TranslateValue(value,unit);
+        }
+    }
+}
+
+void LKParameter::TranslateValue(TString value, TString unit)
+{
+    if (unit=="t") {
+        time_t start_time = value.Atoll();
+        struct tm *now = localtime(&start_time);
+        TString ymd = Form("%04d.%02d.%02d",now->tm_year+1900,now->tm_mon+1,now->tm_mday);
+        TString hms = Form("%02d:%02d:%02d",now->tm_hour,now->tm_min,now->tm_sec);
+        fValue = ymd + " " + hms;
+    }
 }
 
 void LKParameter::SetValue(TString line)
@@ -89,7 +110,7 @@ void LKParameter::SetValue(TString line)
         } else if (insideQuotes) {
             // If inside quotes, continue adding characters to currentToken
             currentToken += c;
-        } else if (c==' ' || c==',') {
+        } else if (c==' ' || c==',' || c=='\t') {
             // If encountering space or comma outside quotes, finalize the current token
             if (!currentToken.IsNull()) {
                 fValueArray.push_back(currentToken);
@@ -146,7 +167,7 @@ void LKParameter::Clear(Option_t *option)
 
 void LKParameter::Print(Option_t *option) const
 {
-    e_cout << GetLine() << std::endl;
+    e_cout << GetLine(option) << std::endl;
 }
 
 Int_t LKParameter::Compare(const TObject *obj) const
@@ -518,18 +539,17 @@ TString LKParameter::GetGroup(int ith) const
     return group;
 }
 
-
 TString LKParameter::GetLine(TString printOptions) const
 {
-    bool showRawEvalValues = true;
     bool evaluatePar = true;
     bool showParComments = true;
-    if (printOptions.Index("!vall")>=0) { showRawEvalValues = false; printOptions.ReplaceAll("!vall", ""); }
-    if (printOptions.Index( "vall")>=0) { showRawEvalValues = true;  printOptions.ReplaceAll("vall", ""); }
-    if (printOptions.Index("!eval")>=0) { evaluatePar = false; printOptions.ReplaceAll("!eval", ""); }
-    if (printOptions.Index( "eval")>=0) { evaluatePar = true;  printOptions.ReplaceAll("eval", ""); }
-    if (printOptions.Index("!par#")>=0) { showParComments = false; printOptions.ReplaceAll("!par#", ""); }
-    if (printOptions.Index( "par#")>=0) { showParComments = true;  printOptions.ReplaceAll("par#", ""); }
+    bool showRawEvalValues = false;
+    if      (printOptions.Index("!eval")>=0) { evaluatePar = false; printOptions.ReplaceAll("!eval", ""); }
+    else if (printOptions.Index( "eval")>=0) { evaluatePar = true;  printOptions.ReplaceAll( "eval", ""); }
+    if      (printOptions.Index("!par#")>=0) { showParComments = false; printOptions.ReplaceAll("!par#", ""); }
+    else if (printOptions.Index( "par#")>=0) { showParComments = true;  printOptions.ReplaceAll( "par#", ""); }
+    if      (printOptions.Index("!vall")>=0) { showRawEvalValues = false; printOptions.ReplaceAll("!vall", ""); }
+    else if (printOptions.Index( "vall")>=0) { showRawEvalValues = true;  printOptions.ReplaceAll( "vall", ""); }
 
     if (IsLineComment()) {
         TString line = TString("## ") + fComment;

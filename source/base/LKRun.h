@@ -82,7 +82,7 @@ class LKRun : public LKTask
         const char* GetRunName() const { return fRunName.Data(); }
         Int_t GetRunID() const { return fRunID; }
         Int_t GetDivision() const { return fDivision; }
-        TString GetMainName() const { return fMainName; }
+        TString GetMainName() const { return fFileName; }
         TString GetTag() const { return fTag; }
         TString MakeFullRunName(int useparated=false) const;
 
@@ -291,7 +291,7 @@ class LKRun : public LKTask
         bool fRunNameIsSet = false;
         TString fRunName = "run";
         Int_t   fRunID = -1;
-        TString fMainName;
+        TString fFileName;
         vector<Int_t> fRunIDList;
         Int_t   fDivision = -1;
 
