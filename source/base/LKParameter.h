@@ -28,9 +28,10 @@ class LKParameter : public TNamed
         virtual Int_t Compare(const TObject *obj) const;
 
         void SetLineComment(TString comment);
+        void ReadFile(TString fileName);
         void SetPar(TString name, TString raw, TString value, TString comment, int parameterType=1, int compare=-1);
         void SetValue(TString value);
-        void TranslateValue(TString value, TString unit);
+        void TranslateUnit(TString value, TString unit);
 
         //const char *GetName()
         TString GetGroup()      const { return fGroup; }
@@ -64,7 +65,7 @@ class LKParameter : public TNamed
         bool     GetBool  (int i=-1) const;  ///< Get parameter in bool
         double   GetDouble(int i=-1) const;  ///< Get parameter in double
         TString  GetString(int i=-1) const;  ///< Get parameter in TString
-        int      GetColor (int i=-1) const;  ///< Get parameter in Color_t
+        int      GetColor (int i=-1);        ///< Get parameter in Color_t. This is not a const method since it updates the parameter value to TColor number.
         axis_t   GetAxis  (int i=-1) const;  ///< Get parameter in LKVector3::Axis
         TVector3 GetV3    ()         const;  ///< Get parameter in TVector3
 

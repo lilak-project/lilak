@@ -2,8 +2,13 @@
 #include "TObjString.h"
 #include "TFormula.h"
 #include "TApplication.h"
+#include "TColor.h"
 #include <regex>
 #include <ctime>
+#include <string>
+#include <sstream>
+#include <iostream>
+#include <iomanip>
 
 #include "LKParameter.h"
 
@@ -24,7 +29,10 @@ LKParameter::LKParameter(TString name, TString raw, TString value, TString comme
 
 LKParameter::LKParameter(TString value)
 {
-    SetPar("lkpar", value, value, "");
+    if (value.EndsWith(".txt") || value.EndsWith(".par") || value.EndsWith(".mac") || value.EndsWith(".conf"))
+        ReadFile(value);
+    else
+        SetPar("lkpar", value, value, "");
 }
 
 LKParameter::~LKParameter()
@@ -36,6 +44,39 @@ void LKParameter::SetLineComment(TString comment)
     Clear();
     SetIsLineComment();
     fComment = comment;
+}
+
+void LKParameter::ReadFile(TString fileName)
+{
+    bool comment_from_here = false;
+    TString name, raw, comment;
+
+    ifstream file(fileName);
+    std::string line;
+    std::getline(file, line);
+    std::stringstream ss(line);
+    std::string stoken;
+    ss >> name;
+    while (ss >> stoken)
+    {
+        TString token = stoken;
+        token.ReplaceAll(",","");
+        token.ReplaceAll(" ","");
+        if (token=="#") {
+            comment_from_here = true;
+            continue;
+        }
+        else if (comment_from_here) {
+            comment = comment + token + " ";
+        }
+        else {
+            raw = raw + token + " ";
+        }
+    }
+    if (raw.IsNull()==false) raw = raw(0,raw.Sizeof());
+    if (comment.IsNull()==false) comment = comment(0,comment.Sizeof());
+
+    SetPar(name, raw, raw, comment);
 }
 
 void LKParameter::SetPar(TString name, TString raw, TString value, TString comment, int parameterType, int compare)
@@ -69,12 +110,12 @@ void LKParameter::SetPar(TString name, TString raw, TString value, TString comme
         if (i2>i1) {
             int nn = i2 - i1 - 1;
             TString unit = name(name.Index("(")+1,nn);
-            TranslateValue(value,unit);
+            TranslateUnit(value,unit);
         }
     }
 }
 
-void LKParameter::TranslateValue(TString value, TString unit)
+void LKParameter::TranslateUnit(TString value, TString unit)
 {
     if (unit=="t") {
         time_t start_time = value.Atoll();
@@ -357,11 +398,13 @@ TString LKParameter::GetString(int idx) const
     return value;
 }
 
-int LKParameter::GetColor(int idx) const
+int LKParameter::GetColor(int idx)
 {
     TString value = fValue;
     if (idx>=0) value = fValueArray[idx];
+    TString value0  = value;
 
+    value.ReplaceAll(" ","");
     if (value.Index("k")==0)
     {
         value.ReplaceAll("kWhite"  ,"0");
@@ -379,12 +422,38 @@ int LKParameter::GetColor(int idx) const
         value.ReplaceAll("kAzure"  ,"860");
         value.ReplaceAll("kViolet" ,"880");
         value.ReplaceAll("kPink"   ,"900");
+        if (!value.IsDec()) {
+            if (CheckFormulaValidity(value,true)) return TFormula("formula",value).Eval(0);
+            else ProcessTypeError("color", value);
+        }
+    }
+    else if (value.Sizeof()==7)
+    {
+        int r, g, b;
+        std::stringstream ss;
+
+        ss << std::hex << value(0, 2);
+        ss >> r; ss.clear(); ss.str("");
+        ss << std::hex << value(2, 2);
+        ss >> g; ss.clear(); ss.str("");
+        ss << std::hex << value(4, 2);
+        ss >> b;
+
+        Double_t red   = r / 255.0;
+        Double_t green = g / 255.0;
+        Double_t blue  = b / 255.0;
+
+        int colorIndex = TColor::GetFreeColorIndex();
+        e_info << "Creating TColor " << colorIndex << " (" << red << ", " << green << ", " << blue << ")" << endl;
+        new TColor(colorIndex, red, green, blue);
+        value = Form("%d", colorIndex);
     }
 
-    if (!value.IsDec()) {
-        if (CheckFormulaValidity(value,true)) return TFormula("formula",value).Eval(0);
-        else ProcessTypeError("color", value);
-    }
+    if (idx>=0)
+        fValueArray[idx] = value;
+    else
+        fValue = value;
+
     return value.Atoi();
 }
 

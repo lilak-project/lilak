@@ -203,7 +203,7 @@ class LKParameterContainer : public TObjArray
         Long64_t GetParLong  (TString name, int idx=-1) const { return FindPar(name,true) -> GetLong  (idx); } ///< Get parameter in Long64_t
         Double_t GetParDouble(TString name, int idx=-1) const { return FindPar(name,true) -> GetDouble(idx); } ///< Get parameter in Double_t
         TString  GetParString(TString name, int idx=-1) const { return FindPar(name,true) -> GetString(idx); } ///< Get parameter in TString
-        Int_t    GetParColor (TString name, int idx=-1) const { return FindPar(name,true) -> GetColor (idx); } ///< Get parameter in Color_t
+        Int_t    GetParColor (TString name, int idx=-1)       { return FindPar(name,true) -> GetColor (idx); } ///< Get parameter in Color_t
         TVector3 GetParV3    (TString name) const             { return FindPar(name,true) -> GetV3    ();    } ///< Get parameter in TVector
         Double_t GetParX     (TString name) const             { return GetParDouble(name,0); }
         Double_t GetParY     (TString name) const             { return GetParDouble(name,1); }
