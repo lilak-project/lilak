@@ -14,7 +14,7 @@
 #include "TGNumberEntry.h"
 #include "TRootEmbeddedCanvas.h"
 
-#include "LKRun.h"
+#include "LKVirtualRun.h"
 #include "LKDrawing.h"
 #include "LKDrawingGroup.h"
 
@@ -260,7 +260,7 @@ class LKDataViewer : public TGMainFrame
         TString fTitle;
         TString fDrawOption;
 
-        LKRun *fRun = nullptr;
+        LKVirtualRun *fRun = nullptr;
 
     public:
         LKDataViewer(const TGWindow *p=nullptr, UInt_t w=1500, UInt_t h=800);
@@ -275,7 +275,7 @@ class LKDataViewer : public TGMainFrame
         void AddGroup(LKDrawingGroup* group, bool addDirect=false);
         bool AddFile(TFile* file, TString groupSelection="");
         bool AddFile(TString file, TString groupSelection="");
-        void SetRun(LKRun* run) { fRun = run; }
+        void SetRun(LKVirtualRun* run) { fRun = run; }
 
         LKDrawingGroup* GetTopDrawingGroup() const { return fTopDrawingGroup; }
 

@@ -31,7 +31,7 @@ LKRun* LKRun::GetRun() {
 }
 
 LKRun::LKRun(TString runName, Int_t id, Int_t division, TString tag)
-    :LKTask("LKRun", "LKRun")
+    :LKVirtualRun("LKRun", "LKRun")
 {
     fInstance = this;
     fRunName = runName;
@@ -559,6 +559,14 @@ void LKRun::AddFriend(TString fileName)
 }
 
 TChain *LKRun::GetFriendChain(Int_t iFriend) const { return ((TChain *) fFriendTrees -> At(iFriend)); }
+
+void LKRun::ConfigViewer()
+{
+    lk_debug << endl;
+    fDataViewer = GetTopDrawingGroup() -> CreateViewer();
+    fDataViewer -> SetRun(this);
+    fTopDrawingGroup -> Draw(TString(fDrawOption));
+}
 
 bool LKRun::Init()
 {
@@ -1238,7 +1246,8 @@ TObject *LKRun::KeepBranch(TString name) {
 TClonesArray *LKRun::GetBranchA(Int_t idx)
 {
     auto dataContainer = fBranchPtr[idx];
-    if (dataContainer!=nullptr) {// && dataContainer -> InheritsFrom("TClonesArray")) {
+    if (dataContainer!=nullptr) // && dataContainer -> InheritsFrom("TClonesArray"))
+    {
         return (TClonesArray *) dataContainer;
     }
     return (TClonesArray *) nullptr;

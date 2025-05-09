@@ -36,7 +36,7 @@ class LKDataViewer;
  *  If tag exist: [run_name]_[run_id(4-digits)].[user-tag].[lilak_version].root;
  *  If splited:   [run_name]_[run_id(4-digits)]_s[split_no].[user-tag].[lilak_version].root;
  */
-class LKRun : public LKTask
+class LKRun : public LKVirtualRun
 {
     public:
         static LKRun* GetRun(); ///< Get LKRun static pointer.
@@ -127,6 +127,10 @@ class LKRun : public LKTask
         void AddParAfter(TString fname) { fParAddAfter = fname; }
 
         void SetLILAKRun() { fIsLILAKRun = true; }
+
+        /**
+         */
+        void ConfigViewer();
 
         /**
          * Initailize LKRun.

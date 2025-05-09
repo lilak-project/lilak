@@ -113,7 +113,7 @@ void LKDetector::FinishGeometry()
     }
 }
 
-void LKDetector::SetRun(LKRun *run)
+void LKDetector::SetRun(LKVirtualRun *run)
 {
     fRun = run;
     for (auto iPlane = 0; iPlane < fNumPlanes; ++iPlane) {

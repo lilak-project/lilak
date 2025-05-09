@@ -1664,7 +1664,6 @@ void LKDataViewer::ProcessSizeViewer(double scale, double scaley)
 void LKDataViewer::ProcessApplyFitData(int i)
 {
     if (fFitAnalsisIsSet==false) {
-        lk_debug << endl;
         return;
     }
 

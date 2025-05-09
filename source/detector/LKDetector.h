@@ -2,7 +2,7 @@
 #define LKDETECTOR_HH
 
 #include "LKGear.h"
-#include "LKRun.h"
+#include "LKVirtualRun.h"
 #include "LKChannelAnalyzer.h"
 
 #include "TNamed.h"
@@ -40,7 +40,7 @@ class LKDetector : public TNamed, public LKGear
         LKDetectorSystem *GetParent();
         void SetParent(LKDetectorSystem *system);
 
-        void SetRun(LKRun *run);
+        void SetRun(LKVirtualRun *run);
 
         virtual bool GetEffectiveDimension(Double_t &x1, Double_t &y1, Double_t &z1, Double_t &x2, Double_t &y2, Double_t &z2);
 

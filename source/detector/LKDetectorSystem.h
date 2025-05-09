@@ -10,7 +10,7 @@
 
 #include "TObjArray.h"
 
-class LKRun;
+class LKVirtualRun;
 class LKDetector;
 
 class LKDetectorSystem : public TObjArray, public LKGear

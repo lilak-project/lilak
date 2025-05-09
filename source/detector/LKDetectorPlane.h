@@ -4,7 +4,7 @@
 #include "LKChannel.h"
 #include "LKVector3.h"
 #include "LKGear.h"
-#include "LKRun.h"
+#include "LKVirtualRun.h"
 #include "LKPad.h"
 #include "LKHit.h"
 #include "LKHitArray.h"
@@ -19,7 +19,7 @@
 
 typedef LKVector3::Axis axis_t;
 
-class LKRun;
+class LKVirtualRun;
 class LKDetector;
 
 class LKDetectorPlane : public TNamed, public LKGear

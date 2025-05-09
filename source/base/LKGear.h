@@ -10,7 +10,7 @@
  * LKGear is parameter container holder
  */
 
-class LKRun;
+class LKVirtualRun;
 class LKGear
 {
     public:
@@ -33,13 +33,13 @@ class LKGear
         virtual void SetRank(Int_t rank);
         Int_t GetRank() const;
 
-        void SetRun(LKRun *run) { fRun = run; }
+        void SetRun(LKVirtualRun *run) { fRun = run; }
 
         void SetAllowControlLogger(bool val) { fAllowControlLogger = val; }
 
     protected:
         LKParameterContainer *fPar = nullptr;
-        LKRun *fRun = nullptr;
+        LKVirtualRun *fRun = nullptr;
         Int_t fRank = 0;
         bool fAllowControlLogger = true;
 

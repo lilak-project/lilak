@@ -7,7 +7,7 @@ using namespace std;
 #include "TTask.h"
 #include "LKGear.h"
 
-class LKRun;
+class LKVirtualRun;
 class LKGear;
 
 class LKTask : public TTask, public LKGear
