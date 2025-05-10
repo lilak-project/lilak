@@ -9,6 +9,7 @@
 #include "TEllipse.h"
 #include "TLine.h"
 #include "TLatex.h"
+#include "TVector2.h"
 #include "TVector3.h"
 
 using namespace std;
@@ -559,4 +560,70 @@ LKDrawing* LKSAM::MakeTH1Polar(
     }
 
     return draw;
+}
+
+TGraph* LKSAM::SmoothCorners(TGraph* graph, double radius, double N)
+{
+    auto graphNew = new TGraph();
+    auto numPoints = graph -> GetN();
+    double x1, y1, x2, y2, x3, y3;
+    for (auto iPoint=0; iPoint<numPoints; ++iPoint)
+    {
+        if (iPoint==0) {
+            x1 = graph -> GetPointX(numPoints-1);
+            y1 = graph -> GetPointY(numPoints-1);
+        }
+        else {
+            x1 = graph -> GetPointX(iPoint-1);
+            y1 = graph -> GetPointY(iPoint-1);
+        }
+        x2 = graph -> GetPointX(iPoint);
+        y2 = graph -> GetPointY(iPoint);
+        if (iPoint==numPoints-1) {
+            x3 = graph -> GetPointX(0);
+            y3 = graph -> GetPointY(0);
+        }
+        else {
+            x3 = graph -> GetPointX(iPoint+1);
+            y3 = graph -> GetPointY(iPoint+1);
+        }
+
+        TVector2 P1(x1,y1);
+        TVector2 P2(x2,y2);
+        TVector2 P3(x3,y3);
+        TVector2 v1 = (P1 - P2).Unit();
+        TVector2 v2 = (P3 - P2).Unit();
+        // Angle between directions
+        double angle = acos(v1 * v2);
+        // Half angle and direction of arc center
+        double halfAngle = angle / 2.0;
+        TVector2 bisector = (v1 + v2).Unit();
+        double offset = radius / sin(halfAngle);
+        // Arc center
+        TVector2 center = P2 + bisector * offset;
+        // Find the two tangent points on the arc
+        double tangentDist = radius / tan(halfAngle);
+        TVector2 tangent1 = P2 + v1 * tangentDist;
+        TVector2 tangent2 = P2 + v2 * tangentDist;
+        // Compute arc points from tangent1 to tangent2 around the center
+        //std::vector<TVector2> arcPoints;
+        TVector2 start = tangent1 - center;
+        TVector2 end = tangent2 - center;
+        double startAngle = atan2(start.Y(), start.X());
+        double endAngle = atan2(end.Y(), end.X());
+        // Ensure correct direction (clockwise or counter-clockwise)
+        if ((v1.X()*v2.Y() - v1.Y()*v2.X()) < 0) {
+            if (endAngle < startAngle) endAngle += 2*M_PI;
+        } else {
+            if (startAngle < endAngle) startAngle += 2*M_PI;
+        }
+        for (int i = 0; i <= N; ++i) {
+            double t = (double)i / N;
+            double angle = startAngle + t * (endAngle - startAngle);
+            TVector2 pt = center + TVector2(cos(angle), sin(angle)) * radius;
+            //arcPoints.push_back(pt);
+            graphNew -> SetPoint(graphNew->GetN(),pt.X(),pt.Y());
+        }
+    }
+    return graphNew;
 }

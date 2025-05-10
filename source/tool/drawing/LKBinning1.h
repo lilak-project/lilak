@@ -42,6 +42,7 @@ class LKBinning1 : public TNamed
         double GetX1() const { return fX1; }
         double GetX2() const { return fX2; }
         double GetWX() const { return fWX; }
+        double GetDX() const { return abs(fX2-fX1); }
 
         int    n() const { return fNX; }
         double w() const { return fWX; }
@@ -49,6 +50,7 @@ class LKBinning1 : public TNamed
         double wx() const { return fWX; }
         double x1() const { return fX1; }
         double x2() const { return fX2; }
+        double dx() const { return abs(fX2-fX1); }
 
         bool IsInside(double x) { if (x>=fX1&&x<fX2) return true; return false; }
         double GetRandomUniform()  { return gRandom -> Uniform(fX1,fX2); }
@@ -82,6 +84,7 @@ class LKBinning1 : public TNamed
         double GetBinLowEdge(int bin) const; ///< return low edge of the i-bin (i=1~nx)
         double GetBinUpEdge(int bin) const; ///< return high edge of the i-bin (i:1~nx)
         double GetBinCenter(int bin) const; ///< find bin center value of the i-idx (i:1~nx)
+        double Lerp(double r) const; ///< Linear interpolation and extrapostion from x1 to x2 with ratio r.
 
         double GetCenter() const;
         double GetFullWidth() const;

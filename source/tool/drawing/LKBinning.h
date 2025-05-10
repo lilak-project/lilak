@@ -42,19 +42,24 @@ class LKBinning : public TNamed
         double GetX1() const { return fBinningX.fX1; }
         double GetX2() const { return fBinningX.fX2; }
         double GetWX() const { return fBinningX.fWX; }
+        double GetDX() const { return fBinningX.GetDX(); }
         int    GetNY() const { return fBinningY.fNX; }
         double GetY1() const { return fBinningY.fX1; }
         double GetY2() const { return fBinningY.fX2; }
         double GetWY() const { return fBinningY.fWX; }
+        double GetDY() const { return fBinningY.GetDX(); }
 
         int    n()  const { return fBinningX.fNX; }
         double w()  const { return fBinningX.fWX; }
+        double d()  const { return fBinningX.GetDX(); }
         int    nx() const { return fBinningX.fNX; }
         double wx() const { return fBinningX.fWX; }
+        double dx() const { return fBinningX.GetDX(); }
         double x1() const { return fBinningX.fX1; }
         double x2() const { return fBinningX.fX2; }
         int    ny() const { return fBinningY.fNX; }
         double wy() const { return fBinningY.fWX; }
+        double dy() const { return fBinningY.GetDX(); }
         double y1() const { return fBinningY.fX1; }
         double y2() const { return fBinningY.fX2; }
 
@@ -106,6 +111,7 @@ class LKBinning : public TNamed
         double GetBinCenter (int bin)  const { return fBinningX.GetBinCenter (bin); }  ///< find bin center value of the i-idx (i:1~nx)
         double GetCenter()             const { return fBinningX.GetCenter();    }
         double GetFullWidth()          const { return fBinningX.GetFullWidth(); }
+        double Lerp(double r)          const { return fBinningX.Lerp(r); }
         bool   IsEmpty()               const { return (fBinningX.IsEmpty() && fBinningY.IsEmpty()); }
 
         LKBinning1 GetBinningX() { return fBinningX; }
@@ -113,6 +119,8 @@ class LKBinning : public TNamed
 
         TArrayD* MakeArrayD() { return fBinningX.MakeArrayD(); }
         TGraphErrors* MakeGraph(TArrayD* array) { return fBinningX.MakeGraph(array); }
+
+        void SetHistRange(TH1* hist);
 
         void SetProjectionBinningValues(int n_proj, double x1_proj=0, double x2_proj=0);
         void SetProjectionBinningValues(LKBinning  bnn) { SetProjectionBinningValues(bnn.nx(),bnn.x1(),bnn.x2()); }

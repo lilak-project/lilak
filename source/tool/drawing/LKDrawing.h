@@ -97,6 +97,7 @@ class LKDrawing : public TObjArray
 
         TH2D* MakeGraphFrame();
         TH2D* MakeGraphFrame(TGraph* graph, TString mxyTitle="");
+        TH2D* MakeGraphFrame(double x1, double x2, double y1, double y2, TString name="", TString title="");
         void AddGraphFrame(TGraph* graph, TString mxyTitle="", TString drawOption="", TString title="") { Add(MakeGraphFrame(graph,mxyTitle),drawOption,title); }
 
         ////////////////////////////////////////////////////////////////////////////////////

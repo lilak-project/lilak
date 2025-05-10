@@ -140,6 +140,8 @@ class LKSAM : public TObject
                 TGraph* graphAtt=nullptr
                 );
 
+        TGraph* SmoothCorners(TGraph* graph, double radius=10, double N=10);
+
     private:
         void InitBufferDouble(int length);
 

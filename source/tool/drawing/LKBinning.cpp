@@ -152,6 +152,12 @@ TString LKBinning::Print(bool show) const {
     return line;
 }
 
+void LKBinning::SetHistRange(TH1* hist)
+{
+    if (fBinningX.IsEmpty()==false) hist -> GetXaxis() -> SetRangeUser(fBinningX.fX1, fBinningX.fX2);
+    if (fBinningY.IsEmpty()==false) hist -> GetXaxis() -> SetRangeUser(fBinningY.fX1, fBinningY.fX2);
+}
+
 void LKBinning::SetProjectionBinningValues(int n_proj, double x1_proj, double x2_proj)
 {
     if (x1_proj==0&&x2_proj==0) {

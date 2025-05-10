@@ -918,7 +918,7 @@ void LKDrawingGroup::AddGroupInStructure(LKDrawingGroup *group)
 {
     auto parentLevel = group -> GetGroupLevel() - 1;
     auto parentName = group -> GetParentName();
-    if (parentLevel==0)
+    if (parentLevel<=0)
     {
         AddGroup(group);
     }

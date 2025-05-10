@@ -243,28 +243,8 @@ TH2D* LKDrawing::MakeGraphFrame()
         }
     }
 
-    double dx = x2 - x1;
-    double dy = y2 - y1;
-    if (dx==0) dx = 1;
-    if (dy==0) dy = 1;
-    x1 = x1 - 0.1*dx;
-    x2 = x2 + 0.1*dx;
-    y1 = y1 - 0.1*dy;
-    y2 = y2 + 0.1*dy;
-
-    TString name = FindOptionString("gframe_name","");
-    TString title = FindOptionString("gframe_title","");
-    TString option = FindOptionString("gframe_option","");
-    if (name.IsNull() && graph0!=nullptr) name = Form("frame_%s",graph0->GetName());
-    if (LKMisc::CheckOption(option,"y0")) y1 = 0;
-
-    int nx = 100;
-    int ny = 100;
-
-    if (CheckOption("debug_draw"))
-        lk_debug << name << " " << title << " " << nx << " " << x1 << " " << x2 << " " << ny << " " << y1 << " " << y2 << endl;
-    auto hist = new TH2D(name,title,100,x1,x2,100,y1,y2);
-    hist -> SetStats(0);
+    TString name = Form("frame_%s",graph0->GetName());
+    auto hist = MakeGraphFrame(x1, x2, y1, y2, name);
 
     return hist;
 }
@@ -285,6 +265,14 @@ TH2D* LKDrawing::MakeGraphFrame(TGraph* graph, TString mxyTitle)
         if (y<y1) y1 = y;
         if (y>y2) y2 = y;
     }
+    TString name = Form("frame_%s",graph->GetName());
+    auto hist = MakeGraphFrame(x1, x2, y1, y2, name, mxyTitle);
+
+    return hist;
+}
+
+TH2D* LKDrawing::MakeGraphFrame(double x1, double x2, double y1, double y2, TString name0, TString title0)
+{
     double dx = x2 - x1;
     double dy = y2 - y1;
     if (dx==0) dx = 1;
@@ -293,7 +281,21 @@ TH2D* LKDrawing::MakeGraphFrame(TGraph* graph, TString mxyTitle)
     x2 = x2 + 0.1*dx;
     y1 = y1 - 0.1*dy;
     y2 = y2 + 0.1*dy;
-    auto hist = new TH2D(Form("frame_%s",graph->GetName()),mxyTitle,100,x1,x2,100,y1,y2);
+
+    TString name = FindOptionString("gframe_name","");
+    if (name.IsNull()) name = name0;
+    if (name.IsNull()) name = "graph_frame";
+    TString title = FindOptionString("gframe_title","");
+    if (title.IsNull()) title = title0;
+    TString option = FindOptionString("gframe_option","");
+    if (LKMisc::CheckOption(option,"y0")) y1 = 0;
+
+    int nx = 100;
+    int ny = 100;
+
+    if (CheckOption("debug_draw"))
+        lk_debug << name << " " << title << " " << nx << " " << x1 << " " << x2 << " " << ny << " " << y1 << " " << y2 << endl;
+    auto hist = new TH2D(name,title,100,x1,x2,100,y1,y2);
     hist -> SetStats(0);
 
     return hist;
@@ -503,7 +505,7 @@ void LKDrawing::Draw(Option_t *option)
             fDrawOptionArray[iObj+1] = draw_option;
         }
         this -> AddFirst(fMainHist);
-        fTitleArray[0] = "";
+        fTitleArray[0] = ".";
         fDrawOptionArray[0] = "";
         numObjects = GetEntries();
     }
@@ -547,7 +549,7 @@ void LKDrawing::Draw(Option_t *option)
     //fRM -> Stop(10);
 
     //fRM -> Start(11);
-    int pvtt_attribute = CheckOption("pave_attribute");
+    bool pvtt_attribute = CheckOption("pave_attribute");
 
     TLegend* legend = nullptr;
     TPaveText* pvtt = nullptr;
@@ -566,7 +568,11 @@ void LKDrawing::Draw(Option_t *option)
         auto drawOption0 = fDrawOptionArray.at(iObj);
         auto drawOption = drawOption0;
         drawOption.ToLower();
-        if (iObj==0 && drawOption.Index("same")>=0) drawOption.ReplaceAll("same","");
+        if (iObj==0 && drawOption.Index("same")>=0) {
+            drawOption.ReplaceAll("same","");
+            if (obj->InheritsFrom(TGraph::Class()) && drawOption.Index("a")>=0)
+                lk_warning << drawOption << endl;
+        }
         if (iObj>0  && drawOption.Index("same")<0)  drawOption = drawOption + " same";
         if (drawOption.Index("drawx")==0) {
             if (debug_draw)
@@ -598,7 +604,7 @@ void LKDrawing::Draw(Option_t *option)
         if (obj->InheritsFrom(TPaveText::Class())) {
             pvtt = (TPaveText*) obj;
             pvtt -> SetFillColor(fCvs->GetFillColor());
-            if (pvtt_attribute==0) {
+            if (pvtt_attribute!=0||drawOption.Index("auto")>0) {
                 pvtt -> SetTextFont(FindOptionInt("font",132));
                 pvtt -> SetTextAlign(12);
                 pvtt -> SetFillColor(0);
@@ -1067,18 +1073,23 @@ TString LKDrawing::GetPrintLine(TString printOption) const
     TString line, tabSpace;
     int tab = LKMisc::FindOptionInt(printOption,"level",0);
     for (auto i=0; i<tab; ++i) tabSpace += "  ";
-    TString name_drawing = Form("%s[%d] ",(fName.IsNull()?"Drawing":fName.Data()),int(GetEntries()));
+    TString name_drawing = Form("%s[%d]",(fName.IsNull()?"Drawing":fName.Data()),int(GetEntries()));
 
+    bool printP = LKMisc::CheckOption(printOption,"option");
     bool printH = LKMisc::CheckOption(printOption,"hist");
     bool printG = LKMisc::CheckOption(printOption,"graph");
     bool printF = LKMisc::CheckOption(printOption,"f1") || LKMisc::CheckOption(printOption,"function");
     bool printO = LKMisc::CheckOption(printOption,"others");
-    if (!printH && !printG && !printF && !printO) {
+    if (!printP && !printH && !printG && !printF && !printO) {
+        printP = true;
+        printH = true;
         printH = true;
         printG = true;
         printF = true;
         printO = true;
     }
+    if (printP) name_drawing = name_drawing + Form("{%s}",fGlobalOption.Data());
+    name_drawing = name_drawing + " ";
 
     auto numObjects = GetEntries();
     if (LKMisc::CheckOption(printOption,"all"))

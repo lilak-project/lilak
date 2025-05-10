@@ -116,6 +116,7 @@ double LKBinning1::GetBinUpEdge(int bin)   const { return GetIdxUpEdge(bin-1); }
 double LKBinning1::GetBinCenter(int bin)   const { return GetIdxCenter(bin-1); }
 double LKBinning1::GetCenter()             const { return .5*(fX2 + fX1); }
 double LKBinning1::GetFullWidth()          const { return (fX2 - fX1); }
+double LKBinning1::Lerp(double r)          const { return fX1 + r*(fX2-fX1); }
 
 TString LKBinning1::Print(bool show) const {
     TString line;
