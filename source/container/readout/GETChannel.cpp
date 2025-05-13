@@ -18,13 +18,12 @@ void GETChannel::Clear(Option_t *option)
 void GETChannel::Copy(TObject &object) const
 {
     LKChannel::Copy(object);
-    auto objCopy = (GETChannel &) object;
-    objCopy.SetDetType(fDetType);
-    objCopy.SetCobo(fCobo);
-    objCopy.SetAsad(fAsad);
-    objCopy.SetAget(fAget);
-    objCopy.SetChan(fChan);
-    objCopy.SetBuffer(fBufferRawSig);
+    ((GETChannel&)object).SetDetType(fDetType);
+    ((GETChannel&)object).SetCobo(fCobo);
+    ((GETChannel&)object).SetAsad(fAsad);
+    ((GETChannel&)object).SetAget(fAget);
+    ((GETChannel&)object).SetChan(fChan);
+    ((GETChannel&)object).SetBuffer(fBufferRawSig);
 }
 
 const char* GETChannel::GetName() const

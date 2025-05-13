@@ -53,9 +53,7 @@ void LKWPoint::Clear(Option_t *option)
 void LKWPoint::Copy(TObject &obj) const
 {
     LKContainer::Copy(obj);
-    auto wp = (LKWPoint &) obj;
-
-    wp.Set(fX, fY, fZ, fW);
+    ((LKWPoint&)obj).Set(fX, fY, fZ, fW);
 }
 
 void LKWPoint::SetWeight(Double_t w) { fW = w; }

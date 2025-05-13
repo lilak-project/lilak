@@ -63,21 +63,19 @@ void LKHit::Print(Option_t *option) const
 void LKHit::Copy(TObject &obj) const
 {
     LKContainer::Copy(obj);
-    auto hit = (LKHit &) obj;
-
-    hit.SetHitID(fHitID);
-    hit.SetTrackID(fTrackID);
-    hit.SetChannelID(fChannelID);
-    hit.SetPadID(fPadID);
-    hit.SetPosition(fX,fY,fZ);
-    hit.SetPositionError(fDX,fDY,fDZ);
-    hit.SetCharge(fW);
-    hit.SetPedestal(fPedestal);
-    hit.SetAlpha(fAlpha);
-    hit.SetSection(fSection);
-    hit.SetLayer(fLayer);
-    hit.SetRow(fRow);
-    hit.SetTb(fTb);
+    ((LKHit&)obj).SetHitID(fHitID);
+    ((LKHit&)obj).SetTrackID(fTrackID);
+    ((LKHit&)obj).SetChannelID(fChannelID);
+    ((LKHit&)obj).SetPadID(fPadID);
+    ((LKHit&)obj).SetPosition(fX,fY,fZ);
+    ((LKHit&)obj).SetPositionError(fDX,fDY,fDZ);
+    ((LKHit&)obj).SetCharge(fW);
+    ((LKHit&)obj).SetPedestal(fPedestal);
+    ((LKHit&)obj).SetAlpha(fAlpha);
+    ((LKHit&)obj).SetSection(fSection);
+    ((LKHit&)obj).SetLayer(fLayer);
+    ((LKHit&)obj).SetRow(fRow);
+    ((LKHit&)obj).SetTb(fTb);
 
     /* TODO
        auto numHits = fHitArray.GetNumHits();

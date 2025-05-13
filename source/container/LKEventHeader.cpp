@@ -25,9 +25,8 @@ void LKEventHeader::Print(Option_t *option) const
 void LKEventHeader::Copy(TObject &object) const
 {
     LKContainer::Copy(object);
-    auto objCopy = (LKEventHeader &) object;
-    objCopy.SetIsGoodEvent(fIsGoodEvent);
-    objCopy.SetEventNumber(fEventNumber);
-    objCopy.SetBufferStart(fBufferStart);
-    objCopy.SetBufferSize(fBufferSize);
+    ((LKEventHeader&)object).SetIsGoodEvent(fIsGoodEvent);
+    ((LKEventHeader&)object).SetEventNumber(fEventNumber);
+    ((LKEventHeader&)object).SetBufferStart(fBufferStart);
+    ((LKEventHeader&)object).SetBufferSize(fBufferSize);
 }

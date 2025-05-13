@@ -18,9 +18,7 @@ void LKMCTagged::Clear(Option_t *option)
 void LKMCTagged::Copy(TObject &obj) const
 {
     LKContainer::Copy(obj);
-    auto container = (LKMCTagged &) obj;
-
-    container.SetMCTag(fMCID, fMCPurity);
+    ((LKMCTagged&)obj).SetMCTag(fMCID, fMCPurity);
 }
 
 void LKMCTagged::SetMCID(Int_t id) { fMCID = id; }

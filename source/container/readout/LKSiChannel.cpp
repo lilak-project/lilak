@@ -29,15 +29,14 @@ void LKSiChannel::Clear(Option_t *option)
 void LKSiChannel::Copy(TObject &object) const
 {
     GETChannel::Copy(object);
-    auto objCopy = (LKSiChannel &) object;
-    objCopy.SetSide(fSide);
-    objCopy.SetStrip(fStrip);
-    objCopy.SetDirection(fDirection);
-    objCopy.SetInverted(fInverted);
-    objCopy.SetPhi1(fPhi1);
-    objCopy.SetPhi2(fPhi2);
-    objCopy.SetTheta1(fTheta1);
-    objCopy.SetTheta2(fTheta2);
+    ((LKSiChannel&)object).SetSide(fSide);
+    ((LKSiChannel&)object).SetStrip(fStrip);
+    ((LKSiChannel&)object).SetDirection(fDirection);
+    ((LKSiChannel&)object).SetInverted(fInverted);
+    ((LKSiChannel&)object).SetPhi1(fPhi1);
+    ((LKSiChannel&)object).SetPhi2(fPhi2);
+    ((LKSiChannel&)object).SetTheta1(fTheta1);
+    ((LKSiChannel&)object).SetTheta2(fTheta2);
 }
 
 TObject* LKSiChannel::Clone(const char *newname) const

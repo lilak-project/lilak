@@ -117,20 +117,16 @@ void LKHelixTrack::Print(Option_t *option) const
 void LKHelixTrack::Copy(TObject &obj) const
 {
     TObject::Copy(obj);
-    auto track = (LKHelixTrack &) obj;
-
-    track.SetFitStatus(fFitStatus);
-    track.SetHelix(fI,fJ,fR,fS,fK,fT,fH,fA);
-    track.SetIsPositiveChargeParticle(fIsPositiveChargeParticle);
-
-    track.SetTrackID(fTrackID);
-    track.SetParentID(fParentID);
-    track.SetGenfitID(fGenfitID);
-    track.SetGenfitMomentum(fGenfitMomentum);
-
+    ((LKHelixTrack&)obj).SetFitStatus(fFitStatus);
+    ((LKHelixTrack&)obj).SetHelix(fI,fJ,fR,fS,fK,fT,fH,fA);
+    ((LKHelixTrack&)obj).SetIsPositiveChargeParticle(fIsPositiveChargeParticle);
+    ((LKHelixTrack&)obj).SetTrackID(fTrackID);
+    ((LKHelixTrack&)obj).SetParentID(fParentID);
+    ((LKHelixTrack&)obj).SetGenfitID(fGenfitID);
+    ((LKHelixTrack&)obj).SetGenfitMomentum(fGenfitMomentum);
     auto numHits = fHitArray.GetNumHits();
     for (auto i=0; i<numHits; ++i)
-        track.AddHit(fHitArray.GetHit(i));
+        ((LKHelixTrack&)obj).AddHit(fHitArray.GetHit(i));
 }
 
 /*

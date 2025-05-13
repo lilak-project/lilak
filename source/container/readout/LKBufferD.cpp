@@ -16,8 +16,7 @@ void LKBufferD::Clear(Option_t *option)
 
 void LKBufferD::Copy(TObject &object) const
 {
-    auto objCopy = (LKBufferD &) object;
-    objCopy.SetArray(fArray);
+    ((LKBufferD&)object).SetArray(fArray);
 }
 
 void LKBufferD::Print(Option_t *option) const

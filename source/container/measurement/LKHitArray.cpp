@@ -135,13 +135,12 @@ void LKHitArray::Print(Option_t *option) const
 void LKHitArray::Copy(TObject &obj) const
 {
     TObject::Copy(obj);
-    auto list = (LKHitArray &) obj;
-    list.Clear("C");
+    ((LKHitArray&)obj).Clear("C");
 
     TIter next(this);
     LKHit *hit;
     while ((hit = (LKHit *) next()))
-        list.AddHit(hit);
+        ((LKHitArray&)obj).AddHit(hit);
 }
 
 void LKHitArray::MoveHitsTo(LKHitArray *hitArray)

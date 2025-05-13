@@ -33,11 +33,8 @@ void LKVertex::Print(Option_t *option) const
 void LKVertex::Copy(TObject &obj) const
 {
     LKHit::Copy(obj);
-
-    auto vertex = (LKVertex &) obj;
-
     for (auto track : fTrackArray)
-        vertex.AddTrack(track);
+        ((LKVertex&)obj).AddTrack(track);
 }
 
 void LKVertex::AddTrack(LKTracklet* track)

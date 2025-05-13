@@ -24,13 +24,12 @@ void LKChannel::Clear(Option_t *option)
 void LKChannel::Copy(TObject &obj) const
 {
     LKContainer::Copy(obj);
-    auto channel = (LKChannel &) obj;
-    channel.SetChannelID(fChannelID);
-    channel.SetPadID(fPadID);
-    channel.SetTime(fTime);
-    channel.SetEnergy(fEnergy);
-    channel.SetPedestal(fPedestal);
-    channel.SetNoiseScale(fNoiseScale);
+    ((LKChannel&)obj).SetChannelID(fChannelID);
+    ((LKChannel&)obj).SetPadID(fPadID);
+    ((LKChannel&)obj).SetTime(fTime);
+    ((LKChannel&)obj).SetEnergy(fEnergy);
+    ((LKChannel&)obj).SetPedestal(fPedestal);
+    ((LKChannel&)obj).SetNoiseScale(fNoiseScale);
 }
 
 TObject* LKChannel::Clone(const char *newname) const

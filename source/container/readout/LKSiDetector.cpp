@@ -16,8 +16,7 @@ void LKSiDetector::Clear(Option_t *option)
 void LKSiDetector::Copy(TObject &object) const
 {
     //LKContainer::Copy(object);
-    //auto objCopy = (LKSiDetector &) object;
-    //objCopy.SetDetType(fDetType);
+    //((LKSiDetector&)object).SetDetType(fDetType);
 }
 
 const char* LKSiDetector::GetName() const

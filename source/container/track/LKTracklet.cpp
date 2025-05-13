@@ -17,21 +17,16 @@ void LKTracklet::Clear(Option_t *option)
     fHitIDArray.clear();
 }
 
-/*
 void LKTracklet::Copy(TObject &obj) const
 {
     TObject::Copy(obj);
-
-    auto track = (LKTracklet &) obj;
-    track -> SetTrackID(fTrackID);
-    track -> SetParentID(fParentID);
-    track -> SetPDG(fPDG);
-
+    ((LKTracklet&)obj).SetTrackID(fTrackID);
+    ((LKTracklet&)obj).SetParentID(fParentID);
+    ((LKTracklet&)obj).SetPDG(fPDG);
     auto numHits = fHitArray.GetNumHits();
     for (auto i=0; i<numHits; ++i)
-        track -> AddHit(fHitArray.GetHit(i));
+        ((LKTracklet&)obj).AddHit(fHitArray.GetHit(i));
 }
-*/
 
 void LKTracklet::ClearHits()
 {
