@@ -58,6 +58,9 @@ class LKGETChannelViewer : public LKTask, public LKPadInteractive
         TClonesArray* fChannelArray = nullptr;
         TClonesArray* fHitArray = nullptr;
 
+        TString fHitBranchName = "Hit";
+        TString fChannelBranchName = "RawData";
+
         TCanvas *fCvsMain = nullptr;
         TVirtualPad* fVPadMCAANumber = nullptr;
         TVirtualPad* fVPadChanNumber = nullptr;
@@ -86,8 +89,10 @@ class LKGETChannelViewer : public LKTask, public LKPadInteractive
         const int fFillSelBNA = 8; /// seelected but not active
         double fBinTextSize = 2.0;
 
-        int fYMin = 0;
-        int fYMax = 4100;
+        //int fYMin = 0;
+        //int fYMax = 4100;
+        int fYMin = -1000;
+        int fYMax = 5000;
 
         int fNumMenu = 5;
         int fNumMCAA = 4;

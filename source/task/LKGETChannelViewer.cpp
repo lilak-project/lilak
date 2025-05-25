@@ -26,22 +26,8 @@ bool LKGETChannelViewer::Init()
 #ifdef DEBUG_LKGCV_FUNCTION
     lk_info << endl;
 #endif
-    fHitArray = fRun -> GetBranchA("Hit");
-    fChannelArray = fRun -> GetBranchA("RawData");
-
-    if (fChannelAnalyzer==nullptr)
-    {
-        if (fRun->GetDetectorSystem()->GetNumPlanes()==0) {
-            lk_warning << "Channel analyzer sould be set!" << endl;
-            lk_warning << "Using default channel analyzer" << endl;
-            fChannelAnalyzer = new LKChannelAnalyzer();
-            fChannelAnalyzer -> Print();
-        }
-        else {
-            fChannelAnalyzer = fRun -> GetDetectorPlane() -> GetChannelAnalyzer();
-            fChannelAnalyzer -> Print();
-        }
-    }
+    fPar -> UpdatePar(fHitBranchName    ,"LKGETChannelViewer/HitBranchName     Hit");
+    fPar -> UpdatePar(fChannelBranchName,"LKGETChannelViewer/ChannelBranchName RawData");
 
     fPar -> Require("LKGETChannelViewer/MaxCobo","4","",1);
     fPar -> Require("LKGETChannelViewer/MaxAsad","4","",2);
@@ -57,6 +43,23 @@ bool LKGETChannelViewer::Init()
     fPar -> UpdatePar(fSelAsad,"LKGETChannelViewer/SelAsad  0");
     fPar -> UpdatePar(fSelAget,"LKGETChannelViewer/SelAget  0");
     fPar -> UpdatePar(fSelChan,"LKGETChannelViewer/SelChan  0");
+
+    fHitArray = fRun -> GetBranchA(fHitBranchName);
+    fChannelArray = fRun -> GetBranchA(fChannelBranchName);
+
+    if (fChannelAnalyzer==nullptr)
+    {
+        if (fRun->GetDetectorSystem()->GetNumPlanes()==0) {
+            lk_warning << "Channel analyzer sould be set!" << endl;
+            lk_warning << "Using default channel analyzer" << endl;
+            fChannelAnalyzer = new LKChannelAnalyzer();
+            fChannelAnalyzer -> Print();
+        }
+        else {
+            fChannelAnalyzer = fRun -> GetDetectorPlane() -> GetChannelAnalyzer();
+            fChannelAnalyzer -> Print();
+        }
+    }
 
     if (fNumChan>12*15) { fNXCN = 15; fNYCN = 15; }
     if (fNumChan>12*12) { fNXCN = 12; fNYCN = 15; }
@@ -120,8 +123,8 @@ bool LKGETChannelViewer::Init()
     fGraphArrayMCAA = new TClonesArray("TGraph",300);
     fGraphArrayIndv = new TClonesArray("TGraph",10);
 
-    fHistMCAAChannels = new TH2D("LKGCV_HistMCAAChannels","All channels;tb;y",512,0,512,500,0,5000);
-    fHistIndvChannels = new TH2D("LKGCV_HistIndvChannels",";tb;y",512,0,512,500,0,5000);
+    fHistMCAAChannels = new TH2D("LKGCV_HistMCAAChannels","All channels;tb;y",512,0,512,500,-1000,5000);
+    fHistIndvChannels = new TH2D("LKGCV_HistIndvChannels",";tb;y",512,0,512,500,-1000,5000);
 
     fHistMCAAChannels -> SetStats(0);
     fHistIndvChannels -> SetStats(0);
