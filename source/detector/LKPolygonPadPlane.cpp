@@ -6,7 +6,7 @@ using namespace std;
 
 #include "LKPolygonPadPlane.h"
 #include "LKListFileParser.h"
-#include "CAACMapData.h"
+#include "GETChannelMapData.h"
 #include "GETChannel.h"
 
 ClassImp(LKPolygonPadPlane)
@@ -75,7 +75,7 @@ bool LKPolygonPadPlane::Init()
     fHistEventDisplay1 = hist;
 
     LKListFileParser parser;
-    parser.SetClass("CAACMapData");
+    parser.SetClass("GETChannelMapData");
     if (parser.ReadFile(fMappingFileName,fMappingFormat,true))
         return true;
     parser.Print();
@@ -85,7 +85,7 @@ bool LKPolygonPadPlane::Init()
     double zz[8] = {0};
     for (auto i=0; i<numChannels; ++i)
     {
-        auto data = (CAACMapData*) dataArray -> At(i);
+        auto data = (GETChannelMapData*) dataArray -> At(i);
 
         LKPad* pad = new LKPad();
         pad -> SetPlaneID(0);

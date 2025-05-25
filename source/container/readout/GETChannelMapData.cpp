@@ -1,9 +1,9 @@
-#include "CAACMapData.h"
+#include "GETChannelMapData.h"
 #include "LKLogger.h"
 
-ClassImp(CAACMapData)
+ClassImp(GETChannelMapData)
 
-void CAACMapData::Print(Option_t *option) const
+void GETChannelMapData::Print(Option_t *option) const
 {
     double xx = 0;
     double yy = 0;
@@ -19,7 +19,7 @@ void CAACMapData::Print(Option_t *option) const
     e_cout << id << " " << cobo << " " << asad << " " << aget << " " << chan << " " << xx << " " << yy << " " << zz << std::endl;
 }
 
-bool CAACMapData::SetValue(TString keyword, TString value)
+bool GETChannelMapData::SetValue(TString keyword, TString value)
 {
     if      (keyword=="id")         id = value.Atoi();
     else if (keyword=="cobo")       cobo = value.Atoi();
