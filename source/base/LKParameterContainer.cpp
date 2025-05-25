@@ -300,6 +300,52 @@ Int_t LKParameterContainer::AddFile(TString parName, TString fileName)
 
     bool existFile = false;
 
+    std::vector<TString> paths = {gSystem->Getenv("PWD"),TString(LILAK_PATH)+"/common",TString(LILAK_PATH)+"/common/draw_style"};
+    std::vector<TString> formatStrings = {"mac","conf","par"};
+    //auto SearchFile = [](TString fileName, std::vector<TString> paths, std::vector<TString> formatStrings)
+    auto SearchFile = [paths,formatStrings](TString fileName)
+    {
+        bool existFile = false;
+        TString foundPath;
+
+        bool hasFormat = false;
+        for (auto format : formatStrings) {
+            if (fileName.EndsWith(TString(".")+format)) {
+                hasFormat = true;
+                break;
+            }
+        }
+
+        for (auto path : paths)
+        {
+            TString trialPath = path + "/" + fileName;
+            if (hasFormat)
+            {
+                //lk_debug << trialPath << endl;
+                if (!TString(gSystem -> Which(".", trialPath.Data())).IsNull()) {
+                    existFile = true;
+                    foundPath = trialPath;
+                }
+            }
+            else {
+                for (auto format : formatStrings) {
+                    TString trialPathFormat = trialPath + "." + format;
+                    //lk_debug << trialPathFormat << endl;
+                    if (!TString(gSystem -> Which(".", trialPathFormat.Data())).IsNull()) {
+                        existFile = true;
+                        foundPath = trialPathFormat;
+                        break;
+                    }
+                }
+            }
+
+            if (existFile)
+                break;
+        }
+
+        return foundPath;
+    };
+
     if (fileName[0]=='/' || fileName[0]=='$' || fileName =='~'|| fileName[0]=='.') {
         fileNameFull = fileName;
         if (!TString(gSystem -> Which(".", fileNameFull.Data())).IsNull())
@@ -307,21 +353,25 @@ Int_t LKParameterContainer::AddFile(TString parName, TString fileName)
     }
     else
     {
-        fileNameFull = TString(gSystem -> Getenv("PWD")) + "/" + fileName;
-        if (!TString(gSystem -> Which(".", fileNameFull.Data())).IsNull()) {
-            existFile = true;
-        }
-        else
-        {
-            //fileNameFull = TString(gSystem -> Getenv("LILAK_PATH")) + "/input/" + fileName;
-            fileNameFull = TString(LILAK_PATH) + "/common/" + fileName;
-            if (!TString(gSystem -> Which(".", fileNameFull.Data())).IsNull())
-                existFile = true;
-        }
+        fileNameFull = SearchFile(fileName);//,paths,formatStrings);
+        if (fileNameFull.IsNull()) existFile = false;
+        else existFile = true;
+
+        //fileNameFull = TString(gSystem -> Getenv("PWD")) + "/" + fileName;
+        //if (!TString(gSystem -> Which(".", fileNameFull.Data())).IsNull()) {
+        //    existFile = true;
+        //}
+        //else
+        //{
+        //    fileNameFull = TString(LILAK_PATH) + "/common/" + fileName;
+        //    if (!TString(gSystem -> Which(".", fileNameFull.Data())).IsNull()) {
+        //        existFile = true;
+        //    }
+        //}
     }
 
     if (!existFile) {
-        lk_error << "Parameter file " << fileNameFull << " does not exist!" << endl;
+        lk_error << "Parameter file " << fileName << " does not exist!" << endl;
         return 0;
     }
 

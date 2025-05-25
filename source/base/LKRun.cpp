@@ -562,10 +562,10 @@ TChain *LKRun::GetFriendChain(Int_t iFriend) const { return ((TChain *) fFriendT
 
 void LKRun::ConfigViewer()
 {
-    lk_debug << endl;
     fDataViewer = GetTopDrawingGroup() -> CreateViewer();
     fDataViewer -> SetRun(this);
-    fTopDrawingGroup -> Draw(TString(fDrawOption));
+    fDataViewer -> Draw();
+    //fTopDrawingGroup -> Draw(TString(fDrawOption));
 }
 
 bool LKRun::Init()
@@ -613,10 +613,10 @@ bool LKRun::Init()
             drawAfterRun = true;
             drawOption = lilakPar -> GetParString("draw");
         }
-        //else if (lilakPar->CheckPar("auto_exit"))
-        //    fAutoTerminate = lilakPar -> GetParBool("auto_exit");
         else if (lilakPar->CheckPar("execute"))
             exeAfterInit = lilakPar -> GetParLong("execute");
+        if (lilakPar->CheckPar("auto_exit"))
+            fAutoTerminate = lilakPar -> GetParBool("auto_exit");
         if (lilakPar->CheckPar("print")) {
             printAfterInit = lilakPar -> GetParString("print");
             if (printAfterInit.IsNull())
@@ -633,7 +633,7 @@ bool LKRun::Init()
     fPar -> Require("lilak/add",          "LKTask",         "add task or detector class", "t/", countParOrder++);
     fPar -> Require("lilak/print",        "all",            "print after init gen:par:out:in:det:task", "t/", countParOrder++);
     fPar -> Require("lilak/collect_par",  "print",          "file name to write collected parameters. 'print' to print out on screen", "t/", countParOrder++);
-    //fPar -> Require("lilak/auto_exit",    "0",              "set(1)/unset(0) auto termination", "t/", countParOrder++);
+    fPar -> Require("lilak/auto_exit",    "0",              "set(1)/unset(0) auto termination", "t/", countParOrder++);
     fPar -> Require("lilak/run",          "0",              "run [no] after init. Execute all events if [no] is 0", "t/", countParOrder++);
     fPar -> Require("lilak/draw",         "0",              "execute Draw()", "t/", countParOrder++);
     fPar -> Require("lilak/execute",      "0",              "execute event [no] after init", "t/", countParOrder++);
@@ -644,6 +644,7 @@ bool LKRun::Init()
     fPar -> Require("LKRun/OutputPath",   "{lilak_data}",   "path to the output. Default path {lilak_data} is lilak/data/",  "", countParOrder++);
     fPar -> Require("LKRun/InputPath",    "/path/to/in/",   "LKRun will search files from input paths when LKRun/SearchRun", "t/", countParOrder++);
     fPar -> Require("LKRun/SearchRun",    "mfm",            "search input files with LKRun/RunID. opt=mfm: search mfm files, opt=[tag]: search run_runNo.*.[tag].root", "t", countParOrder++);
+    fPar -> Require("LKRun/AutoTerminate","true",           "automatically terminate root after end of run", "t", countParOrder++);
     fPar -> Require("LKRun/Division",     0,                "division within the run [optional]", "t/", countParOrder++);
     fPar -> Require("LKRun/InputFile",    "to/input/file",  "input file. Cannot be used with LKRun/SearchRun", "t", countParOrder++);
     fPar -> Require("LKRun/FriendFile",   "to/friend/file", "input friend file",                  "t/", countParOrder++);
@@ -1071,7 +1072,7 @@ bool LKRun::Init()
 
     fCurrentEventID = 0;
 
-    fPar -> UpdatePar(fAutoTerminate,"LKRun/AutoTerminate true # automatically terminate root after end of run");
+    fPar -> UpdatePar(fAutoTerminate,"LKRun/AutoTerminate false # automatically terminate root after end of run");
     fPar -> Sort();
 
     if (fPar -> CheckPar("LKRun/EventCountForMessage"))
@@ -1101,6 +1102,9 @@ bool LKRun::Init()
         {
             ExecuteEvent(exeAfterInit);
         }
+        else {
+        }
+
         if (drawAfterRun) Draw(drawOption);
         return true;
     }
@@ -1504,7 +1508,7 @@ bool LKRun::ExecuteEvent(Long64_t eventID)
 
     LKRun::GetEntry(fCurrentEventID);
 
-    if ((fEventCount==0||fEventCount%fEventCountForMessage!=0)) {
+    if (fEventCount!=1&&fEventCount%fEventCountForMessage!=0) {
         if (fAllowControlLogger) lk_set_message(false);
     }
 

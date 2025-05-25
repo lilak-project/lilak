@@ -18,6 +18,7 @@ class LKParameter : public TNamed
         LKParameter();
         LKParameter(TString name, TString raw, TString value="", TString comment="", int parameterType=0, int compare=-1);
         LKParameter(TString value);
+        LKParameter(TString fileName, int lineNo);
         LKParameter(int parameterType);
         virtual ~LKParameter();
 
@@ -28,7 +29,7 @@ class LKParameter : public TNamed
         virtual Int_t Compare(const TObject *obj) const;
 
         void SetLineComment(TString comment);
-        void ReadFile(TString fileName);
+        void ReadFile(TString fileName, int lineNo=0);
         void SetPar(TString name, TString raw, TString value, TString comment, int parameterType=1, int compare=-1);
         void SetValue(TString value);
         void TranslateUnit(TString value, TString unit);
@@ -81,9 +82,9 @@ class LKParameter : public TNamed
         std::vector<int>     GetVInt   () const;
         std::vector<double>  GetVDouble() const;
         std::vector<TString> GetVString() const;
+        std::vector<int>     GetVColor ();
 
         std::vector<int>     GetVWidth () const { return GetVInt(); }
-        std::vector<int>     GetVColor () const { return GetVInt(); }
         std::vector<double>  GetVSize  () const { return GetVDouble(); }
 
         void SetCompare(int compare) { fCompare = compare; }

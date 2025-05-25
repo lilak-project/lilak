@@ -30,9 +30,14 @@ LKParameter::LKParameter(TString name, TString raw, TString value, TString comme
 LKParameter::LKParameter(TString value)
 {
     if (value.EndsWith(".txt") || value.EndsWith(".par") || value.EndsWith(".mac") || value.EndsWith(".conf"))
-        ReadFile(value);
+        ReadFile(value, 0);
     else
         SetPar("lkpar", value, value, "");
+}
+
+LKParameter::LKParameter(TString fileName, int lineNo)
+{
+    ReadFile(fileName, lineNo);
 }
 
 LKParameter::~LKParameter()
@@ -46,13 +51,35 @@ void LKParameter::SetLineComment(TString comment)
     fComment = comment;
 }
 
-void LKParameter::ReadFile(TString fileName)
+void LKParameter::ReadFile(TString fileName, int lineNo)
 {
     bool comment_from_here = false;
     TString name, raw, comment;
 
     ifstream file(fileName);
+    if (file.is_open()==false) {
+        lk_info << "Cannot open " << fileName << endl;
+        lk_info << "Looking for " << fileName << " in lilak/common/" << endl;
+        file.clear();
+        TString newFileName = TString(LILAK_PATH) + "/common/" + fileName;
+        file.open(newFileName);
+        if (file.is_open()==false)
+            lk_info << "Cannot open " << fileName << "!!" << endl;
+        return;
+    }
+
     std::string line;
+    int linesToRemove = lineNo;
+    int countLines = 0;
+    while (linesToRemove>0) {
+        if (file.eof())
+            lk_error << "File has ended at line# " << countLines << ". Cannot reach request line# " << lineNo << "!" << endl;
+        std::getline(file, line);
+        linesToRemove--;
+        countLines++;
+    }
+    if (file.eof())
+        lk_error << "File has ended at line# " << countLines << ". Cannot reach request line# " << lineNo << "!" << endl;
     std::getline(file, line);
     std::stringstream ss(line);
     std::string stoken;
@@ -546,6 +573,18 @@ std::vector<int> LKParameter::GetVInt() const
     else
         for (auto i=0; i<npar; ++i)
             array.push_back(GetInt(i));
+    return array;
+}
+
+std::vector<int> LKParameter::GetVColor()
+{
+    std::vector<int> array;
+    auto npar = GetN();
+    if (npar==1)
+        array.push_back(GetColor());
+    else
+        for (auto i=0; i<npar; ++i)
+            array.push_back(GetColor(i));
     return array;
 }
 
