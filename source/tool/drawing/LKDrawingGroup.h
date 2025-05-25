@@ -94,7 +94,7 @@ class LKDrawingGroup : public TObjArray
         void SetCanvasDivision(int divX, int divY) { fDivX = divX; fDivY = divY; }
         int GetDivX() const { return fDivX; }
         int GetDivY() const { return fDivY; }
-        void SetCanvasSize(int dx, int dy) { fFixCvsSize = true; fDXCvs = dx; fDYCvs = dy; }
+        void SetCanvasSize(int dx, int dy, bool resize=true) { fDXCvs = dx; fDYCvs = dy; fFixCvsSize = !resize; }
         void SetCanvasSizeRatio(int dx, int dy) { fDXCvs = dx; fDYCvs = dy; }
         void AddPad(TPad *pad) { if (fPadArray==nullptr) fPadArray = new TObjArray(); fPadArray -> Add(pad); }
         void SetPadVerticalNumbering(bool v=true) { AddOption("vertical_pad_numbering"); }
@@ -132,6 +132,8 @@ class LKDrawingGroup : public TObjArray
         int        GetNumDrawings() const;
         int        GetNumAllDrawings() const;
         int        GetNumAllDrawingObjects() const;
+
+        void SetStyle(TString drawStyle);
 
         ////////////////////////////////////////////////////////////////////////////////////
         TString GetGlobalOption() const { return fGlobalOption; }

@@ -23,11 +23,6 @@ LKDrawing::LKDrawing(TObject* obj, TObject* obj1, TObject* obj2, TObject* obj3)
 
 void LKDrawing::Init()
 {
-    //TObjArray::Add(new LKCut("lkcut",""));
-    //fTitleArray.push_back("cuts");
-    //fDrawOptionArray.push_back("samel");
-    if (fCuts==nullptr)
-        fCuts = new LKCut("lkcut","");
 }
 
 void LKDrawing::AddDrawing(LKDrawing *drawing)
@@ -78,6 +73,8 @@ int LKDrawing::Add(TObject *obj, TString drawOption, TString title)
         e_warning << "trying to add nullptr to " << fName << endl;
         return -1;
     }
+    if (fCuts==nullptr)
+        fCuts = new LKCut("lkcut",""); 
 
     if      (obj->InheritsFrom(TCut::Class()))  { fCuts -> Add(obj); }
     else if (obj->InheritsFrom(TCutG::Class())) { fCuts -> Add(obj); }
@@ -461,6 +458,18 @@ void LKDrawing::Draw(Option_t *option)
     double x2 = 100;
     double y1 = 0;
     double y2 = 100;
+
+    if (fMainHist==nullptr)
+    {
+        for (auto iObj=0; iObj<numObjects; ++iObj) {
+            auto obj = At(iObj);
+            if (obj->InheritsFrom(TH1::Class())) {
+                fMainHist = (TH1*) obj;
+                break;
+            }
+        }
+    }
+
     if (fMainHist!=nullptr)
     {
         if (CheckOption("cr_mainh"))
@@ -665,7 +674,8 @@ void LKDrawing::Draw(Option_t *option)
     //fRM -> Stop(13);
 
     //fRM -> Start(14);
-    fCuts -> Draw(x1,x2,y1,y2);
+    if (fCuts!=nullptr)
+        fCuts -> Draw(x1,x2,y1,y2);
     //fRM -> Stop(14);
 
     //fRM -> Start(15);
@@ -752,6 +762,7 @@ void LKDrawing::SetMainHist(TPad *pad, TH1* hist)
     TPaveText* mainTitle = nullptr;
     auto list_primitive = pad -> GetListOfPrimitives();
     mainTitle = (TPaveText*) list_primitive -> FindObject("title");
+
     if (CheckOption("font"))
     {
         int font = FindOptionInt("font",132);
@@ -778,28 +789,20 @@ void LKDrawing::SetMainHist(TPad *pad, TH1* hist)
         hist -> GetZaxis() -> SetLabelFont(font);
     }
 
-    if (CheckOption("m_title_font")&&mainTitle!=nullptr) mainTitle -> SetTextFont(FindOptionInt("m_title_font",FindOptionInt("font",132)));
-    if (CheckOption("x_title_font"))           hist -> GetXaxis() -> SetTitleFont(FindOptionInt("x_title_font",FindOptionInt("font",132)));
-    if (CheckOption("y_title_font"))           hist -> GetYaxis() -> SetTitleFont(FindOptionInt("y_title_font",FindOptionInt("font",132)));
-    if (CheckOption("z_title_font"))           hist -> GetZaxis() -> SetTitleFont(FindOptionInt("z_title_font",FindOptionInt("font",132)));
-    if (CheckOption("x_label_font"))           hist -> GetXaxis() -> SetLabelFont(FindOptionInt("x_label_font",FindOptionInt("font",132)));
-    if (CheckOption("y_label_font"))           hist -> GetYaxis() -> SetLabelFont(FindOptionInt("y_label_font",FindOptionInt("font",132)));
-    if (CheckOption("z_label_font"))           hist -> GetZaxis() -> SetLabelFont(FindOptionInt("z_label_font",FindOptionInt("font",132)));
+    if (mainTitle!=nullptr) mainTitle -> SetTextSize (FindOptionDouble("tsm",0.05));
 
-    if (CheckOption("m_title_size")&&mainTitle!=nullptr) mainTitle -> SetTextSize(FindOptionDouble("m_title_size",0.05));
-    if (CheckOption("x_title_size"))           hist -> GetXaxis() -> SetTitleSize(FindOptionDouble("x_title_size",0.05));
-    if (CheckOption("y_title_size"))           hist -> GetYaxis() -> SetTitleSize(FindOptionDouble("y_title_size",0.05));
-    if (CheckOption("z_title_size"))           hist -> GetZaxis() -> SetTitleSize(FindOptionDouble("z_title_size",0.05));
-    if (CheckOption("x_label_size"))           hist -> GetXaxis() -> SetLabelSize(FindOptionDouble("x_label_size",0.05));
-    if (CheckOption("y_label_size"))           hist -> GetYaxis() -> SetLabelSize(FindOptionDouble("y_label_size",0.05));
-    if (CheckOption("z_label_size"))           hist -> GetZaxis() -> SetLabelSize(FindOptionDouble("z_label_size",0.05));
-
-    if (CheckOption("x_title_offset")) hist -> GetXaxis() -> SetTitleOffset(FindOptionDouble("x_title_offset",0.1));
-    if (CheckOption("y_title_offset")) hist -> GetYaxis() -> SetTitleOffset(FindOptionDouble("y_title_offset",0.1));
-    if (CheckOption("z_title_offset")) hist -> GetZaxis() -> SetTitleOffset(FindOptionDouble("z_title_offset",0.1));
-    if (CheckOption("x_label_offset")) hist -> GetXaxis() -> SetLabelOffset(FindOptionDouble("x_label_offset",0.1));
-    if (CheckOption("y_label_offset")) hist -> GetYaxis() -> SetLabelOffset(FindOptionDouble("y_label_offset",0.1));
-    if (CheckOption("z_label_offset")) hist -> GetZaxis() -> SetLabelOffset(FindOptionDouble("z_label_offset",0.1));
+    if (CheckOption("tsx")) hist -> GetXaxis() -> SetTitleSize  (FindOptionDouble("tsx",0.05));
+    if (CheckOption("tsy")) hist -> GetYaxis() -> SetTitleSize  (FindOptionDouble("tsy",0.05));
+    if (CheckOption("tsz")) hist -> GetZaxis() -> SetTitleSize  (FindOptionDouble("tsz",0.05));
+    if (CheckOption("lsx")) hist -> GetXaxis() -> SetLabelSize  (FindOptionDouble("lsx",0.05));
+    if (CheckOption("lsy")) hist -> GetYaxis() -> SetLabelSize  (FindOptionDouble("lsy",0.05));
+    if (CheckOption("lsz")) hist -> GetZaxis() -> SetLabelSize  (FindOptionDouble("lsz",0.05));
+    if (CheckOption("tox")) hist -> GetXaxis() -> SetTitleOffset(FindOptionDouble("tox",1.00));
+    if (CheckOption("toy")) hist -> GetYaxis() -> SetTitleOffset(FindOptionDouble("toy",1.00));
+    if (CheckOption("toz")) hist -> GetZaxis() -> SetTitleOffset(FindOptionDouble("toz",1.00));
+    if (CheckOption("lox")) hist -> GetXaxis() -> SetLabelOffset(FindOptionDouble("lox",0.10));
+    if (CheckOption("loy")) hist -> GetYaxis() -> SetLabelOffset(FindOptionDouble("loy",0.10));
+    if (CheckOption("loz")) hist -> GetZaxis() -> SetLabelOffset(FindOptionDouble("loz",0.10));
 }
 
 void LKDrawing::GetPadCorner(TPad *cvs, int iCorner, double &x_corner, double &y_corner, double &x_unit, double &y_unit)
@@ -1269,4 +1272,77 @@ void LKDrawing::SetCreateLegend(int iCorner, double dx, double dyline)
 void LKDrawing::SetLegendTransparent()
 {
     AddOption("legend_transparent");
+}
+
+
+void LKDrawing::SetStyle(TString drawStyle)
+{
+    LKParameterContainer style(drawStyle);
+
+    int    font           = 42;
+    int    opt_stat       = 1111;
+    int    opt_fit        = 111;
+    bool   fix_pad_size   = true;
+    int    pad_size_x     = 700;
+    int    pad_size_y     = 500;
+    double pad_margin_l   = 0.10;
+    double pad_margin_r   = 0.10;
+    double pad_margin_b   = 0.10;
+    double pad_margin_t   = 0.10;
+    double title_size_m   = 0.035;
+    double title_size_x   = 0.035;
+    double title_size_y   = 0.035;
+    double title_size_z   = 0.035;
+    double label_size_x   = 0.035;
+    double label_size_y   = 0.035;
+    double label_size_z   = 0.035;
+    double title_offset_x = 1.0;
+    double title_offset_y = 1.0;
+    double title_offset_z = 1.0;
+    double label_offset_x = 0.005;
+    double label_offset_y = 0.005;
+    double label_offset_z = 0.005;
+
+    style.UpdatePar(opt_stat       ,"opt_stat");
+    style.UpdatePar(opt_fit        ,"opt_fit");
+    style.UpdatePar(title_size_m   ,"main_title_size");
+    style.UpdatePar(title_size_x   ,"title_size",0);
+    style.UpdatePar(title_size_y   ,"title_size",1);
+    style.UpdatePar(title_size_z   ,"title_size",2);
+    style.UpdatePar(label_size_x   ,"label_size",0);
+    style.UpdatePar(label_size_y   ,"label_size",1);
+    style.UpdatePar(label_size_z   ,"label_size",2);
+    style.UpdatePar(title_offset_x ,"title_offset",0);
+    style.UpdatePar(title_offset_y ,"title_offset",1);
+    style.UpdatePar(title_offset_z ,"title_offset",2);
+    style.UpdatePar(label_offset_x ,"label_offset",0);
+    style.UpdatePar(label_offset_y ,"label_offset",1);
+    style.UpdatePar(label_offset_z ,"label_offset",2);
+    style.UpdatePar(font           ,"font");
+    style.UpdatePar(fix_pad_size   ,"fix_pad_size");
+    style.UpdatePar(pad_size_x     ,"pad_size",0);
+    style.UpdatePar(pad_size_y     ,"pad_size",1);
+    style.UpdatePar(pad_margin_l   ,"pad_margin",0);
+    style.UpdatePar(pad_margin_r   ,"pad_margin",1);
+    style.UpdatePar(pad_margin_b   ,"pad_margin",2);
+    style.UpdatePar(pad_margin_t   ,"pad_margin",3);
+
+    this -> SetOptStat(opt_stat);
+    this -> SetOptFit(opt_fit);
+    this -> AddOption("tsx",title_size_x);
+    this -> AddOption("tsy",title_size_y);
+    this -> AddOption("tsz",title_size_z);
+    this -> AddOption("lsx",label_size_x);
+    this -> AddOption("lsy",label_size_y);
+    this -> AddOption("lsz",label_size_z);
+    this -> AddOption("font",font);
+    this -> AddOption("tox",title_offset_x);
+    this -> AddOption("toy",title_offset_y);
+    this -> AddOption("toz",title_offset_z);
+    this -> AddOption("lox",label_offset_x);
+    this -> AddOption("loy",label_offset_y);
+    this -> AddOption("loz",label_offset_z);
+    this -> AddOption("tsm",title_size_m);
+    this -> SetCanvasMargin(pad_margin_l,pad_margin_r,pad_margin_b,pad_margin_t);
+    this -> SetCanvasSize(pad_size_x, pad_size_y, !fix_pad_size);
 }

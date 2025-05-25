@@ -69,6 +69,9 @@ class LKPainter : public TObject
         void GetSizeSquare   (int &width, int &height, double ratio=1);
         void GetSizeResize   (int &width, int &height, int width0, int height0, double ratio=-1);
 
+        static bool DividePad(TPad* cvs, Int_t n, Float_t xmargin=0.001, Float_t ymargin=0.001, Int_t color=0);
+        static void DividePad(TPad* cvs, Int_t nx, Int_t ny, Float_t xmargin=0.001, Float_t ymargin=0.001, Int_t color=0);
+
         const int kDefault    = 0;
         const int kFull       = 1;
         const int kSquare     = 2;

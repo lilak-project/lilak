@@ -176,7 +176,7 @@ class LKDrawing : public TObjArray
             SetBottomMargin(bmg);
             SetTopMargin(tmg);
         }
-        void SetCanvasSize(double dx, double dy, bool resize=true) { AddOption("cvs_dx",dx); AddOption("cvs_dy",dy); if (resize) AddOption("cvs_resize"); }
+        void SetCanvasSize(int dx, int dy, bool resize=true) { AddOption("cvs_dx",dx); AddOption("cvs_dy",dy); if (resize) AddOption("cvs_resize"); }
         void SetRangeUser(double x1, double x2, double y1, double y2) { SetRangeUserX(x1, x2); SetRangeUserY(y1, y2); }
         void SetRangeUserX(double x1, double x2) { AddOption("x1",x1); AddOption("x2",x2); }
         void SetRangeUserY(double y1, double y2) { AddOption("y1",y1); AddOption("y2",y2); }
@@ -196,6 +196,7 @@ class LKDrawing : public TObjArray
         //void SetMainTitleAttribute();
         //void SetTitleAttribute(int i, int font, double size, double offset);
         //void SetLabelAttribute(int i, int font, double size, double offset);
+        void SetFont(int font) { AddOption("font",font); }
         void SetPaveDx(double dx) { AddOption("pave_dx",dx); }
         void SetPaveLineDy(double dyline) { AddOption("pave_line_dy",dyline); }
         void SetPaveSize(double dx, double dyline) { SetPaveDx(dx); SetPaveLineDy(dyline); }
@@ -203,6 +204,11 @@ class LKDrawing : public TObjArray
         void SetCreateFrame(TString name="", TString title="", TString option=""); ///< Create frame if no frame histogram exist.
         void SetCreateLegend(int iCorner=-1, double dx=0, double dyline=0);
         void SetLegendTransparent();
+
+        /**
+         * Use one of the style files from lilak/common/draw_style
+         */
+        void SetStyle(TString drawStyle);
 
         ////////////////////////////////////////////////////////////////////////////////////
         bool GetFit() const { if (fFitFunction!=nullptr) return true; return false; }

@@ -60,12 +60,13 @@ void LKDrawingGroup::Draw(Option_t *option)
 
     if (usingDataViewer)
     {
-        if (IsDrawingGroup()) {
-            auto top = new LKDrawingGroup("top");
-            top -> AddGroup(this);
-            top -> Draw(optionString+":v");
-            return;
-        }
+        //if (IsDrawingGroup()) {
+        //    lk_debug << "innnnnnnnnn" << endl;
+        //    auto top = new LKDataViewer("top");
+        //    top -> AddGroup(this);
+        //    top -> Draw(optionString+":v");
+        //    return;
+        //}
 
         if (fViewer==nullptr)
             fViewer = new LKDataViewer(this);
@@ -1230,4 +1231,25 @@ TObject* LKDrawingGroup::FindClassObject(TString name, TClass *tclass)
         }
     }
     return (TObject*) nullptr;
+}
+
+void LKDrawingGroup::SetStyle(TString drawStyle)
+{
+    if (CheckIsGroupGroup())
+    {
+        auto numSub = GetEntries();
+        for (auto iSub=0; iSub<numSub; ++iSub) {
+            auto sub = (LKDrawingGroup*) At(iSub);
+            sub -> SetStyle(drawStyle);
+        }
+    }
+    else
+    {
+        auto numDrawings = GetEntries();
+        for (auto iDrawing=0; iDrawing<numDrawings; ++iDrawing)
+        {
+            auto drawing = (LKDrawing*) At(iDrawing);
+            drawing -> SetStyle(drawStyle);
+        }
+    }
 }

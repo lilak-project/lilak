@@ -242,3 +242,131 @@ TCanvas *LKPainter::CanvasSize(TString name, int width, int height)
     auto cvs = NewCanvas(name,name, fXCurrentCanvas, fYCurrentCanvas, width, height);
     return cvs;
 }
+
+bool LKPainter::DividePad(TPad* cvs, Int_t n, Float_t xmargin, Float_t ymargin, Int_t color)
+{
+    Int_t nx, ny;
+
+    //if (CheckOption("wide_canvas"))
+    {
+        if      (n== 1) { nx =  1; ny =  1; }
+        else if (n<= 2) { nx =  2; ny =  1; }
+        else if (n<= 3) { nx =  3; ny =  1; }
+        else if (n<= 6) { nx =  3; ny =  2; }
+        else if (n<= 8) { nx =  4; ny =  2; }
+        else if (n<= 9) { nx =  3; ny =  3; }
+        else if (n<=12) { nx =  4; ny =  3; }
+        else if (n<=16) { nx =  4; ny =  4; }
+        else if (n<=20) { nx =  4; ny =  5; }
+        else if (n<=24) { nx =  4; ny =  6; }
+        else if (n<=25)  { nx =  5; ny =  5; }
+        else if (n<=30)  { nx =  5; ny =  6; }
+        else if (n<=35)  { nx =  5; ny =  7; }
+        else if (n<=36)  { nx =  6; ny =  6; }
+        else if (n<=40)  { nx =  5; ny =  8; }
+        else if (n<=42)  { nx =  6; ny =  7; }
+        else if (n<=48)  { nx =  6; ny =  8; }
+        else if (n<=49)  { nx =  7; ny =  7; }
+        else if (n<=54)  { nx =  6; ny =  9; }
+        else if (n<=56)  { nx =  7; ny =  8; }
+        else if (n<=63)  { nx =  7; ny =  9; }
+        else if (n<=64)  { nx =  8; ny =  8; }
+        else if (n<=72)  { nx =  8; ny =  9; }
+        else if (n<=80)  { nx =  8; ny =  10; }
+        else if (n<=81)  { nx =  9; ny =  9; }
+        else if (n<=90)  { nx =  9; ny =  10; }
+        else if (n<=100) { nx = 10; ny =  10; }
+        else {
+            e_error << "Too many drawings!!! " << n << endl;
+            return false;
+        }
+    }
+    //else if (CheckOption("vertical_canvas"))
+    //{
+    //    if      (n== 1) { fDivY =  1; fDivX =  1; }
+    //    else if (n<= 2) { fDivY =  2; fDivX =  1; }
+    //    else if (n<= 4) { fDivY =  2; fDivX =  2; }
+    //    else if (n<= 6) { fDivY =  3; fDivX =  2; }
+    //    else if (n<= 8) { fDivY =  4; fDivX =  2; }
+    //    else if (n<= 9) { fDivY =  3; fDivX =  3; }
+    //    else if (n<=12) { fDivY =  4; fDivX =  3; }
+    //    else if (n<=16) { fDivY =  4; fDivX =  4; }
+    //    else if (n<=20) { fDivY =  5; fDivX =  4; }
+    //    else if (n<=25) { fDivY =  6; fDivX =  4; }
+    //    else if (n<=25) { fDivY =  5; fDivX =  5; }
+    //    else if (n<=30) { fDivY =  6; fDivX =  5; }
+    //    else if (n<=35) { fDivY =  7; fDivX =  5; }
+    //    else if (n<=36) { fDivY =  6; fDivX =  6; }
+    //    else if (n<=40) { fDivY =  8; fDivX =  5; }
+    //    else if (n<=42) { fDivY =  7; fDivX =  6; }
+    //    else if (n<=48) { fDivY =  8; fDivX =  6; }
+    //    else if (n<=63) { fDivY =  9; fDivX =  7; }
+    //    else if (n<=80) { fDivY = 10; fDivX =  8; }
+    //    else {
+    //        e_error << "Too many drawings!!! " << n << endl;
+    //        return false;
+    //    }
+    //}
+
+    LKPainter::DividePad(cvs, nx, ny, xmargin, ymargin, color);
+    return true;
+}
+
+void LKPainter::DividePad(TPad* cvs, Int_t nx, Int_t ny, Float_t xmargin, Float_t ymargin, Int_t color)
+{
+    cvs -> cd();
+    if (nx <= 0) nx = 1;
+    if (ny <= 0) ny = 1;
+    Int_t ix, iy;
+    Double_t x1, y1, x2, y2, dx, dy;
+    TPad *pad;
+    TString name, title;
+    Int_t n = 0;
+    //if (color == 0) color = GetFillColor();
+    //if (xmargin > 0 && ymargin > 0)
+    dy = 1/Double_t(ny);
+    dx = 1/Double_t(nx);
+    //if (CheckOption("vertical_pad_numbering"))
+    //{
+    //    //for (ix=0;ix<nx;ix++)
+    //    for (ix=nx-1;ix>=0;ix--)
+    //    {
+    //        x2 = 1 - ix*dx - xmargin;
+    //        x1 = x2 - dx + 2*xmargin;
+    //        if (x1 < 0) x1 = 0;
+    //        if (x1 > x2) continue;
+    //        for (iy=ny-1;iy>=0;iy--) {
+    //            y1 = iy*dy + ymargin;
+    //            y2 = y1 +dy -2*ymargin;
+    //            if (y1 > y2) continue;
+    //            n++;
+    //            name.Form("%s_%d", GetName(), n);
+    //            pad = new TPad(name.Data(), name.Data(), x1, y1, x2, y2, color);
+    //            pad->SetNumber(n);
+    //            pad->SetFillColor(cvs->GetFillColor());
+    //            pad->Draw();
+    //        }
+    //    }
+    //}
+    //else //general case
+    {
+        for (iy=0;iy<ny;iy++) {
+            y2 = 1 - iy*dy - ymargin;
+            y1 = y2 - dy + 2*ymargin;
+            if (y1 < 0) y1 = 0;
+            if (y1 > y2) continue;
+            for (ix=0;ix<nx;ix++) {
+                x1 = ix*dx + xmargin;
+                x2 = x1 +dx -2*xmargin;
+                if (x1 > x2) continue;
+                n++;
+                name.Form("pad_%d",  n);
+                pad = new TPad(name.Data(), name.Data(), x1, y1, x2, y2, color);
+                pad->SetNumber(n);
+                pad->SetFillColor(cvs->GetFillColor());
+                pad->Draw();
+            }
+        }
+    }
+    cvs -> Modified();
+}
