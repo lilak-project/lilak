@@ -394,7 +394,8 @@ class lilak_configuration:
             if os.path.exists(project_macro_path):
                 compile_required_files = [f for f in os.listdir(project_macro_path) if f.endswith(".cc")]
                 if compile_required_files:
-                    project_cmake_contents4 += """file(GLOB MACROS_FOR_EXECUTABLE_PROCESS ${CMAKE_CURRENT_SOURCE_DIR}/macros*/*.cc)
+                    if self.df_build_options0["BUILD_GEANT4_SIM"]==True:
+                        project_cmake_contents4 += """file(GLOB MACROS_FOR_EXECUTABLE_PROCESS ${CMAKE_CURRENT_SOURCE_DIR}/macros*/*.cc)
 set(LILAK_EXECUTABLE_LIST ${LILAK_EXECUTABLE_LIST}
     ${MACROS_FOR_EXECUTABLE_PROCESS}
     CACHE INTERNAL ""
