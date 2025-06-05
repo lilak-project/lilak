@@ -16,6 +16,7 @@ set(LILAK_PROJECT_LIST      CACHE INTERNAL "") # List of LILAK projects to build
 set(LILAK_PROJECT_MAIN      CACHE INTERNAL "")
 set(GRUDIR               "" CACHE INTERNAL "")
 set(GETDIR               "" CACHE INTERNAL "")
+# set(BUILD_NPTOOL         ON CACHE INTERNAL "") # NPTool simulation
 
 #---Configuration
 include(log/build_options.cmake)
@@ -76,12 +77,12 @@ if(BUILD_JSONCPP)
 endif(BUILD_JSONCPP)
 
 #---Add geant4 source directories. Directory should be under "/path/to/LILAK/".
-set(LILAK_GEANT4_SOURCE_DIRECDTORY_LIST
+set(LILAK_GEANT4_SOURCE_DIRECTORY_LIST
     ${LILAK_PATH}/source/geant4
     CACHE INTERNAL ""
 )
 
-set(LILAK_MFM_SOURCE_DIRECDTORY_LIST
+set(LILAK_MFM_SOURCE_DIRECTORY_LIST
     ${LILAK_PATH}/source/mfm
     CACHE INTERNAL ""
 )
@@ -95,7 +96,7 @@ foreach(lilak_project ${LILAK_PROJECT_LIST})
 endforeach(lilak_project)
 
 if(BUILD_MFM_CONVERTER)
-    foreach(_directory ${LILAK_MFM_SOURCE_DIRECDTORY_LIST})
+    foreach(_directory ${LILAK_MFM_SOURCE_DIRECTORY_LIST})
         list(APPEND LILAK_SOURCE_DIRECTORY_LIST ${_directory})
     endforeach(_directory)
 endif(BUILD_MFM_CONVERTER)
@@ -182,7 +183,7 @@ foreach(_directory ${LILAK_SOURCE_DIRECTORY_LIST})
 endforeach(_directory)
 
 if(BUILD_GEANT4_SIM)
-    foreach(_directory ${LILAK_GEANT4_SOURCE_DIRECDTORY_LIST})
+    foreach(_directory ${LILAK_GEANT4_SOURCE_DIRECTORY_LIST})
         message(STATUS "geant4    directory : " ${_directory})
         file(GLOB LILAK_GEANT4_SOURCE_FILES ${_directory}/*.cpp)
         file(GLOB LILAK_GEANT4_HEADER_FILES ${_directory}/*.h)
@@ -196,7 +197,7 @@ if(BUILD_GEANT4_SIM)
 endif(BUILD_GEANT4_SIM)
 
 if(BUILD_GEANT4_SIM)
-    foreach(_g4directory ${LILAK_GEANT4_SOURCE_DIRECDTORY_LIST})
+    foreach(_g4directory ${LILAK_GEANT4_SOURCE_DIRECTORY_LIST})
         include_directories(${_g4directory})
     endforeach(_g4directory)
 endif(BUILD_GEANT4_SIM)
