@@ -43,6 +43,8 @@ class LKParameter : public TNamed
         int     GetN()          const { return fNumValues; }
         int     GetType()       const { return fType; }
 
+        TString GetFirstName() const;
+
         TString GetGroup(int ith) const;
         TString GetLine(TString option="c") const;
 

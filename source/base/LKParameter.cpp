@@ -624,6 +624,16 @@ bool LKParameter::CheckFormulaValidity(TString formula, bool isInt) const
     return std::regex_match(formula.Data(), formulaRegex);
 }
 
+TString LKParameter::GetFirstName() const
+{
+    TString firstName = fName;
+    int iSlash = fName.First('/');
+    if (iSlash>=0) {
+        firstName = fName(iSlash+1,fName.Sizeof()-iSlash-2);
+    }
+    return firstName;
+}
+
 TString LKParameter::GetGroup(int ith) const
 {
     TString name = fName.Data();

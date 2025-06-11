@@ -1107,9 +1107,9 @@ LKParameterContainer* LKParameterContainer::CreateGroupContainer(TString nameGro
     {
         if (parameter) {
             if (nameGroup==parameter->GetGroup()) {
-                TString mainName = parameter -> GetMainName();
+                TString firstName = parameter -> GetFirstName();
                 TString value = parameter -> GetValue();
-                groupContainer -> AddPar(mainName,value);
+                groupContainer -> AddPar(firstName,value);
                 //groupContainer -> Add(parameter);
             }
         }
@@ -1153,8 +1153,8 @@ LKParameterContainer* LKParameterContainer::CreateMultiParContainer(TString give
         if (parameter) {
             auto parName = parameter -> GetName();
             if (parameter -> IsConditional()) {
-                auto mainName = parameter -> GetMainName();
-                if (mainName==justName) {
+                auto firstName = parameter -> GetFirstName();
+                if (firstName==justName) {
                     multiParContainer -> Add(parameter);
                 }
             }
@@ -1180,12 +1180,12 @@ LKParameterContainer* LKParameterContainer::CreateAnyContainer(TString any)
     {
         if (parameter)
             if (TString(parameter->GetName()).Index(any)>=0) {
-                TString mainName = parameter -> GetMainName();
-                mainName.ReplaceAll(any+"/","");
-                mainName.ReplaceAll(any,"");
-                if (mainName.IsNull()) mainName = Form("c%d",anyContainer->GetEntries());
+                TString firstName = parameter -> GetFirstName();
+                firstName.ReplaceAll(any+"/","");
+                firstName.ReplaceAll(any,"");
+                if (firstName.IsNull()) firstName = Form("c%d",anyContainer->GetEntries());
                 TString value = parameter -> GetValue();
-                anyContainer -> AddPar(mainName,value);
+                anyContainer -> AddPar(firstName,value);
             }
     }
 
@@ -1280,7 +1280,7 @@ LKParameter *LKParameterContainer::FindParFree(TString givenName, bool terminate
             if (parameter -> IsLegacy())
                 continue;
             if (parameter -> IsConditional()) {
-                auto mainName = parameter -> GetMainName();
+                auto mainName = parameter -> GetFirstName();
                 if (mainName==justName) {
                     parameterIsFound = true;
                     parameterFound = parameter;
@@ -1345,11 +1345,12 @@ LKParameter *LKParameterContainer::FindPar(TString givenName, bool terminateIfNu
     {
         if (parameter) {
             auto parName = parameter -> GetName();
+            if (TString(parName).Index("RunIDRange")>0)
             if (parameter -> IsLegacy())
                 continue;
             if (parameter -> IsConditional()) {
-                auto mainName = parameter -> GetMainName();
-                if (mainName==justName) {
+                auto firstName = parameter -> GetFirstName();
+                if (firstName==justName) {
                     parameterIsFound = true;
                     parameterFound = parameter;
                     //break;
