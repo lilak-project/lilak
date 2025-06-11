@@ -37,6 +37,17 @@ void LKDrawing::AddDrawing(LKDrawing *drawing)
     }
 }
 
+void LKDrawing::SetDraw(bool draw)
+{
+    if (draw) {
+        if (fGlobalOption.Index("0:")==0)
+            fGlobalOption = fGlobalOption(2,fGlobalOption.Sizeof()-3);
+    }
+    else {
+        if (fGlobalOption.Index("0:")!=0)
+            fGlobalOption = TString("0:")+fGlobalOption;
+    }
+}
 void LKDrawing::SetOn(int iObj, bool on)
 {
     if (iObj>GetEntries()) {
@@ -359,6 +370,13 @@ void LKDrawing::MakeLegend(bool remake)
 
 void LKDrawing::Draw(Option_t *option)
 {
+    bool debug_draw = (CheckOption("debug_draw"));
+    if (fGlobalOption.Index("0:")==0) {
+        if (debug_draw)
+            lk_debug << "Skipping because of SetDraw(false) option" << endl;
+        return;
+    }
+
     TString ops(option);
     ops.ToLower();
     if (ops.Index("v")>=0) {
@@ -392,7 +410,6 @@ void LKDrawing::Draw(Option_t *option)
     //fRM -> Stop(2);
 
     //fRM -> Start(3);
-    bool debug_draw = (CheckOption("debug_draw"));
 
     if (debug_draw)
         lk_debug << "Draw option: " << option << endl;

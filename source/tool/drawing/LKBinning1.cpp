@@ -120,7 +120,9 @@ double LKBinning1::Lerp(double r)          const { return fX1 + r*(fX2-fX1); }
 
 TString LKBinning1::Print(bool show) const {
     TString line;
-    line = line + "("+fNX+", "+fX1+", "+fX2+")["+fIterationIndex+"]";
+    line = line + "("+fNX+", "+fX1+", "+fX2+")";
+    if (fIterationIndex>=0)
+        line = line + "["+fIterationIndex+"]";
     if (show)
         cout << line << endl;
     return line;

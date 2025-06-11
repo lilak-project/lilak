@@ -362,8 +362,9 @@ void LKDrawingGroup::Print(Option_t *opt) const
 bool LKDrawingGroup::ConfigureCanvas()
 {
     auto numDrawings = GetEntries();
+    int numDrawingsChange = numDrawings - fDivX*fDivY;
 
-    if (fDivX==0 || fDivY==0)
+    if ((fDivX==0 || fDivY==0) || numDrawingsChange>0)
     {
         if (CheckOption("wide_canvas"))
         {
@@ -408,6 +409,10 @@ bool LKDrawingGroup::ConfigureCanvas()
             else if (numDrawings<=48) { fDivY =  8; fDivX =  6; }
             else if (numDrawings<=63) { fDivY =  9; fDivX =  7; }
             else if (numDrawings<=80) { fDivY = 10; fDivX =  8; }
+            else if (numDrawings<=90) { fDivY = 10; fDivX =  9; }
+            else if (numDrawings<=100){ fDivY = 10; fDivX = 10; }
+            else if (numDrawings<=110){ fDivY = 12; fDivX = 10; }
+            else if (numDrawings<=120){ fDivY = 12; fDivX = 10; }
             else {
                 lk_error << "Too many drawings!!! " << numDrawings << endl;
                 return false;
@@ -435,6 +440,10 @@ bool LKDrawingGroup::ConfigureCanvas()
             else if (numDrawings<=48) { fDivX =  8; fDivY =  6; }
             else if (numDrawings<=63) { fDivX =  9; fDivY =  7; }
             else if (numDrawings<=80) { fDivX = 10; fDivY =  8; }
+            else if (numDrawings<=90) { fDivX = 10; fDivY =  9; }
+            else if (numDrawings<=100){ fDivX = 10; fDivY = 10; }
+            else if (numDrawings<=110){ fDivX = 12; fDivY = 10; }
+            else if (numDrawings<=120){ fDivX = 12; fDivY = 10; }
             else {
                 lk_error << "Too many drawings!!! " << numDrawings << endl;
                 return false;
@@ -462,7 +471,7 @@ bool LKDrawingGroup::ConfigureCanvas()
             fCvs = new TCanvas(Form("c%s",fName.Data()),Form("c%s",fName.Data()), fDXCvs, fDYCvs);
     }
 
-    if (fPadArray!=nullptr)
+    if (fPadArray!=nullptr && numDrawingsChange<=0)
     {
         auto numPads = fPadArray -> GetEntries();
         for (auto iPad=0; iPad<numPads; ++iPad) {
@@ -478,13 +487,22 @@ bool LKDrawingGroup::ConfigureCanvas()
 
     TObject *obj;
     int nPads = 0;
-    TIter next(fCvs -> GetListOfPrimitives());
+    TIter next(fCvs->GetListOfPrimitives());
     while ((obj=next())) {
         if (obj->InheritsFrom(TVirtualPad::Class()))
             nPads++;
     }
-    if (nPads<numDrawings) {
-        //fCvs -> Divide(fDivX, fDivY, 0.001, 0.001);
+    if (nPads>numDrawings) {
+        next.Reset();
+        while ((obj=next())) {
+            obj -> Clear();
+        }
+    }
+    else if (nPads<numDrawings) {
+        next.Reset();
+        while ((obj=next())) {
+            delete obj;
+        }
         DividePad(fCvs,fDivX, fDivY, 0.001, 0.001);
     }
 
@@ -1250,6 +1268,27 @@ void LKDrawingGroup::SetStyle(TString drawStyle)
         {
             auto drawing = (LKDrawing*) At(iDrawing);
             drawing -> SetStyle(drawStyle);
+        }
+    }
+}
+
+void LKDrawingGroup::SetDraw(bool draw)
+{
+    if (CheckIsGroupGroup())
+    {
+        auto numSub = GetEntries();
+        for (auto iSub=0; iSub<numSub; ++iSub) {
+            auto sub = (LKDrawingGroup*) At(iSub);
+            sub -> SetDraw(draw);
+        }
+    }
+    else
+    {
+        auto numDrawings = GetEntries();
+        for (auto iDrawing=0; iDrawing<numDrawings; ++iDrawing)
+        {
+            auto drawing = (LKDrawing*) At(iDrawing);
+            drawing -> SetDraw(draw);
         }
     }
 }

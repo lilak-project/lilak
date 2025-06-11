@@ -135,6 +135,8 @@ class LKDrawingGroup : public TObjArray
 
         void SetStyle(TString drawStyle);
 
+        void SetDraw(bool draw);
+
         ////////////////////////////////////////////////////////////////////////////////////
         TString GetGlobalOption() const { return fGlobalOption; }
         void SetGlobalOption(TString option) { fGlobalOption = option; }

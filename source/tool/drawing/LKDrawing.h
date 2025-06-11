@@ -70,6 +70,7 @@ class LKDrawing : public TObjArray
         void DetachCanvas() { fCvs = nullptr; }
 
         ////////////////////////////////////////////////////////////////////////////////////
+        void SetDraw(bool draw);
         void SetOn(int iObj, bool on);
         bool GetOn(int iObj);
 
