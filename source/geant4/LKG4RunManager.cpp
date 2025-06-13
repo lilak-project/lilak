@@ -231,6 +231,11 @@ void LKG4RunManager::SetSuppressInitMessage(bool val) { fSuppressInitMessage = v
 
 bool LKG4RunManager::SetGeneratorFile(TString value)
 {
+    if(fPar -> CheckPar("LKG4Manager/NPToolMode")){
+        if(fPar->GetParBool("LKG4Manager/NPToolMode"))
+            return true;
+    }
+
     auto pga = (LKPrimaryGeneratorAction *) userPrimaryGeneratorAction;
     //fPar -> ReplaceEnvironmentVariable(value);
     if (!pga -> SetEventGenerator(value.Data()))
