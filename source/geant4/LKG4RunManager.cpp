@@ -66,11 +66,19 @@ void LKG4RunManager::Initialize()
     G4RunManager::Initialize();
 
     SetOutputFile(fPar->GetParString("LKG4Manager/G4OutputFile").Data());
-    fInitEventGenerator = SetGeneratorFile(fPar->GetParString("LKG4Manager/G4InputFile").Data());
-    if (!fInitEventGenerator) {
-        fInitialized = false;
-        g4man_error << "Event generator cannot be initialized!" << endl;
-        return;
+
+    bool nptoolMode = false;
+    if(fPar -> CheckPar("LKG4Manager/NPToolMode")){
+        if(fPar->GetParBool("LKG4Manager/NPToolMode"))
+            nptoolMode = true;
+    }
+    if(!nptoolMode){
+        fInitEventGenerator = SetGeneratorFile(fPar->GetParString("LKG4Manager/G4InputFile").Data());
+        if (!fInitEventGenerator) {
+            fInitialized = false;
+            g4man_error << "Event generator cannot be initialized!" << endl;
+            return;
+        }
     }
 
     auto procNames = G4ProcessTable::GetProcessTable() -> GetNameList();
@@ -231,11 +239,6 @@ void LKG4RunManager::SetSuppressInitMessage(bool val) { fSuppressInitMessage = v
 
 bool LKG4RunManager::SetGeneratorFile(TString value)
 {
-    if(fPar -> CheckPar("LKG4Manager/NPToolMode")){
-        if(fPar->GetParBool("LKG4Manager/NPToolMode"))
-            return true;
-    }
-
     auto pga = (LKPrimaryGeneratorAction *) userPrimaryGeneratorAction;
     //fPar -> ReplaceEnvironmentVariable(value);
     if (!pga -> SetEventGenerator(value.Data()))
