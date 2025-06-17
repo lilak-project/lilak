@@ -16,6 +16,7 @@ set(LILAK_PROJECT_LIST      CACHE INTERNAL "") # List of LILAK projects to build
 set(LILAK_PROJECT_MAIN      CACHE INTERNAL "")
 set(GRUDIR               "" CACHE INTERNAL "")
 set(GETDIR               "" CACHE INTERNAL "")
+set(BUILD_NPTOOL        OFF CACHE INTERNAL "") # NPTool simulation
 
 #---Configuration
 include(log/build_options.cmake)
@@ -76,12 +77,12 @@ if(BUILD_JSONCPP)
 endif(BUILD_JSONCPP)
 
 #---Add geant4 source directories. Directory should be under "/path/to/LILAK/".
-set(LILAK_GEANT4_SOURCE_DIRECDTORY_LIST
+set(LILAK_GEANT4_SOURCE_DIRECTORY_LIST
     ${LILAK_PATH}/source/geant4
     CACHE INTERNAL ""
 )
 
-set(LILAK_MFM_SOURCE_DIRECDTORY_LIST
+set(LILAK_MFM_SOURCE_DIRECTORY_LIST
     ${LILAK_PATH}/source/mfm
     CACHE INTERNAL ""
 )
@@ -95,7 +96,7 @@ foreach(lilak_project ${LILAK_PROJECT_LIST})
 endforeach(lilak_project)
 
 if(BUILD_MFM_CONVERTER)
-    foreach(_directory ${LILAK_MFM_SOURCE_DIRECDTORY_LIST})
+    foreach(_directory ${LILAK_MFM_SOURCE_DIRECTORY_LIST})
         list(APPEND LILAK_SOURCE_DIRECTORY_LIST ${_directory})
     endforeach(_directory)
 endif(BUILD_MFM_CONVERTER)
@@ -182,7 +183,7 @@ foreach(_directory ${LILAK_SOURCE_DIRECTORY_LIST})
 endforeach(_directory)
 
 if(BUILD_GEANT4_SIM)
-    foreach(_directory ${LILAK_GEANT4_SOURCE_DIRECDTORY_LIST})
+    foreach(_directory ${LILAK_GEANT4_SOURCE_DIRECTORY_LIST})
         message(STATUS "geant4    directory : " ${_directory})
         file(GLOB LILAK_GEANT4_SOURCE_FILES ${_directory}/*.cpp)
         file(GLOB LILAK_GEANT4_HEADER_FILES ${_directory}/*.h)
@@ -196,7 +197,7 @@ if(BUILD_GEANT4_SIM)
 endif(BUILD_GEANT4_SIM)
 
 if(BUILD_GEANT4_SIM)
-    foreach(_g4directory ${LILAK_GEANT4_SOURCE_DIRECDTORY_LIST})
+    foreach(_g4directory ${LILAK_GEANT4_SOURCE_DIRECTORY_LIST})
         include_directories(${_g4directory})
     endforeach(_g4directory)
 endif(BUILD_GEANT4_SIM)
@@ -259,6 +260,37 @@ else(BUILD_MFM_CONVERTER)
     target_link_libraries(LILAK ${ROOT_LIBRARIES})
 endif(BUILD_MFM_CONVERTER)
 
+if(BUILD_NPTOOL)
+    find_package(NPLib)
+    include(${NPLib_USE_FILE})
+    string(REPLACE /NPLib/include /NPSimulation NPTOOLSIM_PATH ${NPLib_INCLUDE_DIRS})
+
+    message(STATUS "NPTool include directory: ${NPLib_INCLUDE_DIRS}")
+
+    set(NPTOOL_SIMULATION_SOURCE_DIRECTORY_LIST
+        ${NPTOOLSIM_PATH}/Core
+        ${NPTOOLSIM_PATH}/Process
+        ${NPTOOLSIM_PATH}/EventGenerator
+        CACHE INTERNAL ""
+    )
+
+    foreach(_directory ${NPTOOL_SIMULATION_SOURCE_DIRECTORY_LIST})
+        message(STATUS "NPSimulation directory : " ${_directory})
+        include_directories(${_directory})
+        file(GLOB LILAK_NPTOOL_SOURCE_FILES ${_directory}/*.cc)
+        file(GLOB LILAK_NPTOOL_HEADER_FILES ${_directory}/*.hh)
+        foreach(_file ${LILAK_NPTOOL_SOURCE_FILES})
+            list(APPEND NPSIM_LIB_LIST ${_file})
+        endforeach(_file)
+        foreach(_file ${LILAK_NPTOOL_HEADER_FILES})
+            list(APPEND NPSIM_LIB_LIST ${_file})
+        endforeach(_file)
+    endforeach(_directory)
+    
+    add_library(NPTOOLSIM SHARED ${NPSIM_LIB_LIST})
+    target_link_libraries(NPTOOLSIM ${Geant4_LIBRARIES} ${NPLib_LIBRARIES} "-lNPTrackInfo -lNPInitialConditions -lNPInteractionCoordinates -lNPReactionConditions -lNPFissionConditions")
+endif(BUILD_NPTOOL)
+
 foreach(_executable ${LILAK_EXECUTABLE_LIST})
     get_filename_component(_executable_name ${_executable} NAME)
     get_filename_component(_executable_directory ${_executable} DIRECTORY)
@@ -274,9 +306,17 @@ foreach(_executable ${LILAK_EXECUTABLE_LIST})
     execute_process(COMMAND root-config --libs OUTPUT_VARIABLE ROOT_LD_FLAGS OUTPUT_STRIP_TRAILING_WHITESPACE)
     set(CMAKE_EXE_LINKER_FLAGS ${ROOT_LD_FLAGS})
     if(BUILD_MFM_CONVERTER)
-        target_link_libraries(${_executable_name} ${Geant4_LIBRARIES} LILAK)
+        if(BUILD_NPTOOL)
+            target_link_libraries(${_executable_name} ${Geant4_LIBRARIES} LILAK NPTOOLSIM)
+        else(BUILD_NPTOOL)
+            target_link_libraries(${_executable_name} ${Geant4_LIBRARIES} LILAK)
+        endif(BUILD_NPTOOL)
     else(BUILD_MFM_CONVERTER)
-        target_link_libraries(${_executable_name} ${Geant4_LIBRARIES} LILAK)
+        if(BUILD_NPTOOL)
+            target_link_libraries(${_executable_name} ${Geant4_LIBRARIES} LILAK NPTOOLSIM)
+        else(BUILD_NPTOOL)
+            target_link_libraries(${_executable_name} ${Geant4_LIBRARIES} LILAK)
+        endif(BUILD_NPTOOL)
     endif(BUILD_MFM_CONVERTER)
 endforeach(_executable)
 
