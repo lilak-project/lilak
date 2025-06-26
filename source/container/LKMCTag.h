@@ -3,12 +3,12 @@
 
 #include <vector>
 
-#include "LKContainer.h"
+#include "LKChannel.h"
 
-class LKMCTag : public LKContainer
+class LKMCTag : public LKChannel
 {
     protected:
-        std::vector<Int_t> fIndex;  // Index in LKChannel
+        std::vector<Int_t> fIndex;  // Index in channel
         std::vector<Int_t> fMCID;   // Truth track ID
         std::vector<Double_t> fWeight; // Truth track weight within same index
 
