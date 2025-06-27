@@ -27,16 +27,26 @@ void LKMCTag::Copy(TObject &obj) const
 
 void LKMCTag::AddMCTag(Int_t mcId, Int_t index)
 {
-    fIndex.push_back(index);
-    fMCID.push_back(mcId);
-    fWeight.push_back(1.);
+    AddMCWeightTag(mcId, 1., index);
 }
 
 void LKMCTag::AddMCWeightTag(Int_t mcId, Double_t weight, Int_t index)
 {
-    fIndex.push_back(index);
-    fMCID.push_back(mcId);
-    fWeight.push_back(fabs(weight));
+    bool isExist = false;
+    for (auto i=0; i<fIndex.size(); i++)
+    {
+        if (fIndex[i] == index && fMCID[i] == mcId) {
+            fWeight[i] = fWeight[i] + fabs(weight);
+            isExist = true;
+            break;
+        }
+    }
+
+    if(!isExist){
+        fIndex.push_back(index);
+        fMCID.push_back(mcId);
+        fWeight.push_back(fabs(weight));
+    }
 }
 
 Int_t LKMCTag::GetMCNum(int index)
@@ -53,9 +63,9 @@ Int_t LKMCTag::GetMCID(int mcIdx, int index)
     if (mcIdx >= GetMCNum(index)) return -999;
 
     int tmpIdx = 0;
-    for(auto i=0; i<fIndex.size(); i++)
+    for (auto i=0; i<fIndex.size(); i++)
     {
-        if(fIndex[i] == index) {
+        if (fIndex[i] == index) {
             if (tmpIdx == mcIdx) return fMCID[i];
             tmpIdx++;
         }
