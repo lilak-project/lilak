@@ -4,6 +4,7 @@ ClassImp(LKMCTag)
 
 LKMCTag::LKMCTag()
 {
+    Clear();
 }
 
 LKMCTag::~LKMCTag()
