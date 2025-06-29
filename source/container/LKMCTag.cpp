@@ -1,5 +1,7 @@
 #include "LKMCTag.h"
 
+ClassImp(LKMCTag)
+
 LKMCTag::LKMCTag()
 {
 }
@@ -42,7 +44,7 @@ void LKMCTag::AddMCWeightTag(Int_t mcId, Double_t weight, Int_t index)
         }
     }
 
-    if(!isExist){
+    if (!isExist) {
         fIndex.push_back(index);
         fMCID.push_back(mcId);
         fWeight.push_back(fabs(weight));
@@ -76,7 +78,7 @@ Int_t LKMCTag::GetMCID(int mcIdx, int index)
 
 Double_t LKMCTag::GetMCPurity(int mcIdx, int index)
 {
-    if(mcIdx >= GetMCNum(index)) return -999.;
+    if (mcIdx >= GetMCNum(index)) return -999.;
 
     double mcIdxWeight = 0.;
     double weightSum = 0.;
