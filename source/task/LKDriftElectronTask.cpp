@@ -102,13 +102,14 @@ void LKDriftElectronTask::Exec(Option_t *option)
         for (int e=0; e<clusterNum; e++)
         {   
             int tb = 0;
-            int w = 0.;
+            int w = 1.;
 
-            DriftElectron(fStepPos, fStep->GetTime(), fDriftPos, tb); // detector plane axis coordinate
-            AvalancheElectron(fDriftPos, w);
+            bool isDrift = DriftElectron(fStepPos, fStep->GetTime(), fDriftPos, tb); // detector plane axis coordinate
+            if (!isDrift) continue;
+            
+            w = w * GetAvalancheElectron();
 
             int chanID = fDetectorPlane -> FindChannelID(fDriftPos.X(), fDriftPos.Y());
-            chanID = 1;
             fChannel = (GETChannel*)fDetectorPlane -> GetChannel(chanID);
             fChannel->GetBufferArray()[tb] = w;
 
@@ -179,7 +180,7 @@ bool LKDriftElectronTask::DriftElectron(TVector3 startPos, Double_t startT, TVec
     return true;
 }
 
-bool LKDriftElectronTask::AvalancheElectron(TVector3& driftPos, int& weight)
+double LKDriftElectronTask::GetAvalancheElectron()
 {
     weight = fAvalancheFunction -> GetRandom();
     return true;

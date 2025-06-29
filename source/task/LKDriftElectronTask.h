@@ -39,7 +39,7 @@ class LKDriftElectronTask : public LKTask
     private:
         bool InitAvalancheFunction();
         bool DriftElectron(TVector3 startPos, Double_t startT, TVector3& endPos, Int_t& tb);
-        bool AvalancheElectron(TVector3& driftPos, int& weight);
+        double GetAvalancheElectron();
 
         Double_t PolyaDistribution(Double_t* x, Double_t* par); // Gain fluctuation (Polya distribution)
 
