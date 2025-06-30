@@ -111,7 +111,7 @@ void LKDriftElectronTask::Exec(Option_t *option)
 
             int chanID = fDetectorPlane -> FindChannelID(fDriftPos.X(), fDriftPos.Y());
             fChannel = (GETChannel*)fDetectorPlane -> GetChannel(chanID);
-            fChannel->GetBufferArray()[tb] = w;
+            fChannel->GetBufferArray()[tb] += w;
 
             // fMCTag = (LKMCTag*)fDetectorPlane -> GetMCTag(padID); // LKDetectorPlane has not GetMCTag yet!
             // fMCTag -> AddMCTag(fStep->GetTrackID(), tb);
@@ -121,9 +121,13 @@ void LKDriftElectronTask::Exec(Option_t *option)
     TIter itChannel(fDetectorPlane -> GetChannelArray());
     int idx = 0;
     while ((fChannel = (GETChannel*)itChannel.Next())) {    
-        // fMCTag = (LKMCTag*)fDetectorPlane -> GetMCTag(idx); // LKDetectorPlane has not GetMCTag yet!
         fChannel -> Copy(*(GETChannel*)fChannelArray -> ConstructedAt(idx));
+        fChannel -> Clear();
+
+        // fMCTag = (LKMCTag*)fDetectorPlane -> GetMCTag(idx); // LKDetectorPlane has not GetMCTag yet!
         // fMCTag -> Copy(*(LKMCTag*)fMCTagArray -> ConstructedAt(idx)); // LKDetectorPlane has not GetMCTag yet!
+        // fMCTag -> Clear();
+
         idx++;
     }
 }
