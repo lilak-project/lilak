@@ -35,6 +35,8 @@ log/*
 common/
 doc/
 LKClassFactory*
+LKG4DetectorConstructionFactory*
+LKNPDetectorConstructionFactory*
 
 #test
 test*/
