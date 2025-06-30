@@ -302,7 +302,6 @@ Int_t LKParameterContainer::AddFile(TString parName, TString fileName)
 
     std::vector<TString> paths = {gSystem->Getenv("PWD"),TString(LILAK_PATH)+"/common",TString(LILAK_PATH)+"/common/draw_style"};
     std::vector<TString> formatStrings = {"mac","conf","par"};
-    //auto SearchFile = [](TString fileName, std::vector<TString> paths, std::vector<TString> formatStrings)
     auto SearchFile = [paths,formatStrings](TString fileName)
     {
         bool existFile = false;
@@ -356,18 +355,6 @@ Int_t LKParameterContainer::AddFile(TString parName, TString fileName)
         fileNameFull = SearchFile(fileName);//,paths,formatStrings);
         if (fileNameFull.IsNull()) existFile = false;
         else existFile = true;
-
-        //fileNameFull = TString(gSystem -> Getenv("PWD")) + "/" + fileName;
-        //if (!TString(gSystem -> Which(".", fileNameFull.Data())).IsNull()) {
-        //    existFile = true;
-        //}
-        //else
-        //{
-        //    fileNameFull = TString(LILAK_PATH) + "/common/" + fileName;
-        //    if (!TString(gSystem -> Which(".", fileNameFull.Data())).IsNull()) {
-        //        existFile = true;
-        //    }
-        //}
     }
 
     if (!existFile) {
@@ -383,12 +370,7 @@ Int_t LKParameterContainer::AddFile(TString parName, TString fileName)
         parName = Form("input_par_%d", fNumInputFiles);
 
     fNumInputFiles++;
-    //LKParameter *parFile;
-    //if (addFilePar)
-    //    parFile = SetParFile(fileNameFull);
-    //else {
-        SetLineComment(parName + " " + fileNameFull);
-    //}
+    SetLineComment(parName + " " + fileNameFull);
 
     ifstream file(fileNameFull);
 
@@ -412,12 +394,9 @@ Int_t LKParameterContainer::AddFile(TString parName, TString fileName)
         }
 
         if (countParameters == 0) {
-            //if (addFilePar)
-            //    this -> Remove(parFile);
             fNumInputFiles--;
         }
 
-        //parName.Replace(0,11,"<<");
         SetLineComment(Form("%s %d parameters were added",parName.Data(),countParameters));
     }
 
@@ -446,12 +425,24 @@ Int_t LKParameterContainer::AddParameterContainer(LKParameterContainer *parc, bo
             continue;
         }
         TString name = parameter -> GetName();
-        LKParameter *found = FindPar(name);
-        if (found != nullptr) {
-            lk_warning << "Parameter " << name << " already exist!" << endl;
-            continue;
+        TString value = parameter -> GetValue();
+        //
+        LKParameter *parameterPrev = FindParFree(name);
+        if (parameterPrev != nullptr) {
+            if (fThisIsNewCollection)
+                continue;
+            parameterPrev -> SetIsLegacy();
+            parameterPrev -> SetIsMultiple();
+            lk_warning << "Parameter " << name << " already exist! Overwritting ... to " << name << " " << value << endl;
         }
-        else {
+        //
+        //LKParameter *found = FindPar(name);
+        //if (found != nullptr) {
+        //    lk_warning << "Parameter " << name << " already exist!" << endl;
+        //    continue;
+        //}
+        //else
+        {
             if (addEvalOnly) SetPar(parameter->GetName(),parameter->GetValue(),parameter->GetValue(),parameter->GetComment(),parameter->GetType());
             else             SetPar(parameter->GetName(),parameter->GetRaw(),  parameter->GetValue(),parameter->GetComment(),parameter->GetType());
             ++countParameters;
@@ -514,6 +505,7 @@ bool LKParameterContainer::SearchAndAddPar(TString dirName)
         int countDir = 0;
         int countFile = 0;
 
+        listFiles -> Sort();
         TIter next2(listFiles);
         e_info << "* Select index from the below list: " << endl;
         e_info << "  " << "0) Exit" << endl;
@@ -634,28 +626,19 @@ void LKParameterContainer::Print(Option_t *option) const
 {
     TString printOptions(option);
 
-    if (printOptions.Index("raw")>=0) {
+    if (printOptions.Index("t")>=0) {
         TObjArray::Print();
         return;
     }
 
-    bool showLineIndex = true;
-    bool showLineComment = true;
+    bool showLineIndex = false;
+    bool showLineComment = false;
     bool printToScreen = true;
     bool printToFile = false;
     ofstream fileOut;
 
-    if (printOptions.Index("all")>=0) {
-        showLineIndex = true;
-        showLineComment = true;
-        printToScreen = true;
-    }
-    else {
-        if (printOptions.Index("!line#")>=0) { showLineComment = false; printOptions.ReplaceAll("!line#", ""); }
-        if (printOptions.Index( "line#")>=0) { showLineComment = true;  printOptions.ReplaceAll(" line#", ""); }
-        if (printOptions.Index("!idx")>=0) { showLineIndex = false; printOptions.ReplaceAll("!idx", ""); }
-        if (printOptions.Index( "idx")>=0) { showLineIndex = true;  printOptions.ReplaceAll("idx", ""); }
-    }
+    if (printOptions.Index("l")>=0) { showLineComment = true;  printOptions.ReplaceAll("l", ""); }
+    if (printOptions.Index("i")>=0) { showLineIndex = true;  printOptions.ReplaceAll("i", ""); }
 
     TString fileName = printOptions;
     if (fileName.IsNull()) {
@@ -702,8 +685,9 @@ void LKParameterContainer::Print(Option_t *option) const
             if (printToScreen) e_cout << endl;
             if (printToFile)   fileOut << endl;
         }
-        if (preGroup!=parGroup && printToFile)
+        if (preGroup!=parGroup && printToFile) {
             fileOut << endl;
+        }
 
         if (isLineComment && showLineComment)
         {
@@ -742,7 +726,7 @@ LKParameterContainer *LKParameterContainer::CloneParameterContainer(TString name
     while ((parameter = dynamic_cast<LKParameter*>(iterator())))
     {
         if (!addTemporary && parameter->IsTemporary()) {
-            new_collection -> SetLineComment(Form("t %s",parameter->GetLine().Data()));
+            new_collection -> SetLineComment(Form("*%s",parameter->GetLine().Data()));
         }
         else if (parameter->IsLineComment()) {
             auto comment = parameter->GetComment();
@@ -759,10 +743,6 @@ LKParameterContainer *LKParameterContainer::CloneParameterContainer(TString name
 
 Int_t LKParameterContainer::AddLine(std::string ssline)
 {
-#ifdef DEBUG_ADDPAR
-    e_cout << endl;
-    lk_info << ssline << endl;
-#endif
     if (ssline.find_first_not_of(" \t\n\v\f\r") == std::string::npos)
         return 0;
 
@@ -793,13 +773,7 @@ Int_t LKParameterContainer::AddLine(std::string ssline)
         }
         else break;
     }
-#ifdef DEBUG_ADDPAR
-    lk_debug << "currentTabSize = " << currentTabSize << endl;
-#endif
     if (currentTabSize==0) {
-#ifdef DEBUG_ADDPAR
-    lk_debug << "currentTabSize==0" << endl;
-#endif
         fPreviousTabSize = 0;
         fCurrentGroupName = "";
         fTabSizeArray.clear();
@@ -807,10 +781,6 @@ Int_t LKParameterContainer::AddLine(std::string ssline)
     }
     else if (currentTabSize>0 && currentTabSize==fPreviousTabSize)
     {
-#ifdef DEBUG_ADDPAR
-        lk_debug << "currentTabSize>0 && currentTabSize==fPreviousTabSize" << endl;
-        lk_debug << fGroupNameArray.size() << " " << fTabSizeArray.size() << endl;
-#endif
         if (fGroupNameArray.size()>0) fCurrentGroupName = fGroupNameArray.back();
         // this is a case when privous defined group name was just parameter without value
         if (fGroupNameArray.size()==fTabSizeArray.size()+1) {
@@ -820,26 +790,12 @@ Int_t LKParameterContainer::AddLine(std::string ssline)
         }
     }
     else if (currentTabSize>0 && currentTabSize<fPreviousTabSize) {
-#ifdef DEBUG_ADDPAR
-    lk_debug << "currentTabSize>0 && currentTabSize<fPreviousTabSize" << endl;
-    lk_debug << fGroupNameArray.size() << " " << fTabSizeArray.size() << endl;
-#endif
         while (true) {
             fPreviousTabSize = 0;
             fCurrentGroupName = "";
             if (fTabSizeArray.size()>0) {
-#ifdef DEBUG_ADDPAR
-                lk_debug << "fTabSizeArray size   = " << fTabSizeArray.size() << endl;
-                lk_debug << "fGroupNameArray size = " << fGroupNameArray.size() << endl;
-                lk_debug << "fPreviousTabSize     = " << fPreviousTabSize << endl;
-                lk_debug << "fCurrentGroupName    = " << fCurrentGroupName  << endl;
-#endif
                 int tabSize = fTabSizeArray.back();
                 TString groupName = fGroupNameArray.back();
-#ifdef DEBUG_ADDPAR
-                lk_debug << "tabSize   = " << tabSize << endl;
-                lk_debug << "groupName = " << groupName  << endl;
-#endif
                 fGroupNameArray.pop_back();
                 fTabSizeArray.pop_back();
                 if (tabSize==currentTabSize) {
@@ -853,14 +809,7 @@ Int_t LKParameterContainer::AddLine(std::string ssline)
         }
     }
     else if (currentTabSize>0 && currentTabSize>fPreviousTabSize) {
-#ifdef DEBUG_ADDPAR
-    lk_debug << "currentTabSize>0 && currentTabSize>fPreviousTabSize" << endl;
-    lk_debug << fGroupNameArray.size() << " " << fTabSizeArray.size() << endl;
-#endif
         if (fGroupNameArray.size()==fTabSizeArray.size()+1) {
-#ifdef DEBUG_ADDPAR
-            lk_debug << "first element of the current group" << endl;
-#endif
             // This is the first element of current group
             fTabSizeArray.push_back(currentTabSize);
             fPreviousTabSize = currentTabSize;
@@ -878,11 +827,6 @@ Int_t LKParameterContainer::AddLine(std::string ssline)
         gApplication -> Terminate();
     }
     sizeOfHead += currentTabSize;
-#ifdef DEBUG_ADDPAR
-    lk_debug << "sizeOfHead = " << sizeOfHead << endl;
-    lk_debug << "fPreviousTabSize  = " << fPreviousTabSize  << endl;
-    lk_debug << "fCurrentGroupName = " << fCurrentGroupName << endl;
-#endif
 
     // name -------------------------------------------
     istringstream ss(ssline);
@@ -894,21 +838,23 @@ Int_t LKParameterContainer::AddLine(std::string ssline)
     // check if this is group definition -------------------------------------------
     TString parValues;
     ss >> parValues;
-#ifdef DEBUG_ADDPAR
-    lk_debug << "parValues = " << parValues << endl;
-#endif
     if (parValues[0]=='#' || parValues.IsNull()) { // group definition
+        parValues = "";
         TString groupName = parName;
-        if (groupName.EndsWith("/")==false)
-            groupName = groupName + "/";
-        if (fGroupNameArray.size()==fTabSizeArray.size()+1)
-            fTabSizeArray.push_back(currentTabSize);
-        fGroupNameArray.push_back(groupName);
-#ifdef DEBUG_ADDPAR
-        lk_debug << "groupName = " << groupName << endl;
-#endif
-        if (parName.EndsWith("/"))
+        if (groupName.EndsWith("/")) {
+            if (fGroupNameArray.size()==fTabSizeArray.size()+1)
+                fTabSizeArray.push_back(currentTabSize);
+            fGroupNameArray.push_back(groupName);
             return 2;
+        }
+        //TString groupName = parName;
+        //if (groupName.EndsWith("/")==false)
+        //    groupName = groupName + "/";
+        //if (fGroupNameArray.size()==fTabSizeArray.size()+1)
+        //    fTabSizeArray.push_back(currentTabSize);
+        //fGroupNameArray.push_back(groupName);
+        //if (parName.EndsWith("/"))
+        //    return 2;
     }
 
     // value -------------------------------------------
@@ -920,7 +866,7 @@ Int_t LKParameterContainer::AddLine(std::string ssline)
     // comment -------------------------------------------
     int icomment = parValues.Index("#");
     TString parComment;
-    if (icomment>0) {
+    if (icomment>=0) {
         parComment = parValues(icomment+1,parValues.Sizeof()-1);
         while (parComment[0]==' ')
             parComment.Remove(0,1);
@@ -942,10 +888,6 @@ Int_t LKParameterContainer::AddLine(std::string ssline)
 
 Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment)
 {
-#ifdef DEBUG_ADDPAR
-    e_cout << endl;
-    lk_info << name << " " << value << " " << comment << endl;
-#endif
     LKParameter *parameterPrev = FindParFree(name);
     if (parameterPrev != nullptr) {
         if (fThisIsNewCollection)
@@ -1074,14 +1016,6 @@ bool LKParameterContainer::UpdateBinning(TString name, Int_t &n, Double_t &x1, D
         return true;
     }
     return false;
-}
-
-void LKParameterContainer::UpdateBinning(TString name, LKBinning &binning) const
-{
-    int n;
-    double x1, x2;
-    if (UpdateBinning(name, n, x1, x2))
-        binning.SetXNMM(n, x1, x2);
 }
 
 void LKParameterContainer::UpdateV3(TString name, Double_t &x, Double_t &y, Double_t &z) const
@@ -1399,7 +1333,7 @@ void LKParameterContainer::PrintCollection(TString fileName)
 {
     fCollectedParameterContainer -> Sort();
     if (fileName.IsNull() || fileName=="print")
-        fCollectedParameterContainer -> Print("!eval line# par# !idx");
+        fCollectedParameterContainer -> Print("ricl");
     else
         fCollectedParameterContainer -> SaveAs(fileName);
 }
@@ -1471,4 +1405,28 @@ LKBinning LKParameterContainer::GetBinning(TString name)
         return binn;
     }
     return LKBinning();
+}
+
+TString LKParameterContainer::ToString(Bool_t               val) const { TString valstr = Form("%d", int(val)); return valstr; }
+TString LKParameterContainer::ToString(Int_t                val) const { TString valstr = Form("%d",  val); return valstr; }
+TString LKParameterContainer::ToString(Long64_t             val) const { TString valstr = Form("%lld",val); return valstr; }
+TString LKParameterContainer::ToString(Double_t             val) const { TString valstr = LKMisc::RemoveTrailing0(val); return valstr; }
+TString LKParameterContainer::ToString(TString              val) const { TString valstr = val; return valstr; }
+TString LKParameterContainer::ToString(axis_t               val) const { TString valstr = LKVector3::AxisName(val); return valstr; }
+TString LKParameterContainer::ToString(TVector3             val) const { TString valstr = LKMisc::RemoveTrailing0(val.x()) + ", " + LKMisc::RemoveTrailing0(val.y()) + ", " + LKMisc::RemoveTrailing0(val.z());  return valstr; }
+TString LKParameterContainer::ToString(LKBinning            val) const { TString valstr = TString(Form("%d", val.n())) + ", " + LKMisc::RemoveTrailing0(val.x1()) + ", " + LKMisc::RemoveTrailing0(val.x2()); return valstr; }
+TString LKParameterContainer::ToString(std::vector<bool>    val) const { TString valstr; if (val.size()>0) { for (auto val0 : val) valstr += Form(", %d", int(val0)); valstr = valstr(2,valstr.Sizeof()-3); } return valstr; }
+TString LKParameterContainer::ToString(std::vector<int>     val) const { TString valstr; if (val.size()>0) { for (auto val0 : val) valstr += Form(", %d", val0); valstr = valstr(2,valstr.Sizeof()-3); } return valstr; }
+TString LKParameterContainer::ToString(std::vector<double>  val) const { TString valstr; if (val.size()>0) { for (auto val0 : val) valstr += ", " + LKMisc::RemoveTrailing0(val0); valstr = valstr(2,valstr.Sizeof()-3); } return valstr; }
+TString LKParameterContainer::ToString(std::vector<TString> val) const { TString valstr; if (val.size()>0) { for (auto val0 : val) valstr += Form(", \"%s\"", val0.Data()); valstr = valstr(2,valstr.Sizeof()-3); } return valstr; }
+
+TString LKParameterContainer::InsertValueInName(TString name, TString value) const {
+    name = name.Strip(TString::kBoth);
+    if (name.Index("??")>=0) // insert value in to ??
+        name.ReplaceAll("??", value);
+    else if (name.Index(" ")<0) // if there is only parameter name
+        name = name + " " + value;
+    else // ??
+        name = name + " # input value = " + value;
+    return name;
 }

@@ -23,7 +23,10 @@ class LKParameter : public TNamed
         virtual ~LKParameter();
 
         virtual void Clear(Option_t *option = "");
-        virtual void Print(Option_t *option = "") const;
+        /// r : show raw value
+        /// e : show evaluatated value
+        /// c : show parameter comment
+        virtual void Print(Option_t *option = "ec") const;
 
         virtual Bool_t IsSortable() const { return true; }
         virtual Int_t Compare(const TObject *obj) const;
@@ -46,7 +49,10 @@ class LKParameter : public TNamed
         TString GetFirstName() const;
 
         TString GetGroup(int ith) const;
-        TString GetLine(TString option="c") const;
+        /// r : show raw value
+        /// e : show evaluatated value
+        /// c : show parameter comment
+        TString GetLine(TString option="ec") const;
 
         bool    CheckTypeInt   (int i=-1) const;
         bool    CheckTypeLong  (int i=-1) const;
@@ -80,14 +86,14 @@ class LKParameter : public TNamed
 
         std::vector<int>     GetIntRange() const;
 
-        std::vector<bool>    GetVBool  () const;
-        std::vector<int>     GetVInt   () const;
-        std::vector<double>  GetVDouble() const;
-        std::vector<TString> GetVString() const;
-        std::vector<int>     GetVColor ();
+        std::vector<bool>    GetVBool  (int n=0) const; ///< Return vector of comma separated values in bool type. n=0: all, n>0: upto n-elements, n<0: remove n elements from the back.
+        std::vector<int>     GetVInt   (int n=0) const; ///< Return vector of comma separated values in int type. n=0: all, n>0: upto n-elements, n<0: remove n elements from the back.
+        std::vector<double>  GetVDouble(int n=0) const; ///< Return vector of comma separated values in double type. n=0: all, n>0: upto n-elements, n<0: remove n elements from the back.
+        std::vector<TString> GetVString(int n=0) const; ///< Return vector of comma separated values in TString type. n=0: all, n>0: upto n-elements, n<0: remove n elements from the back.
+        std::vector<int>     GetVColor (int n=0);       ///< Return vector of comma separated values in Color_t type. n=0: all, n>0: upto n-elements, n<0: remove n elements from the back.
 
-        std::vector<int>     GetVWidth () const { return GetVInt(); }
-        std::vector<double>  GetVSize  () const { return GetVDouble(); }
+        std::vector<int>     GetVWidth (int n=0) const { return GetVInt(n); } ///< Return vector of comma separated values in Width_t type. n=0: all, n>0: upto n-elements, n<0: remove n elements from the back.
+        std::vector<double>  GetVSize  (int n=0) const { return GetVDouble(n); } ///< Return vector of comma separated values in Size_t type. n=0: all, n>0: upto n-elements, n<0: remove n elements from the back.
 
         void SetCompare(int compare) { fCompare = compare; }
         int GetCompare() const { return fCompare; }
