@@ -135,13 +135,14 @@ class LKParameterContainer : public TObjArray
          *
          * ## options
          *
-         * - eval : evaluate and replace all unraveled variables with ({par},+,-,...)
-         * - line# : show line comments
-         * - par# : show parameter comments
-         * - all : show all hidden parameters (not recommended to write file with this mode)
-         * - raw : print from TObjArray::Print()
+         * - i : show line index
+         * - l : show line comments
+         * - t : print from TObjArray::Print()
+         * - r : show raw parameter value
+         * - e : evaluate and replace all unraveled variables with ({par},+,-,...)
+         * - c : show parameter comments
          */
-        virtual void Print(Option_t *option="") const;
+        virtual void Print(Option_t *option="ilrec") const;
         void SaveAs(const char *filename, Option_t *option = "") const;
         LKParameterContainer *CloneParameterContainer(TString name="", bool addTemporary=false) const;
 
@@ -179,7 +180,6 @@ class LKParameterContainer : public TObjArray
 
         Bool_t CheckPar(TString name) const;
         Bool_t CheckValue(TString name) const;
-
         Bool_t CheckParTypeBool  (TString name, int idx=-1) const { return FindPar(name,true) -> CheckTypeBool  (idx); }
         Bool_t CheckParTypeInt   (TString name, int idx=-1) const { return FindPar(name,true) -> CheckTypeInt   (idx); }
         Bool_t CheckParTypeLong  (TString name, int idx=-1) const { return FindPar(name,true) -> CheckTypeLong  (idx); }
@@ -195,47 +195,60 @@ class LKParameterContainer : public TObjArray
         Bool_t CheckParTypeSize  (TString name, int idx=-1) const { return CheckParTypeDouble(name,idx); }
         Bool_t CheckParTypeAxis  (TString name, int idx=-1) const { return FindPar(name,true) -> CheckTypeAxis(idx); }
 
-        Int_t    GetParIndex (TString name) const;
-        TString  GetParRaw   (TString name) const             { return FindPar(name,true) -> GetRaw   ();    }
-        Int_t    GetParN     (TString name) const             { return FindPar(name,true) -> GetN     ();    } ///< Get number of parameters in array of given name.
-        Bool_t   GetParBool  (TString name, int idx=-1) const { return FindPar(name,true) -> GetBool  (idx); } ///< Get parameter in Bool_t
-        Int_t    GetParInt   (TString name, int idx=-1) const { return FindPar(name,true) -> GetInt   (idx); } ///< Get parameter in Int_t
-        Long64_t GetParLong  (TString name, int idx=-1) const { return FindPar(name,true) -> GetLong  (idx); } ///< Get parameter in Long64_t
-        Double_t GetParDouble(TString name, int idx=-1) const { return FindPar(name,true) -> GetDouble(idx); } ///< Get parameter in Double_t
-        TString  GetParString(TString name, int idx=-1) const { return FindPar(name,true) -> GetString(idx); } ///< Get parameter in TString
-        Int_t    GetParColor (TString name, int idx=-1)       { return FindPar(name,true) -> GetColor (idx); } ///< Get parameter in Color_t
-        TVector3 GetParV3    (TString name) const             { return FindPar(name,true) -> GetV3    ();    } ///< Get parameter in TVector
-        Double_t GetParX     (TString name) const             { return GetParDouble(name,0); }
-        Double_t GetParY     (TString name) const             { return GetParDouble(name,1); }
-        Double_t GetParZ     (TString name) const             { return GetParDouble(name,2); }
-        Int_t    GetParStyle (TString name, int idx=-1) const { return GetParInt(name,idx); }
-        Int_t    GetParWidth (TString name, int idx=-1) const { return GetParInt(name,idx); }
-        Double_t GetParSize  (TString name, int idx=-1) const { return GetParDouble(name,idx); }
-        axis_t   GetParAxis  (TString name, int idx=-1) const { return FindPar(name,true) -> GetAxis(); }
-        LKCut*   GetParCut   (TString name);
-        LKBinning GetBinning (TString name);
-        std::vector<int> GetParIntRange(TString name) const { return FindPar(name,true) -> GetIntRange(); }
-
-        std::vector<bool>    GetParVBool  (TString name) const { return FindPar(name,true) -> GetVBool  (); }
-        std::vector<int>     GetParVInt   (TString name) const { return FindPar(name,true) -> GetVInt   (); }
-        std::vector<double>  GetParVDouble(TString name) const { return FindPar(name,true) -> GetVDouble(); }
-        std::vector<TString> GetParVString(TString name) const { return FindPar(name,true) -> GetVString(); }
-        std::vector<int>     GetParVStyle (TString name) const { return GetParVInt(name); }
-        std::vector<int>     GetParVWidth (TString name) const { return GetParVInt(name); }
-        std::vector<int>     GetParVColor (TString name) const { return GetParVInt(name); }
-        std::vector<double>  GetParVSize  (TString name) const { return GetParVDouble(name); }
+        Int_t     GetParIndex (TString name) const;
+        TString   GetParRaw   (TString name) const             { return FindPar(name,true) -> GetRaw   ();    }
+        Int_t     GetParN     (TString name) const             { return FindPar(name,true) -> GetN     ();    } ///< Get number of parameters in array of given name.
+        Bool_t    GetParBool  (TString name, int idx=-1) const { return FindPar(name,true) -> GetBool  (idx); } ///< Get parameter in Bool_t
+        Int_t     GetParInt   (TString name, int idx=-1) const { return FindPar(name,true) -> GetInt   (idx); } ///< Get parameter in Int_t
+        Long64_t  GetParLong  (TString name, int idx=-1) const { return FindPar(name,true) -> GetLong  (idx); } ///< Get parameter in Long64_t
+        Double_t  GetParDouble(TString name, int idx=-1) const { return FindPar(name,true) -> GetDouble(idx); } ///< Get parameter in Double_t
+        TString   GetParString(TString name, int idx=-1) const { return FindPar(name,true) -> GetString(idx); } ///< Get parameter in TString
+        Int_t     GetParColor (TString name, int idx=-1)       { return FindPar(name,true) -> GetColor (idx); } ///< Get parameter in Color_t
+        TVector3  GetParV3    (TString name) const             { return FindPar(name,true) -> GetV3    ();    } ///< Get parameter in TVector
+        Double_t  GetParX     (TString name) const             { return GetParDouble(name,0); }
+        Double_t  GetParY     (TString name) const             { return GetParDouble(name,1); }
+        Double_t  GetParZ     (TString name) const             { return GetParDouble(name,2); }
+        Int_t     GetParStyle (TString name, int idx=-1) const { return GetParInt(name,idx); }
+        Int_t     GetParWidth (TString name, int idx=-1) const { return GetParInt(name,idx); }
+        Double_t  GetParSize  (TString name, int idx=-1) const { return GetParDouble(name,idx); }
+        axis_t    GetParAxis  (TString name, int idx=-1) const { return FindPar(name,true) -> GetAxis(); }
+        LKCut*    GetParCut   (TString name);
+        LKBinning GetBinning  (TString name);
+        std::vector<int>     GetParIntRange(TString name         ) const { return FindPar(name,true) -> GetIntRange(); } 
+        std::vector<bool>    GetParVBool   (TString name, int n=0) const { return FindPar(name,true) -> GetVBool  (n);  } ///< Return vector of comma separated values in bool type. n=0: all, n>0: upto n-elements, n<0: remove n elements from the back.
+        std::vector<int>     GetParVInt    (TString name, int n=0) const { return FindPar(name,true) -> GetVInt   (n);  } ///< Return vector of comma separated values in int type. n=0: all, n>0: upto n-elements, n<0: remove n elements from the back.
+        std::vector<double>  GetParVDouble (TString name, int n=0) const { return FindPar(name,true) -> GetVDouble(n);  } ///< Return vector of comma separated values in double type. n=0: all, n>0: upto n-elements, n<0: remove n elements from the back.
+        std::vector<TString> GetParVString (TString name, int n=0) const { return FindPar(name,true) -> GetVString(n);  } ///< Return vector of comma separated values in TString type. n=0: all, n>0: upto n-elements, n<0: remove n elements from the back.
+        std::vector<int>     GetParVStyle  (TString name, int n=0) const { return GetParVInt(name, n); } ///< Return vector of comma separated values in Style_t type. n=0: all, n>0: upto n-elements, n<0: remove n elements from the back.
+        std::vector<int>     GetParVWidth  (TString name, int n=0) const { return GetParVInt(name, n); } ///< Return vector of comma separated values in Width_t type. n=0: all, n>0: upto n-elements, n<0: remove n elements from the back.
+        std::vector<int>     GetParVColor  (TString name, int n=0) const { return GetParVInt(name, n); } ///< Return vector of comma separated values in Colot_t type. n=0: all, n>0: upto n-elements, n<0: remove n elements from the back.
+        std::vector<double>  GetParVSize   (TString name, int n=0) const { return GetParVDouble(name, n); } ///< Return vector of comma separated values in Size_t type. n=0: all, n>0: upto n-elements, n<0: remove n elements from the back.
 
         /// UpdatePar() will update given value, if parameter with name and idx exist. If not, value will not be changed.
-        void UpdatePar(Bool_t   &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParBool  (name,idx); }
-        void UpdatePar(Int_t    &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParInt   (name,idx); } ///< See UpdatePar(Bool_t, TString, int)
-        void UpdatePar(Long64_t &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParLong  (name,idx); } ///< See UpdatePar(Bool_t, TString, int)
-        void UpdatePar(Double_t &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParDouble(name,idx); } ///< See UpdatePar(Bool_t, TString, int)
-        void UpdatePar(TString  &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParString(name,idx); } ///< See UpdatePar(Bool_t, TString, int)
-        void UpdatePar(axis_t   &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParAxis  (name,idx); } ///< See UpdatePar(Bool_t, TString, int)
-        void UpdatePar(TVector3 &value, TString name)             const { if (CheckPar(name)) value = GetParV3    (name);     } ///< See UpdatePar(Bool_t, TString, int)
+        void UpdatePar(Bool_t    &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParBool  (name,idx); }
+        void UpdatePar(Int_t     &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParInt   (name,idx); } ///< See UpdatePar(Bool_t, TString, int)
+        void UpdatePar(Long64_t  &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParLong  (name,idx); } ///< See UpdatePar(Bool_t, TString, int)
+        void UpdatePar(Double_t  &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParDouble(name,idx); } ///< See UpdatePar(Bool_t, TString, int)
+        void UpdatePar(TString   &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParString(name,idx); } ///< See UpdatePar(Bool_t, TString, int)
+        void UpdatePar(axis_t    &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParAxis  (name,idx); } ///< See UpdatePar(Bool_t, TString, int)
+        void UpdatePar(TVector3  &value, TString name)             const { if (CheckPar(name)) value = GetParV3    (name);     } ///< See UpdatePar(Bool_t, TString, int)
+        void UpdatePar(LKBinning &value, TString name)             const { int n; double x1, x2; if (UpdateBinning(name, n, x1, x2)) value.SetXNMM(n, x1, x2); }
         bool UpdateBinning(TString name, Int_t &n, Double_t &x1, Double_t &x2) const;
-        void UpdateBinning(TString name, LKBinning &binning) const;
         void UpdateV3(TString name, Double_t &x, Double_t &y, Double_t &z) const;
+
+        Bool_t               InitPar(Bool_t    dfValue, TString name, int idx=-1) const { if (CheckParWithValue(name,dfValue)) return GetParBool   (name, idx); return dfValue; }
+        Int_t                InitPar(Int_t     dfValue, TString name, int idx=-1) const { if (CheckParWithValue(name,dfValue)) return GetParInt    (name, idx); return dfValue; }
+        Long64_t             InitPar(Long64_t  dfValue, TString name, int idx=-1) const { if (CheckParWithValue(name,dfValue)) return GetParLong   (name, idx); return dfValue; }
+        Double_t             InitPar(Double_t  dfValue, TString name, int idx=-1) const { if (CheckParWithValue(name,dfValue)) return GetParDouble (name, idx); return dfValue; }
+        TString              InitPar(TString   dfValue, TString name, int idx=-1) const { if (CheckParWithValue(name,dfValue)) return GetParString (name, idx); return dfValue; }
+        axis_t               InitPar(axis_t    dfValue, TString name, int idx=-1) const { if (CheckParWithValue(name,dfValue)) return GetParAxis   (name, idx); return dfValue; }
+        TVector3             InitPar(TVector3  dfValue, TString name) const             { if (CheckParWithValue(name,dfValue)) return GetParV3     (name);      return dfValue; }
+        LKBinning            InitPar(LKBinning dfValue, TString name)                   { if (CheckParWithValue(name,dfValue)) return GetBinning   (name);      return dfValue; }
+        std::vector<bool>    InitPar(std::vector<bool>    dfValue, TString name)  const { if (CheckParWithValue(name,dfValue)) return GetParVBool  (name);      return dfValue; }
+        std::vector<int>     InitPar(std::vector<int>     dfValue, TString name)  const { if (CheckParWithValue(name,dfValue)) return GetParVInt   (name);      return dfValue; }
+        std::vector<double>  InitPar(std::vector<double>  dfValue, TString name)  const { if (CheckParWithValue(name,dfValue)) return GetParVDouble(name);      return dfValue; }
+        std::vector<TString> InitPar(std::vector<TString> dfValue, TString name)  const { if (CheckParWithValue(name,dfValue)) return GetParVString(name);      return dfValue; }
+        TString              InitPar(const char* dfValue, TString name, int idx=-1) const { return InitPar(TString(dfValue), name, idx); }
 
         LKParameterContainer* CreateGroupContainer(TString nameGroup); ///< Create new LKParameterContainer that contains all parameters which has group name [name group]
         LKParameterContainer* CreateMultiParContainer(TString parNameGiven); ///< Create new LKParameterContainer that contains all parameters which has name [parNameGiven]
@@ -272,6 +285,34 @@ class LKParameterContainer : public TObjArray
         LKParameter *SetLineComment(TString comment);
 
         LKParameter *FindParFree(TString givenName, bool terminateIfNull=false);
+
+        TString ToString(Bool_t               dfValue) const;
+        TString ToString(Int_t                dfValue) const;
+        TString ToString(Long64_t             dfValue) const;
+        TString ToString(Double_t             dfValue) const;
+        TString ToString(TString              dfValue) const;
+        TString ToString(axis_t               dfValue) const;
+        TString ToString(TVector3             dfValue) const;
+        TString ToString(LKBinning            dfValue) const;
+        TString ToString(std::vector<bool>    dfValue) const;
+        TString ToString(std::vector<int>     dfValue) const;
+        TString ToString(std::vector<double>  dfValue) const;
+        TString ToString(std::vector<TString> dfValue) const;
+
+        TString InsertValueInName(TString name, TString value) const;
+
+        bool CheckParWithValue(TString name, Bool_t               dfValue) const { return CheckPar(InsertValueInName(name,ToString(dfValue))); }
+        bool CheckParWithValue(TString name, Int_t                dfValue) const { return CheckPar(InsertValueInName(name,ToString(dfValue))); }
+        bool CheckParWithValue(TString name, Long64_t             dfValue) const { return CheckPar(InsertValueInName(name,ToString(dfValue))); }
+        bool CheckParWithValue(TString name, Double_t             dfValue) const { return CheckPar(InsertValueInName(name,ToString(dfValue))); }
+        bool CheckParWithValue(TString name, TString              dfValue) const { return CheckPar(InsertValueInName(name,ToString(dfValue))); }
+        bool CheckParWithValue(TString name, axis_t               dfValue) const { return CheckPar(InsertValueInName(name,ToString(dfValue))); }
+        bool CheckParWithValue(TString name, TVector3             dfValue) const { return CheckPar(InsertValueInName(name,ToString(dfValue))); }
+        bool CheckParWithValue(TString name, LKBinning            dfValue) const { return CheckPar(InsertValueInName(name,ToString(dfValue))); }
+        bool CheckParWithValue(TString name, std::vector<bool>    dfValue) const { return CheckPar(InsertValueInName(name,ToString(dfValue))); }
+        bool CheckParWithValue(TString name, std::vector<int>     dfValue) const { return CheckPar(InsertValueInName(name,ToString(dfValue))); }
+        bool CheckParWithValue(TString name, std::vector<double>  dfValue) const { return CheckPar(InsertValueInName(name,ToString(dfValue))); }
+        bool CheckParWithValue(TString name, std::vector<TString> dfValue) const { return CheckPar(InsertValueInName(name,ToString(dfValue))); }
 
     private:
         void ProcessTypeError(TString name, TString val, TString type) const;
