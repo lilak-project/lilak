@@ -155,8 +155,11 @@ void LKParameter::TranslateUnit(TString value, TString unit)
 
 void LKParameter::SetValue(TString line)
 {
-    if (line[0]=='\"' && line[line.Length()-1]=='\"')
-        line = TString(line(1,line.Length()-2));
+    if (line[0]=='\"' && line[line.Length()-1]=='\"') {
+        TString line1 = TString(line(1,line.Length()-2));
+        if (line1.Index("\"")<0)
+            line = line1;
+    }
 
     fValue = line;
     fValueArray.clear();
@@ -552,63 +555,78 @@ std::vector<int> LKParameter::GetIntRange() const
     return numberList;
 }
 
-std::vector<bool> LKParameter::GetVBool() const
+std::vector<bool> LKParameter::GetVBool(int n) const
 {
     std::vector<bool> array;
     auto npar = GetN();
     if (npar==1)
         array.push_back(GetBool());
-    else
+    else {
+        if (n>0 && n<npar) npar = n;
+        if (n<0 && (-n)<npar) npar = npar + n;
         for (auto i=0; i<npar; ++i)
             array.push_back(GetBool(i));
+    }
     return array;
 }
 
-std::vector<int> LKParameter::GetVInt() const
+std::vector<int> LKParameter::GetVInt(int n) const
 {
     std::vector<int> array;
     auto npar = GetN();
     if (npar==1)
         array.push_back(GetInt());
-    else
+    else {
+        if (n>0 && n<npar) npar = n;
+        if (n<0 && (-n)<npar) npar = npar + n;
         for (auto i=0; i<npar; ++i)
             array.push_back(GetInt(i));
+    }
     return array;
 }
 
-std::vector<int> LKParameter::GetVColor()
+std::vector<int> LKParameter::GetVColor(int n)
 {
     std::vector<int> array;
     auto npar = GetN();
     if (npar==1)
         array.push_back(GetColor());
-    else
+    else {
+        if (n>0 && n<npar) npar = n;
+        if (n<0 && (-n)<npar) npar = npar + n;
         for (auto i=0; i<npar; ++i)
             array.push_back(GetColor(i));
+    }
     return array;
 }
 
-std::vector<double> LKParameter::GetVDouble() const
+std::vector<double> LKParameter::GetVDouble(int n) const
 {
     std::vector<double> array;
     auto npar = GetN();
     if (npar==1)
         array.push_back(GetDouble());
-    else
+    else {
+        if (n>0 && n<npar) npar = n;
+        if (n<0 && (-n)<npar) npar = npar + n;
         for (auto i=0; i<npar; ++i)
             array.push_back(GetDouble(i));
+    }
     return array;
 }
 
-std::vector<TString> LKParameter::GetVString() const
+std::vector<TString> LKParameter::GetVString(int n) const
 {
     std::vector<TString> array;
     auto npar = GetN();
     if (npar==1)
         array.push_back(GetString());
-    else
+    else {
+        if (n>0 && n<npar) npar = n;
+        if (n<0 && (-n)<npar) npar = npar + n;
         for (auto i=0; i<npar; ++i)
             array.push_back(GetString(i));
+    }
     return array;
 }
 
@@ -659,15 +677,17 @@ TString LKParameter::GetGroup(int ith) const
 
 TString LKParameter::GetLine(TString printOptions) const
 {
-    bool evaluatePar = true;
-    bool showParComments = true;
-    bool showRawEvalValues = false;
-    if      (printOptions.Index("!eval")>=0) { evaluatePar = false; printOptions.ReplaceAll("!eval", ""); }
-    else if (printOptions.Index( "eval")>=0) { evaluatePar = true;  printOptions.ReplaceAll( "eval", ""); }
-    if      (printOptions.Index("!par#")>=0) { showParComments = false; printOptions.ReplaceAll("!par#", ""); }
-    else if (printOptions.Index( "par#")>=0) { showParComments = true;  printOptions.ReplaceAll( "par#", ""); }
-    if      (printOptions.Index("!vall")>=0) { showRawEvalValues = false; printOptions.ReplaceAll("!vall", ""); }
-    else if (printOptions.Index( "vall")>=0) { showRawEvalValues = true;  printOptions.ReplaceAll( "vall", ""); }
+    bool showRaw = false;
+    bool showEval = false;
+    bool showParComments = false;
+    bool showBothRawEval = false;
+    {
+        if      (printOptions.Index("r")>=0) { showRaw = true;  printOptions.ReplaceAll( "r", ""); }
+        else if (printOptions.Index("e")>=0) { showEval = true;  printOptions.ReplaceAll( "e", ""); }
+        else if (printOptions.Index("c")>=0) { showParComments = true;  printOptions.ReplaceAll( "c", ""); }
+    }
+    if (showRaw&&showEval) showBothRawEval = true;
+    if (!showRaw&&!showEval) showEval = true;
 
     if (IsLineComment()) {
         TString line = TString("## ") + fComment;
@@ -675,10 +695,11 @@ TString LKParameter::GetLine(TString printOptions) const
     }
 
     int nwidth = 30;
-    if      (fName.Sizeof()>60) nwidth = 80;
-    else if (fName.Sizeof()>50) nwidth = 60;
-    else if (fName.Sizeof()>30) nwidth = 50;
-    else                        nwidth = 30;
+    if      (fName.Sizeof()>60)  nwidth = 80;
+    else if (fName.Sizeof()>50)  nwidth = 60;
+    else if (fName.Sizeof()>40)  nwidth = 50;
+    else if (fName.Sizeof()>30)  nwidth = 40;
+    else                         nwidth = 30;
 
     TString name = fName;
     if (name.Sizeof()<nwidth) {
@@ -688,29 +709,24 @@ TString LKParameter::GetLine(TString printOptions) const
     }
 
     TString comment = fComment;
-
     TString value = fValue;
-    if (showRawEvalValues) {
+    if (showBothRawEval) {
         value = fTitle;
-        comment =  TString("--> ") + fValue + " # " + comment;
+        comment = TString("--> ") + fValue + " # " + comment;
     }
-    else if (!evaluatePar)
-        value = fTitle;
+    else if (showEval) value = fValue;
+    else if (showRaw) value = fTitle;
+    else value = fValue;
 
-    int vwidth = 20;
-    if      (value.Sizeof()>60) vwidth = 80;
-    else if (value.Sizeof()>40) vwidth = 60;
-    else if (value.Sizeof()>20) vwidth = 40;
-    else                        vwidth = 20;
-
-    if (value.Sizeof()<vwidth) {
-        auto n = vwidth - value.Sizeof();
-        for (auto i=0; i<n; ++i)
-            value = value + " ";
-    }
+    int vwidth = 30;
+    if      (value.Sizeof()>60)  vwidth = 80;
+    else if (value.Sizeof()>50)  vwidth = 60;
+    else if (value.Sizeof()>40)  vwidth = 50;
+    else if (value.Sizeof()>30)  vwidth = 40;
+    else                         vwidth = 30;
 
     TString line = name + " " + value;
-    if (showParComments)
+    if (showParComments && comment.IsNull()==false)
         line = line + "  # " + comment;
 
     if (IsCommentOut())

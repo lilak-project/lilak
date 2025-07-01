@@ -144,7 +144,7 @@ class LKRun : public LKVirtualRun
          * Print collected parameters to fileName.
          * Print out to screen if fileName is null.
          */
-        void InitAndCollectParameters(TString fileName="");
+        void InitAndCollectParameters(TString fileName="collected_lilak_run");
 
         LKParameterContainer *GetG4ProcessTable() const { return fG4ProcessTable; }
         LKParameterContainer *GetG4SDTable() const { return fG4SDTable; }

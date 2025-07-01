@@ -265,7 +265,7 @@ void LKRun::Print(Option_t *option) const
     if (printParameters) {
         e_cout << endl;
         lk_info << "# Parameters" << endl;
-        fPar -> Print("eval !line# par# idx");
+        fPar -> Print("eic");
     }
 
     if (printTasks) {
@@ -1810,6 +1810,8 @@ vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchTag, TStrin
             if (b[b.Length()-1]=='s') return false;
             TString fileNumberA = a(a.Last('.') + 1, a.Length());
             TString fileNumberB = b(b.Last('.') + 1, b.Length());
+            if (fileNumberA.IsDec()==false) return true;
+            if (fileNumberB.IsDec()==false) return false;
             return std::stoi(fileNumberA.Data()) < std::stoi(fileNumberB.Data());
         };
 

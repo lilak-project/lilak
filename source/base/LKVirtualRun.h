@@ -116,6 +116,9 @@ class LKVirtualRun : public LKTask
         virtual bool ExecuteFirstEvent() = 0;
         virtual bool ExecuteLastEvent() = 0;
 
+        virtual bool CheckMute(Long64_t eventCount=-1) = 0;
+        virtual void SignalEndOfRun() = 0;
+
     ClassDef(LKVirtualRun, 1)
 };
 
