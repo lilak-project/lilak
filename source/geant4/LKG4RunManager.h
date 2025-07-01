@@ -58,6 +58,7 @@ class LKG4RunManager : public G4RunManager, public LKGear
         virtual void Run(G4int argc=0, char **argv=nullptr, const G4String &type="");
         virtual void BeamOnAll();
         virtual void NextEvent();
+        virtual void ClearEvent();
         virtual void WriteToFile(TObject *obj);
         virtual void EndOfRun();
         virtual void WriteTextFile();
