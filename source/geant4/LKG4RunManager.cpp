@@ -569,6 +569,11 @@ void LKG4RunManager::NextEvent()
     g4man_info << "End of Event " << fTree -> GetEntries() << endl;
     fTree -> Fill();
 
+    ClearEvent();
+}
+
+void LKG4RunManager::ClearEvent()
+{
     fTrackArray -> Clear("C");
     TIter it(fStepArrayList);
 
@@ -579,6 +584,7 @@ void LKG4RunManager::NextEvent()
 
     memset(fEdepSumArray, 0, sizeof(Double_t)*fNumActiveVolumes);
 }
+
 
 void LKG4RunManager::WriteToFile(TObject *obj)
 {
