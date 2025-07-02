@@ -142,7 +142,7 @@ class LKParameterContainer : public TObjArray
          * - e : evaluate and replace all unraveled variables with ({par},+,-,...)
          * - c : show parameter comments
          */
-        virtual void Print(Option_t *option="i:l:r:e:c") const;
+        virtual void Print(Option_t *option="i:l:e:c") const;
         void SaveAs(const char *filename, Option_t *option = "") const;
         LKParameterContainer *CloneParameterContainer(TString name="", bool addTemporary=false) const;
 

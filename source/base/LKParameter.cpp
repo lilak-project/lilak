@@ -758,9 +758,10 @@ TString LKParameter::GetLine(TString printOptions) const
     else if (value.Sizeof()>30)  vwidth = 40;
     else                         vwidth = 30;
 
-    if (nptoolFormat)
+    if (nptoolFormat) {
         value = TString("= ") + value;
-    value.ReplaceAll(",","");
+        value.ReplaceAll(",","");
+    }
 
     TString line = name + " " + value;
     if (showParComments && comment.IsNull()==false)
