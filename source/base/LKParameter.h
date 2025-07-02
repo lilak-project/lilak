@@ -26,7 +26,7 @@ class LKParameter : public TNamed
         /// r : show raw value
         /// e : show evaluatated value
         /// c : show parameter comment
-        virtual void Print(Option_t *option = "ec") const;
+        virtual void Print(Option_t *option = "e:c") const;
 
         virtual Bool_t IsSortable() const { return true; }
         virtual Int_t Compare(const TObject *obj) const;
@@ -47,12 +47,16 @@ class LKParameter : public TNamed
         int     GetType()       const { return fType; }
 
         TString GetFirstName() const;
+        TString GetLastName() const;
 
         TString GetGroup(int ith) const;
         /// r : show raw value
         /// e : show evaluatated value
         /// c : show parameter comment
-        TString GetLine(TString option="ec") const;
+        /// n : use nptool format
+        /// 1 : tab=1 (for nptool format)
+        /// m : print only main name without groups
+        TString GetLine(TString option="e:c") const;
 
         bool    CheckTypeInt   (int i=-1) const;
         bool    CheckTypeLong  (int i=-1) const;

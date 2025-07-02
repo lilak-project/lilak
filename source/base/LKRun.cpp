@@ -265,7 +265,7 @@ void LKRun::Print(Option_t *option) const
     if (printParameters) {
         e_cout << endl;
         lk_info << "# Parameters" << endl;
-        fPar -> Print("eic");
+        fPar -> Print("e:i:c");
     }
 
     if (printTasks) {

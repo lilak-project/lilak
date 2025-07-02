@@ -17,6 +17,7 @@
 #include "LKCompiled.h"
 #include "LKParameter.h"
 #include "LKParameterContainer.h"
+#include "LKMisc.h"
 
 using namespace std;
 
@@ -626,19 +627,14 @@ void LKParameterContainer::Print(Option_t *option) const
 {
     TString printOptions(option);
 
-    if (printOptions.Index("t")>=0) {
-        TObjArray::Print();
-        return;
-    }
-
     bool showLineIndex = false;
     bool showLineComment = false;
     bool printToScreen = true;
     bool printToFile = false;
     ofstream fileOut;
 
-    if (printOptions.Index("l")>=0) { showLineComment = true;  printOptions.ReplaceAll("l", ""); }
-    if (printOptions.Index("i")>=0) { showLineIndex = true;  printOptions.ReplaceAll("i", ""); }
+    if (LKMisc::CheckOption(printOptions,"l",true)) showLineComment = true;
+    if (LKMisc::CheckOption(printOptions,"i",true)) showLineIndex = true;
 
     TString fileName = printOptions;
     if (fileName.IsNull()) {
@@ -660,6 +656,12 @@ void LKParameterContainer::Print(Option_t *option) const
         fileOut.open(fileName);
         fileOut << "# " << fileName << " created from LKParameterContainer::Print" << endl;
     }
+    else {
+        if (printOptions.Index("t")>=0) {
+            TObjArray::Print();
+            return;
+        }
+    }
 
     int parNumber = 0;
     TIter iterator(this);
@@ -667,7 +669,7 @@ void LKParameterContainer::Print(Option_t *option) const
     TString preGroup = "";
     while ((parameter = dynamic_cast<LKParameter*>(iterator())))
     {
-        TString parGroup = parameter -> GetGroup();
+        TString parGroup = parameter -> GetGroup(-1);
 
         bool addEmptyLine = false;
         bool isLineComment = false;
@@ -1333,7 +1335,7 @@ void LKParameterContainer::PrintCollection(TString fileName)
 {
     fCollectedParameterContainer -> Sort();
     if (fileName.IsNull() || fileName=="print")
-        fCollectedParameterContainer -> Print("ricl");
+        fCollectedParameterContainer -> Print("r:i:c:l");
     else
         fCollectedParameterContainer -> SaveAs(fileName);
 }
