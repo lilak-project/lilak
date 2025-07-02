@@ -9,6 +9,7 @@
 #include <sstream>
 #include <iostream>
 #include <iomanip>
+#include "LKMisc.h"
 
 #include "LKParameter.h"
 
@@ -249,7 +250,8 @@ Int_t LKParameter::Compare(const TObject *obj) const
     const int sortEarlier = -1;
     const int sortSame = 0;
 
-    TString iGroup = parameter -> GetGroup();
+    TString cGroup = GetGroup(-1);
+    TString iGroup = parameter -> GetGroup(-1);
     TString iName = parameter -> GetName();
     int iCompare = parameter -> GetCompare();
 
@@ -257,16 +259,16 @@ Int_t LKParameter::Compare(const TObject *obj) const
     if (fName.IsNull() && !iName.IsNull()) { return sortLatter; }
     if (fName.IsNull() && iName.IsNull()) { return sortSame; }
 
-    if (fGroup=="LKRun" && iGroup=="LKRun")
+    if (cGroup=="LKRun" && iGroup=="LKRun")
     {
         if      (fCompare<iCompare) { return sortEarlier; }
         else if (fCompare>iCompare) { return sortLatter; }
         else { return sortSame; }
     }
-    else if (fGroup=="LKRun") { return sortEarlier; }
+    else if (cGroup=="LKRun") { return sortEarlier; }
     else if (iGroup=="LKRun") { return sortLatter; }
-    else if (fGroup<iGroup) { return sortEarlier; }
-    else if (fGroup>iGroup) { return sortLatter; }
+    else if (cGroup<iGroup) { return sortEarlier; }
+    else if (cGroup>iGroup) { return sortLatter; }
     else {
         if      (fCompare<iCompare) { return sortEarlier; }
         else if (fCompare>iCompare) { return sortLatter; }
@@ -652,25 +654,40 @@ TString LKParameter::GetFirstName() const
     return firstName;
 }
 
+TString LKParameter::GetLastName() const
+{
+    TString lastName = fName;
+    int iSlash = fName.Last('/');
+    if (iSlash>=0) {
+        lastName = fName(iSlash+1,fName.Sizeof()-iSlash-2);
+    }
+    return lastName;
+}
+
 TString LKParameter::GetGroup(int ith) const
 {
     TString name = fName.Data();
     TString group;
     int iBreak = 0;
     int countBreak = 0;
-    while (iBreak>=0) {
-        iBreak = name.Index("/",1,0,TString::kExact);
-        if (iBreak<0)
-            break;
-        group = TString(name(0,iBreak));
-        name = name(iBreak+1,name.Sizeof()-iBreak-2);
-        if (countBreak==ith)
-            break;
-        countBreak++;
-    }
 
-    if (countBreak!=ith)
-        return TString();
+    if (ith<0)
+        group = fName(0,fName.Last('/'));
+    else
+    {
+        while (iBreak>=0) {
+            iBreak = name.Index("/",1,0,TString::kExact);
+            if (iBreak<0)
+                break;
+            group = TString(name(0,iBreak));
+            name = name(iBreak+1,name.Sizeof()-iBreak-2);
+            if (countBreak==ith)
+                break;
+            countBreak++;
+        }
+        if (countBreak!=ith)
+            return TString();
+    }
 
     return group;
 }
@@ -681,27 +698,43 @@ TString LKParameter::GetLine(TString printOptions) const
     bool showEval = false;
     bool showParComments = false;
     bool showBothRawEval = false;
-    {
-        if      (printOptions.Index("r")>=0) { showRaw = true;  printOptions.ReplaceAll( "r", ""); }
-        else if (printOptions.Index("e")>=0) { showEval = true;  printOptions.ReplaceAll( "e", ""); }
-        else if (printOptions.Index("c")>=0) { showParComments = true;  printOptions.ReplaceAll( "c", ""); }
-    }
+    bool nptoolFormat = false;
+    bool useMainName = false;
+    int ntab = 0;
+
+    if (LKMisc::CheckOption(printOptions,"r",true)) showRaw = true;
+    if (LKMisc::CheckOption(printOptions,"e",true)) showEval = true;
+    if (LKMisc::CheckOption(printOptions,"c",true)) showParComments = true;
+    if (LKMisc::CheckOption(printOptions,"n",true)) nptoolFormat = true;
+    if (LKMisc::CheckOption(printOptions,"m",true)) useMainName = true;
+    if (LKMisc::CheckOption(printOptions,"1",true)) ntab = 1;
     if (showRaw&&showEval) showBothRawEval = true;
     if (!showRaw&&!showEval) showEval = true;
+
+    if (nptoolFormat) {
+        showRaw = false;
+        showEval = true;
+        showParComments = false;
+        showBothRawEval = false;
+        useMainName = true;
+    }
 
     if (IsLineComment()) {
         TString line = TString("## ") + fComment;
         return line;
     }
 
-    int nwidth = 30;
-    if      (fName.Sizeof()>60)  nwidth = 80;
-    else if (fName.Sizeof()>50)  nwidth = 60;
-    else if (fName.Sizeof()>40)  nwidth = 50;
-    else if (fName.Sizeof()>30)  nwidth = 40;
-    else                         nwidth = 30;
-
     TString name = fName;
+    if (useMainName)
+        name = GetLastName();
+
+    int nwidth = 30;
+    if      (name.Sizeof()>60)  nwidth = 80;
+    else if (name.Sizeof()>50)  nwidth = 60;
+    else if (name.Sizeof()>40)  nwidth = 50;
+    else if (name.Sizeof()>30)  nwidth = 40;
+    else                        nwidth = 30;
+
     if (name.Sizeof()<nwidth) {
         auto n = nwidth - name.Sizeof();
         for (auto i=0; i<n; ++i)
@@ -725,12 +758,18 @@ TString LKParameter::GetLine(TString printOptions) const
     else if (value.Sizeof()>30)  vwidth = 40;
     else                         vwidth = 30;
 
+    if (nptoolFormat)
+        value = TString("= ") + value;
+    value.ReplaceAll(",","");
+
     TString line = name + " " + value;
     if (showParComments && comment.IsNull()==false)
         line = line + "  # " + comment;
 
     if (IsCommentOut())
         line = TString("#") + line;
+
+    if (ntab==1) line = TString("    ") + line;
 
     return line;
 }

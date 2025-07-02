@@ -131,6 +131,7 @@ class lilak_configuration:
         #self.print_header("Init build")
         self.GRU_DIR = "/usr/local/gru"
         self.GET_DIR = "/usr/local/get"
+        self.NPTOOL_DIR = ""
         self.fn_build_option = os.path.join(os.path.join(self.lilak_path, "log"), "build_options.cmake")
         self.nm_main_project = "lilak"
         self.df_build_options0 = {
