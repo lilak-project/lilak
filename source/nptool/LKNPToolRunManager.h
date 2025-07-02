@@ -12,6 +12,9 @@ class LKNPToolRunManager : public LKG4RunManager
         virtual void AddParameterContainer(TString fname);
 
     public:
+        virtual void CheckNPToolPhysicsListFile();
+        virtual void CheckNPToolReactionFile();
+
         virtual void InitPreAddActions();
         virtual void InitPostAddActions();
         virtual bool InitGeneratorFile();
