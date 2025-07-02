@@ -142,7 +142,7 @@ class LKParameterContainer : public TObjArray
          * - e : evaluate and replace all unraveled variables with ({par},+,-,...)
          * - c : show parameter comments
          */
-        virtual void Print(Option_t *option="ilrec") const;
+        virtual void Print(Option_t *option="i:l:r:e:c") const;
         void SaveAs(const char *filename, Option_t *option = "") const;
         LKParameterContainer *CloneParameterContainer(TString name="", bool addTemporary=false) const;
 
@@ -332,6 +332,7 @@ class LKParameterContainer : public TObjArray
         void SetCollectParameters(bool collect);
         void PrintCollection(TString fileName="");
         void SetIsNewCollection() { fThisIsNewCollection = true; }
+        LKParameterContainer *GetCollectedParameterContainer() { return fCollectedParameterContainer; }
 
     private:
         void CollectParameter();

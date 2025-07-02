@@ -48,8 +48,9 @@ class lilak_configuration:
             self.select_build_options()
             self.select_and_add_project()
             self.select_main_project()
-        if len(os.listdir(self.lilak_path+"/build/"))==0:
-            run_cmake = True
+        if os.path.exists(self.lilak_path+"/build/"):
+            if len(os.listdir(self.lilak_path+"/build/"))==0:
+                run_cmake = True
         change0 = self.create_cmakelists_for_each_project()
         change1 = self.create_build_option_file()
         change2 = self.create_classfactory()
@@ -131,6 +132,7 @@ class lilak_configuration:
         #self.print_header("Init build")
         self.GRU_DIR = "/usr/local/gru"
         self.GET_DIR = "/usr/local/get"
+        self.NPTOOL_DIR = ""
         self.fn_build_option = os.path.join(os.path.join(self.lilak_path, "log"), "build_options.cmake")
         self.nm_main_project = "lilak"
         self.df_build_options0 = {
