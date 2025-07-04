@@ -25,6 +25,8 @@
 #include "LKPrimaryGeneratorAction.h"
 #include "LKG4DetectorConstructionFactory.h"
 
+#include <cmath>
+
 LKG4RunManager::LKG4RunManager()
 :G4RunManager()
 {
@@ -255,7 +257,7 @@ void LKG4RunManager::Run(G4int argc, char **argv, const G4String &type)
             TString command = parameter -> GetLine();
             if (command[0]=='#') continue;
             if (command[0]!='/') command = Form("/%s",command.Data());
-            if (command.Index("/vis/open")==0 && startedVisMode==false)
+            if (command.Index("/vis/open")==0 && startedVisMode==false && fUseVisMode)
             {
                 visManager = new G4VisExecutive;
                 visManager -> Initialize();
@@ -411,13 +413,14 @@ void LKG4RunManager::InitOutputFile()
             TString stepName = TString("MCStep") + detName;
             TString esumName = TString("MCESum") + detName;
 
-            g4man_info << "Adding new step branch " << stepName << " for detector " << detName << endl;
+            g4man_info << "Adding new step branch " << stepName << " for detector " << detName << " (" << copyNo << ")" << endl;
 
             auto stepArray = new TClonesArray("LKMCStep", 10000);
             fTree -> Branch(stepName, &stepArray);
             fStepArrayList -> Add(stepArray);
             fStepNameList.push_back(stepName);
 
+            fListOfCopyNo.push_back(copyNo);
             fIdxOfCopyNo[copyNo] = fNumActiveVolumes;
             //g4man_info << "Adding new esum branch " << esumName << " for detector " << detName << endl;
             //fTree -> Branch(esumName, &fEdepSumArray[fNumActiveVolumes]); // TODO
@@ -542,6 +545,16 @@ void LKG4RunManager::AddTrackVertex(Int_t detectorID, Int_t processID, Double_t 
 
 void LKG4RunManager::AddMCStep(Int_t detectorID, Double_t x, Double_t y, Double_t z, Double_t t, Double_t e)
 {
+    bool isSensitiveDetector = false;
+    for (auto id : fListOfCopyNo) {
+        if (detectorID==id) {
+            isSensitiveDetector = true;
+            break;
+        }
+    }
+    if (isSensitiveDetector==false)
+        return;
+
     auto idx = fIdxOfCopyNo[detectorID];
 
     if (fEdepSumPersistency)
@@ -589,16 +602,17 @@ void LKG4RunManager::WriteToFile(TObject *obj)
 
 void LKG4RunManager::EndOfRun()
 {
-    if (fWriteTextFile)
-        WriteTextFile();
-
     fFile -> cd();
     g4man_info << "Writing " << fTree -> GetName() << " to output file" << endl;
     fTree -> Write();
     g4man_info << "Writing " << fPar -> GetName() << " to output file" << endl;
     fPar -> Write(fPar->GetName(),TObject::kSingleKey);
-    fFile -> Close();
     g4man_info << "Output: " << fFile -> GetName() << endl;
+
+    if (fWriteTextFile)
+        WriteTextFile();
+
+    fFile -> Close();
 }
 
 void LKG4RunManager::WriteTextFile()
@@ -612,6 +626,8 @@ void LKG4RunManager::WriteTextFile()
     textFileName.ReplaceAll(".root",".dat");
     ofstream infoFile(infoFileName);
     ofstream textFile(textFileName);
+    g4man_info << infoFileName << endl;
+    g4man_info << textFileName << endl;
 
     auto numEvents = fTree -> GetEntries();
     auto numStepBs = fStepNameList.size();
@@ -641,6 +657,11 @@ void LKG4RunManager::WriteTextFile()
                 double z = step -> GetZ();
                 double t = step -> GetTime();
                 double e = step -> GetEdep();
+                if (isnan(x)) x = -99;
+                if (isnan(y)) y = -99;
+                if (isnan(z)) z = -99;
+                if (isnan(t)) t = 0;
+                if (isnan(e)) e = -999;
                 textFile << iEvent << "\t"
                          << iBranch << "\t"
                          << trackID << "\t"

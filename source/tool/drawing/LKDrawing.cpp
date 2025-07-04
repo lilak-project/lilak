@@ -1340,10 +1340,10 @@ void LKDrawing::SetStyle(TString drawStyle)
         this -> AddOption("toy",style.GetParDouble("title_offset",1));
         this -> AddOption("toz",style.GetParDouble("title_offset",2));
     }
-    if (style.CheckPar("title_offset")) {
-        this -> AddOption("lox",style.GetParDouble("title_offset",0));
-        this -> AddOption("loy",style.GetParDouble("title_offset",1));
-        this -> AddOption("loz",style.GetParDouble("title_offset",2));
+    if (style.CheckPar("label_offset")) {
+        this -> AddOption("lox",style.GetParDouble("label_offset",0));
+        this -> AddOption("loy",style.GetParDouble("label_offset",1));
+        this -> AddOption("loz",style.GetParDouble("label_offset",2));
     }
     if (style.CheckPar("main_title_size")) this -> AddOption("tsm",style.GetParDouble("main_title_size"));
     if (style.CheckPar("pad_margin")) {
