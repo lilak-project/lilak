@@ -39,6 +39,7 @@ class LKMisc : public TObject
         static bool ValueIsInArray(int value, vector<int> array);
 
         static TString RemoveTrailing0(TString value, bool removeLastDot=false);
+        static TString RemoveTrailing0(double value, bool removeLastDot=false);
 
     public:
         LKMisc();
