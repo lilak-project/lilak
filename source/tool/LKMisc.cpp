@@ -660,6 +660,12 @@ bool LKMisc::ValueIsInArray(int value, vector<int> array)
     return false;
 }
 
+TString LKMisc::RemoveTrailing0(double value, bool removeLastDot)
+{
+    TString valstr = Form("%f",value);
+    return RemoveTrailing0(valstr, removeLastDot);
+}
+
 TString LKMisc::RemoveTrailing0(TString value, bool removeLastDot)
 {
     auto posDot = value.Index(".");

@@ -83,6 +83,7 @@ class LKG4RunManager : public G4RunManager, public LKGear
 
         Double_t fEdepSumArray[200] = {0};
 
+        std::vector<Int_t> fListOfCopyNo;
         std::map<Int_t, Int_t> fIdxOfCopyNo;
         Int_t fNumActiveVolumes = 0;
 
