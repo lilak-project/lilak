@@ -101,139 +101,45 @@ void LKNPToolRunManager::CheckNPToolPhysicsListFile()
 
 void LKNPToolRunManager::CheckNPToolReactionFile()
 {
+    TString keyword = "Reaction";
+    TString commonPath = TString(LILAK_PATH)+"/common/";
+    LKParameterContainer nptool_parameter_list(commonPath+"nptool_parameter_list.mac");
+    auto lfReactions = nptool_parameter_list.GetParVString(keyword);
+    TString reaction_comments = "";
+    for (auto reaction0 : lfReactions)
+        reaction_comments += reaction0 + ",";
+    reaction_comments = reaction_comments(0,reaction_comments.Sizeof()-2);
+
     fPar -> SetCollectParameters(true);
-    auto Reaction = fPar -> InitPar("Beam", "NPTool/Reaction/Type ?? # Beam, Isotropic, AlphaDecay");
-    bool reactionParameterExist = fPar -> CheckPar("NPTool/Reaction/Type");
-    vector<TString> reactions;
+    auto Reaction = fPar -> InitPar("Beam", Form("NPTool/%s/Type ?? # %s",keyword.Data(),reaction_comments.Data()));
+    bool reactionParameterExist = fPar -> CheckPar(Form("NPTool/%s/Type",keyword.Data()));
+    vector<TString> lfCollectedReactions;
+    lfCollectedReactions.push_back(Reaction);
     if (reactionParameterExist==false) {
-        reactions.push_back("Beam");
-        reactions.push_back("AlphaDecay");
-        reactions.push_back("Isotropic");
+        for (auto reaction0 : lfReactions)
+            lfCollectedReactions.push_back(reaction0);
     }
-    reactions.push_back(Reaction);
 
-    fReactionFileName = TString(LILAK_PATH)+"/common/nptool_reaction_dummy.reaction";
+    fReactionFileName = commonPath + "nptool_reaction_dummy.reaction";
 
-    for (auto reaction0 : reactions)
+    bool firstSample = true;
+    for (auto reaction0 : lfCollectedReactions)
     {
-        if (reaction0=="Beam")
-        {
-            auto Particle          = fPar -> InitPar("1H",    "NPTool/Reaction/Beam/Particle           ?? # particle name (1H, 4He, gamma, ...)");
-            auto ExcitationEnergy  = fPar -> InitPar(0.,      "NPTool/Reaction/Beam/ExcitationEnergy   ?? MeV", 0);
-            auto ZEmission         = fPar -> InitPar(0.,      "NPTool/Reaction/Beam/ZEmission          ?? mm" , 0);
-            auto ZProfile          = fPar -> InitPar(0.,      "NPTool/Reaction/Beam/ZProfile           ?? mm" , 0);
-            auto Energy            = fPar -> InitPar(10.,     "NPTool/Reaction/Beam/Energy             ?? MeV", 0);
-            auto SigmaEnergy       = fPar -> InitPar(0.,      "NPTool/Reaction/Beam/SigmaEnergy        ?? MeV", 0);
-            auto SigmaThetaX       = fPar -> InitPar(0.,      "NPTool/Reaction/Beam/SigmaThetaX        ?? deg", 0);
-            auto SigmaPhiY         = fPar -> InitPar(0.,      "NPTool/Reaction/Beam/SigmaPhiY          ?? deg", 0);
-            auto SigmaX            = fPar -> InitPar(0.,      "NPTool/Reaction/Beam/SigmaX             ?? mm" , 0);
-            auto SigmaY            = fPar -> InitPar(0.,      "NPTool/Reaction/Beam/SigmaY             ?? mm" , 0);
-            auto MeanThetaX        = fPar -> InitPar(0.,      "NPTool/Reaction/Beam/MeanThetaX         ?? deg", 0);
-            auto MeanPhiY          = fPar -> InitPar(0.,      "NPTool/Reaction/Beam/MeanPhiY           ?? deg", 0);
-            auto MeanX             = fPar -> InitPar(0.,      "NPTool/Reaction/Beam/MeanX              ?? mm" , 0);
-            auto MeanY             = fPar -> InitPar(0.,      "NPTool/Reaction/Beam/MeanY              ?? mm" , 0);
-            auto EnergyProfilePath = fPar -> InitPar("",      "NPTool/Reaction/Beam/EnergyProfilePath  ?? # ");
-            auto XThetaXProfilePath= fPar -> InitPar("",      "NPTool/Reaction/Beam/XThetaXProfilePath ?? # ");
-            auto YPhiYProfilePath  = fPar -> InitPar("",      "NPTool/Reaction/Beam/YPhiYProfilePath   ?? # ");
-            ofstream reaction_file(fReactionFileName);
-            reaction_file << "Beam" << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Beam/Particle")          -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Beam/ExcitationEnergy")  -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Beam/ZEmission")         -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Beam/ZProfile")          -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Beam/Energy")            -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Beam/SigmaEnergy")       -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Beam/SigmaThetaX")       -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Beam/SigmaPhiY")         -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Beam/SigmaX")            -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Beam/SigmaY")            -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Beam/MeanThetaX")        -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Beam/MeanPhiY")          -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Beam/MeanX")             -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Beam/MeanY")             -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Beam/EnergyProfilePath") -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Beam/XThetaXProfilePath")-> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Beam/YPhiYProfilePath")  -> GetLine("m:n:1") << endl;
+        TString nfc_file_name = commonPath+Form("nptool_parameter_%s_%s.mac",keyword.Data(),reaction0.Data());
+        LKParameterContainer nptool_parameter(nfc_file_name);
+        TIter next(&nptool_parameter);
+        LKParameter* parameter;
+        while (parameter=(LKParameter*) next()) {
+            TString name = parameter -> GetLastName();
+            TString value = parameter -> GetValue();
+            TString comment = parameter -> GetComment();
+            TString lkname = Form("NPTool/%s/%s/%s %s #%s",keyword.Data(),reaction0.Data(),name.Data(),value.Data(),comment.Data());
+            fPar -> UpdatePar(value, lkname);
+            parameter -> SetValue(value);
         }
-
-        else if (reaction0=="AlphaDecay")
-        {
-            auto EnergyLow         = fPar -> InitPar(9.9,        "NPTool/Reaction/AlphaDecay/EnergyLow         ?? MeV", 0);
-            auto EnergyHigh        = fPar -> InitPar(10.0,       "NPTool/Reaction/AlphaDecay/EnergyHigh        ?? MeV", 0);
-            auto HalfOpenAngleMin  = fPar -> InitPar(0.,         "NPTool/Reaction/AlphaDecay/HalfOpenAngleMin  ?? deg", 0);
-            auto HalfOpenAngleMax  = fPar -> InitPar(0.,         "NPTool/Reaction/AlphaDecay/HalfOpenAngleMax  ?? deg", 0);
-            auto x0                = fPar -> InitPar(0.,         "NPTool/Reaction/AlphaDecay/x0                ?? mm" , 0);
-            auto y0                = fPar -> InitPar(0.,         "NPTool/Reaction/AlphaDecay/y0                ?? mm" , 0);
-            auto z0                = fPar -> InitPar(0.,         "NPTool/Reaction/AlphaDecay/z0                ?? mm" , 0);
-            auto SigmaX            = fPar -> InitPar(0.,         "NPTool/Reaction/AlphaDecay/SigmaX            ?? mm" , 0);
-            auto SigmaY            = fPar -> InitPar(0.,         "NPTool/Reaction/AlphaDecay/SigmaY            ?? mm" , 0);
-            auto SigmaZ            = fPar -> InitPar(0.,         "NPTool/Reaction/AlphaDecay/SigmaZ            ?? mm" , 0);
-            auto ExcitationEnergy  = fPar -> InitPar(0.,         "NPTool/Reaction/AlphaDecay/ExcitationEnergy  ?? MeV", 0);
-            auto ActivityBq        = fPar -> InitPar(0.,         "NPTool/Reaction/AlphaDecay/ActivityBq        ?? Bq" , 0);
-            auto TimeWindow        = fPar -> InitPar(0.,         "NPTool/Reaction/AlphaDecay/TimeWindow        ?? s"  , 0);
-            auto direction         = fPar -> InitPar(TVector3(0,0,1), "NPTool/Reaction/AlphaDecay/Direction         ??");
-            auto SourceProfile     = fPar -> InitPar("",         "NPTool/Reaction/AlphaDecay/SourceProfile     ??");
-            ofstream reaction_file(fReactionFileName);
-            reaction_file << "AlphaDecay" << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/AlphaDecay/EnergyLow")        -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/AlphaDecay/EnergyHigh")       -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/AlphaDecay/HalfOpenAngleMin") -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/AlphaDecay/HalfOpenAngleMax") -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/AlphaDecay/x0")               -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/AlphaDecay/y0")               -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/AlphaDecay/z0")               -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/AlphaDecay/SigmaX")           -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/AlphaDecay/SigmaY")           -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/AlphaDecay/SigmaZ")           -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/AlphaDecay/ExcitationEnergy") -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/AlphaDecay/ActivityBq")       -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/AlphaDecay/TimeWindow")       -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/AlphaDecay/Direction")        -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/AlphaDecay/SourceProfile")    -> GetLine("m:n:1") << endl;
-        }
-
-        else if (reaction0=="Isotropic")
-        {
-            auto Particle               = fPar -> InitPar("4He",      "NPTool/Reaction/Isotropic/Particle               ?? # particle name (1H, 4He, gamma, ...)");
-            auto EnergyDistribution     = fPar -> InitPar("flat",     "NPTool/Reaction/Isotropic/EnergyDistribution     ?? # flat, FromHisto, Watt");
-            auto EnergyLow              = fPar -> InitPar(9.9,        "NPTool/Reaction/Isotropic/EnergyLow              ?? MeV", 0);
-            auto EnergyHigh             = fPar -> InitPar(10.0,       "NPTool/Reaction/Isotropic/EnergyHigh             ?? MeV", 0);
-            auto HalfOpenAngleMin       = fPar -> InitPar(0.,         "NPTool/Reaction/Isotropic/HalfOpenAngleMin       ?? deg", 0);
-            auto HalfOpenAngleMax       = fPar -> InitPar(0.,         "NPTool/Reaction/Isotropic/HalfOpenAngleMax       ?? deg", 0);
-            auto x0                     = fPar -> InitPar(0.,         "NPTool/Reaction/Isotropic/x0                     ?? mm" , 0);
-            auto y0                     = fPar -> InitPar(0.,         "NPTool/Reaction/Isotropic/y0                     ?? mm" , 0);
-            auto z0                     = fPar -> InitPar(0.,         "NPTool/Reaction/Isotropic/z0                     ?? mm" , 0);
-            auto ExcitationEnergy       = fPar -> InitPar(0.,         "NPTool/Reaction/Isotropic/ExcitationEnergy       ?? MeV", 0);
-            auto SigmaX                 = fPar -> InitPar(0.,         "NPTool/Reaction/Isotropic/SigmaX                 ?? mm" , 0);
-            auto SigmaY                 = fPar -> InitPar(0.,         "NPTool/Reaction/Isotropic/SigmaY                 ?? mm" , 0);
-            auto SigmaZ                 = fPar -> InitPar(0.,         "NPTool/Reaction/Isotropic/SigmaZ                 ?? mm" , 0);
-            auto Multiplicity           = fPar -> InitPar(Int_t(1),          TString("NPTool/Reaction/Isotropic/Multiplicity           ??"));
-            auto Direction              = fPar -> InitPar("",         "NPTool/Reaction/Isotropic/Direction              ??");
-            auto EnergyDistributionHist = fPar -> InitPar("",         "NPTool/Reaction/Isotropic/EnergyDistributionHist ??");
-            auto SourceProfile          = fPar -> InitPar("",         "NPTool/Reaction/Isotropic/SourceProfile          ??");
-            ofstream reaction_file(fReactionFileName);
-            reaction_file << "Isotropic" << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Isotropic/Particle")               -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Isotropic/EnergyDistribution")     -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Isotropic/EnergyLow")              -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Isotropic/EnergyHigh")             -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Isotropic/HalfOpenAngleMin")       -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Isotropic/HalfOpenAngleMax")       -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Isotropic/x0")                     -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Isotropic/y0")                     -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Isotropic/z0")                     -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Isotropic/ExcitationEnergy")       -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Isotropic/SigmaX")                 -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Isotropic/SigmaY")                 -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Isotropic/SigmaZ")                 -> GetLine("m:n:1") << endl;
-            reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Isotropic/Multiplicity")           -> GetLine("m:n:1") << endl;
-            if ((fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Isotropic/Direction") -> GetValue()).IsNull()==false)
-                reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Isotropic/Direction")              -> GetLine("m:n:1") << endl;
-            if ((fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Isotropic/EnergyDistributionHist") -> GetValue()).IsNull()==false)
-                reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Isotropic/EnergyDistributionHist") -> GetLine("m:n:1") << endl;
-            if ((fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Isotropic/SourceProfile") -> GetValue()).IsNull()==false)
-                reaction_file << fPar -> GetCollectedParameterContainer() -> FindPar("NPTool/Reaction/Isotropic/SourceProfile")          -> GetLine("m:n:1") << endl;
-        }
+        if (firstSample) nptool_parameter.SaveAs(fReactionFileName,"nptool");
+        else             nptool_parameter.SaveAs(fReactionFileName,"nptool:app:%");
+        firstSample = false;
     }
 }
 
