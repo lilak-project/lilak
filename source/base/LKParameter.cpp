@@ -694,21 +694,14 @@ TString LKParameter::GetGroup(int ith) const
 
 TString LKParameter::GetLine(TString printOptions) const
 {
-    bool showRaw = false;
-    bool showEval = false;
-    bool showParComments = false;
-    bool showBothRawEval = false;
-    bool nptoolFormat = false;
-    bool useMainName = false;
-    int ntab = 0;
-
-    if (LKMisc::CheckOption(printOptions,"r",true)) showRaw = true;
-    if (LKMisc::CheckOption(printOptions,"e",true)) showEval = true;
-    if (LKMisc::CheckOption(printOptions,"c",true)) showParComments = true;
-    if (LKMisc::CheckOption(printOptions,"n",true)) nptoolFormat = true;
-    if (LKMisc::CheckOption(printOptions,"m",true)) useMainName = true;
-    if (LKMisc::CheckOption(printOptions,"1",true)) ntab = 1;
-    if (showRaw&&showEval) showBothRawEval = true;
+    bool showRaw          = LKMisc::CheckOption(printOptions,"r",true);
+    bool showEval         = LKMisc::CheckOption(printOptions,"e",true);
+    bool showParComments  = LKMisc::CheckOption(printOptions,"c",true);
+    bool nptoolFormat     = LKMisc::CheckOption(printOptions,"n",true);
+    bool useMainName      = LKMisc::CheckOption(printOptions,"m",true);
+    bool nptoolCommentOut = LKMisc::CheckOption(printOptions,"%",true);
+    int  ntab             =(LKMisc::CheckOption(printOptions,"1",true)?1:0);
+    bool showBothRawEval = (showRaw&&showEval);
     if (!showRaw&&!showEval) showEval = true;
 
     if (nptoolFormat) {
@@ -758,7 +751,9 @@ TString LKParameter::GetLine(TString printOptions) const
     else if (value.Sizeof()>30)  vwidth = 40;
     else                         vwidth = 30;
 
+    bool valueIsEmpty = false;
     if (nptoolFormat) {
+        if (value.IsNull()) valueIsEmpty = true;
         value = TString("= ") + value;
         value.ReplaceAll(",","");
     }
@@ -771,6 +766,9 @@ TString LKParameter::GetLine(TString printOptions) const
         line = TString("#") + line;
 
     if (ntab==1) line = TString("    ") + line;
+
+    if (nptoolFormat && (valueIsEmpty||nptoolCommentOut))
+        line = TString("%") + line;
 
     return line;
 }

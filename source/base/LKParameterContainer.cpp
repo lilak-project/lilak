@@ -70,12 +70,9 @@ double LKParameterContainer::Eval(TString formula) const
     return TFormula("formula",formula).Eval(0);
 }
 
-void LKParameterContainer::SaveAs(const char *fileName, Option_t *) const
+void LKParameterContainer::SaveAs(const char *fileName, Option_t *option) const
 {
-    TString fileName0(fileName);
-    if (fileName0.Index(".") < 0)
-        fileName0 = fileName0 + ".mac";
-    Print(fileName0);
+    PrintToFileOrScreen(fileName,TString(option));
 }
 
 void LKParameterContainer::Recompile()
@@ -625,39 +622,58 @@ Int_t LKParameterContainer::AddJsonTree(const Json::Value &jsonTree, TString tre
 
 void LKParameterContainer::Print(Option_t *option) const
 {
-    TString printOptions(option);
+    PrintToFileOrScreen("",TString(option));
+}
 
-    bool showLineIndex = false;
-    bool showLineComment = false;
-    bool printToScreen = true;
-    bool printToFile = false;
-    ofstream fileOut;
-
-    if (LKMisc::CheckOption(printOptions,"l",true)) showLineComment = true;
-    if (LKMisc::CheckOption(printOptions,"i",true)) showLineIndex = true;
-
-    TString fileName = printOptions;
-    if (fileName.IsNull()) {
-        printToScreen = true;
+void LKParameterContainer::PrintToFileOrScreen(TString fileName, TString printOptions) const
+{
+    bool appendToFile     = LKMisc::CheckOption(printOptions,"app",true);
+    bool showLineIndex    = LKMisc::CheckOption(printOptions,"i",true);
+    bool showLineComment  = LKMisc::CheckOption(printOptions,"l",true);
+    bool useTObjectPrint  = LKMisc::CheckOption(printOptions,"t",true);
+    bool nptoolCommentOut = LKMisc::CheckOption(printOptions,"%",false);
+    bool nptoolFormat     = LKMisc::CheckOption(printOptions,"nptool",true);
+    if (nptoolFormat) {
+        LKMisc::AddOption(printOptions,"n",true);
+        LKMisc::AddOption(printOptions,"m",true);
+        LKMisc::AddOption(printOptions,"v",true);
+        LKMisc::AddOption(printOptions,"1",true);
     }
-    else if (fileName.Index(".")>0) {
-        printToFile = true;
-        printToScreen = false;
-    }
+
+    bool printToScreen = ( fileName.IsNull());
+    bool printToFile   = (!fileName.IsNull());
+
+    if (fileName.Index(".")<0)
+        fileName = fileName + ".mac";
 
     if (printToScreen) {
         e_cout << endl;
         lk_info << "Parameter Container " << fName << endl;
     }
 
+    ofstream fileOut;
     if (printToFile)
     {
-        lk_info << "Writting " << fileName << endl;
-        fileOut.open(fileName);
-        fileOut << "# " << fileName << " created from LKParameterContainer::Print" << endl;
+        TString message;
+        if (appendToFile) {
+            lk_info << "Appending to " << fileName << endl;
+            fileOut.open(fileName,std::ios::app);
+            message = fileName + " appending from LKParameterContainer::Print";
+        }
+        else {
+            lk_info << "Writting " << fileName << endl;
+            fileOut.open(fileName);
+            message = fileName + " created from LKParameterContainer::Print";
+        }
+        if (nptoolFormat)  {
+            fileOut << "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" << endl;
+            fileOut << "% " << message << endl;
+            fileOut << "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" << endl;
+        }
+        else fileOut << "# " << message << endl;
     }
     else {
-        if (printOptions.Index("t")>=0) {
+        if (useTObjectPrint) {
             TObjArray::Print();
             return;
         }
@@ -667,6 +683,19 @@ void LKParameterContainer::Print(Option_t *option) const
     TIter iterator(this);
     LKParameter *parameter;
     TString preGroup = "";
+
+    if (nptoolFormat) {
+        while (true) {
+            parameter = dynamic_cast<LKParameter*>(iterator());
+            if (parameter -> IsLineComment()) continue;
+            break;
+        }
+        auto group = parameter -> GetGroup();
+        if (nptoolCommentOut) fileOut << "%" << group << endl;
+        else fileOut << group << endl;
+        iterator.Reset();
+    }
+
     while ((parameter = dynamic_cast<LKParameter*>(iterator())))
     {
         TString parGroup = parameter -> GetGroup(-1);
@@ -685,32 +714,35 @@ void LKParameterContainer::Print(Option_t *option) const
 
         if (addEmptyLine) {
             if (printToScreen) e_cout << endl;
-            if (printToFile)   fileOut << endl;
+            if (printToFile && nptoolFormat==false) fileOut << endl;
         }
-        if (preGroup!=parGroup && printToFile) {
+        if (preGroup!=parGroup && printToFile && nptoolFormat==false) {
             fileOut << endl;
         }
 
         if (isLineComment && showLineComment)
         {
             if (showLineComment) {
-                if (printToScreen) e_cout  << parameter->GetLine(TString(option)) << endl;
-                if (printToFile)   fileOut << parameter->GetLine(TString(option)) << endl;
+                if (printToScreen) e_cout  << parameter->GetLine(printOptions) << endl;
+                if (printToFile)   fileOut << parameter->GetLine(printOptions) << endl;
             }
         }
         else if (isParameter)
         {
             if (printToScreen) {
-                if (showLineIndex) e_list(parNumber) << left << parameter->GetLine(TString(option)) << endl;
-                else               e_cout            << left << parameter->GetLine(TString(option)) << endl;
+                if (showLineIndex) e_list(parNumber) << left << parameter->GetLine(printOptions) << endl;
+                else               e_cout            << left << parameter->GetLine(printOptions) << endl;
             }
-            if (printToFile) fileOut << parameter->GetLine(TString(option)) << endl;
+            if (printToFile) fileOut << parameter->GetLine(printOptions) << endl;
         }
 
         preGroup = parGroup;
         if (isParameter)
             parNumber++;
     }
+
+    if (printToFile && nptoolFormat)
+        fileOut << endl;
 
     if (printToScreen)
         lk_info << "End of Parameter Container " << fName << endl;
