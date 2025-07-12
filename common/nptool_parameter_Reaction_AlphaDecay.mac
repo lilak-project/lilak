@@ -1,0 +1,16 @@
+AlphaDecay/
+    EnergyLow         9.9  MeV
+    EnergyHigh        10.0 MeV
+    HalfOpenAngleMin  0.   deg
+    HalfOpenAngleMax  0.   deg
+    x0                0.   mm
+    y0                0.   mm
+    z0                0.   mm
+    SigmaX            0.   mm
+    SigmaY            0.   mm
+    SigmaZ            0.   mm
+    ExcitationEnergy  0.   MeV
+    ActivityBq        0.   Bq
+    TimeWindow        0.   s
+    Direction         z
+    SourceProfile

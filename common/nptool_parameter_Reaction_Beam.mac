@@ -1,0 +1,18 @@
+Beam/
+    Particle           1H  # particle name (1H, 4He, gamma, ...)
+    ExcitationEnergy   0.  MeV
+    ZEmission          0.  mm
+    ZProfile           0.  mm
+    Energy             10, MeV
+    SigmaEnergy        0.  MeV
+    SigmaThetaX        0.  deg
+    SigmaPhiY          0.  deg
+    SigmaX             0.  mm
+    SigmaY             0.  mm
+    MeanThetaX         0.  deg
+    MeanPhiY           0.  deg
+    MeanX              0.  mm
+    MeanY              0.  mm
+    EnergyProfilePath
+    XThetaXProfilePath
+    YPhiYProfilePath

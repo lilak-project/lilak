@@ -143,8 +143,10 @@ class LKParameterContainer : public TObjArray
          * - c : show parameter comments
          */
         virtual void Print(Option_t *option="i:l:e:c") const;
-        void SaveAs(const char *filename, Option_t *option = "") const;
+        void SaveAs(const char *fileName, Option_t *option = "") const;
         LKParameterContainer *CloneParameterContainer(TString name="", bool addTemporary=false) const;
+
+        void PrintToFileOrScreen(TString fileName, TString printOptions="i:l:e:c") const;
 
         void Recompile();
 

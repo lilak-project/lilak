@@ -1,0 +1,18 @@
+Isotropic/
+    Particle               4He      # particle name (1H, 4He, gamma, ...)
+    EnergyDistribution     flat     # flat, FromHisto, Watt
+    EnergyLow              9.9  MeV
+    EnergyHigh             10.0 MeV
+    HalfOpenAngleMin       0. deg
+    HalfOpenAngleMax       0. deg
+    x0                     0. mm
+    y0                     0. mm
+    z0                     0. mm
+    ExcitationEnergy       0. MeV
+    SigmaX                 0. mm
+    SigmaY                 0. mm
+    SigmaZ                 0. mm
+    Multiplicity           1
+    Direction
+    EnergyDistributionHist
+    SourceProfile
