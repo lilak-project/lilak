@@ -1,0 +1,7 @@
+Project/
+    AnalysisOutput     e{NPTOOL}/Outputs/Analysis/
+    SimulationOutput   e{NPTOOL}/Outputs/Simulation/
+    CalibrationOutput  e{NPTOOL}/Outputs/Calibration/
+    EfficiencyOutput   e{NPTOOL}/Outputs/Efficiency/
+    EnergyLoss         e{NPTOOL}/Inputs/EnergyLoss/
+    #Cuts

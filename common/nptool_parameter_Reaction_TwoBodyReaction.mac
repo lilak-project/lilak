@@ -1,0 +1,37 @@
+# nptool/NPLib/Physics/NPReaction.cxx
+TwoBodyReaction/
+    Beam    1H
+    Target  12C
+    Light   1H
+    Heavy   12C
+    ShootHeavy 1 # shoot heavy or not
+    ShootLgith 1 # shoot heavy or not
+    ExcitationEnergyBeam    0 MeV
+    ExcitationEnergyLight   0 MeV
+    ExcitationEnergyHeavy   0 MeV
+    #>
+    # // multiply CStemp by sin(theta)
+    # filename should be user file or ones in the nptool/Inputs/CrossSecktion/ (ex) flat.txt CS)
+    CrossSectionPath filename histname
+
+    #> Read1DProfile name of the file 
+    #ExcitationEnergyDistribution filename histname
+    #HalfOpenAngleMin    0 deg
+    #HalfOpenAngleMax    0 deg
+    
+    # >
+    # This option will not change the Ex of the produced ion in G4 Tracking
+    # This is to be set to true when using a Ex distribution without decay
+    # Otherwise the Ion Table size grew four ech event slowing down the simulation
+    #UseExInGeant4 1
+    
+    #>
+    # // multiply CStemp by sin(theta)
+    #LabCrossSectionPath filename histname
+    
+    #>
+    # multiply CStemp by sin(theta)
+    # X axis is theta CM
+    # Y axis is beam energy
+    # Division affect only X axis
+    #DoubleDifferentialCrossSectionPath filename histname

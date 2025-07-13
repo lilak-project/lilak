@@ -1,0 +1,20 @@
+/vis/open OGL 600x600-0+0
+/vis/scene/add/axes 0 0 0 100 mm
+/vis/drawVolume
+/vis/viewer/flush
+/vis/viewer/set/lightsVector -1 0 0
+/vis/viewer/set/style surface
+/vis/viewer/set/auxiliaryEdge true
+/vis/viewer/set/lineSegmentsPerCircle 100
+/vis/scene/add/trajectories smooth
+/vis/modeling/trajectories/create/drawByCharge
+/vis/modeling/trajectories/drawByCharge-0/default/setDrawStepPts true
+/vis/modeling/trajectories/drawByCharge-0/default/setStepPtsSize 2
+/vis/scene/endOfEventAction accumulate
+/vis/geometry/set/visibility logicWorld 0 false
+/vis/viewer/set/viewpointThetaPhi 100 160
+/vis/viewer/set/autoRefresh true
+/tracking/verbose 0
+/vis/verbose warnings
+/run/setCutForAGivenParticle e- 100. mm
+#/run/beamOn 1
