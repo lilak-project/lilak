@@ -12,7 +12,7 @@ class LKNPToolRunManager : public LKG4RunManager
         virtual void AddParameterContainer(TString fname);
 
     public:
-        virtual void CheckNPToolPhysicsListFile();
+        virtual void CheckNPToolInitializationFiles();
         virtual void CheckNPToolReactionFile();
 
         virtual void InitPreAddActions();
@@ -34,6 +34,7 @@ class LKNPToolRunManager : public LKG4RunManager
 
     protected:
         bool fNPToolMode = false;
+        bool fUsingNPToolDetectorConstruction = false;
         TString fReactionFileName;
 };
 

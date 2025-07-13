@@ -16,6 +16,7 @@
 #include "TSystem.h"
 #include "TObjString.h"
 
+#include "LKCompiled.h"
 #include "LKEventAction.h"
 #include "LKG4RunManager.h"
 #include "LKG4RunMessenger.h"
@@ -65,7 +66,7 @@ void LKG4RunManager::AddParameterContainer(TString fname)
     fOutputFileName       = fPar -> InitPar("g4output.root","LKG4Manager/G4OutputFile ?? # name of the output file this will contain branches of TClonesArray defined by LILAK containers");
     fRandomSeed           = fPar -> InitPar((Long64_t)time(0),"LKG4Manager/RandomSeed ?? # set random seed to root and geant4 random generator. Random seed will be time(0) if this parameter is not set");
     fSDNames              = fPar -> InitPar(std::vector<TString>{},"LKG4Manager/SensitiveDetectors ?? # not really used at the moment");
-    fGeneratorFileName    = fPar -> InitPar(TString(), "LKG4Manager/PGAGeneratorFile ?? Generator file");
+    fGeneratorFileName    = fPar -> InitPar(TString(), "LKG4Manager/PGAGeneratorFile ?? # Generator file");
     fDetectorConstructionName = fPar -> InitPar("", "LKG4Manager/DetectorCosntruction ?? # Name of the geant4 DC (Detector Construction) name. To add DC through this parameter, user must place DC-class either in geant4 or nptool in project-directory. Class name (which should be same as the class file name) must contain \"DetectorConstruction\" or \"DC\".");
     fWriteTextFile = fPar -> InitPar(false, "LKG4Manager/WriteTextFile ??");
 
@@ -233,7 +234,9 @@ void LKG4RunManager::Run(G4int argc, char **argv, const G4String &type)
     if (fG4CommandFileName.IsNull()==false) {
         g4man_info << "Adding geant4 command macro " << fG4CommandFileName << endl;
         // TODO
-        g4CommandContainer -> AddFile(fG4CommandFileName);
+        int count_parameters = g4CommandContainer -> AddFile(fG4CommandFileName);
+        if (count_parameters==0)
+            count_parameters = g4CommandContainer -> AddFile(TString(LILAK_PATH)+"/common/"+fG4CommandFileName);
     }
     auto g4CommandContainer2 = fPar -> CreateGroupContainer("G4");
     if (g4CommandContainer2->GetEntries()>0) {

@@ -36,66 +36,33 @@
 LKNPToolRunManager::LKNPToolRunManager()
 :LKG4RunManager()
 {
-    CheckNPToolPhysicsListFile();
 }
 
 LKNPToolRunManager::~LKNPToolRunManager()
 {
 }
 
-void LKNPToolRunManager::CheckNPToolPhysicsListFile()
+void LKNPToolRunManager::CheckNPToolInitializationFiles()
 {
-    if (TString(gSystem -> Which(".", "PhysicsListOption.txt")).IsNull())
+    TString physicsListFileName = "PhysicsListOption.txt";
+    if (TString(gSystem -> Which(".", physicsListFileName)).IsNull())
     {
-        //g4man_warning << "PhysicsListOption.txt for current project is missing!" << endl;
-        //g4man_error << "Creating dummy PhysicsListOption.txt ..." << endl;
-        //ofstream physicsListFile("PhysicsListOption.txt");
-        /*
-        g4man_info << "You may use" << endl;
-        physicsListFile << "EmPhysicsList Option4" << endl;
-        physicsListFile << "DefaultCutOff 1" << endl;
-        physicsListFile << "DriftElectronPhysics 0" << endl;
-        physicsListFile << "IonBinaryCascadePhysics 0" << endl;
-        physicsListFile << "NPIonInelasticPhysics 0" << endl;
-        physicsListFile << "EmExtraPhysics 0" << endl;
-        physicsListFile << "HadronElasticPhysics 0" << endl;
-        physicsListFile << "StoppingPhysics 0" << endl;
-        physicsListFile << "OpticalPhysics 0" << endl;
-        physicsListFile << "HadronPhysicsINCLXX 0" << endl;
-        physicsListFile << "HadronPhysicsQGSP_BIC_HP 0" << endl;
-
-             if (m_EmList == "INCLXX_EM") { cout << "Choosing to use INCLXX included EMList (probably standard)" << endl; }
-        else if (m_EmList == "Option1")   { emPhysicsList = new G4EmStandardPhysics_option1(); cout << "//// Using G4EmStandardPhysics_option1 Physics List ////" << endl; }
-        else if (m_EmList == "Option2")   { emPhysicsList = new G4EmStandardPhysics_option2(); cout << "//// Using G4EmStandardPhysics_option2 Physics List ////" << endl; }
-        else if (m_EmList == "Option3")   { emPhysicsList = new G4EmStandardPhysics_option3(); cout << "//// Using G4EmStandardPhysics_option3 Physics List ////" << endl; }
-        else if (m_EmList == "Option4")   { emPhysicsList = new G4EmStandardPhysics_option4(); cout << "//// Using G4EmStandardPhysics_option4 Physics List ////" << endl; }
-        else if (m_EmList == "Standard")  { emPhysicsList = new G4EmStandardPhysics(); cout << "//// Using G4EmStandardPhysics default EM constructor Physics List ////" << endl; }
-        else if (m_EmList == "Livermore") { emPhysicsList = new G4EmLivermorePhysics(); cout << "//// Using G4EmLivermorePhysics Physics List ////" << endl; }
-        else if (m_EmList == "Penelope")  { emPhysicsList = new G4EmPenelopePhysics(); cout << "//// Using G4EmPenelopePhysics Physics List ////" << endl; }
-        else { std::cout << "\r\033[1;31mERROR: User given physics list " << m_EmList << " is not supported, option are Option4 Livermore Penelope\033[0m" << std::endl; exit(1); }
-
-        {
-            value = std::atof(str_value.c_str());
-                 if (name == "EmPhysicsList") m_EmList = str_value;
-            else if (name == "DefaultCutOff") defaultCutValue = value * mm;
-            else if (name == "IonBinaryCascadePhysics") m_IonBinaryCascadePhysics = value;
-            else if (name == "NPIonInelasticPhysics") m_NPIonInelasticPhysics = value;
-            else if (name == "EmExtraPhysics") m_EmExtraPhysics = value;
-            else if (name == "HadronElasticPhysics") m_HadronElasticPhysics = value;
-            else if (name == "StoppingPhysics") m_StoppingPhysics = value;
-            else if (name == "OpticalPhysics") m_OpticalPhysics = value;
-            else if (name == "DriftElectronPhysics") m_DriftElectronPhysics = value;
-            else if (name == "HadronPhysicsQGSP_BIC_HP") m_HadronPhysicsQGSP_BIC_HP = value;
-            else if (name == "HadronPhysicsQGSP_BERT_HP") m_HadronPhysicsQGSP_BERT_HP = value;
-            else if (name == "HadronPhysicsINCLXX") m_HadronPhysicsINCLXX = value;
-            else if (name == "HadronPhysicsQGSP_INCLXX_HP") { m_HadronPhysicsQGSP_INCLXX_HP = value; if (value) m_INCLXXPhysics = true; }
-            else if (name == "HadronPhysicsQGSP_INCLXX") { m_HadronPhysicsQGSP_INCLXX = value; if (value) m_INCLXXPhysics = true; }
-            else if (name == "HadronPhysicsFTFP_INCLXX_HP") { m_HadronPhysicsFTFP_INCLXX_HP = value; if (value) m_INCLXXPhysics = true; }
-            else if (name == "HadronPhysicsFTFP_INCLXX") { m_HadronPhysicsFTFP_INCLXX = value; if (value) m_INCLXXPhysics = true; }
-            else if (name == "Decay") m_Decay = value;
-            else if (name == "IonGasModels") m_IonGasModels = value;hysicsListFile << "Decay 0" << endl;
-        }
-    */
+        g4man_warning << physicsListFileName << " do not exist." << endl;
+        TString commonPath = TString(LILAK_PATH)+"/common/";
+        TString nppar_file_name = commonPath+"nptool_parameter_PhysicsListOption.mac";
+        LKParameterContainer nptool_parameter(nppar_file_name);
+        g4man_info << "Example " << physicsListFileName << " is:" << endl;
+        nptool_parameter.Print("e:c:l:%");
+    }
+    TString projectConfigFileName = "project.config";
+    if (TString(gSystem -> Which(".", projectConfigFileName)).IsNull())
+    {
+        g4man_warning << projectConfigFileName << " do not exist." << endl;
+        TString commonPath = TString(LILAK_PATH)+"/common/";
+        TString nppar_file_name = commonPath+"nptool_parameter_project_config.mac";
+        LKParameterContainer nptool_parameter(nppar_file_name);
+        g4man_info << "Example " << projectConfigFileName << " is:" << endl;
+        nptool_parameter.Print("e:c:l:%");
     }
 }
 
@@ -120,21 +87,21 @@ void LKNPToolRunManager::CheckNPToolReactionFile()
             lfCollectedReactions.push_back(reaction0);
     }
 
-    fReactionFileName = commonPath + "nptool_reaction_dummy.reaction";
+    fReactionFileName = commonPath + "nptool_dummy_reaction.reaction";
 
     bool firstSample = true;
     for (auto reaction0 : lfCollectedReactions)
     {
-        TString nfc_file_name = commonPath+Form("nptool_parameter_%s_%s.mac",keyword.Data(),reaction0.Data());
-        LKParameterContainer nptool_parameter(nfc_file_name);
+        TString nppar_file_name = commonPath+Form("nptool_parameter_%s_%s.mac",keyword.Data(),reaction0.Data());
+        LKParameterContainer nptool_parameter(nppar_file_name);
         TIter next(&nptool_parameter);
         LKParameter* parameter;
         while (parameter=(LKParameter*) next()) {
             TString name = parameter -> GetLastName();
             TString value = parameter -> GetValue();
             TString comment = parameter -> GetComment();
-            TString lkname = Form("NPTool/%s/%s/%s %s #%s",keyword.Data(),reaction0.Data(),name.Data(),value.Data(),comment.Data());
-            fPar -> UpdatePar(value, lkname);
+            TString parname = Form("NPTool/%s/%s/%s %s #%s",keyword.Data(),reaction0.Data(),name.Data(),value.Data(),comment.Data());
+            fPar -> UpdatePar(value, parname);
             parameter -> SetValue(value);
         }
         if (firstSample) nptool_parameter.SaveAs(fReactionFileName,"nptool");
@@ -160,16 +127,30 @@ void LKNPToolRunManager::AddParameterContainer(TString fname)
 void LKNPToolRunManager::InitPreAddActions()
 {
     g4man_info << "Using nptool mode!!" << endl;
+
+    CheckNPToolInitializationFiles();
+
     if (GetUserDetectorConstruction() == nullptr)
     {
         g4man_warning << "No user detector construction is set!" << endl;
         LKNPDetectorConstructionFactory dcf;
+        G4VUserDetectorConstruction* detectorConstruction;
         if (!fDetectorConstructionName.IsNull()) {
-            g4man_info << "Adding " << fDetectorConstructionName << endl;
-            SetUserInitialization(dcf.GetDetectorConstruction(fDetectorConstructionName));
+            detectorConstruction = dcf.GetDetectorConstruction(fDetectorConstructionName);
+            if (detectorConstruction!=nullptr) {
+                g4man_info << "Adding " << fDetectorConstructionName << endl;
+                SetUserInitialization(detectorConstruction);
+            }
+            else {
+                g4man_error << "Cannot find " << fDetectorConstructionName << " in LKNPDetectorConstructionFactory" << endl;
+                g4man_error << "Trying NPTool DetectorConstruction" << endl;
+                g4man_error << "This mode is in development ..." << endl;
+                fUsingNPToolDetectorConstruction = true;
+                SetUserInitialization(new DetectorConstruction);
+            }
         }
         else {
-            g4man_info << "Adding LKNPDetectorConstruction " << endl;
+            g4man_info << "Adding default LKNPDetectorConstruction" << endl;
             SetUserInitialization(dcf.GetDetectorConstruction("LKNPDetectorConstruction"));
         }
     }
@@ -184,6 +165,8 @@ void LKNPToolRunManager::InitPreAddActions()
         g4man_error << "No nptool reaction file! (parameter NPTool/Reaction/File)" << endl;
     NPOptionManager::getInstance() -> SetIsSimulation();
     NPOptionManager::getInstance() -> SetReactionFile(fReactionFileName.Data());
+    if (fUsingNPToolDetectorConstruction)
+        NPOptionManager::getInstance() -> SetDetectorFile(fDetectorConstructionName.Data());
 }
 
 void LKNPToolRunManager::InitPostAddActions()

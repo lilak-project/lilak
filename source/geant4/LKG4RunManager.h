@@ -62,7 +62,7 @@ class LKG4RunManager : public G4RunManager, public LKGear
         virtual void EndOfRun();
         virtual void WriteTextFile();
 
-        virtual void SetCollectPar(TString name) { fCollecteParAndPrintTo = "collected_parameters"; }
+        virtual void SetCollectPar(TString name) { fCollecteParAndPrintTo = "collected_lkg4runmanager"; }
 
     public:
         virtual void Initialize();
