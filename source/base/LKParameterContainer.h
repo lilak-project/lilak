@@ -127,6 +127,28 @@ class LKParameterContainer : public TObjArray
         /**
          * Print to screen or file
          *
+         * Options may be added with and addition to ":" or space. ex) Print("file.par:line#:par#"), Print("eval:par#")
+         *
+         * ## options
+         * - i  : show line index
+         * - l  : show line comments
+         * - t  : print from TObjArray::Print()
+         * - r  : showRaw
+         * - e  : showEval
+         * - c  : showParComments
+         * - n  : nptoolFormat
+         * - m  : useMainName
+         * - %  : comIsPercent
+         * - 1  : ntab
+         * - coa: commentOutAll
+         */
+        virtual void Print(Option_t *option="i:ht:l:e:c") const;
+        void SaveAs(const char *fileName, Option_t *option = "ht:l:e:c") const;
+        LKParameterContainer *CloneParameterContainer(TString name="", bool addTemporary=false) const;
+
+        /**
+         * Print to screen or file
+         *
          * ## How to give option
          *
          * If file name is not given, parameter container will be printed on the screen. ex) Print()
@@ -134,19 +156,19 @@ class LKParameterContainer : public TObjArray
          * Options may be added with and addition to ":" or space. ex) Print("file.par:line#:par#"), Print("eval:par#")
          *
          * ## options
-         *
-         * - i : show line index
-         * - l : show line comments
-         * - t : print from TObjArray::Print()
-         * - r : show raw parameter value
-         * - e : evaluate and replace all unraveled variables with ({par},+,-,...)
-         * - c : show parameter comments
+         * - i  : show line index
+         * - l  : show line comments
+         * - t  : print from TObjArray::Print()
+         * - r  : showRaw
+         * - e  : showEval
+         * - c  : showParComments
+         * - n  : nptoolFormat
+         * - m  : useMainName
+         * - %  : comIsPercent
+         * - 1  : ntab
+         * - coa: commentOutAll
          */
-        virtual void Print(Option_t *option="i:l:e:c") const;
-        void SaveAs(const char *fileName, Option_t *option = "") const;
-        LKParameterContainer *CloneParameterContainer(TString name="", bool addTemporary=false) const;
-
-        void PrintToFileOrScreen(TString fileName, TString printOptions="i:l:e:c") const;
+        void PrintToFileOrScreen(TString fileName, TString printOptions="i:ht:l:e:c") const;
 
         void Recompile();
 
@@ -169,12 +191,15 @@ class LKParameterContainer : public TObjArray
         bool SearchAndAddPar(TString dirName="");
 
         LKParameter* GetParameter(int idx) { return (LKParameter*) At(idx); }
+        TString GetCommonGroup() const;
 
 #ifdef LILAK_BUILD_JSONCPP
         Int_t  AddJsonTree(const Json::Value &value, TString treeName="");
 #endif
 
         Int_t  AddLine(std::string line); ///< Set parameter by line
+        Int_t  AddLine(TString line) { std::string ssline = line.Data(); return AddLine(ssline); }
+        Int_t  AddLine(const char* line) { std::string ssline = line; return AddLine(ssline); }
         Bool_t AddPar(TString name, TString val, TString comment=""); ///< Set parameter TString
         Bool_t AddPar(TString name, Int_t val, TString comment="")    { return AddPar(name,Form("%d",val),comment); } ///< Set parameter Int_t
         Bool_t AddPar(TString name, Long64_t val, TString comment="") { return AddPar(name,Form("%lld",val),comment); } ///< Set parameter Double_t

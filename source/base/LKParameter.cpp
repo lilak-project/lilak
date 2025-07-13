@@ -252,26 +252,31 @@ Int_t LKParameter::Compare(const TObject *obj) const
 
     TString cGroup = GetGroup(-1);
     TString iGroup = parameter -> GetGroup(-1);
-    TString iName = parameter -> GetName();
+    TString cName = GetLastName();
+    TString iName = parameter -> GetLastName();
     int iCompare = parameter -> GetCompare();
 
-    if (!fName.IsNull() && iName.IsNull()) { return sortEarlier; }
-    if (fName.IsNull() && !iName.IsNull()) { return sortLatter; }
-    if (fName.IsNull() && iName.IsNull()) { return sortSame; }
+    if (!cName.IsNull() && iName.IsNull()) { return sortEarlier; }
+    if (cName.IsNull() && !iName.IsNull()) {  return sortLatter; }
+    if (cName.IsNull() && iName.IsNull()) { eturn sortSame; }
 
     if (cGroup=="LKRun" && iGroup=="LKRun")
     {
         if      (fCompare<iCompare) { return sortEarlier; }
-        else if (fCompare>iCompare) { return sortLatter; }
-        else { return sortSame; }
+        else if (fCompare>iCompare) {  return sortLatter; }
+        else { eturn sortSame; }
     }
     else if (cGroup=="LKRun") { return sortEarlier; }
-    else if (iGroup=="LKRun") { return sortLatter; }
+    else if (iGroup=="LKRun") {  return sortLatter; }
     else if (cGroup<iGroup) { return sortEarlier; }
-    else if (cGroup>iGroup) { return sortLatter; }
+    else if (cGroup>iGroup) {  return sortLatter; }
     else {
         if      (fCompare<iCompare) { return sortEarlier; }
-        else if (fCompare>iCompare) { return sortLatter; }
+        else if (fCompare>iCompare) {  return sortLatter; }
+        else {
+            if      (cName<iName) { return sortEarlier; }
+            else if (cName>iName) {  return sortLatter; }
+        }
     }
 
     return sortSame;
@@ -699,7 +704,8 @@ TString LKParameter::GetLine(TString printOptions) const
     bool showParComments  = LKMisc::CheckOption(printOptions,"c",true);
     bool nptoolFormat     = LKMisc::CheckOption(printOptions,"n",true);
     bool useMainName      = LKMisc::CheckOption(printOptions,"m",true);
-    bool nptoolCommentOut = LKMisc::CheckOption(printOptions,"%",true);
+    bool comIsPercent     = LKMisc::CheckOption(printOptions,"%",true);
+    bool commentOutAll    = LKMisc::CheckOption(printOptions,"coa",true);
     int  ntab             =(LKMisc::CheckOption(printOptions,"1",true)?1:0);
     bool showBothRawEval = (showRaw&&showEval);
     if (!showRaw&&!showEval) showEval = true;
@@ -710,10 +716,14 @@ TString LKParameter::GetLine(TString printOptions) const
         showParComments = false;
         showBothRawEval = false;
         useMainName = true;
+        comIsPercent = true;
     }
 
+    TString com = "#";
+    if (comIsPercent) com = "%";
+
     if (IsLineComment()) {
-        TString line = TString("## ") + fComment;
+        TString line = com + com + " " + fComment;
         return line;
     }
 
@@ -738,7 +748,7 @@ TString LKParameter::GetLine(TString printOptions) const
     TString value = fValue;
     if (showBothRawEval) {
         value = fTitle;
-        comment = TString("--> ") + fValue + " # " + comment;
+        comment = TString("--> ") + fValue + " " + com + " " + comment;
     }
     else if (showEval) value = fValue;
     else if (showRaw) value = fTitle;
@@ -760,15 +770,12 @@ TString LKParameter::GetLine(TString printOptions) const
 
     TString line = name + " " + value;
     if (showParComments && comment.IsNull()==false)
-        line = line + "  # " + comment;
-
-    if (IsCommentOut())
-        line = TString("#") + line;
+        line = line + "  " + com + " " + comment;
 
     if (ntab==1) line = TString("    ") + line;
 
-    if (nptoolFormat && (valueIsEmpty||nptoolCommentOut))
-        line = TString("%") + line;
+    if (IsCommentOut() || (nptoolFormat && valueIsEmpty) || commentOutAll)
+        line = com + line;
 
     return line;
 }

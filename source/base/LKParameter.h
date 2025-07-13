@@ -23,9 +23,15 @@ class LKParameter : public TNamed
         virtual ~LKParameter();
 
         virtual void Clear(Option_t *option = "");
-        /// r : show raw value
-        /// e : show evaluatated value
-        /// c : show parameter comment
+        /* - r  : showRaw
+         * - e  : showEval
+         * - c  : showParComments
+         * - n  : nptoolFormat
+         * - m  : useMainName
+         * - %  : comIsPercent
+         * - 1  : ntab
+         * - coa: commentOutAll
+         */
         virtual void Print(Option_t *option = "e:c") const;
 
         virtual Bool_t IsSortable() const { return true; }
@@ -50,12 +56,15 @@ class LKParameter : public TNamed
         TString GetLastName() const;
 
         TString GetGroup(int ith) const;
-        /// r : show raw value
-        /// e : show evaluatated value
-        /// c : show parameter comment
-        /// n : use nptool format
-        /// 1 : tab=1 (for nptool format)
-        /// m : print only main name without groups
+        /* - r  : showRaw
+         * - e  : showEval
+         * - c  : showParComments
+         * - n  : nptoolFormat
+         * - m  : useMainName
+         * - %  : comIsPercent
+         * - 1  : ntab
+         * - coa: commentOutAll
+         */
         TString GetLine(TString option="e:c") const;
 
         bool    CheckTypeInt   (int i=-1) const;
