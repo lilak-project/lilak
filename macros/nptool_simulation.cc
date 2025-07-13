@@ -13,7 +13,8 @@ int main(int argc, char** argv)
     auto runManager = new LKG4RunManager();
 #endif
     runManager -> AddParameterContainer(argv[1]);
-    if (runManager->GetPar()->GetEntries()==0) runManager -> SetCollectPar("collected_parameters");
+    if (runManager->GetPar()->GetEntries()==0)
+        runManager -> SetCollectPar("collected_nptool_simulation");
     runManager -> Initialize();
     runManager -> Run(argc, argv);
 

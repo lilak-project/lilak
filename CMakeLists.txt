@@ -284,25 +284,16 @@ if(BUILD_NPTOOL)
 
     message(STATUS "NPTool include directory: ${NPLib_INCLUDE_DIRS}")
 
-    #find_package(NPSimulation)
-    #include(${NPSimulation_USE_FILE})
-    #include_directories(${NPSimulation_INCLUDE_DIRS})
-    #message(STATUS "NPSimulation_USE_FILE     : " ${NPSimulation_USE_FILE})
-    #message(STATUS "NPSimulation_INCLUDE_DIRS:")
-    #foreach(dir ${NPSimulation_INCLUDE_DIRS})
-    #    message(STATUS "  ${dir}")
-    #endforeach()
-
     string(REPLACE /NPLib/include /NPSimulation NPTOOLSIM_PATH ${NPLib_INCLUDE_DIRS})
 
-    #include(${NPTOOLSIM_PATH}/Core)
-    #include(${NPTOOLSIM_PATH}/Process)
-    #include(${NPTOOLSIM_PATH}/EventGenerator)
-
+    #file(GLOB NPTOOLSIM_DETECTOR_DIRS ${NPTOOLSIM_PATH}/Detectors/*)
     set(NPTOOL_SIMULATION_SOURCE_DIRECTORY_LIST
         ${NPTOOLSIM_PATH}/Core
         ${NPTOOLSIM_PATH}/Process
         ${NPTOOLSIM_PATH}/EventGenerator
+        #${NPTOOLSIM_PATH}/Scorers
+        #${NPTOOLSIM_DETECTOR_DIRS}
+        #${NPTOOLSIM_PATH}/Detectors/STARK
         CACHE INTERNAL ""
     )
 
@@ -320,6 +311,7 @@ if(BUILD_NPTOOL)
     endforeach(_directory)
 
     add_library(NPTOOLSIM SHARED ${NPSIM_LIB_LIST})
+    #target_link_libraries(NPTOOLSIM ${Geant4_LIBRARIES} ${NPLib_LIBRARIES} "-lNPTrackInfo -lNPInitialConditions -lNPInteractionCoordinates -lNPReactionConditions -lNPFissionConditions -lNPSTARK")
     target_link_libraries(NPTOOLSIM ${Geant4_LIBRARIES} ${NPLib_LIBRARIES} "-lNPTrackInfo -lNPInitialConditions -lNPInteractionCoordinates -lNPReactionConditions -lNPFissionConditions")
 endif(BUILD_NPTOOL)
 

@@ -32,7 +32,9 @@ log/*
 !log/*.in
 
 #updating
-common/
+common/*
+!common/nptool*.mac
+!common/geant4*.mac
 doc/
 LKClassFactory*
 LKG4DetectorConstructionFactory*
