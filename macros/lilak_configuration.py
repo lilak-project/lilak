@@ -151,6 +151,9 @@ class lilak_configuration:
         self.lf_sub_package_dirs = ["geant4", "get", "fftw", "mfm", "nptool"]
         self.lf_exclude_name_classfactory = ["LKDetectorSystem", "LKFrameBuilder"]
         self.lf_exclude_path_classfactory = ["zzz", "temp", "figures", "data"]
+        self.lf_include_path_classfactory1 = ["detector"]
+        self.lf_include_path_classfactory2 = ["task"]
+        self.lf_include_path_classfactory3 = []
         self.lf_include_path_classfactory = [["detector"],["task"]]
         self.lf_include_name_classfactory = ["DetectorConstruction", "DC"]
         self.lf_executable_path_candidate = ["macros","simulation"]
@@ -703,6 +706,12 @@ class {factory_name}
     def create_classfactory(self):
         change_in_class_factory = False
         jl_source_main = ""
+        jl_source_main += f'    if (fRun==nullptr)\n'
+        jl_source_main += f'        return;\n\n'
+        jl_init_class_lines1 = ""
+        jl_init_class_lines2 = ""
+        jl_init_class_lines3 = ""
+        jl_init_class_lines4 = ""
         jl_include_headers = ""
         jl_source_print = ""
         lf_search_path = []
@@ -712,22 +721,36 @@ class {factory_name}
         lf_classes = self.scan_directories(self.lilak_path, lf_search_path)
         lf_classes.sort()
         last_header = ''
+        lf_group_names = []
         if self.df_build_options["BUILD_MFM_CONVERTER"]==True:
-            self.lf_include_path_classfactory.append(['mfm'])
+            self.lf_include_path_classfactory3.append(['mfm'])
         for class_name, path_name in lf_classes:
             if any(keyword in path_name for keyword in self.lf_exclude_path_classfactory):
                 continue
             if any(keyword in class_name for keyword in self.lf_exclude_name_classfactory):
                 continue
-            for include_path in self.lf_include_path_classfactory:
+            for i in [1,2,3]:
+                if i==1: include_path = self.lf_include_path_classfactory1
+                if i==2: include_path = self.lf_include_path_classfactory2
+                if i==3: include_path = self.lf_include_path_classfactory3
                 if any(keyword in path_name for keyword in include_path):
                     if not jl_source_main:
-                        jl_source_main  = f'    if      (name=="{class_name}") {{ e_info << "Adding {class_name}" << endl; fRun -> Add(new {class_name}); }} // {path_name}\n'
+                        jl_source_main += f'    if      (name=="{class_name}") {{ e_info << "Adding {class_name}" << endl; fRun -> Add(new {class_name}); }} // {path_name}\n'
                     else:
+                        #if last_header!=class_name[:2]: jl_source_main += f'\n'
                         jl_source_main += f'    else if (name=="{class_name}") {{ e_info << "Adding {class_name}" << endl; fRun -> Add(new {class_name}); }} // {path_name}\n'
                     jl_source_print    += f'    e_cout << "{class_name}" << endl;\n'
                     jl_include_headers += f'#include "{class_name}.h"\n'
                     last_header = class_name[:2]
+                    if True:
+                        i_group = path_name.find('/')
+                        group_name = path_name[:i_group]
+                        if group_name not in lf_group_names:
+                            lf_group_names.append(group_name)
+                            jl_init_class_lines1 += f'     fLD.push_back("{group_name}"); // {group_name}\n'
+                            jl_init_class_lines2 += f'     std::vector<TString> lf_classes_in_{group_name}; // {group_name}\n'
+                            jl_init_class_lines4 += f'     fLL.push_back(lf_classes_in_{group_name}); // {group_name}\n'
+                        jl_init_class_lines3 += f'     lf_classes_in_{group_name}.push_back("{class_name}");// {path_name}\n'
         jl_source_main += f'\n'
         jl_source_main += f'    else {{ e_warning << "Class " << name << " is not in the class factory!" << endl; }}\n'
         # Create the source file content
@@ -737,6 +760,12 @@ class {factory_name}
 void LKClassFactory::Print()
 {{
 {jl_source_print}}}\n
+void LKClassFactory::Init()
+{{
+{jl_init_class_lines1}
+{jl_init_class_lines2}
+{jl_init_class_lines3}
+{jl_init_class_lines4}}}\n
 void LKClassFactory::Add(TString name)
 {{
 {jl_source_main}}}"""
@@ -748,12 +777,19 @@ void LKClassFactory::Add(TString name)
 class LKRun;\n
 class LKClassFactory
 {
+    private:
+        LKRun* fRun = nullptr;
+        std::vector<TString> fLD; // list of directories
+        std::vector<std::vector<TString>> fLL; // list of "list of classes" for each directory\n
     public:
-        LKClassFactory(LKRun* run) { fRun = run; }
+        LKClassFactory() { Init(); }
+        LKClassFactory(LKRun* run) { fRun = run; Init(); }
         virtual ~LKClassFactory() {}\n
         void Print();
+        void Init();
         void Add(TString name);\n
-        LKRun* fRun;
+        std::vector<TString> GetListOfDirectories() { return fLD; }
+        std::vector<std::vector<TString>> GetListOfLD() { return fLL; }
 };\n
 #endif"""
         if (self.check_content_and_recreate_file("source/base/LKClassFactory.cpp", source_content)): change_in_class_factory = True 
