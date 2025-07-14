@@ -258,13 +258,13 @@ Int_t LKParameter::Compare(const TObject *obj) const
 
     if (!cName.IsNull() && iName.IsNull()) { return sortEarlier; }
     if (cName.IsNull() && !iName.IsNull()) {  return sortLatter; }
-    if (cName.IsNull() && iName.IsNull()) { eturn sortSame; }
+    if (cName.IsNull() && iName.IsNull()) { return sortSame; }
 
     if (cGroup=="LKRun" && iGroup=="LKRun")
     {
         if      (fCompare<iCompare) { return sortEarlier; }
         else if (fCompare>iCompare) {  return sortLatter; }
-        else { eturn sortSame; }
+        else { return sortSame; }
     }
     else if (cGroup=="LKRun") { return sortEarlier; }
     else if (iGroup=="LKRun") {  return sortLatter; }
