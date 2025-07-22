@@ -45,6 +45,7 @@ class LKDrawingGroup : public TObjArray
     public:
         LKDrawingGroup(TString name="", int groupLevel=0);
         LKDrawingGroup(TString fileName, TString groupSelection);
+        LKDrawingGroup(TObject* obj, TString drawStyle="");
         LKDrawingGroup(TFile* file, TString groupSelection="");
         ~LKDrawingGroup() {}
 
@@ -63,6 +64,8 @@ class LKDrawingGroup : public TObjArray
         virtual void Browse(TBrowser *b);
         void WriteFile(TString fileName="", TString option="");
         void WriteFitParameterFile(TString tag="");
+
+        void Update(TString option="");
 
         LKDataViewer* CreateViewer();
 
@@ -133,6 +136,7 @@ class LKDrawingGroup : public TObjArray
         int        GetNumAllDrawings() const;
         int        GetNumAllDrawingObjects() const;
 
+        void ApplyStyle(TString drawStyle);
         void SetStyle(TString drawStyle);
 
         void SetDraw(bool draw);

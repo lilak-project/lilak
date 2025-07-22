@@ -21,6 +21,12 @@ LKDrawing::LKDrawing(TObject* obj, TObject* obj1, TObject* obj2, TObject* obj3)
     if (obj3!=nullptr) Add(obj3);
 }
 
+LKDrawing::LKDrawing(TObject* obj, TString drawStyle)
+{
+    Add(obj);
+    if (!drawStyle.IsNull()) ApplyStyle(drawStyle);
+}
+
 void LKDrawing::Init()
 {
 }
@@ -114,17 +120,21 @@ int LKDrawing::Add(TObject *obj, TString drawOption, TString title)
             legend -> SetName(Form("legend_%d",GetEntriesFast()));
     }
 
-    bool isMain = false;
+    //bool isMain = false;
+    if (fMainHist==nullptr) { if (obj->InheritsFrom(TH1::Class())) fMainHist = (TH1*) obj; }
+
     auto numObjects = GetEntries();
     drawOption.ToLower();
     if (drawOption.IsNull())
     {
         if (obj->InheritsFrom(TH2::Class()) && drawOption.Index("col")<0 && drawOption.Index("scat")<0) {
-            if (fMainHist!=nullptr)
-                drawOption += "col";
-            else
+            if (obj==fMainHist)
                 drawOption += "colz";
+            else
+                drawOption += "col";
         }
+        if (obj->InheritsFrom(TH3::Class()) && drawOption.IsNull())
+            drawOption += "box2";
     }
     //if (drawOption.Index("same")<0)
     //{
@@ -132,7 +142,7 @@ int LKDrawing::Add(TObject *obj, TString drawOption, TString title)
     //        drawOption += "same";
     //}
 
-    if (isMain||fMainHist==nullptr) { if (obj->InheritsFrom(TH1::Class())) fMainHist = (TH1*) obj; }
+    //if (isMain||fMainHist==nullptr) { if (obj->InheritsFrom(TH1::Class())) fMainHist = (TH1*) obj; }
 
     if (drawOption.Index("stat0")>=0) {
         if (obj->InheritsFrom(TH1::Class()))
@@ -469,25 +479,7 @@ void LKDrawing::Draw(Option_t *option)
 
     //fRM -> Start(9);
     fCvs -> cd();
-    if (CheckOption("logx" )) fCvs -> SetLogx ();
-    if (CheckOption("logy" )) fCvs -> SetLogy ();
-    if (CheckOption("logz" )) fCvs -> SetLogz ();
-    if (CheckOption("gridx")) fCvs -> SetGridx();
-    if (CheckOption("gridy")) fCvs -> SetGridy();
-    double ml = FindOptionDouble("l_margin",-1);
-    double mr = FindOptionDouble("r_margin",-1);
-    double mb = FindOptionDouble("b_margin",-1);
-    double mt = FindOptionDouble("t_margin",-1);
-    if (ml>=0) fCvs -> SetLeftMargin  (ml);
-    if (mr>=0) fCvs -> SetRightMargin (mr);
-    if (mb>=0) fCvs -> SetBottomMargin(mb);
-    if (mt>=0) fCvs -> SetTopMargin   (mt);
-    if (debug_draw) lk_debug << "Canvas Margin: " << ml << ", " << mr << ", " << mb << ", " << mt << endl;
-    double x1 = 0;
-    double x2 = 100;
-    double y1 = 0;
-    double y2 = 100;
-    if (CheckOption("flc")) fCvs -> SetFrameLineColor(FindOptionInt("flc",-1));
+    ApplyPadStyle(fCvs);
 
     if (fMainHist==nullptr)
     {
@@ -511,6 +503,10 @@ void LKDrawing::Draw(Option_t *option)
         }
     }
 
+    double x1 = 0;
+    double x2 = 100;
+    double y1 = 0;
+    double y2 = 100;
     if (fMainHist!=nullptr)
     {
         if (CheckOption("cr_mainh"))
@@ -720,8 +716,8 @@ void LKDrawing::Draw(Option_t *option)
     //fRM -> Stop(14);
 
     //fRM -> Start(15);
-    fCvs -> Modified();
-    fCvs -> Update();
+    //fCvs -> Modified();
+    //fCvs -> Update();
     //fRM -> Stop(15);
     //fRM -> Start(20);
     auto stats = MakeStats(fCvs);
@@ -766,7 +762,8 @@ void LKDrawing::Draw(Option_t *option)
     //fRM -> Stop(16);
 
     //fRM -> Start(17);
-    SetMainHist(fCvs,fMainHist);
+    ApplyPadStyle(fCvs);
+    ApplyHistStyle(fMainHist);
     //auto foundStats = false;
     TPaveStats* statsbox = nullptr;
     if (CheckOption("stats_corner")) {
@@ -795,14 +792,76 @@ void LKDrawing::Draw(Option_t *option)
     //fRM -> Print();
 }
 
-void LKDrawing::SetMainHist(TPad *pad, TH1* hist)
+void LKDrawing::ApplyStyle(TString drawStyle)
 {
-    if (hist==nullptr)
+    SetStyle(drawStyle);
+    ApplyPadStyle((TPad*)fCvs);
+    ApplyHistStyle(fMainHist);
+    if (fCvs!=nullptr) {
+        fCvs -> Modified();
+        fCvs -> Update();
+    }
+    MakeStatsBox(fCvs,FindOptionDouble("stats_corner",0),FindOptionInt("stats_fillstyle",-1));
+    fCvs -> Modified();
+    fCvs -> Update();
+}
+
+void LKDrawing::Update(TString option)
+{
+    if (fCvs==nullptr) Draw(option);
+    fCvs -> Modified();
+    fCvs -> Update();
+}
+
+void LKDrawing::ApplyPadStyle(TPad *pad)
+{
+    if (pad==nullptr) {
+        pad = fCvs;
+    }
+    if (pad==nullptr) {
+        lk_error << "canvas is nullptr" << endl;
         return;
+    }
 
     TPaveText* mainTitle = nullptr;
     auto list_primitive = pad -> GetListOfPrimitives();
     mainTitle = (TPaveText*) list_primitive -> FindObject("title");
+
+    if (mainTitle==nullptr)
+        return;
+
+    if (CheckOption("font")) {
+        int font = FindOptionInt("font",132);
+        mainTitle->SetTextFont(font);
+    }
+    mainTitle -> SetTextSize (FindOptionDouble("tsm",0.05));
+
+    if (CheckOption("logx" )) pad -> SetLogx ();
+    if (CheckOption("logy" )) pad -> SetLogy ();
+    if (CheckOption("logz" )) pad -> SetLogz ();
+    if (CheckOption("gridx")) pad -> SetGridx();
+    if (CheckOption("gridy")) pad -> SetGridy();
+    double ml = FindOptionDouble("l_margin",-1);
+    double mr = FindOptionDouble("r_margin",-1);
+    double mb = FindOptionDouble("b_margin",-1);
+    double mt = FindOptionDouble("t_margin",-1);
+    if (ml>=0) pad -> SetLeftMargin  (ml);
+    if (mr>=0) pad -> SetRightMargin (mr);
+    if (mb>=0) pad -> SetBottomMargin(mb);
+    if (mt>=0) pad -> SetTopMargin   (mt);
+    if (CheckOption("flc")) fCvs -> SetFrameLineColor(FindOptionInt("flc",-1));
+
+}
+
+void LKDrawing::ApplyHistStyle(TH1* hist)
+{
+    if (hist==nullptr) {
+        hist = fMainHist;
+    }
+    if (hist==nullptr) {
+        lk_error << "histogram is nullptr" << endl;
+        return;
+    }
 
     if (CheckOption("font"))
     {
@@ -813,7 +872,6 @@ void LKDrawing::SetMainHist(TPad *pad, TH1* hist)
         hist -> GetXaxis() -> SetLabelFont(font);
         hist -> GetYaxis() -> SetLabelFont(font);
         hist -> GetZaxis() -> SetLabelFont(font);
-        if (mainTitle!=nullptr) mainTitle->SetTextFont(font);
     }
     if (CheckOption("title_font"))
     {
@@ -829,8 +887,6 @@ void LKDrawing::SetMainHist(TPad *pad, TH1* hist)
         hist -> GetYaxis() -> SetLabelFont(font);
         hist -> GetZaxis() -> SetLabelFont(font);
     }
-
-    if (mainTitle!=nullptr) mainTitle -> SetTextSize (FindOptionDouble("tsm",0.05));
 
     if (CheckOption("tsx")) hist -> GetXaxis() -> SetTitleSize  (FindOptionDouble("tsx",0.05));
     if (CheckOption("tsy")) hist -> GetYaxis() -> SetTitleSize  (FindOptionDouble("tsy",0.05));
@@ -900,8 +956,14 @@ void LKDrawing::GetPadCornerBoxDimension(TPad *cvs, int iCorner, double dx, doub
 
 TPaveStats* LKDrawing::MakeStats(TPad *cvs)
 {
-    TObject *object;
+    cvs -> Modified();
+    cvs -> Update();
+
     TPaveStats* statsbox = nullptr;
+    if (cvs==nullptr)
+        return statsbox;
+
+    TObject *object;
     auto list_primitive = cvs -> GetListOfPrimitives();
     TIter next_primitive(list_primitive);
     while ((object = next_primitive())) {
@@ -1127,7 +1189,7 @@ TString LKDrawing::GetPrintLine(TString printOption) const
     bool printF = LKMisc::CheckOption(printOption,"f1") || LKMisc::CheckOption(printOption,"function");
     bool printO = LKMisc::CheckOption(printOption,"others");
     if (!printP && !printH && !printG && !printF && !printO) {
-        printP = true;
+        printP = false;
         printH = true;
         printH = true;
         printG = true;
@@ -1142,6 +1204,7 @@ TString LKDrawing::GetPrintLine(TString printOption) const
     {
         //line += tabSpace + "  " + name_drawing;
         line += tabSpace + name_drawing;
+        if (fCvs!=nullptr) line += tabSpace + "Pad>  " + fCvs->GetName() + "; " + fCvs->GetTitle() + "\n";
         for (auto iObj=0; iObj<numObjects; ++iObj)
         {
             auto obj = At(iObj);
@@ -1161,6 +1224,8 @@ TString LKDrawing::GetPrintLine(TString printOption) const
     else
     {
         TString titleJoined;
+        if (fCvs!=nullptr)
+            titleJoined += Form("P(%s)",fCvs->GetName());
         for (auto iObj=0; iObj<numObjects; ++iObj)
         {
             auto obj = At(iObj);
@@ -1321,6 +1386,8 @@ void LKDrawing::SetLegendTransparent()
 void LKDrawing::SetStyle(TString drawStyle)
 {
     LKParameterContainer style(drawStyle);
+    if (style.GetEntries()==0)
+        return;
 
     if (style.CheckPar("font")) this -> AddOption("font",style.GetParInt("font"));
     if (style.CheckPar("opt_fit")) this -> SetOptFit (style.GetParInt("opt_fit"));

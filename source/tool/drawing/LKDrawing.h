@@ -16,6 +16,7 @@
 #include "TF1.h"
 #include "TH1.h"
 #include "TH2.h"
+#include "TH3.h"
 #include <vector>
 using namespace std;
 
@@ -26,6 +27,7 @@ class LKDrawing : public TObjArray
     public:
         LKDrawing(TString name="");
         LKDrawing(TObject* obj, TObject* obj1=nullptr, TObject* obj2=nullptr, TObject* obj3=nullptr);
+        LKDrawing(TObject* obj, TString drawStyle="");
         ~LKDrawing() {}
 
         virtual const char* GetName() const;
@@ -93,8 +95,11 @@ class LKDrawing : public TObjArray
         void MakeLegendBelowStats(TPad* cvs, TLegend *legend);
         void MakeLegendCorner(TPad* cvs, TLegend *legend, int iCorner=0);
         void MakePaveTextCorner(TPad* cvs, TPaveText *pvtt, int iCorner=0);
-        void SetMainHist(TPad *pad, TH1* hist);
         void SetMainTitle(TString title);
+
+        void ApplyStyle(TString drawStyle);
+        void ApplyPadStyle(TPad *pad);
+        void ApplyHistStyle(TH1* hist);
 
         TH2D* MakeGraphFrame();
         TH2D* MakeGraphFrame(TGraph* graph, TString mxyTitle="");
@@ -210,6 +215,7 @@ class LKDrawing : public TObjArray
          * Use one of the style files from lilak/common/draw_style
          */
         void SetStyle(TString drawStyle);
+        void Update(TString option);
 
         ////////////////////////////////////////////////////////////////////////////////////
         bool GetFit() const { if (fFitFunction!=nullptr) return true; return false; }
