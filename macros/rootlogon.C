@@ -16,4 +16,6 @@
             break;
         }
     }
+
+    gROOT -> ProcessLine("#include \"LKCompiled.h\"");
 }

@@ -154,7 +154,6 @@ class lilak_configuration:
         self.lf_include_path_classfactory1 = ["detector"]
         self.lf_include_path_classfactory2 = ["task"]
         self.lf_include_path_classfactory3 = []
-        self.lf_include_path_classfactory = [["detector"],["task"]]
         self.lf_include_name_classfactory = ["DetectorConstruction", "DC"]
         self.lf_executable_path_candidate = ["macros","simulation"]
         self.lf_lilak_projects = []
@@ -723,7 +722,7 @@ class {factory_name}
         last_header = ''
         lf_group_names = []
         if self.df_build_options["BUILD_MFM_CONVERTER"]==True:
-            self.lf_include_path_classfactory3.append(['mfm'])
+            self.lf_include_path_classfactory3.append('mfm')
         for class_name, path_name in lf_classes:
             if any(keyword in path_name for keyword in self.lf_exclude_path_classfactory):
                 continue
@@ -1100,7 +1099,7 @@ _lilak_completions() {{
 complete -F _lilak_completions lilak
 
 # Optional: Add a message to confirm the script is sourced correctly
-echo "LILAK is set. Use 'lilak {{home|config_test|build|build_new|new|update|example|doc|find|g4sim|nptool|run}}'"
+#echo "LILAK is set. Use 'lilak {{home|config_test|build|build_new|new|update|example|doc|find|g4sim|nptool|run}}'"
 """
         fn_lilak_command_sh = os.path.join(self.lilak_path, "macros/command_lilak.sh")
         with open(fn_lilak_command_sh, "w") as lilak_command_sh_file:

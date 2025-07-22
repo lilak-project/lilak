@@ -1,7 +1,18 @@
-void run_lilak(TString parName)
+LKRun* fRun = nullptr;;
+
+void next_event()
 {
-    auto run = new LKRun();
-    run -> SetLILAKRun();
-    run -> AddPar(parName);
-    run -> Init();
+    fRun -> ExecuteNextEvent();
+}
+
+void run_lilak(TString parName="")
+{
+    fRun = new LKRun();
+    fRun -> SetLILAKRun();
+    if (parName.IsNull())
+        fRun -> ConfigViewer();
+    else {
+        fRun -> AddPar(parName);
+        fRun -> Init();
+    }
 }
