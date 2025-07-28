@@ -44,7 +44,7 @@ LKDrawingGroup::LKDrawingGroup(TObject* obj, TString drawStyle)
     SetName(Form("%s",obj->GetName()));
     Add(obj);
     if (!drawStyle.IsNull())
-        ApplyStyle(drawStyle);
+        SetStyle(drawStyle);
 }
 
 void LKDrawingGroup::Init()
@@ -130,15 +130,21 @@ void LKDrawingGroup::Draw(Option_t *option)
 
 void LKDrawingGroup::Update(TString option)
 {
-    if (fCvs==nullptr) Draw(option);
-    fCvs -> Modified();
-    fCvs -> Update();
     if (CheckIsGroupGroup())
     {
         auto numSub = GetEntries();
         for (auto iSub=0; iSub<numSub; ++iSub) {
             auto sub = (LKDrawingGroup*) At(iSub);
-            sub -> Update();
+            sub -> Update(option);
+        }
+    }
+    else
+    {
+        auto numDrawings = GetEntries();
+        for (auto iDrawing=0; iDrawing<numDrawings; ++iDrawing)
+        {
+            auto drawing = (LKDrawing*) At(iDrawing);
+            drawing -> Update(option);
         }
     }
 }
@@ -762,18 +768,12 @@ TString LKDrawingGroup::GetFullName() const
 
 void LKDrawingGroup::Add(TObject *obj)
 {
-    if      (obj->InheritsFrom(TH1::Class())) { AddHist((TH1*) obj); return; }
-    else if (obj->InheritsFrom(TGraph::Class())) { AddGraph((TGraph*) obj); return; }
-    else if (obj->InheritsFrom(LKDrawing::Class()) || obj->InheritsFrom(LKDrawingGroup::Class())) TObjArray::Add(obj);
-    else if (obj->InheritsFrom(TPad::Class()))
+    auto IsMotherPad = [](TPad* pad)
     {
         bool isMotherPad = false;
-        auto pad = (TPad*) obj;
-        SetCanvas(pad);
         auto list = pad -> GetListOfPrimitives();
         TIter next(list);
         TObject *objIn;
-        int countSubs = 0;
         while ((objIn = next()))
         {
             if (objIn->InheritsFrom(TPad::Class())) {
@@ -781,14 +781,35 @@ void LKDrawingGroup::Add(TObject *obj)
                 break;
             }
         }
-        next.Reset();
+        return isMotherPad;
+    };
+
+    if      (obj->InheritsFrom(TH1::Class())) { AddHist((TH1*) obj); return; }
+    else if (obj->InheritsFrom(TGraph::Class())) { AddGraph((TGraph*) obj); return; }
+    else if (obj->InheritsFrom(LKDrawing::Class()) || obj->InheritsFrom(LKDrawingGroup::Class())) TObjArray::Add(obj);
+    else if (obj->InheritsFrom(TPad::Class()))
+    {
+        auto pad = (TPad*) obj;
+        bool isMotherPad = IsMotherPad(pad);
+        SetCanvas(pad);
+
+        auto list = pad -> GetListOfPrimitives();
+        TIter next(list);
         if (isMotherPad)
         {
+            int countSubs = 0;
+            TObject *objIn;
             while ((objIn = next()))
             {
                 if (objIn->InheritsFrom(TPad::Class())) {
-                    auto sub = CreateGroup(Form("%s_%d",fName.Data(),countSubs++));
-                    sub -> Add(objIn);
+                    if (IsMotherPad((TPad*)objIn)) {
+                        auto sub = CreateGroup(Form("%s_%d",fName.Data(),countSubs++));
+                        sub -> Add(objIn);
+                    }
+                    else {
+                        LKDrawing *draw = CreateDrawing(Form("draw_%s_%d",fName.Data(),countSubs++));
+                        draw -> Add(objIn);
+                    }
                 }
                 else
                     lk_error << "not TPad" << endl;
@@ -797,9 +818,7 @@ void LKDrawingGroup::Add(TObject *obj)
         else
         {
             LKDrawing *draw = CreateDrawing(Form("draw_%s",fName.Data()));
-            draw -> SetCanvas(pad);
-            while ((objIn = next()))
-                draw -> Add(objIn);
+            draw -> Add(pad);
         }
     }
     else

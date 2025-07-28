@@ -479,7 +479,7 @@ void LKDrawing::Draw(Option_t *option)
 
     //fRM -> Start(9);
     fCvs -> cd();
-    ApplyPadStyle(fCvs);
+    ApplyStylePad(fCvs);
 
     if (fMainHist==nullptr)
     {
@@ -762,22 +762,16 @@ void LKDrawing::Draw(Option_t *option)
     //fRM -> Stop(16);
 
     //fRM -> Start(17);
-    ApplyPadStyle(fCvs);
-    ApplyHistStyle(fMainHist);
+    ApplyStylePad(fCvs);
+    ApplyStyleHist(fMainHist);
     //auto foundStats = false;
     TPaveStats* statsbox = nullptr;
     if (CheckOption("stats_corner")) {
-        //foundStats = MakeStatsBox(fCvs,FindOptionDouble("stats_corner",0),FindOptionInt("stats_fillstyle",-1));
-        statsbox = MakeStatsBox(fCvs,FindOptionDouble("stats_corner",0),FindOptionInt("stats_fillstyle",-1));
+        statsbox = ApplyStyleStatsBox(fCvs,FindOptionInt("stats_corner",0),FindOptionInt("stats_fillstyle",-1));
     }
     //if (statsbox!=nullptr) statsbox -> Draw();
     if (legend!=nullptr) {
-        if (legend->GetX1()==0.3&&legend->GetX2()==0.3&&legend->GetY1()==0.15&&legend->GetY2()==0.15)
-            SetLegendBelowStats();
-        if (CheckOption("legend_below_stats") && statsbox!=nullptr && CheckOption("legend_corner")==false)
-            MakeLegendBelowStats(fCvs,legend);
-        else if ( (CheckOption("legend_below_stats") && statsbox==nullptr) || CheckOption("legend_corner") )
-            MakeLegendCorner(fCvs,legend,FindOptionInt("legend_corner",0));
+        ApplyStyleLegend(legend, statsbox);
         legend -> Draw();
     }
     if (pvtt!=nullptr) {
@@ -792,49 +786,53 @@ void LKDrawing::Draw(Option_t *option)
     //fRM -> Print();
 }
 
-void LKDrawing::ApplyStyle(TString drawStyle)
+bool LKDrawing::ApplyStyle(TString drawStyle)
 {
     SetStyle(drawStyle);
-    ApplyPadStyle((TPad*)fCvs);
-    ApplyHistStyle(fMainHist);
-    if (fCvs!=nullptr) {
-        fCvs -> Modified();
-        fCvs -> Update();
-    }
-    MakeStatsBox(fCvs,FindOptionDouble("stats_corner",0),FindOptionInt("stats_fillstyle",-1));
-    fCvs -> Modified();
-    fCvs -> Update();
+    return true;
 }
 
 void LKDrawing::Update(TString option)
 {
-    if (fCvs==nullptr) Draw(option);
-    fCvs -> Modified();
-    fCvs -> Update();
+    bool applied = false;
+
+    applied = ApplyStylePad((TPad*)fCvs) || applied;
+    applied = ApplyStyleHist(fMainHist) || applied;
+
+    if (fCvs!=nullptr) {
+        fCvs -> Modified();
+        fCvs -> Update();
+
+        applied = ApplyStyleLegend(fLegend) || applied;
+        applied = ApplyStyleStatsBox(fCvs,FindOptionInt("stats_corner",0),FindOptionInt("stats_fillstyle",-1)) || applied;
+
+        fCvs -> Modified();
+        fCvs -> Update();
+    }
 }
 
-void LKDrawing::ApplyPadStyle(TPad *pad)
+bool LKDrawing::ApplyStylePad(TPad *pad)
 {
     if (pad==nullptr) {
         pad = fCvs;
     }
     if (pad==nullptr) {
         lk_error << "canvas is nullptr" << endl;
-        return;
+        return false;
     }
 
     TPaveText* mainTitle = nullptr;
     auto list_primitive = pad -> GetListOfPrimitives();
     mainTitle = (TPaveText*) list_primitive -> FindObject("title");
 
-    if (mainTitle==nullptr)
-        return;
-
-    if (CheckOption("font")) {
-        int font = FindOptionInt("font",132);
-        mainTitle->SetTextFont(font);
+    if (mainTitle!=nullptr)
+    {
+        if (CheckOption("font")) {
+            int font = FindOptionInt("font",132);
+            mainTitle->SetTextFont(font);
+        }
+        mainTitle -> SetTextSize (FindOptionDouble("tsm",0.05));
     }
-    mainTitle -> SetTextSize (FindOptionDouble("tsm",0.05));
 
     if (CheckOption("logx" )) pad -> SetLogx ();
     if (CheckOption("logy" )) pad -> SetLogy ();
@@ -851,16 +849,17 @@ void LKDrawing::ApplyPadStyle(TPad *pad)
     if (mt>=0) pad -> SetTopMargin   (mt);
     if (CheckOption("flc")) fCvs -> SetFrameLineColor(FindOptionInt("flc",-1));
 
+    return true;
 }
 
-void LKDrawing::ApplyHistStyle(TH1* hist)
+bool LKDrawing::ApplyStyleHist(TH1* hist)
 {
     if (hist==nullptr) {
         hist = fMainHist;
     }
     if (hist==nullptr) {
         lk_error << "histogram is nullptr" << endl;
-        return;
+        return false;
     }
 
     if (CheckOption("font"))
@@ -902,6 +901,40 @@ void LKDrawing::ApplyHistStyle(TH1* hist)
     if (CheckOption("loz")) hist -> GetZaxis() -> SetLabelOffset(FindOptionDouble("loz",0.10));
     if (CheckOption("acx")) hist -> GetXaxis() -> SetAxisColor  (FindOptionInt   ("acx",1));
     if (CheckOption("acy")) hist -> GetYaxis() -> SetAxisColor  (FindOptionInt   ("acy",1));
+
+    if (CheckOption("opt_stat")) {
+        auto mode = FindOptionInt("opt_stat",1111);
+        if (mode<0)
+            hist -> SetStats(0);
+    }
+
+    return true;
+}
+
+bool LKDrawing::ApplyStyleLegend(TLegend* legend, TPaveStats* statsbox)
+{
+    if (legend==nullptr) {
+        legend = fLegend;
+    }
+    if (legend==nullptr) {
+        //lk_warning << "legend is nullptr" << endl;
+        return false;
+    }
+
+    if (legend->GetX1()==0.3&&legend->GetX2()==0.3&&legend->GetY1()==0.15&&legend->GetY2()==0.15)
+        SetLegendBelowStats();
+
+    if (fCvs!=nullptr)
+    {
+        if (statsbox==nullptr)
+            statsbox = FindStatsBox(fCvs);
+        if (CheckOption("legend_below_stats") && statsbox!=nullptr && CheckOption("legend_corner")==false)
+            MakeLegendBelowStats(fCvs,legend);
+        else if ( (CheckOption("legend_below_stats") && statsbox==nullptr) || CheckOption("legend_corner") )
+            MakeLegendCorner(fCvs,legend,FindOptionInt("legend_corner",0));
+    }
+
+    return true;
 }
 
 void LKDrawing::GetPadCorner(TPad *cvs, int iCorner, double &x_corner, double &y_corner, double &x_unit, double &y_unit)
@@ -978,7 +1011,8 @@ TPaveStats* LKDrawing::MakeStats(TPad *cvs)
     statsbox -> SetFillColor(cvs->GetFillColor());
     if (CheckOption("opt_stat")) {
         auto mode = FindOptionInt("opt_stat",1111);
-        statsbox -> SetOptStat(mode);
+        if (mode>0)
+            statsbox -> SetOptStat(mode);
     }
     if (CheckOption("opt_fit")) {
         auto mode = FindOptionInt("opt_fit",111);
@@ -988,7 +1022,7 @@ TPaveStats* LKDrawing::MakeStats(TPad *cvs)
     return statsbox;
 }
 
-TPaveStats* LKDrawing::MakeStatsBox(TPad *cvs, int iCorner, int fillStyle)
+TPaveStats* LKDrawing::FindStatsBox(TPad *cvs)
 {
     TObject *object;
     TPaveStats* statsbox = nullptr;
@@ -1000,6 +1034,12 @@ TPaveStats* LKDrawing::MakeStatsBox(TPad *cvs, int iCorner, int fillStyle)
             break;
         }
     }
+    return statsbox;
+}
+
+TPaveStats* LKDrawing::ApplyStyleStatsBox(TPad *cvs, int iCorner, int fillStyle)
+{
+    TPaveStats* statsbox = FindStatsBox(cvs);
     if (statsbox==nullptr) {
         return (TPaveStats*) nullptr;
         //return false;
@@ -1085,7 +1125,7 @@ void LKDrawing::MakeLegendBelowStats(TPad* cvs, TLegend *legend)
     if (CheckOption("stats_x1")==false)
         return;
 
-    int stats_corner = FindOptionDouble("stats_corner",0);
+    int stats_corner = FindOptionInt("stats_corner",0);
     double x1_stat = FindOptionDouble("stats_x1",0.);
     double x2_stat = FindOptionDouble("stats_x2",1.);
     double y1_stat = FindOptionDouble("stats_y1",0.);

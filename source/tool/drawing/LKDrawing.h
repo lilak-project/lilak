@@ -91,15 +91,17 @@ class LKDrawing : public TObjArray
         void GetPadCorner(TPad *cvs, int iCorner, double &x_corner, double &y_corner, double &x_unit, double &y_unit);
         void GetPadCornerBoxDimension(TPad *cvs, int iCorner, double dx, double dy, double &x1, double &y1, double &x2, double &y2);
         TPaveStats* MakeStats(TPad *cvs);
-        TPaveStats* MakeStatsBox(TPad *cvs, int iCorner=0, int fillStyle=-1);
+        TPaveStats* FindStatsBox(TPad *cvs);
+        TPaveStats* ApplyStyleStatsBox(TPad *cvs, int iCorner=0, int fillStyle=-1);
         void MakeLegendBelowStats(TPad* cvs, TLegend *legend);
         void MakeLegendCorner(TPad* cvs, TLegend *legend, int iCorner=0);
         void MakePaveTextCorner(TPad* cvs, TPaveText *pvtt, int iCorner=0);
         void SetMainTitle(TString title);
 
-        void ApplyStyle(TString drawStyle);
-        void ApplyPadStyle(TPad *pad);
-        void ApplyHistStyle(TH1* hist);
+        bool ApplyStyle(TString drawStyle);
+        bool ApplyStylePad(TPad *pad);
+        bool ApplyStyleHist(TH1* hist);
+        bool ApplyStyleLegend(TLegend *legend, TPaveStats* statsbox=nullptr);
 
         TH2D* MakeGraphFrame();
         TH2D* MakeGraphFrame(TGraph* graph, TString mxyTitle="");
@@ -215,7 +217,7 @@ class LKDrawing : public TObjArray
          * Use one of the style files from lilak/common/draw_style
          */
         void SetStyle(TString drawStyle);
-        void Update(TString option);
+        void Update(TString option="");
 
         ////////////////////////////////////////////////////////////////////////////////////
         bool GetFit() const { if (fFitFunction!=nullptr) return true; return false; }
