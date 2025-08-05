@@ -52,7 +52,7 @@ void LKNPToolRunManager::CheckNPToolInitializationFiles()
         TString nppar_file_name = commonPath+"nptool_parameter_PhysicsListOption.mac";
         LKParameterContainer nptool_parameter(nppar_file_name);
         g4man_info << "Example " << physicsListFileName << " is:" << endl;
-        nptool_parameter.Print("e:c:l:%");
+        nptool_parameter.Print("eval:parcm:lcm:cm%");
     }
     TString projectConfigFileName = "project.config";
     if (TString(gSystem -> Which(".", projectConfigFileName)).IsNull())
@@ -62,7 +62,7 @@ void LKNPToolRunManager::CheckNPToolInitializationFiles()
         TString nppar_file_name = commonPath+"nptool_parameter_project_config.mac";
         LKParameterContainer nptool_parameter(nppar_file_name);
         g4man_info << "Example " << projectConfigFileName << " is:" << endl;
-        nptool_parameter.Print("e:c:l:%");
+        nptool_parameter.Print("eval:parcm:lcm:cm%");
     }
 }
 
