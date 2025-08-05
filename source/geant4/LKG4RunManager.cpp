@@ -16,6 +16,7 @@
 #include "TSystem.h"
 #include "TObjString.h"
 
+#include "LKVertex.h"
 #include "LKCompiled.h"
 #include "LKEventAction.h"
 #include "LKG4RunManager.h"
@@ -388,6 +389,12 @@ void LKG4RunManager::InitOutputFile()
     g4man_info << "Adding mctrack branch MCTrack" << endl;
     fTrackArray = new TClonesArray("LKMCTrack", 100);
     fTree -> Branch("MCTrack", &fTrackArray);
+    fTrackArray -> SetName("MCTrack");
+
+    g4man_info << "Adding mcvertex branch MCVertex" << endl;
+    fVertexArray = new TClonesArray("LKVertex", 10);
+    fTree -> Branch("MCVertex", &fVertexArray);
+    fVertexArray -> SetName("MCVertex");
 
     fStepArrayList = new TObjArray();
 
@@ -420,6 +427,7 @@ void LKG4RunManager::InitOutputFile()
 
             auto stepArray = new TClonesArray("LKMCStep", 10000);
             fTree -> Branch(stepName, &stepArray);
+            stepArray -> SetName(stepName);
             fStepArrayList -> Add(stepArray);
             fStepNameList.push_back(stepName);
 
@@ -427,6 +435,7 @@ void LKG4RunManager::InitOutputFile()
             fIdxOfCopyNo[copyNo] = fNumActiveVolumes;
             //g4man_info << "Adding new esum branch " << esumName << " for detector " << detName << endl;
             //fTree -> Branch(esumName, &fEdepSumArray[fNumActiveVolumes]); // TODO
+            //fEdepSumArray[fNumActiveVolumes] -> SetName(esumName);
             ++fNumActiveVolumes;
         }
     }
@@ -582,6 +591,8 @@ void LKG4RunManager::SetNumEvents(Int_t numEvents)
 
 void LKG4RunManager::NextEvent()
 {
+    CreateVertex();
+
     g4man_info << "End of Event " << fTree -> GetEntries() << endl;
     fTree -> Fill();
 
@@ -616,6 +627,38 @@ void LKG4RunManager::EndOfRun()
         WriteTextFile();
 
     fFile -> Close();
+}
+
+void LKG4RunManager::CreateVertex()
+{
+    fVertexArray -> Clear();
+
+    int countVertices = 0;
+    auto numTracks = fTrackArray -> GetEntries();
+    for (auto iTrack=0; iTrack<numTracks; ++iTrack)
+    {
+        auto track = (LKMCTrack*) fTrackArray -> At(iTrack);
+        auto vertex0 = track -> GetVertex(0);
+
+        int vertexIndex = -1;
+        for (auto iVertex=0; iVertex<countVertices; ++iVertex) {
+            auto vertex1 = (LKVertex*) fVertexArray -> At(iVertex);
+            if (vertex0.X()==vertex1->X() && vertex0.Y()==vertex1->Y() && vertex0.Z()==vertex1->Z()) {
+                vertexIndex = iVertex;
+                break;
+            }
+        }
+
+        LKVertex* vertex = nullptr;
+        if (vertexIndex<0) {
+            vertexIndex = countVertices++;
+            vertex = (LKVertex*) fVertexArray -> ConstructedAt(vertexIndex);
+            vertex -> SetPosition(vertex0);
+        }
+        else
+            vertex = (LKVertex*) fVertexArray -> At(vertexIndex);
+        vertex -> AddTrack(track);
+    }
 }
 
 void LKG4RunManager::WriteTextFile()
