@@ -330,9 +330,9 @@ class LKRun : public LKVirtualRun
         TFile *fOutputFile = nullptr;
         TTree *fOutputTree = nullptr;
 
-        TObjArray *fPersistentBranchArray = nullptr;
-        TObjArray *fTemporaryBranchArray = nullptr;
-        TObjArray *fInputTreeBranchArray = nullptr;
+        TObjArray *fPersistentAddressArray = nullptr;
+        TObjArray *fTemporaryAddressArray = nullptr;
+        TObjArray *fInputTreeAddressArray = nullptr;
 
         Int_t fCountBranches = 0;
         TClonesArray **fBranchPtr;

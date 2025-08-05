@@ -39,9 +39,9 @@ LKRun::LKRun(TString runName, Int_t id, Int_t division, TString tag)
     fDivision = division;
     fTag = tag;
     fFriendTrees = new TObjArray();
-    fPersistentBranchArray = new TObjArray();
-    fTemporaryBranchArray = new TObjArray();
-    fInputTreeBranchArray = new TObjArray();
+    fPersistentAddressArray = new TObjArray();
+    fTemporaryAddressArray = new TObjArray();
+    fInputTreeAddressArray = new TObjArray();
     fBranchPtr = new TClonesArray*[100];
     for (Int_t iBranch = 0; iBranch < 100; ++iBranch)
         fBranchPtr[iBranch] = nullptr;
@@ -338,22 +338,22 @@ void LKRun::PrintEvent(Long64_t entry, TString branchNames, Int_t numPrintCut)
 
     if (entry>=0)
         LKRun::GetEntry(entry);
-    for (auto branchArray : {fPersistentBranchArray, fInputTreeBranchArray})
+    for (auto addressArray : {fPersistentAddressArray, fInputTreeAddressArray})
     {
-        Int_t numBranches = branchArray -> GetEntries();
+        Int_t numBranches = addressArray -> GetEntries();
         for (Int_t iBranch = 0; iBranch < numBranches; iBranch++)
         {
-            auto branch = (TClonesArray *) branchArray -> At(iBranch);
-            if (branch -> InheritsFrom(TClonesArray::Class()))
+            auto dataArray = (TClonesArray *) addressArray -> At(iBranch);
+            if (dataArray -> InheritsFrom(TClonesArray::Class()))
             {
-                TString branchName = branch -> GetName();
+                TString branchName = dataArray -> GetName();
                 if (selectBranches&&branchNames.Index(branchName)<0)
                     continue;
-                auto array = (TClonesArray *) branch;
+                auto array = (TClonesArray *) dataArray;
                 auto numObj = array -> GetEntries();
                 e_cout << endl;
                 if (numObj==0) {
-                    lk_info << "[" << branchName << "] 0 objects in this branch" << endl;
+                    lk_info << "[" << branchName << "] 0 objects in this array" << endl;
                     continue;
                 }
                 int numPrint = numObj;
@@ -366,8 +366,8 @@ void LKRun::PrintEvent(Long64_t entry, TString branchNames, Int_t numPrintCut)
                     object -> Print();
                 }
             }
-            else if (branch -> InheritsFrom(TObject::Class())) {
-                branch -> Print();
+            else if (dataArray -> InheritsFrom(TObject::Class())) {
+                dataArray -> Print();
             }
         }
     }
@@ -844,7 +844,7 @@ bool LKRun::Init()
         fInputTree -> GetEntry(0);
         for (Int_t iBranch = 0; iBranch < fCountBranches; iBranch++) {
             TString branchName = fBranchNames.at(iBranch);
-            fInputTreeBranchArray -> Add(fBranchPtr[iBranch]);
+            fInputTreeAddressArray -> Add(fBranchPtr[iBranch]);
             if (branchName.Index("MCStep")==0) {
                 arrMCStepIDs.push_back(branchName.ReplaceAll("MCStep","").Data());
                 ++numMCStepIDs;
@@ -875,7 +875,7 @@ bool LKRun::Init()
                 friendTree -> GetEntry(0);
                 if (fBranchPtrMap[branchName]==nullptr)
                     fBranchPtrMap[branchName] = fBranchPtr[fCountBranches];
-                fInputTreeBranchArray -> Add(fBranchPtr[fCountBranches]);
+                fInputTreeAddressArray -> Add(fBranchPtr[fCountBranches]);
                 fBranchNames.push_back(branchName);
                 fCountBranches++;
                 TString clonesClassName = fBranchPtr[fCountBranches-1] -> GetClass() -> GetName();
@@ -1149,9 +1149,9 @@ bool LKRun::RegisterBranch(TString name, TObject *obj, bool persistent)
     if (persistent) {
         if (fOutputTree != nullptr)
             fOutputTree -> Branch(name, obj, 32000, 0);
-        fPersistentBranchArray -> Add(obj);
+        fPersistentAddressArray -> Add(obj);
     } else {
-        fTemporaryBranchArray -> Add(obj);
+        fTemporaryAddressArray -> Add(obj);
     }
     lk_info << "Output branch " << name << " " << persistencyMessage << endl;
 
@@ -1202,11 +1202,14 @@ TClonesArray* LKRun::RegisterBranchA(TString name, const char* className, Int_t 
     fCountBranches++;
 
     if (persistent) {
-        if (fOutputTree != nullptr)
+        if (fOutputTree != nullptr) {
             fOutputTree -> Branch(name, array, 32000, 1);
-        fPersistentBranchArray -> Add(array);
+            array -> SetName(name);
+        }
+        fPersistentAddressArray -> Add(array);
     } else {
-        fTemporaryBranchArray -> Add(array);
+        array -> SetName(name);
+        fTemporaryAddressArray -> Add(array);
     }
     lk_info << "Output branch " << name << " " << persistencyMessage << endl;
 
@@ -1544,17 +1547,17 @@ bool LKRun::ExecuteEvent(Long64_t eventID)
 void LKRun::ClearArrays()
 {
     // fBranchPtr contains branches from input file too.
-    // So we use fPersistentBranchArray fTemporaryBranchArray for ouput branch initialization
+    // So we use fPersistentAddressArray fTemporaryAddressArray for ouput branch initialization
     // @todo We may need to sort out branch that needs clear before Exec()
-    for (auto branchArray : {fPersistentBranchArray, fTemporaryBranchArray}) {
-        Int_t numBranches = branchArray -> GetEntries();
+    for (auto addressArray : {fPersistentAddressArray, fTemporaryAddressArray}) {
+        Int_t numBranches = addressArray -> GetEntries();
         for (Int_t iBranch = 0; iBranch < numBranches; iBranch++) {
-            auto branch = (TClonesArray *) branchArray -> At(iBranch);
-            branch -> Clear("C");
-            //if (branch -> InheritsFrom(TClonesArray::Class()))
-            //    ((TClonesArray *) branch) -> Clear("C");
+            auto dataArray = (TClonesArray *) addressArray -> At(iBranch);
+            dataArray -> Clear("C");
+            //if (dataArray -> InheritsFrom(TClonesArray::Class()))
+            //    ((TClonesArray *) dataArray) -> Clear("C");
             //else
-            //    branch -> Clear();
+            //    dataArray -> Clear();
         }
     }
 }
