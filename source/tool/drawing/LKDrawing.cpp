@@ -45,14 +45,10 @@ void LKDrawing::AddDrawing(LKDrawing *drawing)
 
 void LKDrawing::SetDraw(bool draw)
 {
-    if (draw) {
-        if (fGlobalOption.Index("0:")==0)
-            fGlobalOption = fGlobalOption(2,fGlobalOption.Sizeof()-3);
-    }
-    else {
-        if (fGlobalOption.Index("0:")!=0)
-            fGlobalOption = TString("0:")+fGlobalOption;
-    }
+    if (draw)
+        LKMisc::RemoveOption(fGlobalOption,"skip_draw");
+    else
+        LKMisc::AddOption(fGlobalOption,"skip_draw");
 }
 void LKDrawing::SetOn(int iObj, bool on)
 {
@@ -380,31 +376,39 @@ void LKDrawing::MakeLegend(bool remake)
 
 void LKDrawing::Draw(Option_t *option)
 {
-    bool debug_draw = (CheckOption("debug_draw"));
-    if (fGlobalOption.Index("0:")==0) {
+    TString ops(option);
+    ops.ToLower();
+    AddOption(ops);
+
+    bool debug_draw = CheckOption("debug_draw # print out debug messages");
+    bool skip_draw = CheckOption("skip_draw # skip Draw for this drawing");
+    bool using_dv = CheckOption("viewer # skip Draw for this drawing");
+    bool create_legend = CheckOption("create_legend # create legend using added objects and given titles");
+    bool using_raw = CheckOption("raw # do not use all LKDrawing functions to redraw");
+    int font = FindOptionInt("font # global font number",-1);
+    bool exist_font = (font!=-1);
+    if (!exist_font) font = 132;
+
+    if (skip_draw) {
         if (debug_draw)
             lk_debug << "Skipping because of SetDraw(false) option" << endl;
         return;
     }
 
-    TString ops(option);
-    ops.ToLower();
-    if (ops.Index("v")>=0) {
+    if (using_dv) {
         (new LKDataViewer(this))->Draw(ops);
         //fRM -> StopAll();
         return;
     }
 
-    fGlobalOption = fGlobalOption + ":" + ops;
-
     //fRM -> Start(1);
-    if (CheckOption("create_legend"))
+    if (create_legend)
         MakeLegend();
     //fRM -> Stop(1);
 
     //fRM -> Start(2);
     auto numObjects = GetEntries();
-    if (ops=="raw")
+    if (using_raw)
     {
         if (fCvs!=nullptr)
             fCvs -> cd();
@@ -422,7 +426,7 @@ void LKDrawing::Draw(Option_t *option)
     //fRM -> Start(3);
 
     if (debug_draw)
-        lk_debug << "Draw option: " << option << endl;
+        lk_debug << "Draw option: " << ops << endl;
 
     if (numObjects==0) {
         lk_warning << "empty drawing" << endl;
@@ -434,23 +438,23 @@ void LKDrawing::Draw(Option_t *option)
 
     //fRM -> Start(4);
     if (fCvs==nullptr) {
-        int dx = FindOptionInt("cvs_dx",-1);
-        int dy = FindOptionInt("cvs_dy",-1);
+        int dx = FindOptionInt("cvs_dx # canvas size (x)",-1);
+        int dy = FindOptionInt("cvs_dy # canvas size (y)",-1);
         if (dx<0||dy<0)
             fCvs = LKPainter::GetPainter() -> Canvas(Form("cvs_%s",fName.Data()));
         else {
-            if (CheckOption("cvs_resize"))
+            if (CheckOption("cvs_resize # resize canvas to the current display"))
                 fCvs = LKPainter::GetPainter() -> CanvasResize(Form("cvs_%s",fName.Data()),dx,dy);
             else
                 fCvs = LKPainter::GetPainter() -> CanvasSize(Form("cvs_%s",fName.Data()),dx,dy);
         }
-        if (CheckOption("debug_draw"))
+        if (debug_draw)
             lk_debug << fCvs->GetName() << " " << fCvs->GetTitle() << " " << fCvs->GetWw() << " " << fCvs->GetWh() << endl;
     }
     //fRM -> Stop(4);
 
     //fRM -> Start(5);
-    bool optimize_legend_position = (CheckOption("legend_below_stats") || CheckOption("legend_corner"));
+    bool optimize_legend_position = (CheckOption("legend_below_stats # put legend below the stats-box") || CheckOption("legend_corner # (=) put legend at the pad corner 0(tr),1(tl),2(bl),3(br)"));
     if (debug_draw) lk_debug << "Optimize legend position?: " << optimize_legend_position << endl;
 
     bool merge_pvtt_stats = CheckOption("merge_pvtt_stats");
@@ -460,7 +464,7 @@ void LKDrawing::Draw(Option_t *option)
     //fRM -> Start(6);
     int countHistCC = 0;
     int maxHistCC = 1;
-    if (CheckOption("histcc"))
+    if (CheckOption("histcc # set distinguishable histogram colors"))
     {
         if (debug_draw) lk_debug << "Make color distinguishable 2d-histograms" << endl;
         countHistCC = 1;
@@ -509,9 +513,9 @@ void LKDrawing::Draw(Option_t *option)
     double y2 = 100;
     if (fMainHist!=nullptr)
     {
-        if (CheckOption("cr_mainh"))
+        if (CheckOption("clone_mainh # (=) clone and replace main histogram"))
         {
-            TString name = FindOptionString("cr_mainh_name","+_cloned");
+            TString name = FindOptionString("clone_mainh","+_cloned");
             if (name[0]=='+') {
                 name = name(1,name.Sizeof()-2);
                 name = Form("%s_%s",fMainHist->GetName(),name.Data());
@@ -525,18 +529,18 @@ void LKDrawing::Draw(Option_t *option)
         x2 = fMainHist -> GetXaxis() -> GetXmax();
         y1 = fMainHist -> GetYaxis() -> GetXmin();
         y2 = fMainHist -> GetYaxis() -> GetXmax();
-        x1 = FindOptionDouble("x1",-123);
-        x2 = FindOptionDouble("x2",123);
-        y1 = FindOptionDouble("y1",-123);
-        y2 = FindOptionDouble("y2",123);
+        x1 = FindOptionDouble("x1 # x-axis range 1",-123);
+        x2 = FindOptionDouble("x2 # x-axis range 2",123);
+        y1 = FindOptionDouble("y1 # y-axis range 1",-123);
+        y2 = FindOptionDouble("y2 # y-axis range 2",123);
         bool setXRange = false;
         bool setYRange = false;
-        if (CheckOption("x1")&&CheckOption("x2")) { setXRange = true; fMainHist -> GetXaxis() -> SetRangeUser(x1,x2); }
-        if (CheckOption("y1")&&CheckOption("y2")) { setYRange = true; fMainHist -> GetYaxis() -> SetRangeUser(y1,y2); }
+        if (x1!=-123&&x2!=123) { setXRange = true; fMainHist -> GetXaxis() -> SetRangeUser(x1,x2); }
+        if (y1!=-123&&y2!=123) { setYRange = true; fMainHist -> GetYaxis() -> SetRangeUser(y1,y2); }
         if (debug_draw && setXRange) lk_debug << "x-range: " << x1 << " - " << x2 << endl;
         if (debug_draw && setYRange) lk_debug << "y-range: " << y1 << " - " << y2 << endl;
     }
-    else if (CheckOption("create_gframe"))
+    else if (CheckOption("create_gframe # create frame-histogram for the graphs if no main histogram is set"))
     {
         if (debug_draw) lk_debug << "Creating frame" << endl;
         fMainHist = MakeGraphFrame();
@@ -595,7 +599,7 @@ void LKDrawing::Draw(Option_t *option)
     //fRM -> Stop(10);
 
     //fRM -> Start(11);
-    bool pvtt_attribute = CheckOption("pave_attribute");
+    bool pvtt_attribute = CheckOption("pave_attribute # set auto pave attributes (draw option should be auto)");
 
     TLegend* legend = nullptr;
     TPaveText* pvtt = nullptr;
@@ -651,7 +655,7 @@ void LKDrawing::Draw(Option_t *option)
             pvtt = (TPaveText*) obj;
             pvtt -> SetFillColor(fCvs->GetFillColor());
             if (pvtt_attribute!=0||drawOption.Index("auto")>0) {
-                pvtt -> SetTextFont(FindOptionInt("font",132));
+                pvtt -> SetTextFont(font);
                 pvtt -> SetTextAlign(12);
                 pvtt -> SetFillColor(0);
                 pvtt -> SetFillStyle(0);
@@ -708,21 +712,11 @@ void LKDrawing::Draw(Option_t *option)
         afterDrawObjects.pop_back();
         //afterDrawOptions.pop_back();
     }
-    //fRM -> Stop(13);
 
-    //fRM -> Start(14);
     if (fCuts!=nullptr)
         fCuts -> Draw(x1,x2,y1,y2);
-    //fRM -> Stop(14);
 
-    //fRM -> Start(15);
-    //fCvs -> Modified();
-    //fCvs -> Update();
-    //fRM -> Stop(15);
-    //fRM -> Start(20);
     auto stats = MakeStats(fCvs);
-    //fRM -> Stop(20);
-    //fRM -> Start(21);
     if (listOfPaveTexts.size()>0 && stats==nullptr)
     {
         lk_warning << "Trying to merge TPaveTexts to stats, but stats do not exist!!" << endl;
@@ -746,12 +740,10 @@ void LKDrawing::Draw(Option_t *option)
             }
         }
     }
-    //fRM -> Stop(21);
 
-    //fRM -> Start(16);
     if (fLegend!=nullptr) {
         legend = fLegend;
-        if (CheckOption("legend_transparent")) {
+        if (CheckOption("legend_transparent # make legend transparent")) {
             legend -> SetFillStyle(0);
             legend -> SetBorderSize(0);
         }
@@ -766,8 +758,9 @@ void LKDrawing::Draw(Option_t *option)
     ApplyStyleHist(fMainHist);
     //auto foundStats = false;
     TPaveStats* statsbox = nullptr;
-    if (CheckOption("stats_corner")) {
-        statsbox = ApplyStyleStatsBox(fCvs,FindOptionInt("stats_corner",0),FindOptionInt("stats_fillstyle",-1));
+    auto stats_corner = FindOptionInt("stats_corner # (=) put stats-box at the pad corner 0(tr),1(tl),2(bl),3(br)",-1);
+    if (stats_corner>=0) {
+        statsbox = ApplyStyleStatsBox(fCvs,stats_corner,FindOptionInt("stats_fillstyle # (=) set stats-box fill style",-1));
     }
     //if (statsbox!=nullptr) statsbox -> Draw();
     if (legend!=nullptr) {
@@ -775,8 +768,9 @@ void LKDrawing::Draw(Option_t *option)
         legend -> Draw();
     }
     if (pvtt!=nullptr) {
-        if (CheckOption("pave_corner"))
-            MakePaveTextCorner(fCvs,pvtt,FindOptionDouble("pave_corner",0));
+        auto pave_corner = FindOptionInt("pave_corner # (=) put pavetext at the pad corner 0(tr),1(tl),2(bl),3(br)",-1);
+        if (pave_corner>=0)
+            MakePaveTextCorner(fCvs,pvtt,pave_corner);
         pvtt -> Draw();
     }
     fCvs -> Modified();
@@ -825,29 +819,32 @@ bool LKDrawing::ApplyStylePad(TPad *pad)
     auto list_primitive = pad -> GetListOfPrimitives();
     mainTitle = (TPaveText*) list_primitive -> FindObject("title");
 
+    int font = FindOptionInt("font",-1);
+    bool exist_font = (font!=-1);
+    if (!exist_font) font = 132;
     if (mainTitle!=nullptr)
     {
-        if (CheckOption("font")) {
-            int font = FindOptionInt("font",132);
+        if (exist_font) {
             mainTitle->SetTextFont(font);
         }
         mainTitle -> SetTextSize (FindOptionDouble("tsm",0.05));
     }
 
-    if (CheckOption("logx" )) pad -> SetLogx ();
-    if (CheckOption("logy" )) pad -> SetLogy ();
-    if (CheckOption("logz" )) pad -> SetLogz ();
-    if (CheckOption("gridx")) pad -> SetGridx();
-    if (CheckOption("gridy")) pad -> SetGridy();
-    double ml = FindOptionDouble("l_margin",-1);
-    double mr = FindOptionDouble("r_margin",-1);
-    double mb = FindOptionDouble("b_margin",-1);
-    double mt = FindOptionDouble("t_margin",-1);
+    if (CheckOption("logx  # set log x")) pad -> SetLogx ();
+    if (CheckOption("logy  # set log y")) pad -> SetLogy ();
+    if (CheckOption("logz  # set log z")) pad -> SetLogz ();
+    if (CheckOption("gridx # set log x")) pad -> SetGridx();
+    if (CheckOption("gridy # set log y")) pad -> SetGridy();
+    double ml = FindOptionDouble("l_margin # (=) set pad left margin",-1);
+    double mr = FindOptionDouble("r_margin # (=) set pad left margin",-1);
+    double mb = FindOptionDouble("b_margin # (=) set pad left margin",-1);
+    double mt = FindOptionDouble("t_margin # (=) set pad left margin",-1);
     if (ml>=0) pad -> SetLeftMargin  (ml);
     if (mr>=0) pad -> SetRightMargin (mr);
     if (mb>=0) pad -> SetBottomMargin(mb);
     if (mt>=0) pad -> SetTopMargin   (mt);
-    if (CheckOption("flc")) fCvs -> SetFrameLineColor(FindOptionInt("flc",-1));
+    int flc = FindOptionInt("flc # (=) set canvas frame line color",-1);
+    if (flc>=0) fCvs -> SetFrameLineColor(flc);
 
     return true;
 }
@@ -872,14 +869,14 @@ bool LKDrawing::ApplyStyleHist(TH1* hist)
         hist -> GetYaxis() -> SetLabelFont(font);
         hist -> GetZaxis() -> SetLabelFont(font);
     }
-    if (CheckOption("title_font"))
+    if (CheckOption("title_font # histogram title font"))
     {
         int font = FindOptionInt("title_font",FindOptionInt("font",132));
         hist -> GetXaxis() -> SetTitleFont(font);
         hist -> GetYaxis() -> SetTitleFont(font);
         hist -> GetZaxis() -> SetTitleFont(font);
     }
-    if (CheckOption("label_font"))
+    if (CheckOption("label_font # histogram label font"))
     {
         int font = FindOptionInt("label_font",FindOptionInt("font",132));
         hist -> GetXaxis() -> SetLabelFont(font);
@@ -887,22 +884,22 @@ bool LKDrawing::ApplyStyleHist(TH1* hist)
         hist -> GetZaxis() -> SetLabelFont(font);
     }
 
-    if (CheckOption("tsx")) hist -> GetXaxis() -> SetTitleSize  (FindOptionDouble("tsx",0.05));
-    if (CheckOption("tsy")) hist -> GetYaxis() -> SetTitleSize  (FindOptionDouble("tsy",0.05));
-    if (CheckOption("tsz")) hist -> GetZaxis() -> SetTitleSize  (FindOptionDouble("tsz",0.05));
-    if (CheckOption("lsx")) hist -> GetXaxis() -> SetLabelSize  (FindOptionDouble("lsx",0.05));
-    if (CheckOption("lsy")) hist -> GetYaxis() -> SetLabelSize  (FindOptionDouble("lsy",0.05));
-    if (CheckOption("lsz")) hist -> GetZaxis() -> SetLabelSize  (FindOptionDouble("lsz",0.05));
-    if (CheckOption("tox")) hist -> GetXaxis() -> SetTitleOffset(FindOptionDouble("tox",1.00));
-    if (CheckOption("toy")) hist -> GetYaxis() -> SetTitleOffset(FindOptionDouble("toy",1.00));
-    if (CheckOption("toz")) hist -> GetZaxis() -> SetTitleOffset(FindOptionDouble("toz",1.00));
-    if (CheckOption("lox")) hist -> GetXaxis() -> SetLabelOffset(FindOptionDouble("lox",0.10));
-    if (CheckOption("loy")) hist -> GetYaxis() -> SetLabelOffset(FindOptionDouble("loy",0.10));
-    if (CheckOption("loz")) hist -> GetZaxis() -> SetLabelOffset(FindOptionDouble("loz",0.10));
-    if (CheckOption("acx")) hist -> GetXaxis() -> SetAxisColor  (FindOptionInt   ("acx",1));
-    if (CheckOption("acy")) hist -> GetYaxis() -> SetAxisColor  (FindOptionInt   ("acy",1));
+    if (CheckOption("tsx # title size x-axis"))   hist -> GetXaxis() -> SetTitleSize  (FindOptionDouble("tsx",0.05));
+    if (CheckOption("tsy # title size y-axis"))   hist -> GetYaxis() -> SetTitleSize  (FindOptionDouble("tsy",0.05));
+    if (CheckOption("tsz # title size z-axis"))   hist -> GetZaxis() -> SetTitleSize  (FindOptionDouble("tsz",0.05));
+    if (CheckOption("lsx # label size x-axis"))   hist -> GetXaxis() -> SetLabelSize  (FindOptionDouble("lsx",0.05));
+    if (CheckOption("lsy # label size y-axis"))   hist -> GetYaxis() -> SetLabelSize  (FindOptionDouble("lsy",0.05));
+    if (CheckOption("lsz # label size z-axis"))   hist -> GetZaxis() -> SetLabelSize  (FindOptionDouble("lsz",0.05));
+    if (CheckOption("tox # title offset x-axis")) hist -> GetXaxis() -> SetTitleOffset(FindOptionDouble("tox",1.00));
+    if (CheckOption("toy # title offset y-axis")) hist -> GetYaxis() -> SetTitleOffset(FindOptionDouble("toy",1.00));
+    if (CheckOption("toz # title offset z-axis")) hist -> GetZaxis() -> SetTitleOffset(FindOptionDouble("toz",1.00));
+    if (CheckOption("lox # label offset x-axis")) hist -> GetXaxis() -> SetLabelOffset(FindOptionDouble("lox",0.10));
+    if (CheckOption("loy # label offset y-axis")) hist -> GetYaxis() -> SetLabelOffset(FindOptionDouble("loy",0.10));
+    if (CheckOption("loz # label offset z-axis")) hist -> GetZaxis() -> SetLabelOffset(FindOptionDouble("loz",0.10));
+    if (CheckOption("acx # axis color x-axis"))   hist -> GetXaxis() -> SetAxisColor  (FindOptionInt   ("acx",1));
+    if (CheckOption("acy # axis color y-axis"))   hist -> GetYaxis() -> SetAxisColor  (FindOptionInt   ("acy",1));
 
-    if (CheckOption("opt_stat")) {
+    if (CheckOption("opt_stat # (=) stats box option")) {
         auto mode = FindOptionInt("opt_stat",1111);
         if (mode<0)
             hist -> SetStats(0);
@@ -1376,24 +1373,6 @@ void LKDrawing::Fill(TTree* tree)
     //TString varx = FindOptionString("varx","x");
     //TString vary = FindOptionString("vary","y");
 }
-
-void LKDrawing::RemoveOption(TString option)
-{
-    LKMisc::RemoveOption(fGlobalOption,option);
-}
-
-//void LKDrawing::AddOption(TString option)
-//{
-//    if (CheckOption(option)==false)
-//        fGlobalOption = fGlobalOption + ":" + option;
-//}
-//
-//void LKDrawing::AddOption(TString option, double value)
-//{
-//    RemoveOption(option);
-//    option = Form("%s=%f",option.Data(),value);
-//    fGlobalOption = fGlobalOption + ":" + option;
-//}
 
 void LKDrawing::SetCreateFrame(TString name, TString title, TString option)
 {

@@ -34,6 +34,8 @@ class LKMisc : public TObject
         static void AddOption(TString &original, TString adding, double value);
         static void AddOption(TString &original, TString adding, int value);
 
+        static int Index1(TString option, TString pat);
+
         static bool ValueIsInArray(TString value, vector<TString> array);
         static bool ValueIsInArray(double value, vector<double> array);
         static bool ValueIsInArray(int value, vector<int> array);

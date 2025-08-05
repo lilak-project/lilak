@@ -72,18 +72,10 @@ void LKDrawingGroup::Draw(Option_t *option)
     if (fViewer!=nullptr)
         usingDataViewer = true;
     if (usingDataViewer==false)
-        usingDataViewer = (LKMisc::CheckOption(optionString,"v",true) || LKMisc::CheckOption(optionString,"viewer",true));
+        usingDataViewer = LKMisc::CheckOption(optionString,"viewer # (dg) draw using LKDataViewer",true);
 
     if (usingDataViewer)
     {
-        //if (IsDrawingGroup()) {
-        //    lk_debug << "innnnnnnnnn" << endl;
-        //    auto top = new LKDataViewer("top");
-        //    top -> AddGroup(this);
-        //    top -> Draw(optionString+":v");
-        //    return;
-        //}
-
         if (fViewer==nullptr)
             fViewer = new LKDataViewer(this);
 
@@ -94,7 +86,7 @@ void LKDrawingGroup::Draw(Option_t *option)
     }
     else
     {
-        if (CheckIsGroupGroup() && optionString=="all")
+        if (CheckIsGroupGroup())
         {
             auto numSub = GetEntries();
             for (auto iSub=0; iSub<numSub; ++iSub) {
@@ -163,7 +155,7 @@ void LKDrawingGroup::WriteFile(TString fileName, TString option)
         lk_info << "Writting" << endl;
         e_cout << "    " << fileName << endl;
         auto file = new TFile(fileName,"recreate");
-        Write(".flat");
+        Write("flat");
     }
     else {
         if (fileName.IsNull())
@@ -178,7 +170,7 @@ void LKDrawingGroup::WriteFile(TString fileName, TString option)
 Int_t LKDrawingGroup::Write(const char *name, Int_t option, Int_t bsize) const
 {
     TString name0 = TString(name);
-    bool flat = LKMisc::CheckOption(name0,".flat");
+    bool flat = (name0=="flat");
     bool write_only_fit = LKMisc::CheckOption(name0,"FITPARAMETERS");
     int countDrawings = LKMisc::FindOptionInt(name0,"draw_count",0);
     int countDrawingsLocal = 0;

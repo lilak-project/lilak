@@ -58,7 +58,7 @@ class LKDrawingGroup : public TObjArray
         /// wx=900 : set widow size x
         /// wy=800 : set widow size x
         /// resize=1 : resize by factor
-        virtual void Draw(Option_t *option="all");
+        virtual void Draw(Option_t *option="");
         virtual void Print(Option_t *option="") const;
         virtual Int_t Write(const char *name = nullptr, Int_t option=TObject::kSingleKey, Int_t bufsize = 0) const;
         virtual void Browse(TBrowser *b);

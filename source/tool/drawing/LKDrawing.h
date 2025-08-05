@@ -27,7 +27,7 @@ class LKDrawing : public TObjArray
     public:
         LKDrawing(TString name="");
         LKDrawing(TObject* obj, TObject* obj1=nullptr, TObject* obj2=nullptr, TObject* obj3=nullptr);
-        LKDrawing(TObject* obj, TString drawStyle="");
+        LKDrawing(TObject* obj, TString drawStyle);
         ~LKDrawing() {}
 
         virtual const char* GetName() const;
@@ -117,9 +117,8 @@ class LKDrawing : public TObjArray
         int FindOptionInt(TString option, int value) { return LKMisc::FindOptionInt(fGlobalOption,option,value); }
         double FindOptionDouble(TString option, double value) { return LKMisc::FindOptionDouble(fGlobalOption,option,value); }
         TString FindOptionString(TString option, TString value) { return LKMisc::FindOptionString(fGlobalOption,option,value); }
+        void RemoveOption(TString option) { LKMisc::RemoveOption(fGlobalOption,option); }
 
-        ////////////////////////////////////////////////////////////////////////////////////
-        void RemoveOption(TString option);
         /**
          * - log[x,y,z]
          * - grid[x,y]
@@ -129,6 +128,7 @@ class LKDrawing : public TObjArray
          * - create_frame : create frame if no frame histogram exist
          */
         void AddOption(TString option) { LKMisc::AddOption(fGlobalOption,option); }
+
         /**
          * - [x,y][1,2] : SetRangeUser x,y
          * - [l,r,b,t]_margin : canvas margin
@@ -208,7 +208,7 @@ class LKDrawing : public TObjArray
         void SetPaveDx(double dx) { AddOption("pave_dx",dx); }
         void SetPaveLineDy(double dyline) { AddOption("pave_line_dy",dyline); }
         void SetPaveSize(double dx, double dyline) { SetPaveDx(dx); SetPaveLineDy(dyline); }
-        void SetCloneReplaceMainHist(TString name="") { AddOption("cr_mainh"); if (name.IsNull()==false) AddOption("cr_mainh_name",name); } ///< Clone fMainHist and replace fMainHist
+        void SetCloneReplaceMainHist(TString name="") { if (name.IsNull()==false) AddOption("clone_mainh",name); else AddOption("clone_mainh"); } ///< Clone fMainHist and replace fMainHist
         void SetCreateFrame(TString name="", TString title="", TString option=""); ///< Create frame if no frame histogram exist.
         void SetCreateLegend(int iCorner=-1, double dx=0, double dyline=0);
         void SetLegendTransparent();

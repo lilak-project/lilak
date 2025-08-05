@@ -530,19 +530,44 @@ void LKMisc::DrawFonts()
     }
 }
 
+int LKMisc::Index1(TString option, TString pat)
+{
+    int idx = option.Index(pat);
+
+    auto iComment = pat.Index("#",1);
+    TString comment;
+    if (iComment>0) {
+        comment = pat(iComment+1,pat.Sizeof());
+        pat = pat(0,iComment);
+        pat = pat.Strip(TString::kBoth);
+        comment = comment.Strip(TString::kBoth);
+    }
+
+    bool help = false;
+    if (option.Index("?")>0) {
+        if (comment) cout << "- " << pat << "  # " << comment << endl;
+        else cout << "- " << pat << endl;
+        help = true;
+    }
+
+    return idx;
+}
+
 TString LKMisc::FindOption(TString &option, TString name, bool removeAfter, int addValue)
 {
     TString opcopy = Form(":%s:",option.Data());
-    auto iComment = name.Index("#");
+    auto iComment = name.Index("#",1);
     TString comment;
     if (iComment>0) {
         comment = name(iComment+1,name.Sizeof());
         name = name(0,iComment);
+        name = name.Strip(TString::kBoth);
+        comment = comment.Strip(TString::kBoth);
     }
 
     bool help = false;
     if (name.Index("?||help")<0&&name.Index("?")<0&&name.Index("help")<0&&CheckOption(option,"?||help",true,0)) {
-        if (comment) cout << "- " << name << " # " << comment << endl;
+        if (comment) cout << "- " << name << "  # " << comment << endl;
         else cout << "- " << name << endl;
         help = true;
     }
