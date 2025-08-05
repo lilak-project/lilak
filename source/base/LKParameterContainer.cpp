@@ -653,21 +653,21 @@ TString LKParameterContainer::GetCommonGroup() const
 
 void LKParameterContainer::PrintToFileOrScreen(TString fileName, TString printOptions) const
 {
-    bool printHeaderTail  = LKMisc::CheckOption(printOptions,"ht  #print header and tail",true);
-    bool appendToFile     = LKMisc::CheckOption(printOptions,"app #incase printing out to file, append.",true);
-    bool showLineIndex    = LKMisc::CheckOption(printOptions,"i   #print index",true);
-    bool showLineComment  = LKMisc::CheckOption(printOptions,"l   #print line comment",true);
-    bool useTObjectPrint  = LKMisc::CheckOption(printOptions,"t   #use TObject::Print()",true);
-    bool comIsPercent     = LKMisc::CheckOption(printOptions,"%   #use % for comment marker",false);
-    bool commentOutAll    = LKMisc::CheckOption(printOptions,"coa #comment out all parameters",true);
+    bool printHeaderTail  = LKMisc::CheckOption(printOptions,"ht     #print header and tail",true);
+    bool appendToFile     = LKMisc::CheckOption(printOptions,"app    #incase printing out to file, append.",true);
+    bool showLineIndex    = LKMisc::CheckOption(printOptions,"idx    #print index",true);
+    bool showLineComment  = LKMisc::CheckOption(printOptions,"lcm    #print line comment",true);
+    bool useTObjectPrint  = LKMisc::CheckOption(printOptions,"tobj   #use TObject::Print()",true);
+    bool comIsPercent     = LKMisc::CheckOption(printOptions,"cm%    #use % for comment marker",false);
+    bool commentOutAll    = LKMisc::CheckOption(printOptions,"cmall  #comment out all parameters",true);
     bool nptoolFormat     = LKMisc::CheckOption(printOptions,"nptool #use nptool format",true);
     TString commonGroup = GetCommonGroup();
     if (nptoolFormat) {
-        LKMisc::AddOption(printOptions,"n",true);
-        LKMisc::AddOption(printOptions,"m",true);
-        LKMisc::AddOption(printOptions,"v",true);
+        LKMisc::AddOption(printOptions,"nptool",true);
+        LKMisc::AddOption(printOptions,"mname",true);
+        LKMisc::AddOption(printOptions,"eval",true);
         if (!commonGroup.IsNull())
-            LKMisc::AddOption(printOptions,"1",true);
+            LKMisc::AddOption(printOptions,"nptool",1);
     }
 
     TString com = "#";
@@ -1394,7 +1394,7 @@ void LKParameterContainer::PrintCollection(TString fileName)
 {
     fCollectedParameterContainer -> Sort();
     if (fileName.IsNull() || fileName=="print")
-        fCollectedParameterContainer -> Print("r:i:c:l");
+        fCollectedParameterContainer -> Print("raw:idx:parcm:lcm");
     else
         fCollectedParameterContainer -> SaveAs(fileName);
 }

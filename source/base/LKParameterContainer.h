@@ -32,6 +32,10 @@ typedef LKVector3::Axis axis_t;
 using namespace std;
 
 /**
+ * @brief
+ *  LKParameterContainer containing list of LKParameter
+ *
+ * @details
  * ## LKParameterContainer
  *  LKParameterContainer is a list of parameters defined by LKParameter
  *  The key features of LKParameter are [group], [name], [value], [comment].
@@ -53,7 +57,7 @@ using namespace std;
  *
  * ## [value]
  *  - [value] can be a single value or a list of values.
- *  - If [value] is a list of values, they should be separated by empty spaces.
+ *  - If [value] is a list of values, they should be separated by commas.
  *  - [value] can reference other parameters values using {...}. ex) {[name]}, {[name][1]}.
  *  - [value] can reference environment variable using e{...}. ex) e{ROOTSYS}, e{HOME}, e{LILAK_PATH}
  *
@@ -124,51 +128,11 @@ class LKParameterContainer : public TObjArray
         LKParameterContainer(const char *parName); ///< Constructor with input parameter file name
         virtual ~LKParameterContainer() {}
 
-        /**
-         * Print to screen or file
-         *
-         * Options may be added with and addition to ":" or space. ex) Print("file.par:line#:par#"), Print("eval:par#")
-         *
-         * ## options
-         * - i  : show line index
-         * - l  : show line comments
-         * - t  : print from TObjArray::Print()
-         * - r  : showRaw
-         * - e  : showEval
-         * - c  : showParComments
-         * - n  : nptoolFormat
-         * - m  : useMainName
-         * - %  : comIsPercent
-         * - 1  : ntab
-         * - coa: commentOutAll
-         */
-        virtual void Print(Option_t *option="i:ht:l:e:c") const;
-        void SaveAs(const char *fileName, Option_t *option = "ht:l:e:c") const;
+        virtual void Print(Option_t *option="idx:ht:lcm:eval:parcm") const;
+        void SaveAs(const char *fileName, Option_t *option="ht:lcm:eval:parcm") const;
         LKParameterContainer *CloneParameterContainer(TString name="", bool addTemporary=false) const;
 
-        /**
-         * Print to screen or file
-         *
-         * ## How to give option
-         *
-         * If file name is not given, parameter container will be printed on the screen. ex) Print()
-         * If file name is given with an extension (".par") parameter container will be written to the file. ex) Print("file.par")
-         * Options may be added with and addition to ":" or space. ex) Print("file.par:line#:par#"), Print("eval:par#")
-         *
-         * ## options
-         * - i  : show line index
-         * - l  : show line comments
-         * - t  : print from TObjArray::Print()
-         * - r  : showRaw
-         * - e  : showEval
-         * - c  : showParComments
-         * - n  : nptoolFormat
-         * - m  : useMainName
-         * - %  : comIsPercent
-         * - 1  : ntab
-         * - coa: commentOutAll
-         */
-        void PrintToFileOrScreen(TString fileName, TString printOptions="i:ht:l:e:c") const;
+        void PrintToFileOrScreen(TString fileName, TString printOptions="idx:ht:lcm:eval:parcm") const;
 
         void Recompile();
 

@@ -242,22 +242,20 @@ void LKRun::Print(Option_t *option) const
     bool printDetectors = false;
     bool printTasks = true;
 
-    if (printOptions.Index("all")>=0) {
+    if (LKMisc::CheckOption(printOptions,"gen  # print general information  ")) printGeneral    = true;
+    if (LKMisc::CheckOption(printOptions,"par  # print parameter information")) printParameters = true;
+    if (LKMisc::CheckOption(printOptions,"out  # print output information   ")) printOutputs    = true;
+    if (LKMisc::CheckOption(printOptions,"in   # print input information    ")) printInputs     = true;
+    if (LKMisc::CheckOption(printOptions,"det  # print detector information ")) printDetectors  = true;
+    if (LKMisc::CheckOption(printOptions,"task # print detector information ")) printTasks      = true;
+    if (LKMisc::CheckOption(printOptions,"all  # print all")) {
         printGeneral = true;
         printParameters = true;
         printOutputs = true;
         printInputs = true;
         printDetectors = true;
         printTasks = true;
-        printOptions.ReplaceAll("all","");
     }
-    if (printOptions.Index("gen")>=0) { printGeneral = true;    printOptions.ReplaceAll("gen",""); }
-    if (printOptions.Index("par")>=0) { printParameters = true; printOptions.ReplaceAll("par",""); }
-    if (printOptions.Index("out")>=0) { printOutputs = true;    printOptions.ReplaceAll("out",""); }
-    if (printOptions.Index("in" )>=0) { printInputs = true;     printOptions.ReplaceAll("in", ""); }
-    if (printOptions.Index("det")>=0) { printDetectors = true;  printOptions.ReplaceAll("det",""); }
-    if (printOptions.Index("task")>=0) { printTasks = true;     printOptions.ReplaceAll("task",""); }
-
     e_cout << endl;
 
     if (printGeneral) LKRun::PrintLILAK();

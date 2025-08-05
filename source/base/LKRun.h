@@ -49,13 +49,13 @@ class LKRun : public LKVirtualRun
 
         /**
          * ## options
-         * - all  : Print all (below)
-         * - gen  : Print general information
-         * - par  : Print parameter information
-         * - out  : Print output information
-         * - in   : Print input information
-         * - det  : Print detector information
-         * - task : Print detector information
+         * - gen  : print general information
+         * - par  : print parameter information
+         * - out  : print output information
+         * - in   : print input information
+         * - det  : print detector information
+         * - task : print detector information
+         * - all  : print all
          */
         void Print(Option_t *option="all") const;
 

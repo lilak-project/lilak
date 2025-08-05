@@ -699,15 +699,15 @@ TString LKParameter::GetGroup(int ith) const
 
 TString LKParameter::GetLine(TString printOptions) const
 {
-    bool showRaw          = LKMisc::CheckOption(printOptions,"r",true);
-    bool showEval         = LKMisc::CheckOption(printOptions,"e",true);
-    bool showParComments  = LKMisc::CheckOption(printOptions,"c",true);
-    bool nptoolFormat     = LKMisc::CheckOption(printOptions,"n",true);
-    bool useMainName      = LKMisc::CheckOption(printOptions,"m",true);
-    bool comIsPercent     = LKMisc::CheckOption(printOptions,"%",true);
-    bool commentOutAll    = LKMisc::CheckOption(printOptions,"coa",true);
-    int  ntab             =(LKMisc::CheckOption(printOptions,"1",true)?1:0);
-    bool showBothRawEval = (showRaw&&showEval);
+    bool showRaw          = LKMisc::CheckOption  (printOptions,"raw      # show raw parameter values before replacings and evaluations",true);
+    bool showEval         = LKMisc::CheckOption  (printOptions,"eval     # show evaluated parameter values (default)",true);
+    bool showParComments  = LKMisc::CheckOption  (printOptions,"parcm    # show parameter comments",true);
+    bool nptoolFormat     = LKMisc::CheckOption  (printOptions,"nptool   # use nptool format",true);
+    bool useMainName      = LKMisc::CheckOption  (printOptions,"mname    # use main name instead of full name",true);
+    bool comIsPercent     = LKMisc::CheckOption  (printOptions,"cm%      # use % as comment charactor (this is for nptool format)",true);
+    bool commentOutAll    = LKMisc::CheckOption  (printOptions,"cmall    # comment out the whole line",true);
+    int  ntab             = LKMisc::FindOptionInt(printOptions,"ntab     # number of tabs before starting the line",0);
+    bool showBothRawEval  = (showRaw&&showEval);
     if (!showRaw&&!showEval) showEval = true;
 
     if (nptoolFormat) {
@@ -719,11 +719,11 @@ TString LKParameter::GetLine(TString printOptions) const
         comIsPercent = true;
     }
 
-    TString com = "#";
-    if (comIsPercent) com = "%";
+    TString comment_charactor = "#";
+    if (comIsPercent) comment_charactor = "%";
 
     if (IsLineComment()) {
-        TString line = com + com + " " + fComment;
+        TString line = comment_charactor + comment_charactor + " " + fComment;
         return line;
     }
 
@@ -748,7 +748,7 @@ TString LKParameter::GetLine(TString printOptions) const
     TString value = fValue;
     if (showBothRawEval) {
         value = fTitle;
-        comment = TString("--> ") + fValue + " " + com + " " + comment;
+        comment = TString("--> ") + fValue + " " + comment_charactor + " " + comment;
     }
     else if (showEval) value = fValue;
     else if (showRaw) value = fTitle;
@@ -770,12 +770,13 @@ TString LKParameter::GetLine(TString printOptions) const
 
     TString line = name + " " + value;
     if (showParComments && comment.IsNull()==false)
-        line = line + "  " + com + " " + comment;
+        line = line + "  " + comment_charactor + " " + comment;
 
-    if (ntab==1) line = TString("    ") + line;
+    for (auto itab=0; itab<ntab; ++itab)
+        line = TString("    ") + line;
 
     if (IsCommentOut() || (nptoolFormat && valueIsEmpty) || commentOutAll)
-        line = com + line;
+        line = comment_charactor + line;
 
     return line;
 }
