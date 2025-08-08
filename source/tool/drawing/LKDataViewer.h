@@ -247,7 +247,6 @@ class LKDataViewer : public TGMainFrame
         int fCurrentSubTabID = 0;
         int fSaveTabID = 0;
         int fSaveSubTabID = 0;
-        bool fLayoutButIgnoreSelectedSignal = false;
 
         int fCountPrimitives = 0;
         int fCountMessageUpdate = 0;
@@ -346,11 +345,9 @@ class LKDataViewer : public TGMainFrame
         void ProcessExitViewer();
         void ProcessSaveTab(int ipad);
         void ProcessGotoTopTab(int iTab=-1, int iSub=-1, bool layout=true, int signal=0);
+        void ProcessGotoSelectedTab(Int_t iTab);
+        void ProcessGotoSelectedSubTab(Int_t iSub);
         void ProcessGotoTopTabT() { ProcessGotoTopTab(-1, -1, true, 1); }
-        void ProcessLayoutTopTab(int iTab=-1, int iSub=-1);
-        void ProcessLayoutSubTab(int iSub=-1);
-        //void ProcessGotoTopTabClicked();
-        //void ProcessGotoTopTabSelected(Int_t id);
         void ProcessGotoSubTab(int iSub=-1, bool layout=true);
         void ProcessGotoSubTabX(int iSub=-1) { ProcessGotoSubTab(iSub, false); }
         void ProcessPrevTab();

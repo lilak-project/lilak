@@ -29,5 +29,5 @@ void draw()
         }
     }
 
-    top -> Draw("v");
+    top -> Draw("viewer");
 }

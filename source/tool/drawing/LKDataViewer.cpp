@@ -173,7 +173,6 @@ bool LKDataViewer::InitFrames()
 
     e_info << fTabGroup.size() << " groups added" << endl;
 
-    //ProcessLayoutTopTab(0, -1);
     ProcessGotoTopTab(0, -1);
 
     fInitialized = true;
@@ -288,9 +287,8 @@ int LKDataViewer::AddGroupTab(LKDrawingGroup* group, int iTab, int iSub)
     }
     else
     {
-        if (iSub<0) tabSpace -> Connect("Selected(Int_t)", "LKDataViewer", this, Form("ProcessReloadTab(=%d)",iTab));
-        //else        tabSpace -> Connect("Selected(Int_t)", "LKDataViewer", this, Form("ProcessReloadTab(=%d)",iSub));
-        //tabSpace -> Print();
+        if (iSub<0) tabSpace -> Connect("Selected(Int_t)", "LKDataViewer", this, "ProcessGotoSelectedTab(Int_t)");
+        else        tabSpace -> Connect("Selected(Int_t)", "LKDataViewer", this, "ProcessGotoSelectedSubTab(Int_t)");
         if (isMainTabs) {
             fSubTabSpace.push_back(tabSpace);
             fNumSubTabs.push_back(0);
@@ -790,23 +788,16 @@ void LKDataViewer::SetManageDrawing(LKDrawing* drawing)
     }
 }
 
-void LKDataViewer::ProcessLayoutTopTab(int iTab, int iSub)
+void LKDataViewer::ProcessGotoSelectedTab(Int_t iTab)
 {
-    int tabID = 0;
-    if (iTab>=0)
-        tabID = iTab;
-    else if (!TString(fNumberInput->GetText()).IsNull()) {
-        tabID = fNumberInput->GetIntNumber();
-        fNumberInput->Clear();
-    }
-    if (tabID<0 || tabID>=fTabSpace->GetNumberOfTabs()) {
-        SendOutMessage(Form("Invalid tab ID: %d",tabID));
-        return;
-    }
-    //if (iSub>=0)
-    //    ProcessLayoutSubTab(iSub,layout);
-    //else
-    //    fTabSpace -> SetTab(tabID);
+    int iSub = -1;
+    ProcessGotoTopTab(iTab, iSub, false, 701);
+}
+
+void LKDataViewer::ProcessGotoSelectedSubTab(Int_t iSub)
+{
+    int iTab = fCurrentTabID;
+    ProcessGotoTopTab(iTab, iSub, false, 702);
 }
 
 void LKDataViewer::ProcessGotoTopTab(int iTab, int iSub, bool layout, int signal)
@@ -847,62 +838,6 @@ void LKDataViewer::ProcessGotoTopTab(int iTab, int iSub, bool layout, int signal
 
     if (iSub>=0)
         ProcessGotoSubTab(iSub,layout);
-}
-
-//void LKDataViewer::ProcessGotoTopTabSelected(Int_t id)
-//{
-//    if (fLayoutButIgnoreSelectedSignal) {
-//        fLayoutButIgnoreSelectedSignal = false;
-//        return;
-//    }
-//    ProcessGotoTopTab(id, -1, false, 8);
-//}
-//
-//void LKDataViewer::ProcessGotoTopTabClicked()
-//{
-//    fLayoutButIgnoreSelectedSignal = true;
-//    ProcessGotoTopTab(-1,-1,1,9);
-//}
-
-void LKDataViewer::ProcessLayoutSubTab(int iSub)
-{
-//    if (fCurrentSubTabSpace==nullptr)
-//        return;
-//
-//    int updateID = 0;
-//    if (iSub>=0)
-//        updateID = iSub;
-//    else if (iSub==-2)
-//        updateID = fCurrentSubTabID;
-//    else if (iSub==-1)
-//    {
-//        if (!TString(fNumberInput->GetText()).IsNull()) {
-//            updateID = fNumberInput->GetIntNumber();
-//            fNumberInput->Clear();
-//        }
-//    }
-//
-//    if (updateID < 0 || updateID >= fCurrentSubTabSpace->GetNumberOfTabs()) {
-//        SendOutMessage(Form("Invalid tab ID: %d",updateID));
-//        return;
-//    }
-//
-//    fCurrentGroup = fSubTabGroup[fCurrentTabID][updateID];
-//    fCurrentCanvas = fSubTabGroup[fCurrentTabID][updateID] -> GetCanvas();
-//    fCurrentSubTabSpace->SetTab(updateID);
-//
-//    if (fSubTabShouldBeUpdated[fCurrentTabID][updateID]) {
-//        fSubTabShouldBeUpdated[fCurrentTabID][updateID] = false;
-//        fCurrentGroup -> Draw(fDrawOption);
-//        fCurrentCanvas -> Modified();
-//        fCurrentCanvas -> Update();
-//    }
-//    if (layout) fCurrentSubTabSpace->Layout();
-//    TString tabName = *(fCurrentSubTabSpace->GetTabTab(updateID)->GetText());
-//    SendOutMessage(Form("Switched to sub-tab %s (%d,%d)",tabName.Data(),fCurrentTabID,updateID));
-//
-//    fCurrentSubTabID = updateID;
-//
 }
 
 void LKDataViewer::ProcessGotoSubTab(int iSub, bool layout)
@@ -955,7 +890,6 @@ void LKDataViewer::ProcessPrevTab()
     }
 
     ProcessGotoTopTab(updateID,-1,1,3);
-    //ProcessLayoutTopTab(updateID,-1);
 }
 
 void LKDataViewer::ProcessNextTab()
@@ -969,7 +903,6 @@ void LKDataViewer::ProcessNextTab()
     }
 
     ProcessGotoTopTab(updateID,-1,1,4);
-    //ProcessLayoutTopTab(updateID,-1);
 }
 
 void LKDataViewer::ProcessPrevSubTab()
@@ -1070,6 +1003,7 @@ void LKDataViewer::ProcessTabSelection(Int_t id)
     SendOutMessage(Form("Switched to tab %d", id));
 }
 
+//TODO
 void LKDataViewer::ProcessReLoadCCanvas()
 {
     if (fCurrentGroup==nullptr)
@@ -1585,7 +1519,6 @@ void LKDataViewer::ProcessToggleNavigateCanvas()
 
     fCurrentDrawing -> CopyTo(drawing,true);
 
-    //ProcessLayoutTopTab(fPublicTabIndex, pNumber);
     ProcessGotoTopTab(fPublicTabIndex, pNumber, 1, 10);
     fCurrentGroup -> SetName(fCurrentDrawing->GetName());
     ProcessReLoadCCanvas();
@@ -1593,7 +1526,6 @@ void LKDataViewer::ProcessToggleNavigateCanvas()
 
 void LKDataViewer::ProcessUndoToggleCanvas()
 {
-    //ProcessLayoutTopTab(fSaveTabID, fSaveSubTabID);
     ProcessGotoTopTab(fSaveTabID, fSaveSubTabID, 1, 11);
 }
 
