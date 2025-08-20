@@ -557,16 +557,18 @@ TString LKMisc::FindOption(TString &option, TString name, bool removeAfter, int 
 {
     TString opcopy = Form(":%s:",option.Data());
     auto iComment = name.Index("#",1);
+    auto iSkipComment = name.Index("#!",1);
+    bool skipComment = (iSkipComment>1);
     TString comment;
     if (iComment>0) {
         comment = name(iComment+1,name.Sizeof());
         name = name(0,iComment);
-        name = name.Strip(TString::kBoth);
         comment = comment.Strip(TString::kBoth);
     }
+    name = name.Strip(TString::kBoth);
 
     bool help = false;
-    if (name.Index("?||help")<0&&name.Index("?")<0&&name.Index("help")<0&&CheckOption(option,"?||help",true,0)) {
+    if (skipComment==false&&name.Index("?")<0&&CheckOption(option,"?",true,0)) {
         if (comment) cout << "- " << name << "  # " << comment << endl;
         else cout << "- " << name << endl;
         help = true;
@@ -590,7 +592,6 @@ TString LKMisc::FindOption(TString &option, TString name, bool removeAfter, int 
     }
     else
     {
-        name = name.Strip(TString::kBoth);
         int idxName = opcopy.Index(Form(":%s",name.Data()));
         if (idxName<0) {
             if (help) option = option + ":?";
@@ -676,13 +677,22 @@ bool LKMisc::RemoveOption(TString &option, TString name)
 
 void LKMisc::AddOption(TString &original, TString adding)
 {
-    if (LKMisc::CheckOption(original,adding)==false)
+    if (LKMisc::CheckOption(original,adding)==false) {
+        auto iComment = adding.Index("#",1);
+        if (iComment>0)
+            adding = adding(0,iComment);
+        adding = adding.Strip(TString::kBoth);
         original = original + ":" + adding;
+    }
 }
 
 void LKMisc::AddOption(TString &original, TString adding, TString value)
 {
     LKMisc::RemoveOption(original,adding);
+    auto iComment = adding.Index("#",1);
+    if (iComment>0)
+        adding = adding(0,iComment);
+    adding = adding.Strip(TString::kBoth);
     TString option = Form("%s=%s",adding.Data(),value.Data());
     original = original + ":" + option;
 }
@@ -690,6 +700,10 @@ void LKMisc::AddOption(TString &original, TString adding, TString value)
 void LKMisc::AddOption(TString &original, TString adding, double value)
 {
     LKMisc::RemoveOption(original,adding);
+    auto iComment = adding.Index("#",1);
+    if (iComment>0)
+        adding = adding(0,iComment);
+    adding = adding.Strip(TString::kBoth);
     TString option = Form("%s=%f",adding.Data(),value);
     while (option[option.Sizeof()-2]=='0')
         option = option(0,option.Sizeof()-2);
@@ -699,6 +713,10 @@ void LKMisc::AddOption(TString &original, TString adding, double value)
 void LKMisc::AddOption(TString &original, TString adding, int value)
 {
     LKMisc::RemoveOption(original,adding);
+    auto iComment = adding.Index("#",1);
+    if (iComment>0)
+        adding = adding(0,iComment);
+    adding = adding.Strip(TString::kBoth);
     TString option = Form("%s=%d",adding.Data(),value);
     original = original + ":" + option;
 }
