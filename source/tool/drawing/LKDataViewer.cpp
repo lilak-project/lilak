@@ -32,7 +32,7 @@ LKDataViewer::LKDataViewer(LKDrawingGroup *top, const TGWindow *p, UInt_t w, UIn
     TString fileName = top -> GetFileName();
     fTitle = Form("[%s] %s",name.Data(),fileName.Data());
     AddGroup(top);
-    fTopDrawingGroup->SetName(top->GetName());
+    //fTopDrawingGroup->SetName(top->GetName());
 }
 
 LKDataViewer::LKDataViewer(LKDrawing *drawing, const TGWindow *p, UInt_t w, UInt_t h)
@@ -182,20 +182,21 @@ bool LKDataViewer::InitFrames()
 
 void LKDataViewer::Draw(TString option)
 {
-    fDrawOption = option;
-    fResizeFactorX = LKMisc::FindOptionDouble(fDrawOption,"r",1);
-    fResizeFactorY = LKMisc::FindOptionDouble(fDrawOption,"r",1);
-    fWindowSizeX = LKMisc::FindOptionInt(fDrawOption,"wx",0);
-    fWindowSizeY = LKMisc::FindOptionInt(fDrawOption,"wy",0);
-    fMinimumUIComponents = LKMisc::CheckOption(fDrawOption,"m");
-    auto loadAllCanvases = LKMisc::CheckOption(fDrawOption,"l");
-    auto saveAllCanvases = LKMisc::CheckOption(fDrawOption,"s");
-    fCanvasFillColor = (LKMisc::CheckOption(fDrawOption,"dm")?kGray:0);
-    fCanvasFillColor = LKMisc::FindOptionInt(fDrawOption,"fc",fCanvasFillColor);
+    fDrawOption = TString(option);
+    fMinimumUIComponents = LKMisc::CheckOption     (fDrawOption,"v_minc   # minimum component mode");
+    auto loadAllCanvases = LKMisc::CheckOption     (fDrawOption,"v_loada  # load all canvas from the beginning");
+    auto saveAllCanvases = LKMisc::CheckOption     (fDrawOption,"v_savea  # load and save all canvas from the beginning");
+    fCanvasFillColor     =(LKMisc::CheckOption     (fDrawOption,"v_dark   # dark mode (Just using kGray background for now)")?kGray:0);
+    fCanvasFillColor     = LKMisc::FindOptionInt   (fDrawOption,"v_fcolor # set fill background color",fCanvasFillColor);
+    fWindowSizeX         = LKMisc::FindOptionInt   (fDrawOption,"v_wsx    # x window size",0);
+    fWindowSizeY         = LKMisc::FindOptionInt   (fDrawOption,"v_wsy    # y window size",0);
+    fResizeFactorX       = LKMisc::FindOptionDouble(fDrawOption,"v_rsx    # x resize factor",1);
+    fResizeFactorY       = LKMisc::FindOptionDouble(fDrawOption,"v_rsy    # y resize factor",1);
 
-    if (fMinimumUIComponents) {
+    LKMisc::RemoveOption(fDrawOption,"viewer");
+
+    if (fMinimumUIComponents)
         lk_info << "Hiding all UI components" << endl;
-    }
 
     InitFrames();
 
@@ -212,6 +213,7 @@ void LKDataViewer::Print(Option_t *opt) const
 {
     lk_info << fTitle << endl;
     fTopDrawingGroup -> Print();
+    fTabSpace -> Print();
 }
 
 void LKDataViewer::SetName(const char* name)
@@ -234,9 +236,8 @@ void LKDataViewer::CreateMainCanvas()
     LKDrawingGroup *group = nullptr;
 
     TIter next(fTopDrawingGroup);
-    while ((group = (LKDrawingGroup*) next())) {
+    while ((group = (LKDrawingGroup*) next()))
         AddGroupTab(group);
-    }
 
     //fPublicGroupIsAdded = true;
     //fPublicTabIndex = AddGroupTab(fPublicGroup);
@@ -526,6 +527,7 @@ void LKDataViewer::CreateTabControlSection()
 {
     auto section = NewGroupFrame("Tab Control");
 
+    //NewButton(frname="Tab Control",);
     auto frame1 = NewHzFrame(section,1);
     fButton_T = NewTextButton(frame1);
     fButton_U_M = NewTextButton(frame1);

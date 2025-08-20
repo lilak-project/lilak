@@ -65,6 +65,8 @@ class LKDrawingGroup : public TObjArray
         void WriteFile(TString fileName="", TString option="");
         void WriteFitParameterFile(TString tag="");
 
+        LKDataViewer *GetViewer() { return fViewer; }
+
         void Update(TString option="");
 
         LKDataViewer* CreateViewer();

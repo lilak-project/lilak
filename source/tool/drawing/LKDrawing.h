@@ -134,12 +134,12 @@ class LKDrawing : public TObjArray
          * - [l,r,b,t]_margin : canvas margin
          * - pave_dx : (0.280) statistics box dx
          * - pave_line_dy : (0.050) statistics box dy for each line
-         * - font : (132) default font
+         * - font : (42) default font
          * - [m,x,y,z]_[title/label]_[size/font/offset] : text attributes (m for top main title)
          * - pad_color : pad color (TODO)
          * - stats_corner : place statistics box at the corner of frame (0:TR,1:TL,2:BL,3:BR)
          * - pave_corner : place pave text at the corner of frame (0:TR,1:TL,2:BL,3:BR)
-         * - pave_attribute : if 0, use default pave text attibute (white bg, black text with 132)
+         * - pave_attribute : if 0, use default pave text attibute (white bg, black text with 42)
          * - legend_corner : place legend box at top corner of histogram frame (0:TR,1:TL,2:BL,3:BR)
          * - opt_stat : ksiourmen (default is 1111)
          *      k = 1;  kurtosis printed
@@ -231,7 +231,7 @@ class LKDrawing : public TObjArray
         void MakeLegend(bool remake=false);
 
     private:
-        TString fGlobalOption = "stats_corner:font=132:opt_stat=1110";
+        TString fGlobalOption = "stats_corner:font=42";
         vector<TString> fTitleArray;
         vector<TString> fDrawOptionArray;
 

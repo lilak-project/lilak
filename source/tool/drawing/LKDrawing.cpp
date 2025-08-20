@@ -50,6 +50,7 @@ void LKDrawing::SetDraw(bool draw)
     else
         LKMisc::AddOption(fGlobalOption,"skip_draw");
 }
+
 void LKDrawing::SetOn(int iObj, bool on)
 {
     if (iObj>GetEntries()) {
@@ -141,8 +142,10 @@ int LKDrawing::Add(TObject *obj, TString drawOption, TString title)
     //if (isMain||fMainHist==nullptr) { if (obj->InheritsFrom(TH1::Class())) fMainHist = (TH1*) obj; }
 
     if (drawOption.Index("stat0")>=0) {
-        if (obj->InheritsFrom(TH1::Class()))
+        if (obj->InheritsFrom(TH1::Class())) {
+            if (CheckOption("debug_draw")) lk_debug << "stat0 -> SetStats(0)"<< endl;
             ((TH1*) obj) -> SetStats(0);
+        }
         drawOption.ReplaceAll("stat0","");
     }
 
@@ -319,8 +322,10 @@ TH2D* LKDrawing::MakeGraphFrame(double x1, double x2, double y1, double y2, TStr
     int nx = 100;
     int ny = 100;
 
-    if (CheckOption("debug_draw"))
-        lk_debug << name << " " << title << " " << nx << " " << x1 << " " << x2 << " " << ny << " " << y1 << " " << y2 << endl;
+    if (CheckOption("debug_draw")) {
+        lk_debug << "Creating histogram:" << name<<" "<<title<<" "<<nx<<" "<<x1<<" "<<x2<<" "<<ny<<" "<<y1<<" "<<y2 << endl;
+        lk_debug << "SetStats(0)"<< endl;
+    }
     auto hist = new TH2D(name,title,100,x1,x2,100,y1,y2);
     hist -> SetStats(0);
 
@@ -333,9 +338,8 @@ void LKDrawing::MakeLegend(bool remake)
         return;
 
     bool debug_draw = (CheckOption("debug_draw"));
-    fLegend = new TLegend(0.1,0.1,0.4,0.5);
+    fLegend = new TLegend();
     fLegend -> SetName("legend_auto");
-    fLegend -> SetTextFont(FindOptionInt("font",132));
     auto numObjects = GetEntries();
     for (auto iObj=0; iObj<numObjects; ++iObj)
     {
@@ -380,14 +384,23 @@ void LKDrawing::Draw(Option_t *option)
     ops.ToLower();
     AddOption(ops);
 
-    bool debug_draw = CheckOption("debug_draw # print out debug messages");
-    bool skip_draw = CheckOption("skip_draw # skip Draw for this drawing");
-    bool using_dv = CheckOption("viewer # skip Draw for this drawing");
-    bool create_legend = CheckOption("create_legend # create legend using added objects and given titles");
-    bool using_raw = CheckOption("raw # do not use all LKDrawing functions to redraw");
+    bool debug_draw = LKMisc::CheckOption(fGlobalOption,"debug_draw # print out debug messages");
+    bool skip_draw = LKMisc::CheckOption(fGlobalOption,"skip_draw # skip Draw for this drawing");
+    bool using_dv = LKMisc::CheckOption(fGlobalOption,"viewer # skip Draw for this drawing",1);
+    bool create_legend = LKMisc::CheckOption(fGlobalOption,"create_legend # create legend using added objects and given titles");
+    bool using_raw = LKMisc::CheckOption(fGlobalOption,"raw # just draw withouth LKDrawing functions");
     int font = FindOptionInt("font # global font number",-1);
     bool exist_font = (font!=-1);
-    if (!exist_font) font = 132;
+    if (!exist_font) font = 42;
+
+    if (debug_draw)
+        lk_debug << "[Draw] " << fName
+            << ": debug_draw=" << debug_draw
+            << ", skip_draw=" << skip_draw
+            << ", using_dv=" << using_dv
+            << ", create_legend=" << create_legend
+            << ", using_raw=" << using_raw
+            << ", font=" << font  << endl;
 
     if (skip_draw) {
         if (debug_draw)
@@ -454,7 +467,7 @@ void LKDrawing::Draw(Option_t *option)
     //fRM -> Stop(4);
 
     //fRM -> Start(5);
-    bool optimize_legend_position = (CheckOption("legend_below_stats # put legend below the stats-box") || CheckOption("legend_corner # (=) put legend at the pad corner 0(tr),1(tl),2(bl),3(br)"));
+    bool optimize_legend_position = (CheckOption("legend_below_stats # put legend below the stats-box") || CheckOption("legend_corner # put legend at the pad corner 0(tr),1(tl),2(bl),3(br)"));
     if (debug_draw) lk_debug << "Optimize legend position?: " << optimize_legend_position << endl;
 
     bool merge_pvtt_stats = CheckOption("merge_pvtt_stats");
@@ -513,7 +526,7 @@ void LKDrawing::Draw(Option_t *option)
     double y2 = 100;
     if (fMainHist!=nullptr)
     {
-        if (CheckOption("clone_mainh # (=) clone and replace main histogram"))
+        if (CheckOption("clone_mainh # clone and replace main histogram"))
         {
             TString name = FindOptionString("clone_mainh","+_cloned");
             if (name[0]=='+') {
@@ -640,16 +653,6 @@ void LKDrawing::Draw(Option_t *option)
         }
         if (obj->InheritsFrom(TLegend::Class())) {
             legend = (TLegend*) obj;
-            legend -> SetFillColor(fCvs->GetFillColor());
-            if (optimize_legend_position && legend->GetX1()==0.3 && legend->GetX2()==0.3 && legend->GetY1()==0.15 && legend->GetY2()==0.15)
-            {
-                legend -> SetX1(0.1);
-                legend -> SetX2(0.4);
-                legend -> SetY1(0.1);
-                legend -> SetY2(0.5);
-                if (debug_draw)
-                    lk_debug << "Set legend xy12 to 0101" << endl;
-            }
         }
         if (obj->InheritsFrom(TPaveText::Class())) {
             pvtt = (TPaveText*) obj;
@@ -740,35 +743,51 @@ void LKDrawing::Draw(Option_t *option)
             }
         }
     }
-
     if (fLegend!=nullptr) {
-        legend = fLegend;
-        if (CheckOption("legend_transparent # make legend transparent")) {
-            legend -> SetFillStyle(0);
-            legend -> SetBorderSize(0);
+        if (legend==nullptr) {
+            legend = fLegend;
+            legend -> Draw();
         }
-        fLegend -> Draw();
+        else {
+            lk_warning << "legend already exist. using user input legend." << endl;
+        }
     }
+    if (legend!=nullptr) {
+        legend -> SetFillColor(fCvs->GetFillColor());
+        legend -> SetTextFont(font);
+    }
+
     fCvs -> Modified();
     fCvs -> Update();
     //fRM -> Stop(16);
 
     //fRM -> Start(17);
-    ApplyStylePad(fCvs);
+    //ApplyStylePad(fCvs);
     ApplyStyleHist(fMainHist);
     //auto foundStats = false;
     TPaveStats* statsbox = nullptr;
-    auto stats_corner = FindOptionInt("stats_corner # (=) put stats-box at the pad corner 0(tr),1(tl),2(bl),3(br)",-1);
+    auto stats_corner = FindOptionInt("stats_corner # put stats-box at the pad corner 0(tr),1(tl),2(bl),3(br)",-1);
+    CheckOption("pave_dx # pave box dx");
+    CheckOption("pave_line_dy # pave box dy = pave_line_dy*[number of lines]");
     if (stats_corner>=0) {
-        statsbox = ApplyStyleStatsBox(fCvs,stats_corner,FindOptionInt("stats_fillstyle # (=) set stats-box fill style",-1));
+        statsbox = ApplyStyleStatsBox(fCvs,stats_corner,FindOptionInt("stats_fillstyle # set stats-box fill style",-1));
     }
     //if (statsbox!=nullptr) statsbox -> Draw();
     if (legend!=nullptr) {
+        if (optimize_legend_position && legend->GetX1()==0.3 && legend->GetX2()==0.3 && legend->GetY1()==0.15 && legend->GetY2()==0.15)
+        {
+            legend -> SetX1(0.1);
+            legend -> SetX2(0.4);
+            legend -> SetY1(0.1);
+            legend -> SetY2(0.5);
+            if (debug_draw)
+                lk_debug << "Set legend xy12 to 0101" << endl;
+        }
+        //legend -> Draw();
         ApplyStyleLegend(legend, statsbox);
-        legend -> Draw();
     }
     if (pvtt!=nullptr) {
-        auto pave_corner = FindOptionInt("pave_corner # (=) put pavetext at the pad corner 0(tr),1(tl),2(bl),3(br)",-1);
+        auto pave_corner = FindOptionInt("pave_corner # put pavetext at the pad corner 0(tr),1(tl),2(bl),3(br)",-1);
         if (pave_corner>=0)
             MakePaveTextCorner(fCvs,pvtt,pave_corner);
         pvtt -> Draw();
@@ -798,7 +817,7 @@ void LKDrawing::Update(TString option)
         fCvs -> Update();
 
         applied = ApplyStyleLegend(fLegend) || applied;
-        applied = ApplyStyleStatsBox(fCvs,FindOptionInt("stats_corner",0),FindOptionInt("stats_fillstyle",-1)) || applied;
+        applied = ApplyStyleStatsBox(fCvs,FindOptionInt("stats_corner#!",0),FindOptionInt("stats_fillstyle",-1)) || applied;
 
         fCvs -> Modified();
         fCvs -> Update();
@@ -819,9 +838,9 @@ bool LKDrawing::ApplyStylePad(TPad *pad)
     auto list_primitive = pad -> GetListOfPrimitives();
     mainTitle = (TPaveText*) list_primitive -> FindObject("title");
 
-    int font = FindOptionInt("font",-1);
+    int font = FindOptionInt("font#!",-1);
     bool exist_font = (font!=-1);
-    if (!exist_font) font = 132;
+    if (!exist_font) font = 42;
     if (mainTitle!=nullptr)
     {
         if (exist_font) {
@@ -833,17 +852,17 @@ bool LKDrawing::ApplyStylePad(TPad *pad)
     if (CheckOption("logx  # set log x")) pad -> SetLogx ();
     if (CheckOption("logy  # set log y")) pad -> SetLogy ();
     if (CheckOption("logz  # set log z")) pad -> SetLogz ();
-    if (CheckOption("gridx # set log x")) pad -> SetGridx();
-    if (CheckOption("gridy # set log y")) pad -> SetGridy();
-    double ml = FindOptionDouble("l_margin # (=) set pad left margin",-1);
-    double mr = FindOptionDouble("r_margin # (=) set pad left margin",-1);
-    double mb = FindOptionDouble("b_margin # (=) set pad left margin",-1);
-    double mt = FindOptionDouble("t_margin # (=) set pad left margin",-1);
+    if (CheckOption("gridx # set grid x")) pad -> SetGridx();
+    if (CheckOption("gridy # set grid y")) pad -> SetGridy();
+    double ml = FindOptionDouble("l_margin # set pad left margin",-1);
+    double mr = FindOptionDouble("r_margin # set pad left margin",-1);
+    double mb = FindOptionDouble("b_margin # set pad left margin",-1);
+    double mt = FindOptionDouble("t_margin # set pad left margin",-1);
     if (ml>=0) pad -> SetLeftMargin  (ml);
     if (mr>=0) pad -> SetRightMargin (mr);
     if (mb>=0) pad -> SetBottomMargin(mb);
     if (mt>=0) pad -> SetTopMargin   (mt);
-    int flc = FindOptionInt("flc # (=) set canvas frame line color",-1);
+    int flc = FindOptionInt("flc # set canvas frame line color",-1);
     if (flc>=0) fCvs -> SetFrameLineColor(flc);
 
     return true;
@@ -859,9 +878,13 @@ bool LKDrawing::ApplyStyleHist(TH1* hist)
         return false;
     }
 
-    if (CheckOption("font"))
+    int font = FindOptionInt("font #!",-1);
+    bool exist_font = (font!=-1);
+    if (!exist_font) font = 42;
+
+    //if (CheckOption("font#!"))
     {
-        int font = FindOptionInt("font",132);
+        //int font = FindOptionInt("font#!",42);
         hist -> GetXaxis() -> SetTitleFont(font);
         hist -> GetYaxis() -> SetTitleFont(font);
         hist -> GetZaxis() -> SetTitleFont(font);
@@ -871,17 +894,17 @@ bool LKDrawing::ApplyStyleHist(TH1* hist)
     }
     if (CheckOption("title_font # histogram title font"))
     {
-        int font = FindOptionInt("title_font",FindOptionInt("font",132));
-        hist -> GetXaxis() -> SetTitleFont(font);
-        hist -> GetYaxis() -> SetTitleFont(font);
-        hist -> GetZaxis() -> SetTitleFont(font);
+        int font_tt = FindOptionInt("title_font#!",font);
+        hist -> GetXaxis() -> SetTitleFont(font_tt);
+        hist -> GetYaxis() -> SetTitleFont(font_tt);
+        hist -> GetZaxis() -> SetTitleFont(font_tt);
     }
     if (CheckOption("label_font # histogram label font"))
     {
-        int font = FindOptionInt("label_font",FindOptionInt("font",132));
-        hist -> GetXaxis() -> SetLabelFont(font);
-        hist -> GetYaxis() -> SetLabelFont(font);
-        hist -> GetZaxis() -> SetLabelFont(font);
+        int font_lb = FindOptionInt("label_font#!",font);
+        hist -> GetXaxis() -> SetLabelFont(font_lb);
+        hist -> GetYaxis() -> SetLabelFont(font_lb);
+        hist -> GetZaxis() -> SetLabelFont(font_lb);
     }
 
     if (CheckOption("tsx # title size x-axis"))   hist -> GetXaxis() -> SetTitleSize  (FindOptionDouble("tsx",0.05));
@@ -899,10 +922,10 @@ bool LKDrawing::ApplyStyleHist(TH1* hist)
     if (CheckOption("acx # axis color x-axis"))   hist -> GetXaxis() -> SetAxisColor  (FindOptionInt   ("acx",1));
     if (CheckOption("acy # axis color y-axis"))   hist -> GetYaxis() -> SetAxisColor  (FindOptionInt   ("acy",1));
 
-    if (CheckOption("opt_stat # (=) stats box option")) {
-        auto mode = FindOptionInt("opt_stat",1111);
-        if (mode<0)
-            hist -> SetStats(0);
+    if (CheckOption("opt_stat # stats box option")) {
+        auto mode = FindOptionInt("opt_stat#!",1111);
+        if (mode>=0) hist -> SetStats(mode);
+        else hist -> SetStats(0);
     }
 
     return true;
@@ -916,6 +939,11 @@ bool LKDrawing::ApplyStyleLegend(TLegend* legend, TPaveStats* statsbox)
     if (legend==nullptr) {
         //lk_warning << "legend is nullptr" << endl;
         return false;
+    }
+
+    if (CheckOption("legend_transparent # make legend transparent")) {
+        legend -> SetFillStyle(0);
+        legend -> SetBorderSize(0);
     }
 
     if (legend->GetX1()==0.3&&legend->GetX2()==0.3&&legend->GetY1()==0.15&&legend->GetY2()==0.15)
@@ -1006,13 +1034,15 @@ TPaveStats* LKDrawing::MakeStats(TPad *cvs)
         return (TPaveStats*)nullptr;
 
     statsbox -> SetFillColor(cvs->GetFillColor());
-    if (CheckOption("opt_stat")) {
-        auto mode = FindOptionInt("opt_stat",1111);
-        if (mode>0)
-            statsbox -> SetOptStat(mode);
-    }
-    if (CheckOption("opt_fit")) {
-        auto mode = FindOptionInt("opt_fit",111);
+    //if (CheckOption("opt_stat#!")) {
+    //    auto mode = FindOptionInt("opt_stat#!",-1);
+    //    if (mode>=0) {
+    //        if (CheckOption("debug_draw")) lk_debug << "SetOptStat("<< mode<<")"<< endl;;
+    //        statsbox -> SetOptStat(mode);
+    //    }
+    //}
+    if (CheckOption("opt_fit # fit stats box option")) {
+        auto mode = FindOptionInt("opt_fit#!",111);
         statsbox -> SetOptFit(mode);
     }
 
@@ -1043,26 +1073,36 @@ TPaveStats* LKDrawing::ApplyStyleStatsBox(TPad *cvs, int iCorner, int fillStyle)
     }
 
     auto numLines = statsbox -> GetListOfLines() -> GetEntries();
-    auto dx = FindOptionDouble("pave_dx",0.280);
-    auto dy = FindOptionDouble("pave_line_dy",0.050);
-    dx = FindOptionDouble("stat_dx",dx);
-    dy = FindOptionDouble("stat_line_dy",dy);
+    auto dx = FindOptionDouble("pave_dx#!",0.280);
+    auto dy = FindOptionDouble("pave_line_dy#!",0.050);
+    dx = FindOptionDouble("stat_dx # stats box dx (priority over pave_dx)",dx);
+    dy = FindOptionDouble("stat_line_dy # stats box dy = stat_line_dy*[number of lines] (priority over pave_line_dy)",dy);
     dy = dy * numLines;
 
     double x1, y1, x2, y2;
     GetPadCornerBoxDimension(cvs, iCorner, dx, dy, x1, y1, x2, y2);
-    
-    AddOption("stats_corner",iCorner);
-    AddOption("stats_x1",x1);
-    AddOption("stats_x2",x2);
-    AddOption("stats_y1",y1);
-    AddOption("stats_y2",y2);
+    if (CheckOption("debug_draw")) {
+        lk_debug << "StatsBox iCorner " << iCorner << endl;
+        lk_debug << "stats_x1 " << x1 << endl;
+        lk_debug << "stats_x2 " << x2 << endl;
+        lk_debug << "stats_y1 " << y1 << endl;
+        lk_debug << "stats_y2 " << y2 << endl;
+    }
+
+    AddOption("stats_corner#!",iCorner);
+    AddOption("stats_x1 # stats box corner position x1",x1);
+    AddOption("stats_x2 # stats box corner position x2",x2);
+    AddOption("stats_y1 # stats box corner position y1",y1);
+    AddOption("stats_y2 # stats box corner position y2",y2);
+
+    int font = FindOptionInt("font #!",42);
+    statsbox -> SetTextFont(font);
 
     statsbox -> SetX1NDC(x1);
     statsbox -> SetX2NDC(x2);
     statsbox -> SetY1NDC(y1);
     statsbox -> SetY2NDC(y2);
-    //statsbox -> SetTextFont(FindOptionint("statsfont",132));
+    //statsbox -> SetTextFont(FindOptionint("statsfont",42));
     //statsbox -> SetFillStyle(fFillStyleStatsbox);
     //statsbox -> SetBorderSize(fBorderSizeStatsbox);
 
@@ -1076,8 +1116,8 @@ TPaveStats* LKDrawing::ApplyStyleStatsBox(TPad *cvs, int iCorner, int fillStyle)
 void LKDrawing::MakePaveTextCorner(TPad* cvs, TPaveText *pvtt, int iCorner)
 {
     auto numLines = pvtt -> GetSize();
-    auto dx = FindOptionDouble("pave_dx",0.280);
-    auto dy = FindOptionDouble("pave_line_dy",0.050);
+    auto dx = FindOptionDouble("pave_dx#!",0.280);
+    auto dy = FindOptionDouble("pave_line_dy#!",0.050);
     dy = dy * numLines;
 
     double x1, y1, x2, y2;
@@ -1093,8 +1133,8 @@ void LKDrawing::MakeLegendCorner(TPad* cvs, TLegend *legend, int iCorner)
 {
     //auto numLines = legend -> GetListOfPrimitives() -> GetEntries();
     auto numLines = legend -> GetNRows();
-    auto dx = FindOptionDouble("pave_dx",0.280);
-    auto dy = FindOptionDouble("pave_line_dy",0.050);
+    auto dx = FindOptionDouble("pave_dx#!",0.280);
+    auto dy = FindOptionDouble("pave_line_dy#!",0.050);
     dx = FindOptionDouble("legend_dx",dx);
     dy = FindOptionDouble("legend_line_dy",dy);
     dy = dy * numLines;
@@ -1107,12 +1147,19 @@ void LKDrawing::MakeLegendCorner(TPad* cvs, TLegend *legend, int iCorner)
     //AddOption("stats_x2",x2);
     //AddOption("stats_y1",y1);
     //AddOption("stats_y2",y2);
+    if (CheckOption("debug_draw")) {
+        lk_debug << "MakeLegendCorner" << endl;
+        lk_debug << "SetX1NDC " << x1 << endl;
+        lk_debug << "SetX2NDC " << x2 << endl;
+        lk_debug << "SetY1NDC " << y1 << endl;
+        lk_debug << "SetY2NDC " << y2 << endl;
+    }
 
     legend -> SetX1NDC(x1);
     legend -> SetX2NDC(x2);
     legend -> SetY1NDC(y1);
     legend -> SetY2NDC(y2);
-    //legend -> SetTextFont(FindOptionint("statsfont",132));
+    //legend -> SetTextFont(FindOptionint("statsfont",42));
     //legend -> SetFillStyle(fFillStyleStatsbox);
     //legend -> SetBorderSize(fBorderSizeStatsbox);
 }
@@ -1149,6 +1196,13 @@ void LKDrawing::MakeLegendBelowStats(TPad* cvs, TLegend *legend)
             x1_legend = x2_legend - dx_legend*x_unit;
         else if (stats_corner==1||stats_corner==2)
             x2_legend = x1_legend + dx_legend*x_unit;
+    }
+    if (CheckOption("debug_draw")) {
+        lk_debug << "MakeLegendBelowStats" << endl;
+        lk_debug << "SetX1NDC " << x1_legend << endl;
+        lk_debug << "SetX2NDC " << x2_legend << endl;
+        lk_debug << "SetY1NDC " << y1_legend << endl;
+        lk_debug << "SetY2NDC " << y2_legend << endl;
     }
 
     legend -> SetX1NDC(x1_legend);
@@ -1201,12 +1255,12 @@ void LKDrawing::SetHistColor(TH2* hist, int color, int max)
 void LKDrawing::Print(Option_t *opt) const
 {
     TString printOption(opt);
-    if (LKMisc::CheckOption(printOption,"raw")) {
+    if (LKMisc::CheckOption(printOption,"raw # use TObject::Print()")) {
         TObjArray::Print();
         return;
     }
 
-    if (LKMisc::CheckOption(printOption,"!drawing"))
+    if (LKMisc::CheckOption(printOption,"!drawing # do not print drawing"))
         return;
 
     auto line = GetPrintLine(printOption);
@@ -1220,24 +1274,36 @@ TString LKDrawing::GetPrintLine(TString printOption) const
     for (auto i=0; i<tab; ++i) tabSpace += "  ";
     TString name_drawing = Form("%s[%d]",(fName.IsNull()?"Drawing":fName.Data()),int(GetEntries()));
 
-    bool printP = LKMisc::CheckOption(printOption,"option");
-    bool printH = LKMisc::CheckOption(printOption,"hist");
-    bool printG = LKMisc::CheckOption(printOption,"graph");
-    bool printF = LKMisc::CheckOption(printOption,"f1") || LKMisc::CheckOption(printOption,"function");
-    bool printO = LKMisc::CheckOption(printOption,"others");
-    if (!printP && !printH && !printG && !printF && !printO) {
-        printP = false;
+    bool printO = LKMisc::CheckOption(printOption,"option   # print option");
+    bool printH = LKMisc::CheckOption(printOption,"hist     # print histograms");
+    bool printG = LKMisc::CheckOption(printOption,"graph    # print graphs");
+    bool printF = LKMisc::CheckOption(printOption,"function # print functions");
+    bool printZ = LKMisc::CheckOption(printOption,"others   # print others");
+    bool printA = LKMisc::CheckOption(printOption,"all      # print all");
+    bool print1 = LKMisc::CheckOption(printOption,"oneline  # print in one line");
+    if (printA) {
+        print1 = false;
+        printO = true;
         printH = true;
         printH = true;
         printG = true;
         printF = true;
-        printO = true;
+        printZ = true;
     }
-    if (printP) name_drawing = name_drawing + Form("{%s}",fGlobalOption.Data());
+    else {
+        printO = false;
+        print1 = true;
+        printH = true;
+        printH = true;
+        printG = true;
+        printF = true;
+        printZ = true;
+    }
+    if (printO) name_drawing = name_drawing + Form("{%s}",fGlobalOption.Data());
     name_drawing = name_drawing + " ";
 
     auto numObjects = GetEntries();
-    if (LKMisc::CheckOption(printOption,"all"))
+    if (!print1)
     {
         //line += tabSpace + "  " + name_drawing;
         line += tabSpace + name_drawing;
@@ -1254,7 +1320,7 @@ TString LKDrawing::GetPrintLine(TString printOption) const
             if      (printH && obj->InheritsFrom(TH1::Class()))    name = Form("H(%s)",name.Data());
             else if (printG && obj->InheritsFrom(TGraph::Class())) name = Form("G(%s)",name.Data());
             else if (printF && obj->InheritsFrom(TF1::Class()))    name = Form("F(%s)",name.Data());
-            else if (printO)                                       name = Form("/(%s)",name.Data());
+            else if (printZ)                                       name = Form("/(%s)",name.Data());
             if (name.IsNull()==false) line += tabSpace + Form("%d>  ",iObj) + name + "; " + title + "; " + option + "\n";
         }
     }
@@ -1273,7 +1339,7 @@ TString LKDrawing::GetPrintLine(TString printOption) const
             if      (printH && obj->InheritsFrom(TH1::Class()))    name = Form("H(%s)",name.Data());
             else if (printG && obj->InheritsFrom(TGraph::Class())) name = Form("G(%s)",name.Data());
             else if (printF && obj->InheritsFrom(TF1::Class()))    name = Form("F(%s)",name.Data());
-            else if (printO)                                       name = Form("/(%s)",name.Data());
+            else if (printZ)                                       name = Form("/(%s)",name.Data());
             if (name.IsNull()==false) {
                 if (titleJoined.IsNull()) titleJoined += name;
                 else titleJoined += TString(", ") + name;

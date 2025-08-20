@@ -68,23 +68,32 @@ void LKDrawingGroup::Draw(Option_t *option)
     TString optionString(option);
     optionString.ToLower();
 
+    auto numDrawings = GetEntries();
+
+
     bool usingDataViewer = false;
     if (fViewer!=nullptr)
         usingDataViewer = true;
     if (usingDataViewer==false)
         usingDataViewer = LKMisc::CheckOption(optionString,"viewer # (dg) draw using LKDataViewer",true);
 
+
+    bool drawGroup = true;
     if (usingDataViewer)
     {
-        if (fViewer==nullptr)
+        drawGroup = false;
+        if (fViewer==nullptr) {
             fViewer = new LKDataViewer(this);
+            fViewer -> Draw(optionString);
+        }
 
         if (fViewer->IsActive())
             lk_warning << "viewer already running!" << endl;
         else
-            fViewer -> Draw(optionString);
+            drawGroup = true;
     }
-    else
+
+    if (drawGroup)
     {
         if (CheckIsGroupGroup())
         {
@@ -97,7 +106,6 @@ void LKDrawingGroup::Draw(Option_t *option)
         }
         else
         {
-            auto numDrawings = GetEntries();
             if (numDrawings>0)
             {
                 ConfigureCanvas();
@@ -115,7 +123,6 @@ void LKDrawingGroup::Draw(Option_t *option)
                     }
                 }
             }
-            //fCvs -> SetWindowSize(800,800);
         }
     }
 }
