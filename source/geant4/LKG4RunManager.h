@@ -117,6 +117,7 @@ class LKG4RunManager : public G4RunManager, public LKGear
         bool fUseVisMode = false;
         TString fG4CommandFileName;
         TString fOutputFileName;
+        int fEventCountForMessage = 1;
 
         Long64_t fRandomSeed = 0;
         std::vector<TString> fSDNames;

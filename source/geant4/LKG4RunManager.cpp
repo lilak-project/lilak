@@ -70,6 +70,8 @@ void LKG4RunManager::AddParameterContainer(TString fname)
     fGeneratorFileName    = fPar -> InitPar(TString(), "LKG4Manager/PGAGeneratorFile ?? # Generator file");
     fDetectorConstructionName = fPar -> InitPar("", "LKG4Manager/DetectorCosntruction ?? # Name of the geant4 DC (Detector Construction) name. To add DC through this parameter, user must place DC-class either in geant4 or nptool in project-directory. Class name (which should be same as the class file name) must contain \"DetectorConstruction\" or \"DC\".");
     fWriteTextFile = fPar -> InitPar(false, "LKG4Manager/WriteTextFile ??");
+    fEventCountForMessage = fPar -> InitPar(1,"LKG4Manager/EventCountForMessage ??");
+    if (fEventCountForMessage<0) fEventCountForMessage = 1;
 
     fStepPersistency        = fPar -> InitPar(true,"persistency/MCStep"       );
     fEdepSumPersistency     = fPar -> InitPar(true,"persistency/MCEdepSum"    );
@@ -593,7 +595,13 @@ void LKG4RunManager::NextEvent()
 {
     CreateVertex();
 
-    g4man_info << "End of Event " << fTree -> GetEntries() << endl;
+    auto eventID = fTree -> GetEntries();
+    if (eventID!=1&&eventID%fEventCountForMessage!=0) {
+        lk_set_message(false);
+    }
+    g4man_info << "End of Event " << eventID << endl;
+    lk_set_message(true);
+
     fTree -> Fill();
 
     fTrackArray -> Clear("C");
