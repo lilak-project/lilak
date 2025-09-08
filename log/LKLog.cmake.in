@@ -3,6 +3,7 @@ set(CREATE_GIT_LOG @CREATE_GIT_LOG@)
 set(BUILD_DOXYGEN_DOC @BUILD_DOXYGEN_DOC@)
 set(LILAK_PROJECT_MAIN @LILAK_PROJECT_MAIN@)
 set(LILAK_ROOT_LINKED_CLASS_LIST @LILAK_ROOT_LINKED_CLASS_LIST@)
+set(LILAK_PROJECT_LIST @LILAK_PROJECT_LIST@)
 
 find_package(Git)
 if(CREATE_GIT_LOG)
@@ -73,6 +74,42 @@ if(CREATE_GIT_LOG)
     set(LILAK_MAINPROJECT_VERSION "${LILAK_MAINPROJECT_GIT_BRANCH}.${LILAK_MAINPROJECT_GIT_COMMIT_COUNT}.${LILAK_MAINPROJECT_GIT_HASH_SHORT}")
     set(LILAK_MAINPROJECT_HASH "${LILAK_MAINPROJECT_GIT_HASH_SHORT}")
     message(STATUS "Main project version: " ${LILAK_MAINPROJECT_VERSION})
+
+    ####################################################################################
+    list(LENGTH LILAK_PROJECT_LIST N_LILAK_PROJECT)
+    set(N_LILAK_PROJECT ${N_LILAK_PROJECT})
+    list(JOIN LILAK_PROJECT_LIST ":" LILAK_PROJECT_ALL)
+    set(_NAMES_INIT "")
+    set(_VERSIONS_INIT "")
+    set(LILAK_PROJECT_VERSIONS_LIST)  # (원한다면 리스트 형태도 유지)
+
+    foreach(lilak_project IN LISTS LILAK_PROJECT_LIST)
+        execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
+            OUTPUT_VARIABLE LILAK_PROJECT_GIT_BRANCH
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            WORKING_DIRECTORY ${LILAK_PATH}/${lilak_project})
+        execute_process(COMMAND ${GIT_EXECUTABLE} rev-list --count ${LILAK_PROJECT_GIT_BRANCH}
+            OUTPUT_VARIABLE LILAK_PROJECT_GIT_COMMIT_COUNT
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            WORKING_DIRECTORY ${LILAK_PATH}/${lilak_project})
+        execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse --short ${LILAK_PROJECT_GIT_BRANCH}
+            OUTPUT_VARIABLE LILAK_PROJECT_GIT_HASH_SHORT
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            WORKING_DIRECTORY ${LILAK_PATH}/${lilak_project})
+        set(_VERSION_STRING "${LILAK_PROJECT_GIT_BRANCH}.${LILAK_PROJECT_GIT_COMMIT_COUNT}.${LILAK_PROJECT_GIT_HASH_SHORT}")
+        list(APPEND LILAK_PROJECT_VERSIONS_LIST "${_VERSION_STRING}")
+        if(NOT _NAMES_INIT STREQUAL "")
+            string(APPEND _NAMES_INIT ", ")
+            string(APPEND _VERSIONS_INIT ", ")
+        endif()
+        string(APPEND _NAMES_INIT "\"${lilak_project}\"")
+        string(APPEND _VERSIONS_INIT "\"${_VERSION_STRING}\"")
+        message(STATUS "[LILAK] ${lilak_project} version: ${_VERSION_STRING}")
+    endforeach()
+
+    set(LILAK_PROJECT_NAMES_INIT "${_NAMES_INIT}")
+    set(LILAK_PROJECT_VERSIONS_INIT "${_VERSIONS_INIT}")
+    ###################################################################################
 
     execute_process(COMMAND ${GIT_EXECUTABLE} log --pretty=format:"%h %an %ar : %s" -1 OUTPUT_VARIABLE LILAK_GIT_LOG_TEMP)
     execute_process(COMMAND ${GIT_EXECUTABLE} status -s      OUTPUT_VARIABLE LILAK_GIT_STATUS OUTPUT_STRIP_TRAILING_WHITESPACE)

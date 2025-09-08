@@ -990,6 +990,11 @@ bool LKRun::Init()
         fRunHeader -> SetName("RunHeader");
         fRunHeader -> AddPar("MainP_Version",LILAK_MAINPROJECT_VERSION);
         fRunHeader -> AddPar("LILAK_Version",LILAK_VERSION);
+        fRunHeader -> AddPar("NumProjects",N_LILAK_PROJECT);
+        for (auto iProject=0; iProject<N_LILAK_PROJECT; ++iProject)
+            fRunHeader -> AddPar(Form("ProjectName/%d",iProject),LILAK_PROJECT_NAME(iProject));
+        for (auto iProject=0; iProject<N_LILAK_PROJECT; ++iProject)
+            fRunHeader -> AddPar(Form("ProjectVersion/%d",iProject),LILAK_PROJECT_VERSION(iProject));
         fRunHeader -> AddPar("LILAK_HostName",LILAK_HOSTNAME);
         fRunHeader -> AddPar("LILAK_UserName",LILAK_USERNAME);
         fRunHeader -> AddPar("LILAK_Path",LILAK_PATH);
