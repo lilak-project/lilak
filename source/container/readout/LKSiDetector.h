@@ -93,6 +93,8 @@ class LKSiDetector : public LKContainer
         LKChannel* GetActiveChannel(int i) { return (LKChannel*) fChannelArray.At(i); }
 
         void RegisterChannel(LKSiChannel* channel);
+        int GetNumRegisteredChannels() { return fRegisteredChannelArray.GetEntries(); }
+        LKSiChannel* GetRegisteredChannel(int i);
         LKSiChannel* GetRegisteredChannel(int side, int strip, int lr);
 
         TH2* CreateHistJunction(TString name="", TString title="", double x1=-1, double x2=-1, double y1=-1, double y2=-1, TString option="");

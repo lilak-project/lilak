@@ -69,7 +69,7 @@ class LKVirtualRun : public LKTask
         virtual Int_t GetDivision() const { return 0; }
         virtual TString GetMainName() const { return "VirtualRun"; }
         virtual TString GetTag() const { return "virtual"; }
-        TString MakeFullRunName(int useparated=false) const { return "VirtualRun"; }
+        virtual TString MakeFullRunName(int useparated=false) const { return "VirtualRun"; }
 
         virtual void SetDataPath(TString path) = 0;
         virtual TString GetDataPath() = 0;

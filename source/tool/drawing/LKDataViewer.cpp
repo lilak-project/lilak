@@ -1443,11 +1443,14 @@ void LKDataViewer::ProcessNavigateCanvas(int iMode)
     {
         if      (iMode==-1) { fCurrentCanvasX = 0; fCurrentCanvasY = 0; }
         else if (iMode==0) {}
-        else if (iMode==1) { if (fCurrentCanvasX==0)      return; fCurrentCanvasX--; }
-        else if (iMode==2) { if (fCurrentCanvasX==divX-1) return; fCurrentCanvasX++; }
-        else if (iMode==3) { if (fCurrentCanvasY==divY-1) return; fCurrentCanvasY++; }
-        else if (iMode==4) { if (fCurrentCanvasY==0)      return; fCurrentCanvasY--; }
-        drawingNumber = fCurrentCanvasY*divX + fCurrentCanvasX;
+        else if (iMode==1) { if (fCurrentCanvasX==0)      return; fCurrentCanvasX--; } // XXX
+        else if (iMode==2) { if (fCurrentCanvasX==divX-1) return; fCurrentCanvasX++; } // XXX
+        else if (iMode==3) { if (fCurrentCanvasY==divY-1) return; fCurrentCanvasY++; } // XXX
+        else if (iMode==4) { if (fCurrentCanvasY==0)      return; fCurrentCanvasY--; } // XXX
+        if (fCurrentGroup -> CheckOption("vertical_pad_numbering"))
+            drawingNumber = fCurrentCanvasX*divY + fCurrentCanvasY;
+        else
+            drawingNumber = fCurrentCanvasY*divX + fCurrentCanvasX;
         int cvsNumber = 1 + drawingNumber;
 
         if (fCurrentTPad!=nullptr) {
