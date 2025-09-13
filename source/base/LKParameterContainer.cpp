@@ -958,6 +958,91 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
         lk_warning << "Parameter " << name << " already exist! Overwritting ... to " << name << " " << value << endl;
     }
 
+    if (name.Index("?")>=0)
+    {
+        auto lfTokNames = name.Tokenize("/");
+        auto numTok = lfTokNames -> GetEntries();
+        TString finalName;
+        for (auto iTok=0; iTok<numTok; ++iTok)
+        {
+            TString tokName = ((TObjString *) lfTokNames->At(iTok)) -> GetString();
+            if (tokName[0]!='?') {
+                if (finalName.IsNull()) finalName = tokName;
+                else finalName = finalName + "/" + tokName;
+                continue;
+            }
+            TString formula;
+            bool goodToAdd = false;
+            while (true) {
+                tokName = tokName(1, tokName.Sizeof()-2);
+                int coType = 0;
+                int coSize = 0;
+                int coIndex = 0;
+
+                if      (tokName.Index("<" )>0) { coType = 1; coIndex = tokName.Index("<" ); coSize = 1; }
+                else if (tokName.Index(">" )>0) { coType = 2; coIndex = tokName.Index(">" ); coSize = 1; }
+                else if (tokName.Index("<=")>0) { coType = 3; coIndex = tokName.Index("<="); coSize = 2; }
+                else if (tokName.Index(">=")>0) { coType = 4; coIndex = tokName.Index(">="); coSize = 2; }
+                else if (tokName.Index("==")>0) { coType = 5; coIndex = tokName.Index("=="); coSize = 2; }
+                else if (tokName.Index("!=")>0) { coType = 6; coIndex = tokName.Index("!="); coSize = 2; }
+                else                            { coType = 0; coIndex = tokName.Sizeof(); }
+
+                bool lGood = true;
+                bool lExist = false;
+                TString lName = tokName(0,coIndex);
+                TString lValue;
+
+                bool rGood = true;
+                bool rExist = false;
+                TString rName = tokName(coIndex+coSize,tokName.Sizeof());
+                TString rValue;
+
+                if (lName.Index("{")==0&&lName.EndsWith("}")) {
+                    lName = lName(1, lName.Sizeof()-3);
+                    lExist = CheckPar(lName);
+                    if (lExist) lValue = GetParString(lName);
+                    else lGood = false;
+                }
+                else
+                    lValue = lName;
+
+                if (coType==0 && lExist)
+                    lValue = "1";
+                else {
+                    if (rName.Index("{")==0&&rName.EndsWith("}")) {
+                        rName = rName(1, rName.Sizeof()-3);
+                        rExist = CheckPar(rName);
+                        if (rExist) rValue = GetParString(rName);
+                        else rGood = false;
+                    }
+                    else
+                        rValue = rName;
+                }
+
+                if (lGood==false||rGood==false) {
+                    goodToAdd = false;
+                    break;
+                }
+
+                if      (coType==0) formula = Form("%s"    ,lValue.Data()              );
+                else if (coType==1) formula = Form("%s<%s ",lValue.Data(),rValue.Data());
+                else if (coType==2) formula = Form("%s>%s ",lValue.Data(),rValue.Data());
+                else if (coType==3) formula = Form("%s<=%s",lValue.Data(),rValue.Data());
+                else if (coType==4) formula = Form("%s>=%s",lValue.Data(),rValue.Data());
+                else if (coType==5) formula = Form("%s==%s",lValue.Data(),rValue.Data());
+                else if (coType==6) formula = Form("%s!=%s",lValue.Data(),rValue.Data());
+
+                goodToAdd = bool(TFormula("goodToAdd",formula).Eval(0));
+                break;
+            }
+            if (goodToAdd==false) {
+                lk_info << "Skip add par: " << tokName << " is false. (" << formula << ")" << endl;
+                return false;
+            }
+        }
+        name = finalName;
+    }
+
     if (name.IsNull()&&value.IsNull()&&!comment.IsNull()) {
         SetLineComment(comment);
         return true;

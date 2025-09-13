@@ -579,6 +579,9 @@ std::vector<bool> LKParameter::GetVBool(int n) const
 
 std::vector<int> LKParameter::GetVInt(int n) const
 {
+    if (fValue.Index(":")>0)
+        return GetIntRange();
+
     std::vector<int> array;
     auto npar = GetN();
     if (npar==1)

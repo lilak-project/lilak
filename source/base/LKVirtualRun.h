@@ -110,6 +110,8 @@ class LKVirtualRun : public LKTask
         virtual bool RunSelectedEvent(TString selection) = 0;
         virtual void RunOnline(Long64_t numEvents) = 0;
 
+        virtual void ClearArrays() = 0;
+
         virtual bool ExecuteEvent(Long64_t eventID) = 0;
         virtual bool ExecuteNextEvent() = 0;
         virtual bool ExecutePreviousEvent() = 0;
