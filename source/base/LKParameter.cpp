@@ -10,7 +10,7 @@
 #include <iostream>
 #include <iomanip>
 #include "LKMisc.h"
-
+#include "LKCompiled.h"
 #include "LKParameter.h"
 
 LKParameter::LKParameter()

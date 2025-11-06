@@ -1,7 +1,7 @@
 #ifndef LKDRAWING_HH
 #define LKDRAWING_HH
 
-#include "LKRunTimeMeasure.h"
+//#include "LKRunTimeMeasure.h"
 #include "TPaveStats.h"
 #include "TPaveText.h"
 #include "TObjArray.h"
@@ -184,7 +184,8 @@ class LKDrawing : public TObjArray
             SetBottomMargin(bmg);
             SetTopMargin(tmg);
         }
-        void SetCanvasSize(int dx, int dy, bool resize=true) { AddOption("cvs_dx",dx); AddOption("cvs_dy",dy); if (resize) AddOption("cvs_resize"); }
+        //void SetCanvasSize(int dx, int dy, bool resize=true) { AddOption("cvs_w",dx); AddOption("cvs_h",dy); if (resize) AddOption("cvs_resize"); }
+        void SetCanvasSize(int dx, int dy, double resize=-1) { AddOption("cvs_w",dx); AddOption("cvs_h",dy); if (resize>0) AddOption("cvs_r",resize); }
         void SetRangeUser(double x1, double x2, double y1, double y2) { SetRangeUserX(x1, x2); SetRangeUserY(y1, y2); }
         void SetRangeUserX(double x1, double x2) { AddOption("x1",x1); AddOption("x2",x2); }
         void SetRangeUserY(double y1, double y2) { AddOption("y1",y1); AddOption("y2",y2); }
@@ -212,6 +213,7 @@ class LKDrawing : public TObjArray
         void SetCreateFrame(TString name="", TString title="", TString option=""); ///< Create frame if no frame histogram exist.
         void SetCreateLegend(int iCorner=-1, double dx=0, double dyline=0);
         void SetLegendTransparent();
+        void SetAutoMax() { AddOption("auto_max"); }
 
         /**
          * Use one of the style files from lilak/common/draw_style

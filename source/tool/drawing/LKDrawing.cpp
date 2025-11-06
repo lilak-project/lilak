@@ -121,7 +121,7 @@ int LKDrawing::Add(TObject *obj, TString drawOption, TString title)
     if (fMainHist==nullptr) { if (obj->InheritsFrom(TH1::Class())) fMainHist = (TH1*) obj; }
 
     auto numObjects = GetEntries();
-    drawOption.ToLower();
+    //drawOption.ToLower();
     if (drawOption.IsNull())
     {
         if (obj->InheritsFrom(TH2::Class()) && drawOption.Index("col")<0 && drawOption.Index("scat")<0) {
@@ -451,15 +451,22 @@ void LKDrawing::Draw(Option_t *option)
 
     //fRM -> Start(4);
     if (fCvs==nullptr) {
-        int dx = FindOptionInt("cvs_dx # canvas size (x)",-1);
-        int dy = FindOptionInt("cvs_dy # canvas size (y)",-1);
-        if (dx<0||dy<0)
+        int dx = FindOptionInt("cvs_w # canvas width",-1);
+        int dy = FindOptionInt("cvs_h # canvas height",-1);
+        if (debug_draw) lk_debug << "dx, dy: " << dx << ", " << dy << endl;
+        if (dx<0||dy<0) {
             fCvs = LKPainter::GetPainter() -> Canvas(Form("cvs_%s",fName.Data()));
+        }
         else {
-            if (CheckOption("cvs_resize # resize canvas to the current display"))
-                fCvs = LKPainter::GetPainter() -> CanvasResize(Form("cvs_%s",fName.Data()),dx,dy);
-            else
+            double resize_factor = LKMisc::FindOptionDouble(fGlobalOption,"cvs_r # resize canvas in ratio (max 1)",-1);
+            if (resize_factor>0) {
+                if (debug_draw) lk_debug << "Resize canvas " << dx << " " << dy << " " << resize_factor << endl;
+                fCvs = LKPainter::GetPainter() -> CanvasResize(Form("cvs_%s",fName.Data()),dx,dy,resize_factor);
+            }
+            else {
+                if (debug_draw) lk_debug << "New canvas " << dx << " " << dy << endl;
                 fCvs = LKPainter::GetPainter() -> CanvasSize(Form("cvs_%s",fName.Data()),dx,dy);
+            }
         }
         if (debug_draw)
             lk_debug << fCvs->GetName() << " " << fCvs->GetTitle() << " " << fCvs->GetWw() << " " << fCvs->GetWh() << endl;
@@ -514,10 +521,17 @@ void LKDrawing::Draw(Option_t *option)
         for (auto iObj=0; iObj<numObjects; ++iObj) {
             auto obj = At(iObj);
             if (fDrawOptionArray[iObj].Index("same")<0)  {
-                if (obj->InheritsFrom(TGraph::Class())) { fMainHist = (TH1*) ((TGraph*) obj) -> GetHistogram(); }
+                //if (obj->InheritsFrom(TGraph::Class())) { fMainHist = (TH1*) ((TGraph*) obj) -> GetHistogram(); }
                 if (obj->InheritsFrom(TF1::Class()))    { fMainHist = (TH1*) ((TF1*)    obj) -> GetHistogram(); }
             }
         }
+    }
+
+    bool create_gframe = CheckOption("create_gframe # create frame-histogram for the graphs if no main histogram is set");
+    if (create_gframe==false && At(0)->InheritsFrom(TGraph::Class()) && fDrawOptionArray.at(0).Index("a")<0) {
+        if (debug_draw)
+            lk_debug << "First object is graph without 'a' option. ... creating gframe" << endl;
+        create_gframe = true;
     }
 
     double x1 = 0;
@@ -526,6 +540,11 @@ void LKDrawing::Draw(Option_t *option)
     double y2 = 100;
     if (fMainHist!=nullptr)
     {
+        if (debug_draw && create_gframe) {
+            lk_debug << "Main histogram exist! Will not create gframe for this drawing" << endl;
+            fMainHist -> Print();
+            create_gframe = false;
+        }
         if (CheckOption("clone_mainh # clone and replace main histogram"))
         {
             TString name = FindOptionString("clone_mainh","+_cloned");
@@ -552,8 +571,25 @@ void LKDrawing::Draw(Option_t *option)
         if (y1!=-123&&y2!=123) { setYRange = true; fMainHist -> GetYaxis() -> SetRangeUser(y1,y2); }
         if (debug_draw && setXRange) lk_debug << "x-range: " << x1 << " - " << x2 << endl;
         if (debug_draw && setYRange) lk_debug << "y-range: " << y1 << " - " << y2 << endl;
+        bool setAutoMaximum = CheckOption("auto_max # Find and set maximum using all histograms");
+        if (setAutoMaximum)
+        {
+            double autoMax = 0.;
+            for (auto iObj=0; iObj<numObjects; ++iObj) {
+                auto obj = At(iObj);
+                if (obj->InheritsFrom(TH1::Class())) {
+                    auto hist = (TH1*) obj;
+                    //auto max = hist -> GetMaximum();
+                    auto max = hist -> GetBinContent(hist->GetMaximumBin());
+                    if (autoMax<max) autoMax = max;
+                }
+            }
+            autoMax = autoMax*1.15;
+            if (debug_draw) lk_debug << "auto-max: " << autoMax << endl;
+            fMainHist -> SetMaximum(autoMax);
+        }
     }
-    else if (CheckOption("create_gframe # create frame-histogram for the graphs if no main histogram is set"))
+    else if (create_gframe)
     {
         if (debug_draw) lk_debug << "Creating frame" << endl;
         fMainHist = MakeGraphFrame();
@@ -630,7 +666,7 @@ void LKDrawing::Draw(Option_t *option)
         if (nameObj.IsNull()) nameObj = obj -> ClassName();
         auto drawOption0 = fDrawOptionArray.at(iObj);
         auto drawOption = drawOption0;
-        drawOption.ToLower();
+        //drawOption.ToLower();
         if (iObj==0 && drawOption.Index("same")>=0) {
             drawOption.ReplaceAll("same","");
             if (obj->InheritsFrom(TGraph::Class()) && drawOption.Index("a")>=0)
@@ -1384,6 +1420,29 @@ Int_t LKDrawing::Write(const char *name, Int_t option, Int_t bsize) const
 
 void LKDrawing::Clear(Option_t *option)
 {
+    TString opts(option);
+    bool except_main = LKMisc::CheckOption(opts,"!main # clear all but main");
+
+    int iMain = -1;
+    TH1* mainHist = nullptr;
+    TString mainTitle, mainOption;
+    if (except_main && fMainHist!=nullptr)
+    {
+        mainHist = fMainHist;
+        int numObjects = GetEntries();
+        for (auto iObj=0; iObj<numObjects; ++iObj) {
+            auto obj = At(iObj);
+            if (obj==fMainHist) {
+                iMain = iObj;
+                break;
+            }
+        }
+        if (iMain>=0) {
+            mainTitle = fTitleArray.at(iMain);
+            mainOption = fDrawOptionArray.at(iMain);
+        }
+    }
+
     TObjArray::Clear();
     fTitleArray.clear();
     fDrawOptionArray.clear();
@@ -1396,6 +1455,9 @@ void LKDrawing::Clear(Option_t *option)
     fFitFunction = nullptr;
     if (fHistPixel!=nullptr) delete fHistPixel;
     if (fLegend!=nullptr) delete fLegend;
+
+    if (iMain>=0)
+        Add(mainHist, mainOption, mainTitle);
 }
 
 void LKDrawing::Browse(TBrowser *b)

@@ -941,32 +941,39 @@ void LKDataViewer::ProcessNextSubTab()
 
 void LKDataViewer::ProcessPrevEvent()
 {
+#ifdef LILAK_COMPILED
     if (fRun==nullptr)
         return;
 
     fRun -> ExecutePreviousEvent();
+#endif
 }
 
 void LKDataViewer::ProcessNextEvent()
 {
+#ifdef LILAK_COMPILED
     if (fRun==nullptr)
         return;
 
     fRun -> ExecuteNextEvent();
+#endif
 }
 
 void LKDataViewer::ProcessGotoEvent()
 {
+#ifdef LILAK_COMPILED
     if (fRun==nullptr)
         return;
 
     int eventID = fNumberInput->GetIntNumber();
     fNumberInput->Clear();
     fRun -> ExecuteEvent(eventID);
+#endif
 }
 
 void LKDataViewer::ProcessExecuteRun()
 {
+#ifdef LILAK_COMPILED
     if (fRun==nullptr)
         return;
 
@@ -974,6 +981,7 @@ void LKDataViewer::ProcessExecuteRun()
     //fRun -> SetSkipEndOfRun(true);
     //fRun -> SetAutoTermination(false);
     //fRun -> Run();
+#endif
 }
 
 void LKDataViewer::ProcessSetEventRange(int i)
@@ -983,6 +991,7 @@ void LKDataViewer::ProcessSetEventRange(int i)
 
 void LKDataViewer::ProcessExecuteEvents()
 {
+#ifdef LILAK_COMPILED
     if (fRun==nullptr)
         return;
 
@@ -990,6 +999,7 @@ void LKDataViewer::ProcessExecuteEvents()
     //fRun -> SetSkipEndOfRun(true);
     //fRun -> SetAutoTermination(false);
     //fRun -> Run();
+#endif
 }
 
 void LKDataViewer::ProcessExitViewer()

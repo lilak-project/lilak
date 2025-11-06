@@ -400,6 +400,9 @@ bool LKDrawingGroup::ConfigureCanvas()
     auto numDrawings = GetEntries();
     int numDrawingsChange = numDrawings - fDivX*fDivY;
 
+    int dXCvs = fDXCvs;
+    int dYCvs = fDYCvs;
+
     if ((fDivX==0 || fDivY==0) || numDrawingsChange>0)
     {
         if (CheckOption("wide_canvas"))
@@ -493,19 +496,35 @@ bool LKDrawingGroup::ConfigureCanvas()
     else if (fDivX>=3||fDivY>=3) resize_factor = 0.90;
     else if (fDivX>=2||fDivY>=2) resize_factor = 0.85;
 
+    if (fDXCvs==0 || fDYCvs==0 || numDrawingsChange>0)
+    {
+        fDXCvs = 800*fDivX;
+        fDYCvs = 680*fDivY;
+    }
+    double cvs_r = LKMisc::FindOptionDouble(fGlobalOption,"cvs_r",-1);
+    if (cvs_r>0) resize_factor = cvs_r;
+
     if (fCvs==nullptr)
     {
         if (!fFixCvsSize)
-        {
-            if (fDXCvs==0 || fDYCvs==0) {
-                fDXCvs = 800*fDivX;
-                fDYCvs = 680*fDivY;
-            }
             fCvs = LKPainter::GetPainter() -> CanvasResize(Form("c%s",fName.Data()), fDXCvs, fDYCvs, resize_factor);
-        }
         else
             fCvs = new TCanvas(Form("c%s",fName.Data()),Form("c%s",fName.Data()), fDXCvs, fDYCvs);
     }
+    else if (!(fCvs->GetWw()==fDXCvs && fCvs->GetWh()==fDYCvs))
+    {
+        if (!fFixCvsSize)
+            fCvs = LKPainter::GetPainter() -> CanvasResize(fCvs, fDXCvs, fDYCvs, resize_factor);
+        else {
+            fCvs -> SetCanvasSize(fDXCvs, fDYCvs);
+            //fCvs -> SetWindowSize(fDXCvs, fDYCvs);
+        }
+    }
+    else {
+    }
+
+    fDXCvs = fCvs -> GetWw();
+    fDYCvs = fCvs -> GetWh();
 
     if (fPadArray!=nullptr && numDrawingsChange<=0)
     {

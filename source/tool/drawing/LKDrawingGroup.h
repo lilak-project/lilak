@@ -99,7 +99,7 @@ class LKDrawingGroup : public TObjArray
         void SetCanvasDivision(int divX, int divY) { fDivX = divX; fDivY = divY; }
         int GetDivX() const { return fDivX; }
         int GetDivY() const { return fDivY; }
-        void SetCanvasSize(int dx, int dy, bool resize=true) { fDXCvs = dx; fDYCvs = dy; fFixCvsSize = !resize; }
+        void SetCanvasSize(int dx, int dy, double resize=-1) { fDXCvs = dx; fDYCvs = dy; if (resize>0) { fFixCvsSize = false; AddOption("cvs_r",resize); }}
         void SetCanvasSizeRatio(int dx, int dy) { fDXCvs = dx; fDYCvs = dy; }
         void AddPad(TPad *pad) { if (fPadArray==nullptr) fPadArray = new TObjArray(); fPadArray -> Add(pad); }
         void SetPadVerticalNumbering(bool v=true) { AddOption("vertical_pad_numbering"); }

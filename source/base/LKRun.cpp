@@ -1011,7 +1011,7 @@ bool LKRun::Init()
         fRunHeader -> AddPar("RunID",fRunID);
         for (auto i=0; i<fRunIDList.size(); ++i) {
             auto runID = fRunIDList.at(i);
-            fRunHeader -> AddPar(Form("run_%d",i),runID);
+            fRunHeader -> AddPar(Form("run/%d",i),runID);
         }
         fRunHeader -> AddPar("Division",fDivision);
         fRunHeader -> AddPar("Tag",fTag);

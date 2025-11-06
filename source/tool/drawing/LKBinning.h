@@ -72,7 +72,7 @@ class LKBinning : public TNamed
         double GetRandomUniformX() { return fBinningX.GetRandomUniform(); }
         double GetRandomUniformY() { return fBinningY.GetRandomUniform(); }
 
-        void SetBinning(TH1 *hist);
+        void SetBinning(TH1 *hist, bool useCurrentRange=false);
         void SetBinning(TGraph *graph);
 
         void SetN (double nx) { fBinningX.SetNX(nx); }
@@ -92,6 +92,8 @@ class LKBinning : public TNamed
         void SetYMM(double y1, double y2) { fBinningY.SetXMM (y1,y2); }
         void SetYNMM(int ny, double y1, double y2) { fBinningY.SetXNMM(ny,y1,y2); }
         void SetYMMW(double y1, double y2, double w) { fBinningY.SetXMMW(y1,y2,w); }
+
+        void SetNMM(int nx, double x1, double x2, int ny=1, double y1=0, double y2=0) { SetXNMM(nx,x1,x2); if (!(y1==0&&y2==0)) SetYNMM(ny,y1,y2); }
 
         void Reset() { fBinningX.Reset(); }
         void End ()  { fBinningX.End();   }

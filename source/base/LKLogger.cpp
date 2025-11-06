@@ -1,5 +1,6 @@
 #include <iomanip>
 #include "LKLogger.h"
+#include "LKCompiled.h"
 
 LKLogManager* LKLogManager::fLogManager = nullptr;
 TString LKLogManager::fLogFileName = "";
@@ -114,7 +115,7 @@ LKLogger::LKLogger(TString name, const std::string &title ,int rank, int option)
                 case 3:  std::cout << header << "\033[0;33m" << "warn> "  << "\033[0m"; break;
                 case 5:  std::cout << header << "\033[0;36m" << "test> "  << "\033[0m"; break;
                 case 4:  std::cout << header << "\033[0;31m" << "error> " << "\033[0m"; break;
-                case 7:  std::cout << header << "\033[0;31m" << "NOTE> "  << "\033[0m"; break;
+                case 7:  std::cout << header << "\033[0;36m" << "NOTE> "  << "\033[0m"; break;
                 case 6:
                          if (rank<0)
                              std::cout << header << "\033[0;34m" << std::right << std::setw(4) << "*" << "  " << "\033[0m";
