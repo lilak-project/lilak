@@ -223,8 +223,9 @@ class LKParameterContainer : public TObjArray
         void UpdatePar(TString   &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParString(name,idx); } ///< See UpdatePar(Bool_t, TString, int)
         void UpdatePar(axis_t    &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParAxis  (name,idx); } ///< See UpdatePar(Bool_t, TString, int)
         void UpdatePar(TVector3  &value, TString name)             const { if (CheckPar(name)) value = GetParV3    (name);     } ///< See UpdatePar(Bool_t, TString, int)
-        void UpdatePar(LKBinning &value, TString name)             const { int n; double x1, x2; if (UpdateBinning(name, n, x1, x2)) value.SetXNMM(n, x1, x2); }
-        bool UpdateBinning(TString name, Int_t &n, Double_t &x1, Double_t &x2) const;
+        void UpdatePar(LKBinning &value, TString name) const;
+        bool UpdateBinning(TString name, Int_t &n,  Double_t &x1, Double_t &x2) const;
+        bool UpdateBinning(TString name, Int_t &nx, Double_t &x1, Double_t &x2, Int_t &ny, Double_t &y1, Double_t &y2) const;
         void UpdateV3(TString name, Double_t &x, Double_t &y, Double_t &z) const;
 
         Bool_t               InitPar(Bool_t    dfValue, TString name, int idx=-1) const { if (CheckParWithValue(name,dfValue)) return GetParBool   (name, idx); return dfValue; }

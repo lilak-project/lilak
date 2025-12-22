@@ -1152,6 +1152,16 @@ LKParameter *LKParameterContainer::SetParCont(TString name) {
     return SetLineComment(Form("input container %s", name.Data()));
 }
 
+void LKParameterContainer::UpdatePar(LKBinning &value, TString name) const
+{
+    int nx; double x1, x2;
+    int ny; double y1, y2;
+    if (UpdateBinning(name, nx, x1, x2, ny, y1, y2))
+        value.SetNMM(nx, x1, x2, ny, y1, y2);
+    else if (UpdateBinning(name, nx, x1, x2))
+        value.SetXNMM(nx, x1, x2);
+}
+
 bool LKParameterContainer::UpdateBinning(TString name, Int_t &n, Double_t &x1, Double_t &x2) const
 {
     if (CheckPar(name) && GetParN(name)>=3)
@@ -1159,6 +1169,21 @@ bool LKParameterContainer::UpdateBinning(TString name, Int_t &n, Double_t &x1, D
         n = GetParInt(name,0);
         x1 = GetParDouble(name,1);
         x2 = GetParDouble(name,2);
+        return true;
+    }
+    return false;
+}
+
+bool LKParameterContainer::UpdateBinning(TString name, Int_t &nx, Double_t &x1, Double_t &x2, Int_t &ny, Double_t &y1, Double_t &y2) const
+{
+    if (CheckPar(name) && GetParN(name)>=6)
+    {
+        nx = GetParInt(name,0);
+        x1 = GetParDouble(name,1);
+        x2 = GetParDouble(name,2);
+        ny = GetParInt(name,3);
+        y1 = GetParDouble(name,4);
+        y2 = GetParDouble(name,5);
         return true;
     }
     return false;
