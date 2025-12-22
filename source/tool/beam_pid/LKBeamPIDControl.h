@@ -23,6 +23,8 @@ class LKBeamPIDControl : public TGMainFrame, public LKBeamPID
             SetFileNumber,
             SetXBinSize,
             SetYBinSize,
+            SetBinNX,
+            SetBinNY,
             SetSValue,
             SetFitRange,
             SetRunNumber,
@@ -46,6 +48,8 @@ class LKBeamPIDControl : public TGMainFrame, public LKBeamPID
         void PressedSaveBinning();
         void PressedSetXBinSize();
         void PressedSetYBinSize();
+        void PressedSetBinNX();
+        void PressedSetBinNY();
         void PressedSetSValue();
         void PressedSetFitRange();
         void PressedSetRunNumber();
@@ -82,6 +86,8 @@ class LKBeamPIDControl : public TGMainFrame, public LKBeamPID
         TGTextButton *fBtnSaveBinning     = nullptr;
         TGTextButton *fBtnSetBinWidthX    = nullptr;
         TGTextButton *fBtnSetBinWidthY    = nullptr;
+        TGTextButton *fBtnSetBinNX        = nullptr;
+        TGTextButton *fBtnSetBinNY        = nullptr;
         TGTextButton *fBtnSetSValue       = nullptr;
         TGTextButton *fBtnSetFitRange     = nullptr;
         TGTextButton *fBtnSetRunNumber    = nullptr;

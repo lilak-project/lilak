@@ -80,6 +80,8 @@ LKBeamPIDControl::LKBeamPIDControl(UInt_t w, UInt_t h)
     fBtnSaveBinning     = mkBtn(col2, "Sa&ve binning",     "PressedSaveBinning()");
     fBtnSetBinWidthX    = mkBtn(col2, "Set &x-bin width",  "PressedSetXBinSize()");
     fBtnSetBinWidthY    = mkBtn(col2, "Set &y-bin width",  "PressedSetYBinSize()");
+    fBtnSetBinNX        = mkBtn(col2, "Set &x-bin n",      "PressedSetBinNX()");
+    fBtnSetBinNY        = mkBtn(col2, "Set &y-bin n",      "PressedSetBinNY()");
 
     fBtnHelp            = mkBtn(col3, "&Help",             "PressedHelp()");
     fBtnSetSValue       = mkBtn(col3, "Set &S value",      "PressedSetSValue()");
@@ -160,6 +162,8 @@ void LKBeamPIDControl::PressedResetBinning()      { ResetBB(0,1,1); BtHL(fBtnRes
 void LKBeamPIDControl::PressedSaveBinning()       { ResetBB(0,1,1); BtHL(fBtnSaveBinning    ); SaveBinning(); }
 void LKBeamPIDControl::PressedSetXBinSize()       { ResetBB(0,1,1); BtHL(fBtnSetBinWidthX   ); RequireInput(InputMode::SetXBinSize); }
 void LKBeamPIDControl::PressedSetYBinSize()       { ResetBB(0,1,1); BtHL(fBtnSetBinWidthY   ); RequireInput(InputMode::SetYBinSize); }
+void LKBeamPIDControl::PressedSetBinNX()          { ResetBB(0,1,1); BtHL(fBtnSetBinNX       ); RequireInput(InputMode::SetBinNX); }
+void LKBeamPIDControl::PressedSetBinNY()          { ResetBB(0,1,1); BtHL(fBtnSetBinNY       ); RequireInput(InputMode::SetBinNY); }
 
 void LKBeamPIDControl::Help2()
 {
@@ -202,7 +206,13 @@ void LKBeamPIDControl::RequireInput(InputMode mode)
             e_info << "Enter X bin width" << endl;
             break;
         case InputMode::SetYBinSize:
-            e_info << "Enter S-value" << endl;
+            e_info << "Enter Y bin width" << endl;
+            break;
+        case InputMode::SetBinNX:
+            e_info << "Enter X bin n" << endl;
+            break;
+        case InputMode::SetBinNY:
+            e_info << "Enter Y bin n" << endl;
             break;
         case InputMode::SetFitRange:
             e_info << "Enter fit range in sigma" << endl;
@@ -230,11 +240,19 @@ void LKBeamPIDControl::PressedEnter()
             break;
         case InputMode::SetXBinSize:
             e_info << "x-bin size changed to " << val << endl;
-            SetXBinSize(val);
+            SetXBinSize(val,1);
             break;
         case InputMode::SetYBinSize:
             e_info << "y-bin size changed to " << val << endl;
-            SetYBinSize(val);
+            SetYBinSize(val,1);
+            break;
+        case InputMode::SetBinNX:
+            e_info << "x-bin size changed to " << val << endl;
+            SetBinNX(val,1);
+            break;
+        case InputMode::SetBinNY:
+            e_info << "y-bin size changed to " << val << endl;
+            SetBinNY(val,1);
             break;
         case InputMode::SetFitRange:
             e_info << "Fit range changed to " << val << " (*sigma)" << endl;

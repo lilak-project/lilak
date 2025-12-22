@@ -8,14 +8,13 @@ LKBeamPID::LKBeamPID()
     gStyle -> SetNumberContours(100);
     gStyle -> SetOptStat("e");
     ResetBinning();
-    fFitArray = new TObjArray();
+    fPIDFitArray = new TObjArray();
     fHistDataArray = new TObjArray();
     fHistFitGArray = new TObjArray();
     fHistBackArray = new TObjArray();
     fHistCalcArray = new TObjArray();
     fHistTestArray = new TObjArray();
     fHistErrrArray = new TObjArray();
-    fGraphFitError = new TGraph();
     fTop = new LKDrawingGroup();
     fGroupFit = fTop -> CreateGroup(Form("event_fit_%04d",fCurrentRunNumber));
     fGroupPID = fTop -> CreateGroup(Form("event_pid_%04d",fCurrentRunNumber));
@@ -30,6 +29,10 @@ LKBeamPID::LKBeamPID()
     fFitCountDiff2 -> SetParameters(0,0);
     fFitCountDiff2 -> SetLineWidth(1);
     fFitCountDiff2 -> SetLineStyle(2);
+    fFitCountDiff3 = new TF1("fitdiff3","[0]",0,1);
+    fFitCountDiff3 -> SetParameter(0,0.1);
+    fFitCountDiff3 -> SetLineWidth(1);
+    fFitCountDiff3 -> SetLineStyle(3);
 
     InitParameters();
     fGroupFit -> Draw();
@@ -45,7 +48,7 @@ void LKBeamPID::InitParameters()
     par.UpdatePar(fSetYName,           "y_name");
     par.UpdatePar(fNumContours,        "num_contours");
     par.UpdatePar(fBnn0,               "binning");
-    par.UpdatePar(fFinalContourAScale, "cut_s_value");
+    par.UpdatePar(fSelectedSValue,     "cut_s_value");
     par.UpdatePar(fDefaultPath,        "data_path");
     par.UpdatePar(fDefaultFormat,      "file_format");
     par.UpdatePar(fDefaultFitSigmaX,   "fit_sigma_x");
@@ -55,16 +58,87 @@ void LKBeamPID::InitParameters()
     par.UpdatePar(fPosRatioRangeInSig, "fit_pos_ratio_range");
     par.UpdatePar(fSigmaRatioRange,    "fit_sigma_ratio_range");
     par.UpdatePar(fThetaRange,         "fit_theta_range");
-    fContourScaleList = par.InitPar(fContourScaleList, "example_s_list");
+    fCompareSValueList = par.InitPar(fCompareSValueList, "compare_s_values");
+    fSValueList = par.InitPar(fSValueList, "example_s_list");
     par.Print();
 
-    if (fSetXName==".") fSetXName = "";
-    if (fSetYName==".") fSetYName = "";
     fBnn1 = fBnn0;
 
     for (auto bin=0; bin<=fNumContours; ++bin) {
         fValueOfS.push_back(0);
         fErrorAtS.push_back(0);
+    }
+
+    if (fCompareSValueList.size()==0) {
+        if (fSelectedSValue+0.05<1) fCompareSValueList.push_back(fSelectedSValue+0.05);
+        if (fSelectedSValue-0.05>0) fCompareSValueList.push_back(fSelectedSValue-0.05);
+    }
+
+    InitBeamPIDValues(10);
+}
+
+void LKBeamPID::InitBeamPIDValues(int numPIDs)
+{
+    int sizePrevious = fBeamPIDList.size();
+    for (auto iPID=0; iPID<numPIDs; ++iPID)
+    {
+        if (iPID>=sizePrevious) {
+            vector<double> beamPIDValues;
+            beamPIDValues.push_back(0); // 0 total
+            beamPIDValues.push_back(0); // 1 count svalue
+            beamPIDValues.push_back(0); // 2 count data
+            beamPIDValues.push_back(0); // 3 count fit
+            beamPIDValues.push_back(0); // 4 contamination count
+            beamPIDValues.push_back(0); // 5 contamination error
+            beamPIDValues.push_back(0); // 6 corrected count
+            beamPIDValues.push_back(0); // 7 purity (contour_count/total)
+            beamPIDValues.push_back(0); // 8 purity (bg_subtracted_count/total)
+            beamPIDValues.push_back(0); // 9 overall error
+            fBeamPIDList.push_back(beamPIDValues);
+
+            vector<double> fittingValues;
+            fittingValues.push_back(0); // 0 amplitude
+            fittingValues.push_back(0); // 1 valueX
+            fittingValues.push_back(0); // 2 valueY
+            fittingValues.push_back(0); // 3 sigmaX
+            fittingValues.push_back(0); // 4 sigmaY
+            fittingValues.push_back(0); // 5 theta
+            fFittingList.push_back(fittingValues);
+
+            vector<double> compareValues;
+            compareValues.push_back(fCompareSValueList[0]); // 0 compare-1 svalue
+            compareValues.push_back(0); // 1 compare-1 count
+            compareValues.push_back(0); // 2 compare-1 systematic
+            compareValues.push_back(fCompareSValueList[1]); // 3 compare-2 svalue
+            compareValues.push_back(0); // 4 compare-2 count
+            compareValues.push_back(0); // 5 compare-2 systematic
+            fCompareList.push_back(compareValues);
+        }
+        else {
+
+            fBeamPIDList[iPID][0] = 0; // 0 total
+            fBeamPIDList[iPID][1] = 0; // 1 count svalue
+            fBeamPIDList[iPID][2] = 0; // 2 count data
+            fBeamPIDList[iPID][3] = 0; // 3 count fit
+            fBeamPIDList[iPID][4] = 0; // 4 contamination count
+            fBeamPIDList[iPID][5] = 0; // 5 contamination error
+            fBeamPIDList[iPID][6] = 0; // 6 corrected count
+            fBeamPIDList[iPID][7] = 0; // 7 purity (contour_count/total)
+            fBeamPIDList[iPID][8] = 0; // 8 purity (bg_subtracted_count/total)
+            fBeamPIDList[iPID][9] = 0; // 9 overall error
+            fFittingList[iPID][0] = 0; // 0 amplitude
+            fFittingList[iPID][1] = 0; // 1 valueX
+            fFittingList[iPID][2] = 0; // 2 valueY
+            fFittingList[iPID][3] = 0; // 3 sigmaX
+            fFittingList[iPID][4] = 0; // 4 sigmaY
+            fFittingList[iPID][5] = 0; // 5 theta
+            fCompareList[iPID][0] = fCompareSValueList[0]; // 1 compare-1 svalue
+            fCompareList[iPID][1] = 0; // 1 compare-1 count
+            fCompareList[iPID][2] = 0; // 2 compare-1 systematic
+            fCompareList[iPID][3] = fCompareSValueList[1]; // 3 compare-2 svalue
+            fCompareList[iPID][4] = 0; // 4 compare-2 count
+            fCompareList[iPID][5] = 0; // 5 compare-2 systematic
+        }
     }
 }
 
@@ -139,14 +213,14 @@ bool LKBeamPID::SelectFile(int index)
     if (fDataFile) fDataFile -> Close();
     fDataFile = new TFile(fCurrentFileName,"read");
     fDataTree = (TTree*) fDataFile -> Get("tree");
-    if (fSetYName.IsNull()) {
+    if (fSetYName==".") {
         if      (fCurrentFileName.Index("chkf2run")>=0) { fCurrentType = 2; fYName = "f2ssde"; }
         else if (fCurrentFileName.Index("chkf3run")>=0) { fCurrentType = 3; fYName = "f3ssde"; }
     }
     else
         fYName = fSetYName;
 
-    if (fSetXName.IsNull())
+    if (fSetXName==".")
         fXName = "rf0";
     else
         fXName = fSetXName;
@@ -184,6 +258,7 @@ void LKBeamPID::CreateAndFillHistogram(int printb)
         fDraw2D -> SetStatsFillStyle(3001);
         fDraw2D -> Print(); // XXX
         fStage = 3;
+        fBeamPIDList[0][0] = fHistPID->GetEntries();
     }
 }
 
@@ -210,6 +285,7 @@ void LKBeamPID::UsePad(TVirtualPad *pad)
     fHistPID = (TH2D*) fDraw2D -> GetMainHist();
     fXName = fHistPID -> GetXaxis() -> GetTitle();
     fYName = fHistPID -> GetYaxis() -> GetTitle();
+    fBeamPIDList[0][0] = fHistPID->GetEntries();
     fCurrentType = 1;
     fStage = 4;
     fDraw2D -> Draw();
@@ -255,29 +331,33 @@ void LKBeamPID::SelectCenters(vector<vector<double>> points)
         graph -> SetMarkerStyle(20);
         fDraw2D -> Add(graph,"samep");
         auto numPoints = graph -> GetN();
-        for (auto iPoint=0; iPoint<numPoints; ++iPoint)
+        InitBeamPIDValues(numPoints);
+        for (auto iPID=0; iPID<numPoints; ++iPID)
         {
-            double x = graph -> GetPointX(iPoint);
-            double y = graph -> GetPointY(iPoint);
-            e_cout << "   " << iPoint << " " << x << " " << y << endl;
+            double x = graph -> GetPointX(iPID);
+            double y = graph -> GetPointY(iPID);
+            e_cout << "   " << iPID << " " << x << " " << y << endl;
             points.push_back(vector<double>{x,y});
         }
     }
 
+    auto numPoints = points.size();
+    for (auto iPID=0; iPID<numPoints; ++iPID)
+        fBeamPIDList[iPID][0] = fHistPID->GetEntries();
+
     fGroupFit -> Clear();
     double wx = fHistPID -> GetXaxis() -> GetBinWidth(1);
     double wy = fHistPID -> GetYaxis() -> GetBinWidth(1);
-    double binA = wx*wy;
+    double binArea = wx*wy;
 
     e_info << "Total " << points.size() << " pid centers are selected" << endl;
 
-    int count = 0;
-    fFitArray -> Clear();
-    for (auto point : points)
+    fPIDFitArray -> Clear();
+    for (auto iPID=0; iPID<numPoints; ++iPID)
     {
-        auto fit = Fit2DGaussian(fHistPID, count, point[0], point[1]);
-        auto idx = fFitArray -> GetEntries();
-        fFitArray -> Add(fit);
+        auto point = points[iPID];
+        auto fit = Fit2DGaussian(fHistPID, iPID, point[0], point[1]);
+        fPIDFitArray -> Add(fit);
         {
             double xx1, xx2, yy1, yy2;
             fit -> GetParLimits(1,xx1,xx2);
@@ -312,19 +392,31 @@ void LKBeamPID::SelectCenters(vector<vector<double>> points)
             auto valueY = fit->GetParameter(3);
             auto sigmaY = fit->GetParameter(4);
             auto thetaR = fit->GetParameter(5);
-            for (double contourScale : fContourScaleList) {
-                auto graphC = GetContourGraph(contourScale*amplit, amplit, valueX, sigmaX, valueY, sigmaY, thetaR);
-                graphC -> SetName(Form("graphC_%d_S%s",idx,LKMisc::RemoveTrailing0(100*contourScale,1).Data()));
-                graphC -> SetLineColor(kRed);
-                graphC -> SetLineStyle(9);
-                fDraw2D -> Add(graphC,"samel");
+            for (double sValue : fSValueList) {
+                auto graphC1 = GetContourGraph(sValue*amplit, amplit, valueX, sigmaX, valueY, sigmaY, thetaR);
+                graphC1 -> SetName(Form("graphC1_%d_S%s",iPID,LKMisc::RemoveTrailing0(100*sValue,1).Data()));
+                graphC1 -> SetLineColor(kRed);
+                graphC1 -> SetLineStyle(9);
+                fDraw2D -> Add(graphC1,"samel");
             }
-            auto graphC = GetContourGraph(fFinalContourAScale*amplit, amplit, valueX, sigmaX, valueY, sigmaY, thetaR);
-            graphC -> SetName(Form("graphC_%d_S%s",idx,LKMisc::RemoveTrailing0(100*fFinalContourAScale,1).Data()));
-            graphC -> SetLineColor(kRed);
-            fDraw2D -> Add(graphC,"samel");
+            auto graphC0 = GetContourGraph(fSelectedSValue*amplit, amplit, valueX, sigmaX, valueY, sigmaY, thetaR);
+            graphC0 -> SetName(Form("graphC0_%d_S%s",iPID,LKMisc::RemoveTrailing0(100*fSelectedSValue,1).Data()));
+            graphC0 -> SetLineColor(kRed);
+            fDraw2D -> Add(graphC0,"samel");
+            for (double sValue : fCompareSValueList) {
+                auto graphC2 = GetContourGraph(sValue*amplit, amplit, valueX, sigmaX, valueY, sigmaY, thetaR);
+                graphC2 -> SetName(Form("graphC2_%d_S%s",iPID,LKMisc::RemoveTrailing0(100*sValue,1).Data()));
+                graphC2 -> SetLineColor(kGreen);
+                graphC2 -> SetLineStyle(9);
+                fDraw2D -> Add(graphC2,"samel");
+            }
+            fFittingList[iPID][0] = amplit; // 0 amplitude
+            fFittingList[iPID][1] = valueX; // 1 valueX
+            fFittingList[iPID][2] = sigmaX; // 2 valueY
+            fFittingList[iPID][3] = valueY; // 3 sigmaX
+            fFittingList[iPID][4] = sigmaY; // 4 sigmaY
+            fFittingList[iPID][5] = thetaR; // 5 theta
         }
-        count++;
     }
     fGroupFit -> Draw();
     fDraw2D -> Draw();
@@ -351,21 +443,21 @@ void LKBeamPID::FitTotal(bool calibrationRun)
 
     fDraw2D -> Clear("!main:!cvs");
     fGroupFit -> Clear();
-    auto numFits = fFitArray -> GetEntries();
+    auto numPIDs = fPIDFitArray -> GetEntries();
     TString formulaTotal;
     double xx1=DBL_MAX, xx2=-DBL_MAX, yy1=DBL_MAX, yy2=-DBL_MAX;
-    for (auto iFit=0; iFit<numFits; ++iFit)
+    for (auto iPID=0; iPID<numPIDs; ++iPID)
     {
         TString formulaCurrent = fFormulaRotated2DGaussian.Data();
-        formulaCurrent.ReplaceAll("[0]",Form("[%d]",0+iFit*6));
-        formulaCurrent.ReplaceAll("[1]",Form("[%d]",1+iFit*6));
-        formulaCurrent.ReplaceAll("[2]",Form("[%d]",2+iFit*6));
-        formulaCurrent.ReplaceAll("[3]",Form("[%d]",3+iFit*6));
-        formulaCurrent.ReplaceAll("[4]",Form("[%d]",4+iFit*6));
-        formulaCurrent.ReplaceAll("[5]",Form("[%d]",5+iFit*6));
-        if (iFit==0) formulaTotal = formulaCurrent;
+        formulaCurrent.ReplaceAll("[0]",Form("[%d]",0+iPID*6));
+        formulaCurrent.ReplaceAll("[1]",Form("[%d]",1+iPID*6));
+        formulaCurrent.ReplaceAll("[2]",Form("[%d]",2+iPID*6));
+        formulaCurrent.ReplaceAll("[3]",Form("[%d]",3+iPID*6));
+        formulaCurrent.ReplaceAll("[4]",Form("[%d]",4+iPID*6));
+        formulaCurrent.ReplaceAll("[5]",Form("[%d]",5+iPID*6));
+        if (iPID==0) formulaTotal = formulaCurrent;
         else formulaTotal = formulaTotal + " + " + formulaCurrent;
-        auto fit = (TF2*) fFitArray -> At(iFit);
+        auto fit = (TF2*) fPIDFitArray -> At(iPID);
         auto amplit = fit->GetParameter(0);
         auto valueX = fit->GetParameter(1);
         auto sigmaX = fit->GetParameter(2);
@@ -377,47 +469,55 @@ void LKBeamPID::FitTotal(bool calibrationRun)
         auto y1 = valueY-fFitRangeInSigma*sigmaY; if (yy1>y1) yy1 = y1;
         auto y2 = valueY+fFitRangeInSigma*sigmaY; if (yy2<y2) yy2 = y2;
     }
+
     auto fitContanminent = new TF2(Form("fitContanminent_%04d", fCurrentRunNumber), formulaTotal, xx1, xx2, yy1, yy2);
     auto fitTotal = new TF2(Form("fitTotal_%04d", fCurrentRunNumber), formulaTotal, xx1, xx2, yy1, yy2);
     fitTotal -> SetLineColor(kMagenta);
     fitTotal -> SetContour(3);
-    for (auto iFit=0; iFit<numFits; ++iFit)
+    for (auto iPID=0; iPID<numPIDs; ++iPID)
     {
-        auto fit = (TF2*) fFitArray -> At(iFit);
+        auto fit = (TF2*) fPIDFitArray -> At(iPID);
         auto amplit = fit->GetParameter(0);
         auto valueX = fit->GetParameter(1);
         auto valueY = fit->GetParameter(2);
         auto sigmaX = fit->GetParameter(3);
         auto sigmaY = fit->GetParameter(4);
         auto thetaR = fit->GetParameter(5);
-        fitTotal -> SetParameter(0+iFit*6, amplit);
-        fitTotal -> SetParameter(1+iFit*6, valueX);
-        fitTotal -> SetParameter(2+iFit*6, valueY);
-        fitTotal -> SetParameter(3+iFit*6, sigmaX);
-        fitTotal -> SetParameter(4+iFit*6, sigmaY);
-        fitTotal -> SetParameter(5+iFit*6, thetaR);
-        fitTotal -> SetParLimits(0+iFit*6, amplit*(1.-fAmpRatioRange), amplit*(1.+fAmpRatioRange));
-        fitTotal -> SetParLimits(1+iFit*6, valueX-fPosRatioRangeInSig*sigmaX, valueX+fPosRatioRangeInSig*sigmaX);
-        fitTotal -> SetParLimits(2+iFit*6, valueY-fPosRatioRangeInSig*sigmaY, valueY+fPosRatioRangeInSig*sigmaY);
-        fitTotal -> SetParLimits(3+iFit*6, sigmaX*(1.-fSigmaRatioRange), sigmaX*(1.+fSigmaRatioRange));
-        fitTotal -> SetParLimits(4+iFit*6, sigmaY*(1.-fSigmaRatioRange), sigmaY*(1.+fSigmaRatioRange));
-        fitTotal -> SetParLimits(5+iFit*6, thetaR-fThetaRange, thetaR+fThetaRange);
+        fitTotal -> SetParameter(0+iPID*6, amplit);
+        fitTotal -> SetParameter(1+iPID*6, valueX);
+        fitTotal -> SetParameter(2+iPID*6, valueY);
+        fitTotal -> SetParameter(3+iPID*6, sigmaX);
+        fitTotal -> SetParameter(4+iPID*6, sigmaY);
+        fitTotal -> SetParameter(5+iPID*6, thetaR);
+        fitTotal -> SetParLimits(0+iPID*6, amplit*(1.-fAmpRatioRange), amplit*(1.+fAmpRatioRange));
+        fitTotal -> SetParLimits(1+iPID*6, valueX-fPosRatioRangeInSig*sigmaX, valueX+fPosRatioRangeInSig*sigmaX);
+        fitTotal -> SetParLimits(2+iPID*6, valueY-fPosRatioRangeInSig*sigmaY, valueY+fPosRatioRangeInSig*sigmaY);
+        fitTotal -> SetParLimits(3+iPID*6, sigmaX*(1.-fSigmaRatioRange), sigmaX*(1.+fSigmaRatioRange));
+        fitTotal -> SetParLimits(4+iPID*6, sigmaY*(1.-fSigmaRatioRange), sigmaY*(1.+fSigmaRatioRange));
+        fitTotal -> SetParLimits(5+iPID*6, thetaR-fThetaRange, thetaR+fThetaRange);
+
+        fFittingList[iPID][0] = amplit; // 0 amplitude
+        fFittingList[iPID][1] = valueX; // 1 valueX
+        fFittingList[iPID][2] = sigmaX; // 2 valueY
+        fFittingList[iPID][3] = valueY; // 3 sigmaX
+        fFittingList[iPID][4] = sigmaY; // 4 sigmaY
+        fFittingList[iPID][5] = thetaR; // 5 theta
     }
-    e_info << "Fitting " << numFits << " PIDs in " << Form("x=(%f,%f), y=(%f,%f) ...",xx1,xx2,yy1,yy2) << endl;
+    e_info << "Fitting " << numPIDs << " PIDs in " << Form("x=(%f,%f), y=(%f,%f) ...",xx1,xx2,yy1,yy2) << endl;
     fHistPID -> Fit(fitTotal,"QBR0");
 
     auto legend = new TLegend();
     legend -> SetFillStyle(3001);
     legend -> SetMargin(0.1);
-    for (auto iFit=0; iFit<numFits; ++iFit)
+    for (auto iPID=0; iPID<numPIDs; ++iPID)
     {
-        auto fit = (TF2*) fFitArray -> At(iFit);
-        auto amplit = fitTotal->GetParameter(0+iFit*6);
-        auto valueX = fitTotal->GetParameter(1+iFit*6);
-        auto sigmaX = fitTotal->GetParameter(2+iFit*6);
-        auto valueY = fitTotal->GetParameter(3+iFit*6);
-        auto sigmaY = fitTotal->GetParameter(4+iFit*6);
-        auto thetaR = fitTotal->GetParameter(5+iFit*6);
+        auto fit = (TF2*) fPIDFitArray -> At(iPID);
+        auto amplit = fitTotal->GetParameter(0+iPID*6);
+        auto valueX = fitTotal->GetParameter(1+iPID*6);
+        auto sigmaX = fitTotal->GetParameter(2+iPID*6);
+        auto valueY = fitTotal->GetParameter(3+iPID*6);
+        auto sigmaY = fitTotal->GetParameter(4+iPID*6);
+        auto thetaR = fitTotal->GetParameter(5+iPID*6);
         fit -> SetParameter(0,amplit);
         fit -> SetParameter(1,valueX);
         fit -> SetParameter(2,sigmaX);
@@ -431,16 +531,16 @@ void LKBeamPID::FitTotal(bool calibrationRun)
             << setw(28) << Form("y=(%f, %f),", valueY, sigmaY)
             << setw(18) << Form("theta=%f", thetaR*TMath::RadToDeg())
             << endl;
-        for (double contourScale : fContourScaleList) {
-            auto graphC = GetContourGraph(contourScale*amplit, amplit, valueX, sigmaX, valueY, sigmaY, thetaR);
-            graphC -> SetLineColor(kRed);
-            graphC -> SetLineStyle(9);
-            fDraw2D -> Add(graphC,"samel");
+        for (double sValue : fSValueList) {
+            auto graphC1 = GetContourGraph(sValue*amplit, amplit, valueX, sigmaX, valueY, sigmaY, thetaR);
+            graphC1 -> SetLineColor(kRed);
+            graphC1 -> SetLineStyle(9);
+            fDraw2D -> Add(graphC1,"samel");
         }
-        auto graphC = GetContourGraph(fFinalContourAScale*amplit, amplit, valueX, sigmaX, valueY, sigmaY, thetaR);
-        graphC -> SetLineColor(kRed);
-        fDraw2D -> Add(graphC,"samel");
-        auto text = new TText(valueX,valueY,Form("%d",iFit));
+        auto graphC0 = GetContourGraph(fSelectedSValue*amplit, amplit, valueX, sigmaX, valueY, sigmaY, thetaR);
+        graphC0 -> SetLineColor(kRed);
+        fDraw2D -> Add(graphC0,"samel");
+        auto text = new TText(valueX,valueY,Form("%d",iPID));
         text -> SetTextAlign(22);
         text -> SetTextSize(0.02);
         if (amplit<fHistPID->GetMaximum()*0.3)
@@ -448,21 +548,17 @@ void LKBeamPID::FitTotal(bool calibrationRun)
         fDraw2D -> Add(text,"same");
         for (auto iPar=0; iPar<fitTotal->GetNpar(); ++iPar)
             fitContanminent->SetParameter(iPar,fitTotal->GetParameter(iPar));
-        fitContanminent->SetParameter(0+iFit*6,0);
-        auto draw = GetFitTestDrawing(iFit,fHistPID,fit,fitContanminent,(iFit==0));
+        fitContanminent->SetParameter(0+iPID*6,0);
+        auto draw = GetFitTestDrawing(iPID,fHistPID,fit,fitContanminent,(iPID==0));
+        draw -> SetCreateFrame(Form("frame_pid%d_%d",iPID,fFrameIndex++),Form("pid-%d;s-value;count",iPID));
         fGroupFit -> Add(draw);
-        TH1D *histData = (TH1D*) fHistDataArray -> At(iFit);
-        TH1D *histBack = (TH1D*) fHistBackArray -> At(iFit);
-        TH1D *histCalc = (TH1D*) fHistCalcArray -> At(iFit);
-        auto bin = histData -> FindBin(fFinalContourAScale+0.5*(1./fNumContours));
-        auto count = histData -> GetBinContent(bin);
-        auto contamination = histBack -> GetBinContent(bin);
-        auto calculated = histCalc -> GetBinContent(bin);
-        auto corrected = count - contamination;
-        //fDraw2D -> AddLegendLine(Form("%d) cc=%d",iFit,int(corrected)));
-        legend -> AddEntry((TObject*)nullptr,Form("[%d] %d (%d)",iFit,int(count),int(contamination)),"");
+        auto countHist = fBeamPIDList[iPID][2]; //histData -> GetBinContent(bin);
+        auto countBack = fBeamPIDList[iPID][4]; //histBack -> GetBinContent(bin);
+        auto corrected = fBeamPIDList[iPID][6]; //count - contamination;
+        legend -> AddEntry((TObject*)nullptr,Form("[%d] %d (%d)",iPID,int(countHist),int(countBack)),"");
     }
-    {
+
+    if (1) {
         TH2D *histErrr = (TH2D*) fHistErrrArray -> At(0);
         auto draw_errr = fGroupFit -> CreateDrawing();
         draw_errr -> Add(histErrr,"colz");
@@ -484,6 +580,8 @@ void LKBeamPID::FitTotal(bool calibrationRun)
             fFitCountDiff -> SetParameter(0,graph->GetPointX(0));
             graph -> Fit(fFitCountDiff,"QBR0");
             draw_errr -> Add(fFitCountDiff,"samel");
+            graph -> Fit(fFitCountDiff3,"QBR0");
+            fBeamPIDList[0][9] = fFitCountDiff3 -> GetParameter(0);
             fCalibrated = true;
         }
         else {
@@ -548,48 +646,41 @@ void LKBeamPID::MakeSummary()
         fileSummary << left;
         fileSummary << setw(25) << "num_s" << fNumContours-1 << endl;
         for (auto bin=2; bin<=fNumContours; ++bin) {
-            fileSummary << setw(25) << ("s_error_%d",bin-1) << fValueOfS[bin] << "  " << fErrorAtS[bin] << endl;
+            fileSummary << setw(25) << Form("s_error_%d",bin-1) << fValueOfS[bin] << "  " << fErrorAtS[bin] << endl;
         }
         fileSummary << endl;
-        auto numFits = fFitArray -> GetEntries();
-        for (auto iFit=0; iFit<numFits; ++iFit)
+        TString compareSValString; for (auto s : fCompareSValueList) compareSValString = compareSValString + LKMisc::RemoveTrailing0(s) + ", "; compareSValString.Remove(compareSValString.Sizeof()-2);
+        auto numPIDs = fPIDFitArray -> GetEntries();
+        for (auto iPID=0; iPID<numPIDs; ++iPID)
         {
-            auto total = fHistPID -> GetEntries();
-            TH1D *histData = (TH1D*) fHistDataArray -> At(iFit);
-            TH1D *histBack = (TH1D*) fHistBackArray -> At(iFit);
-            auto bin = histData -> FindBin(fFinalContourAScale+0.5*(1./fNumContours));
-            auto count = histData -> GetBinContent(bin);
-            auto contamination = histBack -> GetBinContent(bin);
-            auto corrected = count - contamination;
-            auto fit = (TF2*) fFitArray -> At(iFit);
-            auto amplit = fit->GetParameter(0);
-            auto valueX = fit->GetParameter(1);
-            auto sigmaX = fit->GetParameter(2);
-            auto valueY = fit->GetParameter(3);
-            auto sigmaY = fit->GetParameter(4);
-            auto thetaR = fit->GetParameter(5);
             fileSummary << "####################################################" << endl;
-            fileSummary << left;
-            fileSummary << setw(25) << Form("pid%d/total",iFit)              << total << endl;
-            fileSummary << setw(25) << Form("pid%d/ca_scale",iFit)           << fFinalContourAScale << endl;
-            fileSummary << setw(25) << Form("pid%d/count",iFit)              << count << endl;
-            fileSummary << setw(25) << Form("pid%d/contamination",iFit)      << contamination << endl;
-            fileSummary << setw(25) << Form("pid%d/contamination_error",iFit)<< contamination*fFitCountDiff->Eval(fFinalContourAScale+0.05) << endl;
-            fileSummary << setw(25) << Form("pid%d/corrected",iFit)          << corrected << endl;
-            fileSummary << setw(25) << Form("pid%d/purity",iFit)             << corrected/total << endl;
-            fileSummary << setw(25) << Form("pid%d/amplitude",iFit)          << amplit << endl;
-            fileSummary << setw(25) << Form("pid%d/x(x_rf0)",iFit)           << valueX << endl;
-            fileSummary << setw(25) << Form("pid%d/y(%s)",iFit,fYName.Data()) << valueY << endl;
-            fileSummary << setw(25) << Form("pid%d/sigma_x",iFit)            << sigmaX << endl;
-            fileSummary << setw(25) << Form("pid%d/sigma_y",iFit)            << sigmaY << endl;
-            fileSummary << setw(25) << Form("pid%d/theta_deg",iFit)          << thetaR*TMath::RadToDeg() << endl;
-            if (fFinalContourGraph!=nullptr) {
-                auto numPoints = fFinalContourGraph -> GetN();
-                fileSummary << setw(25) << Form("pid%d/contour_x  ",iFit);
-                for (auto iPoint=0; iPoint<numPoints; ++iPoint) fileSummary << fFinalContourGraph -> GetPointX(iPoint) << ","; fileSummary << endl;
-                fileSummary << setw(25) << Form("pid%d/contour_y  ",iFit);
-                for (auto iPoint=0; iPoint<numPoints; ++iPoint) fileSummary << fFinalContourGraph -> GetPointY(iPoint) << ","; fileSummary << endl;
-            }
+            fileSummary << setw(30) << Form("pid_%d/svalue              ",iPID) << fBeamPIDList[iPID][1] << endl;
+            fileSummary << setw(30) << Form("pid_%d/count/total         ",iPID) << fBeamPIDList[iPID][0] << endl;
+            fileSummary << setw(30) << Form("pid_%d/count/data          ",iPID) << fBeamPIDList[iPID][2] << endl;
+            fileSummary << setw(30) << Form("pid_%d/count/fit           ",iPID) << fBeamPIDList[iPID][3] << endl;
+            fileSummary << setw(30) << Form("pid_%d/count/contamination ",iPID) << fBeamPIDList[iPID][4] << endl;
+            fileSummary << setw(30) << Form("pid_%d/count/corrected     ",iPID) << fBeamPIDList[iPID][6] << endl;
+            fileSummary << setw(30) << Form("pid_%d/count/contour_purity",iPID) << fBeamPIDList[iPID][7] << endl;
+            fileSummary << setw(30) << Form("pid_%d/count/bg_subt_purity",iPID) << fBeamPIDList[iPID][8] << endl;
+            fileSummary << setw(30) << Form("pid_%d/count/overall_error ",iPID) << fBeamPIDList[0][9] << endl;
+            fileSummary << endl;
+
+            fileSummary << setw(30) << Form("pid_%d/compare_1/svalue    ",iPID) << fCompareList[iPID][0] << endl;
+            fileSummary << setw(30) << Form("pid_%d/compare_1/count     ",iPID) << fCompareList[iPID][1] << endl;
+            fileSummary << setw(30) << Form("pid_%d/compare_1/systematic",iPID) << fCompareList[iPID][2] << endl;
+            fileSummary << setw(30) << Form("pid_%d/compare_1/syst/perc ",iPID) << fCompareList[iPID][2]/fBeamPIDList[iPID][2]*100 << endl;
+            fileSummary << setw(30) << Form("pid_%d/compare_2/svalue    ",iPID) << fCompareList[iPID][3] << endl;
+            fileSummary << setw(30) << Form("pid_%d/compare_2/count     ",iPID) << fCompareList[iPID][4] << endl;
+            fileSummary << setw(30) << Form("pid_%d/compare_2/systematic",iPID) << fCompareList[iPID][5] << endl;
+            fileSummary << setw(30) << Form("pid_%d/compare_2/syst/perc ",iPID) << fCompareList[iPID][5]/fBeamPIDList[iPID][2]*100 << endl;
+            fileSummary << endl;
+
+            fileSummary << setw(30) << Form("pid_%d/fit/amplitude       ",iPID) << fFittingList[iPID][0] << endl;
+            fileSummary << setw(30) << Form("pid_%d/fit/valueX          ",iPID) << fFittingList[iPID][1] << endl;
+            fileSummary << setw(30) << Form("pid_%d/fit/valueY          ",iPID) << fFittingList[iPID][2] << endl;
+            fileSummary << setw(30) << Form("pid_%d/fit/sigmaX          ",iPID) << fFittingList[iPID][3] << endl;
+            fileSummary << setw(30) << Form("pid_%d/fit/sigmaY          ",iPID) << fFittingList[iPID][4] << endl;
+            fileSummary << setw(30) << Form("pid_%d/fit/theta           ",iPID) << fFittingList[iPID][5] << endl;
             fileSummary << endl;
         }
     }
@@ -617,7 +708,7 @@ void LKBeamPID::MakeSummary()
     fStage = 7;
 }
 
-LKDrawing* LKBeamPID::GetFitTestDrawing(int idx, TH2D *hist, TF2* fit, TF2* fitContanminent, bool resetError)
+LKDrawing* LKBeamPID::GetFitTestDrawing(int iPID, TH2D *hist, TF2* fit, TF2* fitContanminent, bool resetError)
 {
     gStyle->SetPaintTextFormat(".3f");
     auto amplit = fit->GetParameter(0);
@@ -626,88 +717,119 @@ LKDrawing* LKBeamPID::GetFitTestDrawing(int idx, TH2D *hist, TF2* fit, TF2* fitC
     auto valueY = fit->GetParameter(3);
     auto sigmaY = fit->GetParameter(4);
     auto thetaR = fit->GetParameter(5);
-    TString nameData = fit -> GetName(); nameData.ReplaceAll("fit_","histIntegralData_");
-    TString nameFitG = fit -> GetName(); nameFitG.ReplaceAll("fit_","histIntegralFitG_");
-    TString nameTest = fit -> GetName(); nameTest.ReplaceAll("fit_","histIntegralTest_");
-    TString nameBack = fit -> GetName(); nameBack.ReplaceAll("fit_","histIntegralBack_");
-    TString nameCalc = fit -> GetName(); nameBack.ReplaceAll("fit_","histIntegralCalc_");
-    TString nameErrr = fit -> GetName(); nameErrr.ReplaceAll("fit_","histIntegralErrr_");
-    TString title = Form("[RUN %04d] (%d) Count in contour;S = Contour amplitude scale [Amp];Count",fCurrentRunNumber,idx);
-    TH1D *histData = (TH1D*) fHistDataArray -> At(idx);
-    TH1D *histFitG = (TH1D*) fHistFitGArray -> At(idx);
-    TH1D *histBack = (TH1D*) fHistBackArray -> At(idx);
-    TH1D *histCalc = (TH1D*) fHistCalcArray -> At(idx);
-    TH1D *histTest = (TH1D*) fHistTestArray -> At(idx);
-    //TH1D *histErrr = (TH1D*) fHistErrrArray -> At(idx);
-    TH2D *histErrr = (TH2D*) fHistErrrArray -> At(0);
-    if (histData==nullptr)
-    {
-        gROOT -> cd();
-        histData = new TH1D(nameData,title,fNumContours,0,1);
-        histFitG = new TH1D(nameFitG,title,fNumContours,0,1);
-        histBack = new TH1D(nameBack,title,fNumContours,0,1);
-        histCalc = new TH1D(nameCalc,title,fNumContours,0,1);
-        histTest = new TH1D(nameTest,title,fNumContours,0,1);
-        fHistDataArray -> Add(histData);
-        fHistFitGArray -> Add(histFitG);
-        fHistBackArray -> Add(histBack);
-        fHistCalcArray -> Add(histCalc);
-        fHistTestArray -> Add(histTest);
-        histData -> SetFillColor(19);
-        histData -> SetLineWidth(2);
-        histData -> SetLineColor(kBlack);
-        histData -> GetXaxis() -> SetTitleOffset(1.2);
-        histFitG -> SetLineColor(kRed);
-        histFitG -> SetLineWidth(2);
-        histFitG -> SetLineStyle(2);
-        histBack -> SetLineColor(kBlue);
-        histBack -> SetLineWidth(2);
-        histBack -> SetLineStyle(1);
-        histCalc -> SetLineColor(kGreen);
-        histCalc -> SetLineWidth(1);
-        histCalc -> SetLineStyle(1);
-    }
-    else {
-        histData -> Reset("ICES");
-        histFitG -> Reset("ICES");
-        histBack -> Reset("ICES");
-        histCalc -> Reset("ICES");
-        histTest -> Reset("ICES");
-        histData -> SetTitle(title);
-        histFitG -> SetTitle(title);
-        histBack -> SetTitle(title);
-        histCalc -> SetTitle(title);
-        histTest -> SetTitle(title);
-        histData -> SetName(nameData);
-        histFitG -> SetName(nameFitG);
-        histBack -> SetName(nameCalc);
-        histCalc -> SetName(nameBack);
-        histTest -> SetName(nameTest);
-    }
+    fFittingList[iPID][0] = amplit; // 0 amplitude
+    fFittingList[iPID][1] = valueX; // 1 valueX
+    fFittingList[iPID][2] = valueY; // 2 valueY
+    fFittingList[iPID][3] = sigmaX; // 3 sigmaX
+    fFittingList[iPID][4] = sigmaY; // 4 sigmaY
+    fFittingList[iPID][5] = thetaR; // 5 theta
 
+    TString nameData = fit -> GetName(); nameData.ReplaceAll("fit_","graphIntegralData_");
+    TString nameFitG = fit -> GetName(); nameFitG.ReplaceAll("fit_","graphIntegralFitG_");
+    TString nameTest = fit -> GetName(); nameTest.ReplaceAll("fit_","graphIntegralTest_");
+    TString nameBack = fit -> GetName(); nameBack.ReplaceAll("fit_","graphIntegralBack_");
+    TString nameCalc = fit -> GetName(); nameBack.ReplaceAll("fit_","graphIntegralCalc_");
+    TString nameErrr = fit -> GetName(); nameErrr.ReplaceAll("fit_","graphIntegralErrr_");
+    TString title = Form("[RUN %04d] (%d) Count in contour;S = Contour amplitude scale [Amp];Count",fCurrentRunNumber,iPID);
+
+    auto histErrr = (TH2D*) fHistErrrArray -> At(0);
     if (histErrr==nullptr) {
         histErrr = new TH2D(nameErrr,title,fNumContours,0,1,60,-0.3,0.3);
         fHistErrrArray -> Add(histErrr);
     }
     if (resetError) {
         histErrr -> Reset("ICES");
-        TString title2 = Form("[RUN %04d] (%d);S = Contour amplitude [A];Error",fCurrentRunNumber,idx);
+        TString title2 = Form("[RUN %04d] (%d);S = Contour amplitude [A];Error",fCurrentRunNumber,iPID);
         histErrr -> SetTitle(title2);
         histErrr -> SetName(nameErrr);
     }
 
+    auto graphData = (TGraphErrors*) fHistDataArray -> At(iPID);
+    auto graphFitG = (TGraphErrors*) fHistFitGArray -> At(iPID);
+    auto graphBack = (TGraphErrors*) fHistBackArray -> At(iPID);
+    auto graphCalc = (TGraphErrors*) fHistCalcArray -> At(iPID);
+    auto graphTest = (TGraphErrors*) fHistTestArray -> At(iPID);
+    if (graphData==nullptr)
+    {
+        gROOT -> cd();
+        graphData = new TGraphErrors(); graphData -> SetName(nameData);
+        graphFitG = new TGraphErrors(); graphFitG -> SetName(nameFitG);
+        graphBack = new TGraphErrors(); graphBack -> SetName(nameBack);
+        graphCalc = new TGraphErrors(); graphCalc -> SetName(nameCalc);
+        graphTest = new TGraphErrors(); graphTest -> SetName(nameTest);
+        fHistDataArray -> Add(graphData);
+        fHistFitGArray -> Add(graphFitG);
+        fHistBackArray -> Add(graphBack);
+        fHistCalcArray -> Add(graphCalc);
+        fHistTestArray -> Add(graphTest);
+        //
+        graphData -> SetFillColor(19);
+        graphData -> SetMarkerStyle(20);
+        graphData -> SetMarkerColor(kBlack);
+        graphData -> SetLineWidth(2);
+        graphData -> SetLineColor(kBlack);
+        //graphData -> GetXaxis() -> SetTitleOffset(1.2);
+        //
+        graphFitG -> SetMarkerColor(kRed);
+        graphFitG -> SetMarkerStyle(21);
+        graphFitG -> SetLineColor(kRed);
+        graphFitG -> SetLineWidth(2);
+        graphFitG -> SetLineStyle(2);
+        //
+        graphBack -> SetMarkerColor(kGreen);
+        graphBack -> SetMarkerStyle(24);
+        graphBack -> SetLineColor(kGreen);
+        graphBack -> SetLineWidth(2);
+        graphBack -> SetLineStyle(1);
+        //
+        graphCalc -> SetMarkerColor(kBlue);
+        graphCalc -> SetMarkerStyle(25);
+        graphCalc -> SetLineColor(kBlue);
+        graphCalc -> SetLineWidth(1);
+        graphCalc -> SetLineStyle(1);
+    }
+    else {
+        graphData -> Clear();
+        graphFitG -> Clear();
+        graphBack -> Clear();
+        graphCalc -> Clear();
+        graphTest -> Clear();
+        graphData -> Set(0);
+        graphFitG -> Set(0);
+        graphBack -> Set(0);
+        graphCalc -> Set(0);
+        graphTest -> Set(0);
+        graphData -> SetName(nameData);
+        graphFitG -> SetName(nameFitG);
+        graphBack -> SetName(nameCalc);
+        graphCalc -> SetName(nameBack);
+        graphTest -> SetName(nameTest);
+    }
+
+    auto graphAtSelectedSValue = new TGraphAsymmErrors();
+    graphAtSelectedSValue -> SetMarkerStyle(24);
+    graphAtSelectedSValue -> SetMarkerSize(1.5);
+    graphAtSelectedSValue -> SetMarkerColor(40);
+    graphAtSelectedSValue -> SetLineColor(40);
+    auto ttCompare1 = new TText();
+    auto ttCompare2 = new TText();
+    ttCompare1 -> SetTextSize(0.025);
+    ttCompare2 -> SetTextSize(0.025);
+    ttCompare1 -> SetTextAlign(12);
+    ttCompare2 -> SetTextAlign(12);
     auto draw = new LKDrawing();
     draw -> SetCanvasMargin(0.15,0.05,0.1,0.1);
     draw -> SetOptStat(0);
     draw -> SetAutoMax();
     draw -> SetCreateLegend();
-    draw -> Add(histData,"hist","data");
+    draw -> Add(graphData,"sampl","data");
     if (fitContanminent!=nullptr)
-        draw -> Add(histBack,"same hist","contaminent");
-    draw -> Add(histFitG,"same","fit");
-    draw -> Add(histCalc,"same hist","fit+contam.");
-    //draw -> Add(histTest,"same","test");
-    //draw -> Add(histErrr,"drawx",".");
+        draw -> Add(graphBack,"samepl","contaminent");
+    draw -> Add(graphFitG,"samepl","fit");
+    draw -> Add(graphCalc,"samepl","fit+contam.");
+    draw -> Add(graphAtSelectedSValue,"same pl","selected");
+    draw -> Add(ttCompare1,"same",".");
+    draw -> Add(ttCompare2,"same",".");
     draw -> AddLegendLine(Form("A=%.2f",amplit));
     draw -> AddLegendLine(Form("x=%.2f",valueX));
     draw -> AddLegendLine(Form("#sigma_{x}=%.2f",sigmaX));
@@ -716,45 +838,110 @@ LKDrawing* LKBeamPID::GetFitTestDrawing(int idx, TH2D *hist, TF2* fit, TF2* fitC
     draw -> AddLegendLine(Form("#theta=%.1f deg.",thetaR*TMath::RadToDeg()));
     double wx = hist -> GetXaxis() -> GetBinWidth(1);
     double wy = hist -> GetYaxis() -> GetBinWidth(1);
-    double binA = wx*wy;
+    double binArea = wx*wy;
     double dc = (1./fNumContours);
-    double countFullG = 1;
-    for (double contourScale=0; contourScale<1; contourScale+=dc) {
-        auto graphC = GetContourGraph(contourScale*amplit, amplit, valueX, sigmaX, valueY, sigmaY, thetaR);
-        graphC -> SetName(Form("contourGraph_%.2f",contourScale));
-        if (contourScale==fFinalContourAScale) fFinalContourGraph = graphC;
-        double countFitG = Integral2DGaussian(fit, contourScale);
-        countFitG = countFitG / binA;
-        double countCalc = countFitG;
-        double x_contour = contourScale+0.5*dc;
-        histFitG -> SetBinContent(histFitG->GetXaxis()->FindBin(x_contour),countFitG/countFullG);
-        double countTest = IntegralInsideGraph(hist, graphC, fit);
-        countTest = countTest;
-        histTest -> SetBinContent(histTest->GetXaxis()->FindBin(x_contour),countTest/countFullG);
-        double countBack = 0;
-        if (fitContanminent!=nullptr) {
-            countBack = IntegralInsideGraph(hist, graphC, fitContanminent);
-            countCalc = countCalc + countBack;
-            histBack -> SetBinContent(histBack->GetXaxis()->FindBin(x_contour),countBack/countFullG);
-        }
-        histCalc -> SetBinContent(histCalc->GetXaxis()->FindBin(x_contour),countCalc/countFullG);
-        if (contourScale!=0) {
-            double countHist = IntegralInsideGraph(hist, graphC);
-            histData -> SetBinContent(histData->GetXaxis()->FindBin(x_contour),countHist/countFullG);
+    double parameters[6] = {amplit, valueX, valueY, sigmaX, sigmaY, thetaR};
+    double countData[6] = {0};
+
+    for (double sValue=0; sValue<1; sValue+=dc)
+    {
+        EvaluateCounts(parameters, countData, iPID, 0, sValue, binArea, hist, fit, fitContanminent);
+        double countFitG = countData[0];
+        double countCalc = countData[1];
+        double countTest = countData[2];
+        double countBack = countData[3];
+        double countHist = countData[4];
+        auto idx = graphData -> GetN();
+        graphFitG -> SetPoint(idx,sValue,countFitG);
+        graphTest -> SetPoint(idx,sValue,countTest);
+        if (fitContanminent!=nullptr)
+            graphBack -> SetPoint(idx,sValue,countBack);
+        graphCalc -> SetPoint(idx,sValue,countCalc);
+        if (sValue!=0) {
+            graphData -> SetPoint(idx,sValue,countHist);
             double signalRatio = countFitG/(countFitG+countBack);
             double diff = (countHist*signalRatio-countFitG)/(countHist*signalRatio);
-            histErrr -> Fill(x_contour,diff);
+            histErrr -> Fill(sValue+0.5*dc,diff);
         }
     }
+
+    { // selected
+        double sValue = fSelectedSValue; // XXX
+        EvaluateCounts(parameters, countData, iPID, 1, sValue, binArea, hist, fit, fitContanminent);
+        double countFitG = countData[0];
+        double countBack = countData[3];
+        double countHist = countData[4];
+        //fBeamPIDList[iPID][0] = 0; // 0 total
+        fBeamPIDList[iPID][1] = fSelectedSValue; // 1 count svalue
+        fBeamPIDList[iPID][2] = countHist; // 2 count data
+        fBeamPIDList[iPID][3] = countFitG; // 3 count fit
+        fBeamPIDList[iPID][4] = countBack; // 4 contamination count
+        fBeamPIDList[iPID][5] = 0; // 5 contamination error
+        fBeamPIDList[iPID][6] = countHist-countBack; // 6 corrected count
+        fBeamPIDList[iPID][7] = (countHist)/fBeamPIDList[iPID][0]; // 7 purity (contour_count/total)
+        fBeamPIDList[iPID][8] = (countHist-countBack)/fBeamPIDList[iPID][0]; // 8 purity (bg_subtracted_count/total)
+        ttCompare1 -> SetX(fCompareList[iPID][0]);
+        ttCompare2 -> SetX(fCompareList[iPID][3]);
+        ttCompare1 -> SetY(fCompareList[iPID][1]);
+        ttCompare2 -> SetY(fCompareList[iPID][4]);
+        ttCompare1 -> SetTitle(Form("  %.1f %s",100*fCompareList[iPID][2]/fBeamPIDList[iPID][2],"%"));
+        ttCompare2 -> SetTitle(Form("  %.1f %s",100*fCompareList[iPID][5]/fBeamPIDList[iPID][2],"%"));
+    }
+    int iCompare = 0;
+    for (double sValue : fCompareSValueList) { // compare
+        EvaluateCounts(parameters, countData, iPID, 1, sValue, binArea, hist, fit, fitContanminent);
+        double countHist = countData[4];
+        if (iCompare==0) fCompareList[iPID][1] = countHist; // 1 compare-1 count
+        if (iCompare==0) fCompareList[iPID][2] = (countHist - fBeamPIDList[iPID][2]); // 2 compare-1 systematic
+        if (iCompare==1) fCompareList[iPID][4] = countHist; // 4 compare-2 count
+        if (iCompare==1) fCompareList[iPID][5] = (countHist - fBeamPIDList[iPID][2]); // 5 compare-2 systematic
+        ++iCompare;
+    }
+    graphAtSelectedSValue -> SetPoint(0,fSelectedSValue,fBeamPIDList[iPID][2]);
+    graphAtSelectedSValue -> SetPoint(1,fCompareList[iPID][0],fCompareList[iPID][1]);
+    graphAtSelectedSValue -> SetPoint(2,fCompareList[iPID][3],fCompareList[iPID][4]);
     return draw;
 }
 
-TF2* LKBeamPID::Fit2DGaussian(TH2D *hist, int idx, double valueX, double valueY, double sigmaX, double sigmaY, double theta)
+void LKBeamPID::EvaluateCounts(double parameters[6], double countData[6], int iPID, bool isSelectedSValue, double sValue, double binArea, TH2D* hist, TF2* fit, TF2* fitContanminent)
+{
+    double amplit = parameters[0];
+    double valueX = parameters[1];
+    double valueY = parameters[2];
+    double sigmaX = parameters[3];
+    double sigmaY = parameters[4];
+    double thetaR = parameters[5];
+
+    auto graphC = GetContourGraph(sValue*amplit, amplit, valueX, sigmaX, valueY, sigmaY, thetaR);
+    graphC -> SetName(Form("contourGraph_%d_%.2f",iPID,sValue));
+    if (isSelectedSValue) fFinalContourGraph = graphC;
+    double countFitG = Integral2DGaussian(fit, sValue) / binArea;
+    double countCalc = countFitG;
+    double x_contour = sValue;//+0.5*dc;
+    double countTest = IntegralInsideGraph(hist, graphC, fit);
+    double countBack = 0;
+    if (fitContanminent!=nullptr) {
+        countBack = IntegralInsideGraph(hist, graphC, fitContanminent);
+        countCalc = countCalc + countBack;
+    }
+    double countHist = 0;
+    if (sValue!=0) {
+        countHist = IntegralInsideGraph(hist, graphC);
+    }
+
+    countData[0] = countFitG;
+    countData[1] = countCalc;
+    countData[2] = countTest;
+    countData[3] = countBack;
+    countData[4] = countHist;
+}
+
+TF2* LKBeamPID::Fit2DGaussian(TH2D *hist, int iPID, double valueX, double valueY, double sigmaX, double sigmaY, double theta)
 {
     if (sigmaX==0) sigmaX = fDefaultFitSigmaX;
     if (sigmaY==0) sigmaY = fDefaultFitSigmaY;
     if (theta==0) theta = fDefaultFitTheta;
-    TF2 *fit = new TF2(Form("fit_%04d_%d", fCurrentRunNumber, idx), fFormulaRotated2DGaussian, valueX-fFitRangeInSigma*sigmaX,valueX+fFitRangeInSigma*sigmaX, valueY-fFitRangeInSigma*sigmaY,valueY+fFitRangeInSigma*sigmaY);
+    TF2 *fit = new TF2(Form("fit_%04d_%d", fCurrentRunNumber, iPID), fFormulaRotated2DGaussian, valueX-fFitRangeInSigma*sigmaX,valueX+fFitRangeInSigma*sigmaX, valueY-fFitRangeInSigma*sigmaY,valueY+fFitRangeInSigma*sigmaY);
     double amplit = hist -> GetBinContent(hist->GetXaxis()->FindBin(valueX),hist->GetYaxis()->FindBin(valueY));
     fit -> SetParameter(0, amplit);
     fit -> SetParameter(1, valueX);
@@ -780,10 +967,10 @@ TF2* LKBeamPID::Fit2DGaussian(TH2D *hist, int idx, double valueX, double valueY,
     return fit;
 }
 
-TGraph *LKBeamPID::GetContourGraph(double contourAmp, double amplit, double valueX, double sigmaX, double valueY, double sigmaY, double thetaR)
+TGraph *LKBeamPID::GetContourGraph(double sValue, double amplit, double valueX, double sigmaX, double valueY, double sigmaY, double thetaR)
 {
-    double Rx = sigmaX * sqrt(-2 * log(contourAmp / amplit));
-    double Ry = sigmaY * sqrt(-2 * log(contourAmp / amplit));
+    double Rx = sigmaX * sqrt(-2 * log(sValue / amplit));
+    double Ry = sigmaY * sqrt(-2 * log(sValue / amplit));
 
     auto graph = new TGraph();
     graph -> SetMarkerStyle(20);
@@ -806,15 +993,15 @@ double LKBeamPID::IntegralInsideGraph(TH2D* hist, TGraph* graph, bool justCount)
     int ny = hist -> GetYaxis() -> GetNbins();
     double wx = hist -> GetXaxis() -> GetBinWidth(1);
     double wy = hist -> GetYaxis() -> GetBinWidth(1);
-    double binA = wx*wy;
-    if (justCount) binA = 1;
+    double binArea = wx*wy;
+    if (justCount) binArea = 1;
     for (auto xbin=1; xbin<=nx; ++xbin) {
         double xvalue = hist -> GetXaxis() -> GetBinCenter(xbin);
         for (auto ybin=1; ybin<=ny; ++ybin) {
             double yvalue = hist -> GetYaxis() -> GetBinCenter(ybin);
             if (graph -> IsInside(xvalue,yvalue)) {
                 double value = hist -> GetBinContent(xbin,ybin);
-                integral += value*binA;
+                integral += value*binArea;
             }
         }
     }
@@ -828,15 +1015,15 @@ double LKBeamPID::IntegralInsideGraph(TH2D* hist, TGraph* graph, TF2 *f2, bool j
     int ny = hist -> GetYaxis() -> GetNbins();
     double wx = hist -> GetXaxis() -> GetBinWidth(1);
     double wy = hist -> GetYaxis() -> GetBinWidth(1);
-    double binA = wx*wy;
-    if (justCount) binA = 1;
+    double binArea = wx*wy;
+    if (justCount) binArea = 1;
     for (auto xbin=1; xbin<=nx; ++xbin) {
         double xvalue = hist -> GetXaxis() -> GetBinCenter(xbin);
         for (auto ybin=1; ybin<=ny; ++ybin) {
             double yvalue = hist -> GetYaxis() -> GetBinCenter(ybin);
             if (graph -> IsInside(xvalue,yvalue)) {
                 double value = f2 -> Eval(xvalue,yvalue);
-                integral += value*binA;
+                integral += value*binArea;
             }
         }
     }
@@ -918,23 +1105,24 @@ void LKBeamPID::SetSValue(double scale)
         inputString = inputString.Strip(TString::kBoth);
         scale = inputString.Atof();
     }
-    fFinalContourAScale = scale;
-    e_cout << "   " << fFinalContourAScale << endl;
+    fSelectedSValue = scale;
+    e_cout << "   " << fSelectedSValue << endl;
 }
 
 void LKBeamPID::SaveConfiguration()
 {
-    TString sListString; for (auto s : fContourScaleList) sListString = sListString + LKMisc::RemoveTrailing0(s) + ", "; sListString.Remove(sListString.Sizeof()-2);
+    TString sListString; for (auto s : fSValueList) sListString = sListString + LKMisc::RemoveTrailing0(s) + ", "; sListString.Remove(sListString.Sizeof()-2);
+    SaveBinning();
     TString bnnString = Form("%d,%f,%f, %d,%f,%f",fBnn1.nx(), fBnn1.x1(), fBnn1.x2(), fBnn1.ny(), fBnn1.y1(), fBnn1.y2());
-    TString xName = fXName.IsNull()?".":fXName;
-    TString yName = fYName.IsNull()?".":fYName;
+    TString xName = fSetXName.IsNull()?".":fSetXName;
+    TString yName = fSetYName.IsNull()?".":fSetYName;
     LKParameterContainer par;
     par.AddPar("fit_range"             ,fFitRangeInSigma,    "fit range in unit of sigma");
-    par.AddPar("x_name"                ,xName,               "x value name in tree");
-    par.AddPar("y_name"                ,yName,               "y value name in tree");
+    par.AddPar("x_name"                ,xName,               "x value name in tree. use \".\" to use default value");
+    par.AddPar("y_name"                ,yName,               "y value name in tree. use \".\" to use default value");
     par.AddPar("num_contours"          ,fNumContours,        "number of contours for integral test");
     par.AddPar("binning"               ,bnnString,           "default x(3),y(3) binning for pid plot");
-    par.AddPar("cut_s_value"           ,fFinalContourAScale, "s-value (ratio compared to the gaussian amplitude) for drawing pid cut contour");
+    par.AddPar("cut_s_value"           ,fSelectedSValue, "s-value (ratio compared to the gaussian amplitude) for drawing pid cut contour");
     par.AddPar("example_s_list"        ,sListString,         "list of s-value for contours in the pid pid. cut_s_value is automatically added to the list.");
     par.AddPar("data_path"             ,fDefaultPath,        "path to look for the files");
     par.AddPar("file_format"           ,fDefaultFormat,      "function will search files which end with file_format");
@@ -956,12 +1144,13 @@ void LKBeamPID::SetRangeX(double x1, double x2, int fill) { fBnn1.SetXMM(x1,x2);
 void LKBeamPID::SetRangeY(double y1, double y2, int fill) { fBnn1.SetYMM(y1,y2); if (fill) CreateAndFillHistogram(1); }
 void LKBeamPID::SetBinning(int nx, double x1, double x2, int ny, double y1, double y2) { SetBinningX(nx,x1,x2,0); SetBinningY(ny,y1,y2,0); CreateAndFillHistogram(1); }
 void LKBeamPID::SetBinning(double x1, double x2, double y1, double y2) { SetRangeX(x1,x2,0); SetRangeY(y1,y2,0); CreateAndFillHistogram(1); }
-void LKBeamPID::SetXBinSize(double w, int fill) { fBnn1.SetWX(w); if (fill) CreateAndFillHistogram(1); }
-void LKBeamPID::SetYBinSize(double w, int fill) { fBnn1.SetWY(w); if (fill) CreateAndFillHistogram(1); }
-void LKBeamPID::SetBinNX(double n, int fill) { fBnn1.SetNX(n); if (fill) CreateAndFillHistogram(1); }
-void LKBeamPID::SetBinNY(double n, int fill) { fBnn1.SetNY(n); if (fill) CreateAndFillHistogram(1); }
+void LKBeamPID::SetXBinSize(double w, int fill) { fBnn1.SetWX(w); if (fill) CreateAndFillHistogram(1); fDraw2D -> Draw(); }
+void LKBeamPID::SetYBinSize(double w, int fill) { fBnn1.SetWY(w); if (fill) CreateAndFillHistogram(1); fDraw2D -> Draw(); }
+void LKBeamPID::SetBinNX(double n, int fill) { fBnn1.SetNX(n); if (fill) CreateAndFillHistogram(1); fDraw2D -> Draw(); }
+void LKBeamPID::SetBinNY(double n, int fill) { fBnn1.SetNY(n); if (fill) CreateAndFillHistogram(1); fDraw2D -> Draw(); }
 void LKBeamPID::SaveBinning() {
     if (!fHistPID) return;
     fBnn1.SetBinning(fHistPID,true);
+    e_info << "Saving binning: " << fBnn1.Print(false) << endl;
     CreateAndFillHistogram(1);
 }
