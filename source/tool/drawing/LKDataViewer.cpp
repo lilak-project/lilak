@@ -266,8 +266,8 @@ int LKDataViewer::AddGroupTab(LKDrawingGroup* group, int iTab, int iSub)
         fSubTabGroup[iTab].push_back(group);
     }
 
-    TString tabName = group -> GetName();
-    TString cvsName = group -> GetName();
+    TString tabName = Form("DV_%s",group -> GetName());
+    TString cvsName = Form("DV_%s",group -> GetName());
     TGCompositeFrame *tabFrame;
     tabFrame = tabSpace->AddTab(tabName);
 

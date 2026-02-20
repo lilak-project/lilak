@@ -70,13 +70,11 @@ void LKDrawingGroup::Draw(Option_t *option)
 
     auto numDrawings = GetEntries();
 
-
     bool usingDataViewer = false;
     if (fViewer!=nullptr)
         usingDataViewer = true;
     if (usingDataViewer==false)
         usingDataViewer = LKMisc::CheckOption(optionString,"viewer # (dg) draw using LKDataViewer",true);
-
 
     bool drawGroup = true;
     if (usingDataViewer)
@@ -511,17 +509,17 @@ bool LKDrawingGroup::ConfigureCanvas()
         else
             fCvs = new TCanvas(Form("c%s",fName.Data()),Form("c%s",fName.Data()), fDXCvs, fDYCvs);
     }
-    else if (!(fCvs->GetWw()==fDXCvs && fCvs->GetWh()==fDYCvs))
-    {
-        if (!fFixCvsSize)
-            fCvs = LKPainter::GetPainter() -> CanvasResize(fCvs, fDXCvs, fDYCvs, resize_factor);
-        else {
-            fCvs -> SetCanvasSize(fDXCvs, fDYCvs);
-            //fCvs -> SetWindowSize(fDXCvs, fDYCvs);
-        }
-    }
-    else {
-    }
+    //else if (!(fCvs->GetWw()==fDXCvs && fCvs->GetWh()==fDYCvs))
+    //{
+    //    if (!fFixCvsSize)
+    //        fCvs = LKPainter::GetPainter() -> CanvasResize(fCvs, fDXCvs, fDYCvs, resize_factor);
+    //    else {
+    //        fCvs -> SetCanvasSize(fDXCvs, fDYCvs);
+    //        //fCvs -> SetWindowSize(fDXCvs, fDYCvs);
+    //    }
+    //}
+    //else {
+    //}
 
     fDXCvs = fCvs -> GetWw();
     fDYCvs = fCvs -> GetWh();

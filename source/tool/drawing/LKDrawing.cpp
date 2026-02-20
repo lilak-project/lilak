@@ -388,7 +388,7 @@ void LKDrawing::Draw(Option_t *option)
 
     bool debug_draw = LKMisc::CheckOption(fGlobalOption,"debug_draw # print out debug messages");
     bool skip_draw = LKMisc::CheckOption(fGlobalOption,"skip_draw # skip Draw for this drawing");
-    bool using_dv = LKMisc::CheckOption(fGlobalOption,"viewer # skip Draw for this drawing",1);
+    bool using_dv = LKMisc::CheckOption(fGlobalOption,"viewer # use data viewer",1);
     bool create_legend = LKMisc::CheckOption(fGlobalOption,"create_legend # create legend using added objects and given titles");
     bool using_raw = LKMisc::CheckOption(fGlobalOption,"raw # just draw withouth LKDrawing functions");
     int font = FindOptionInt("font # global font number",-1);
@@ -470,6 +470,10 @@ void LKDrawing::Draw(Option_t *option)
                 fCvs = LKPainter::GetPainter() -> CanvasSize(Form("cvs_%s",fName.Data()),dx,dy);
             }
         }
+        if (debug_draw)
+            lk_note << "New canvas! " << fCvs->GetName() << " " << fCvs->GetTitle() << " " << fCvs->GetWw() << " " << fCvs->GetWh() << endl;
+    }
+    else {
         if (debug_draw)
             lk_note << fCvs->GetName() << " " << fCvs->GetTitle() << " " << fCvs->GetWw() << " " << fCvs->GetWh() << endl;
     }
