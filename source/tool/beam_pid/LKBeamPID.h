@@ -14,6 +14,8 @@
 #include "TSystem.h"
 #include "TStyle.h"
 #include "TGraph.h"
+#include "TLatex.h"
+#include "TText.h"
 #include "TFile.h"
 #include "TTree.h"
 #include "TH2D.h"
@@ -44,18 +46,24 @@ class LKBeamPID
         void SelectCenters(vector<vector<double>> points=vector<vector<double>>{});
         void Redraw();
         void ReselectCenters();
-        void FitTotal(bool calibrationRun=false);
-        void CalibrationRun();
+        void FitTotal(int mode = 0);
+        void CalibrateParFast();
+        void CalibratePar() { FitTotal(1); }
+        void CalibrateCnt() { FitTotal(2); }
+        void CalibrateEta() { FitTotal(3); }
         void MakeSummary();
 
+        void CalibrateEtaMan(int iPID1, int iPID2, TF2* fitTotal = (TF2*)nullptr);
+        void DrawDetail();
+
         LKDrawing* GetFitTestDrawing(int iPID, TH2D *hist, TF2* fit, TF2* fitContanminent=(TF2*)nullptr, bool resetError=false);
-        void EvaluateCounts(double parameters[6], double countData[6], int iPID, bool isSelectedSValue, double sValue, double binArea, TH2D* hist, TF2* fit, TF2* fitContanminent=(TF2*)nullptr);
+        void EvaluateCounts(double parameters[6], double countData[6], int iPID, bool isSelectedEta, double sValue, double binArea, TH2D* hist, TF2* fit, TF2* fitContanminent=(TF2*)nullptr);
         TF2* Fit2DGaussian(TH2D *hist, int idx, double valueX, double valueY, double sigmaX=0, double sigmaY=0, double theta=0);
         TGraph *GetContourGraph(double sValue, double amplit, double valueX, double sigmaX, double valueY, double sigmaY, double thetaR);
         double IntegralInsideGraph(TH2D* hist, TGraph* graph, bool justCount=true);
         double IntegralInsideGraph(TH2D* hist, TGraph* graph, TF2 *f2, bool justCount=true);
-        double Integral2DGaussian(double amplitude, double sigma_x, double sigma_y, double contoS=0);
-        double Integral2DGaussian(TF2 *f2, double contoS=0);
+        double Integral2DGaussian(double amplitude, double sigmaX, double sigmaY, double contourS=0);
+        double Integral2DGaussian(TF2 *f2, double contourS=0);
         void CollectRootFiles(std::vector<TString> &listGenFile, TString dataPath="", TString format="");
 
         void Help(TString mode="help");
@@ -64,6 +72,7 @@ class LKBeamPID
         void ResetBinning();
         void SaveBinning();
         void SetSValue(double scale=-1);
+        void SetEta(double scale=-1);
         void SetXBinSize(double w, int fill=0);
         void SetYBinSize(double w, int fill=0);
         void SetGausFitRange(double sigDist=-1);
@@ -80,7 +89,9 @@ class LKBeamPID
         void SetBinNY(double n, int fill=0);
 
     protected:
-        bool fCalibrated = false;
+        bool fCalibratedPar = false;
+        bool fCalibratedCnt = false;
+        bool fCalibratedEta = false;
 
     private:
         int fStage = 0;
@@ -95,14 +106,16 @@ class LKBeamPID
         TTree* fDataTree = nullptr;
         TH2D *fHistPID = nullptr;
         bool fRunCollected = false, fInitialized = false;
-        int fCurrentRunNumber=999999999, fCurrentType = 1;
+        int fCurrentRunNumber=0, fCurrentType = 1;
         TGraph* fFinalContourGraph = nullptr;
-        const TString fFormulaRotated2DGaussian = "[0]*exp(-0.5*(pow(((x-[1])*cos([5])+(y-[3])*sin([5]))/[2],2)+pow((-(x-[1])*sin([5])+(y-[3])*cos([5]))/[4],2)))";
+        TGraph* fGraphTTOutTTIn = nullptr;
+        const TString fFormulaRotated2DGaussian = "[0]*exp(-0.5*(pow(((x-[1])*cos([5])+(y-[2])*sin([5]))/[3],2)+pow((-(x-[1])*sin([5])+(y-[2])*cos([5]))/[4],2)))";
         TString fCurrentFileName;
         TF1* fFitCountDiff = nullptr;
         TF1* fFitCountDiff2 = nullptr;
         TF1* fFitCountDiff3 = nullptr;
         double fOverallError = 0;
+        TF2* fFitTotal = nullptr;
 
         LKBinning fBnn1, fBnn0;
         TString fSetXName, fSetYName;
@@ -117,11 +130,18 @@ class LKBeamPID
         double fSigmaRatioRange = 0.2;
         double fThetaRange = 0.1*TMath::Pi();
         double fFitRangeInSigma = 1;
-        int fNumContours = 10;
-        double fSelectedSValue = 0.2;
-        vector<double> fCompareSValueList;
-        vector<double> fSValueList = {0.9,0.5};
+        double fFixSigmaX = -1;
+        double fFixSigmaY = -1;
+        double fFixThetaR = -1;
+        int fNumContours = 20;
+        double fSelectedEta = 0.2;
+        vector<double> fCompareEtaList;
+        vector<double> fDrawEtaList = {0.9,0.5};
         int fFrameIndex = 0;
+        int fContourColor = kRed;
+        int fPIDIndexTextColor1 = kBlack;
+        int fPIDIndexTextColor2 = kGreen;
+        int fLegendFillStyle = 3001;
 
         vector<vector<double>> fBeamPIDList;
         vector<vector<double>> fFittingList;

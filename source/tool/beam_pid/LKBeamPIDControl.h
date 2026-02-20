@@ -25,9 +25,11 @@ class LKBeamPIDControl : public TGMainFrame, public LKBeamPID
             SetYBinSize,
             SetBinNX,
             SetBinNY,
-            SetSValue,
+            SetEta,
             SetFitRange,
             SetRunNumber,
+            CalibrateEtaMan,
+            CalibrateEtaMan2,
         };
 
         LKBeamPIDControl(UInt_t w=0, UInt_t h=0);
@@ -38,7 +40,10 @@ class LKBeamPIDControl : public TGMainFrame, public LKBeamPID
         void PressedSelectCenters();
         void PressedReselectCenters();
         void PressedFitTotal();
-        void PressedCalibrationRun();
+        void PressedCalibratePar();
+        void PressedCalibrateCnt();
+        void PressedCalibrateEta();
+        void PressedCalibrateEtaMan();
         void PressedMakeSummary();
 
         void PressedHelp();
@@ -50,10 +55,11 @@ class LKBeamPIDControl : public TGMainFrame, public LKBeamPID
         void PressedSetYBinSize();
         void PressedSetBinNX();
         void PressedSetBinNY();
-        void PressedSetSValue();
+        void PressedSetEta();
         void PressedSetFitRange();
         void PressedSetRunNumber();
         void PressedSaveConfiguration();
+        void PressedDetail();
 
         void PressedEnter();
         void PressedQuit();
@@ -77,8 +83,12 @@ class LKBeamPIDControl : public TGMainFrame, public LKBeamPID
         TGTextButton *fBtnSelectCenters   = nullptr;
         TGTextButton *fBtnReselectCenters = nullptr;
         TGTextButton *fBtnFitTotal        = nullptr;
-        TGTextButton *fBtnCalibrationRun  = nullptr;
+        TGTextButton *fBtnCalibratePar    = nullptr;
+        TGTextButton *fBtnCalibrateCnt    = nullptr;
+        TGTextButton *fBtnCalibrateEta    = nullptr;
+        TGTextButton *fBtnCalibrateEtaMan = nullptr;
         TGTextButton *fBtnMakeSummary     = nullptr;
+        TGTextButton *fBtnDetail          = nullptr;
         TGTextButton *fBtnHelp            = nullptr;
         TGTextButton *fBtnAutoBinning     = nullptr;
         TGTextButton *fBtnPrintBinning    = nullptr;
@@ -88,12 +98,13 @@ class LKBeamPIDControl : public TGMainFrame, public LKBeamPID
         TGTextButton *fBtnSetBinWidthY    = nullptr;
         TGTextButton *fBtnSetBinNX        = nullptr;
         TGTextButton *fBtnSetBinNY        = nullptr;
-        TGTextButton *fBtnSetSValue       = nullptr;
+        TGTextButton *fBtnSetEta          = nullptr;
         TGTextButton *fBtnSetFitRange     = nullptr;
         TGTextButton *fBtnSetRunNumber    = nullptr;
         TGTextButton *fBtnSaveConfig      = nullptr;
         TGTextButton *fBtnQuit            = nullptr;
 
+        int fSaveValue = 0;
         int fHLColor = 0;
         int fNxColor = 0;
         int fNmColor = 0;
