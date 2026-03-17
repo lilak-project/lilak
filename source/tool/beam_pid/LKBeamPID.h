@@ -88,6 +88,10 @@ class LKBeamPID
         void SetBinNX(double n, int fill=1);
         void SetBinNY(double n, int fill=0);
 
+        void SetRangeUserX(double x1, double x2);
+        void SetRangeUserY(double y1, double y2);
+        void SetRangeUser(double x1, double x2, double y1, double y2) { SetRangeUserX(x1, x2); SetRangeUserY(y1, y2); }
+
     protected:
         bool fCalibratedPar = false;
         bool fCalibratedCnt = false;

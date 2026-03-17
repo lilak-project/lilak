@@ -463,7 +463,7 @@ void LKBeamPID::CalibrateParFast()
     auto hist_sigmaX = new TH1D(Form("sigmaX_%04d_%d",fCurrentRunNumber,fFrameIndex++),"",20,0,1.2*sigmaX2);
     auto hist_sigmaY = new TH1D(Form("sigmaY_%04d_%d",fCurrentRunNumber,fFrameIndex++),"",20,0,1.2*sigmaY2);
     auto hist_thetaR = new TH1D(Form("thetaR_%04d_%d",fCurrentRunNumber,fFrameIndex++),"",20,0,1.2*thetaR2);
-    auto hist_sigmaX2 = new TH2D(Form("sigmaX2_%04d_%d",fCurrentRunNumber,fFrameIndex++),"",20,fBnn1.y1(),fBnn1.y2(),20,0,1.2*sigmaX2);
+    auto hist_sigmaX2 = new TH2D(Form("sigmaX2_%04d_%d",fCurrentRunNumber,fFrameIndex++),"",220,fBnn1.y1(),fBnn1.y2(),20,0,1.2*sigmaX2);
     auto hist_sigmaY2 = new TH2D(Form("sigmaY2_%04d_%d",fCurrentRunNumber,fFrameIndex++),"",20,fBnn1.y1(),fBnn1.y2(),20,0,1.2*sigmaY2);
     auto hist_thetaR2 = new TH2D(Form("thetaR2_%04d_%d",fCurrentRunNumber,fFrameIndex++),"",20,fBnn1.y1(),fBnn1.y2(),20,0,1.2*thetaR2);
     fGroupFit -> AddHist(hist_sigmaX);
@@ -481,6 +481,9 @@ void LKBeamPID::CalibrateParFast()
         auto sigmaX = fit->GetParameter(3);
         auto sigmaY = fit->GetParameter(4);
         auto thetaR = fit->GetParameter(5);
+        //lk_debug << "  Fill sigma_x=" << " " << sigmaX << endl;
+        //lk_debug << "  Fill sigma_y=" << " " << sigmaY << endl;
+        //lk_debug << "  Fill theta_r=" << " " << thetaR << endl;
         hist_sigmaX -> Fill(sigmaX);
         hist_sigmaY -> Fill(sigmaY);
         hist_thetaR -> Fill(thetaR);
@@ -490,13 +493,19 @@ void LKBeamPID::CalibrateParFast()
     }
 
     {
+        //lk_debug << "  sigma_x=" << " " << fFixSigmaX << endl;
+        //lk_debug << "  sigma_y=" << " " << fFixSigmaY << endl;
+        //lk_debug << "  theta_r=" << " " << fFixThetaR << endl;
         fFixSigmaX = hist_sigmaX -> GetMean();
         fFixSigmaY = hist_sigmaY -> GetMean();
         fFixThetaR = hist_thetaR -> GetMean();
         //lk_debug << "<sigmaX> = " << fFixSigmaX << endl;
         //lk_debug << "<sigmaY> = " << fFixSigmaY << endl;
         //lk_debug << "<thetaR> = " << fFixThetaR << endl;
-
+        e_info << "Calibrate shape parameters" << endl;
+        e_cout << "  sigma_x=" << " " << fFixSigmaX << endl;
+        e_cout << "  sigma_y=" << " " << fFixSigmaY << endl;
+        e_cout << "  theta_r=" << " " << fFixThetaR << endl;
         if (fGraphTTOutTTIn==nullptr) {
             fGraphTTOutTTIn = new TGraph();
             fGraphTTOutTTIn -> SetMarkerStyle(20);
@@ -603,10 +612,17 @@ void LKBeamPID::FitTotal(int mode)
                 fit -> GetParLimits(ipar, parmin, parmax);
             }
         }
-        if (calibratePar==false) {
+        if (calibratePar&&fCalibratedPar==false) {
             if (fFixSigmaX>=0) { fitTotal -> SetParameter(3+iPID*6, fFixSigmaX); fitTotal -> FixParameter(3+iPID*6, fFixSigmaX); }
             if (fFixSigmaY>=0) { fitTotal -> SetParameter(4+iPID*6, fFixSigmaY); fitTotal -> FixParameter(4+iPID*6, fFixSigmaY); }
             if (fFixThetaR>=0) { fitTotal -> SetParameter(5+iPID*6, fFixThetaR); fitTotal -> FixParameter(5+iPID*6, fFixThetaR); }
+            //lk_debug << "  sigma_x=" << " " << fFixSigmaX << endl;
+            //lk_debug << "  sigma_y=" << " " << fFixSigmaY << endl;
+            //lk_debug << "  theta_r=" << " " << fFixThetaR << endl;
+            e_info << "Calibrate shape parameters (1)" << endl;
+            e_cout << "  sigma_x=" << " " << fFixSigmaX << endl;
+            e_cout << "  sigma_y=" << " " << fFixSigmaY << endl;
+            e_cout << "  theta_r=" << " " << fFixThetaR << endl;
             fCalibratedPar = true;
         }
 
@@ -954,8 +970,8 @@ void LKBeamPID::CalibrateEtaMan(int iPID1, int iPID2, TF2* fitTotal)
     }
     if (found==false) {
         fSelectedEta = 0.01;
-        lk_debug << "Eta is too small! Setting eta value to " << fSelectedEta << endl;
-        lk_debug << "Manually set eta if you want to use lower value" << endl;
+        e_error << "Eta is too small! Setting eta value to " << fSelectedEta << endl;
+        e_error << "Manually set eta if you want to use lower value" << endl;
     }
     else {
         fSelectedEta = graphDiff -> Eval(0);
@@ -1315,11 +1331,11 @@ void LKBeamPID::EvaluateCounts(double parameters[6], double countData[6], int iP
     countData[4] = countHist;
 }
 
-TF2* LKBeamPID::Fit2DGaussian(TH2D *hist, int iPID, double valueX, double valueY, double sigmaX, double sigmaY, double theta)
+TF2* LKBeamPID::Fit2DGaussian(TH2D *hist, int iPID, double valueX, double valueY, double sigmaX, double sigmaY, double thetaR)
 {
     if (sigmaX==0) sigmaX = fDefaultFitSigmaX;
     if (sigmaY==0) sigmaY = fDefaultFitSigmaY;
-    if (theta==0) theta = fDefaultFitTheta;
+    if (thetaR==0) thetaR = fDefaultFitTheta;
     TF2 *fit = new TF2(Form("fit_%04d_%d", fCurrentRunNumber, iPID), fFormulaRotated2DGaussian, valueX-fFitRangeInSigma*sigmaX,valueX+fFitRangeInSigma*sigmaX, valueY-fFitRangeInSigma*sigmaY,valueY+fFitRangeInSigma*sigmaY);
     double amplit = hist -> GetBinContent(hist->GetXaxis()->FindBin(valueX),hist->GetYaxis()->FindBin(valueY));
     fit -> SetParameter(0, amplit);
@@ -1327,21 +1343,20 @@ TF2* LKBeamPID::Fit2DGaussian(TH2D *hist, int iPID, double valueX, double valueY
     fit -> SetParameter(2, valueY);
     fit -> SetParameter(3, sigmaX);
     fit -> SetParameter(4, sigmaY);
-    fit -> SetParameter(5, theta*TMath::DegToRad());
-    fit -> SetParLimits(0, amplit*0.5, amplit*2);
+    fit -> SetParameter(5, thetaR*TMath::DegToRad());
+    //fit -> SetParLimits(0, amplit*0.5, amplit*2);
+    //fit -> SetParLimits(1, valueX-0.5*sigmaX, valueX+0.5*sigmaX);
+    //fit -> SetParLimits(2, valueY-0.5*sigmaY, valueY+0.5*sigmaY);
+    //fit -> SetParLimits(3, sigmaX*0.5, sigmaX*1.2);
+    //fit -> SetParLimits(4, sigmaY*0.5, sigmaY*1.2);
+    fit -> SetParLimits(5, 0.*TMath::Pi(), 0.25*TMath::Pi());
+    fit -> SetParLimits(0, amplit*(1.-fAmpRatioRange), amplit*(1.+fAmpRatioRange));
     fit -> SetParLimits(1, valueX-0.5*sigmaX, valueX+0.5*sigmaX);
     fit -> SetParLimits(2, valueY-0.5*sigmaY, valueY+0.5*sigmaY);
-    fit -> SetParLimits(3, sigmaX*0.5, sigmaX*1.2);
-    fit -> SetParLimits(4, sigmaY*0.5, sigmaY*1.2);
-    fit -> SetParLimits(5, 0.*TMath::Pi(), 0.25*TMath::Pi());
-    if (0) {
-        for (auto ipar : {0,1,2,3,4,5}) {
-            double parval = fit -> GetParameter(ipar);
-            double parmin, parmax;
-            fit -> GetParLimits(ipar, parmin, parmax);
-            lk_debug << parval << " " << parmin << " -> " << parmax << endl;
-        }
-    }
+    fit -> SetParLimits(3, sigmaX*(1.-fSigmaRatioRange), sigmaX*(1.+fSigmaRatioRange));
+    fit -> SetParLimits(4, sigmaY*(1.-fSigmaRatioRange), sigmaY*(1.+fSigmaRatioRange));
+    //fit -> SetParLimits(5, thetaR-fThetaRange, thetaR+fThetaRange);
+    double init_values[6]; for (auto ipar : {0,1,2,3,4,5}) init_values[ipar] = fit -> GetParameter(ipar);
     if (fFixSigmaX>=0) { fit -> SetParameter(3, fFixSigmaX); fit -> FixParameter(3, fFixSigmaX); }
     if (fFixSigmaY>=0) { fit -> SetParameter(4, fFixSigmaY); fit -> FixParameter(4, fFixSigmaY); }
     if (fFixThetaR>=0) { fit -> SetParameter(5, fFixThetaR); fit -> FixParameter(5, fFixThetaR); }
@@ -1354,6 +1369,24 @@ TF2* LKBeamPID::Fit2DGaussian(TH2D *hist, int iPID, double valueX, double valueY
         << setw(28) << Form("y=(%f, %f),", fit->GetParameter(2), fit->GetParameter(4))
         << setw(18) << Form("theta=%f,", fit->GetParameter(5)*TMath::RadToDeg())
         << endl;
+    if (1) {
+        for (auto ipar : {0,1,2,3,4,5}) {
+            double parval = fit -> GetParameter(ipar);
+            double parmin, parmax;
+            fit -> GetParLimits(ipar, parmin, parmax);
+            TString par_name;
+            if (ipar==0) par_name = "amplit";
+            if (ipar==1) par_name = "valueX";
+            if (ipar==2) par_name = "valueY";
+            if (ipar==3) par_name = "sigmaX";
+            if (ipar==4) par_name = "sigmaY";
+            if (ipar==5) par_name = "thetaR";
+            bool limited_end = false;
+            if (abs(parval-parmin)<0.001*abs(parmax-parmin)) limited_end = true;
+            if (abs(parval-parmax)<0.001*abs(parmax-parmin)) limited_end = true;
+            //lk_debug << "  " << (limited_end?" ":"*") << par_name << ": i=" << init_values[ipar] << " (" << parmin << " -> " << parmax << ") f=" << parval << endl;
+        }
+    }
     return fit;
 }
 
@@ -1560,3 +1593,6 @@ void LKBeamPID::SaveBinning() {
     e_info << "Saving binning: " << fBnn1.Print(false) << endl;
     CreateAndFillHistogram(1);
 }
+
+void LKBeamPID::SetRangeUserX(double x1, double x2) { if (fHistPID==nullptr) return; fHistPID -> GetXaxis() -> SetRangeUser(x1,x2); }
+void LKBeamPID::SetRangeUserY(double y1, double y2) { if (fHistPID==nullptr) return; fHistPID -> GetYaxis() -> SetRangeUser(y1,y2); }
