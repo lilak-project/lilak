@@ -55,8 +55,9 @@ class lilak_configuration:
         change1 = self.create_build_option_file()
         change2 = self.create_classfactory()
         change2 = self.g4dc_classfactory()
+        change3 = self.create_rootlogon_script()
         #change3 = self.create_lilak_class_reference()
-        lf_changes = [change0, change1, change2]
+        lf_changes = [change0, change1, change2, change3]
         self.copy_common_files_from_project()
         run_cmake = run_cmake or (True in lf_changes)
         self.create_lilak_command_script()
@@ -134,6 +135,7 @@ class lilak_configuration:
         self.GET_DIR = "/usr/local/get"
         self.NPTOOL_DIR = ""
         self.fn_build_option = os.path.join(os.path.join(self.lilak_path, "log"), "build_options.cmake")
+        self.fn_nptool_nplib_option = os.path.join(os.path.join(self.lilak_path, "log"), "nptool_nplib_options.conf")
         self.nm_main_project = "lilak"
         self.df_build_options0 = {
             #"ACTIVATE_EVE": False,
@@ -145,6 +147,8 @@ class lilak_configuration:
             #"CREATE_GIT_LOG": True,
         }
         self.df_build_options = self.df_build_options0.copy()
+        self.lf_available_nptool_nplib = self.load_nptool_nplib_options()
+        self.lf_nptool_nplib = []
         self.lf_top_directories  = ["build", "data", "log", "macros", "source", "examples", ".git", "common", "doc"]
         self.lf_prj_subdir_link  = ["container", "detector", "tool", "task"]
         self.lf_prj_subdir_xlink = ["source"]
@@ -162,6 +166,41 @@ class lilak_configuration:
         self.lf_cmake_projects = []
         self.lf_xmake_projects = []
         self.first_lilak_configuration = False
+
+    def load_nptool_nplib_options(self):
+        lf_default_nplib = ["NPCore", "NPPhysics", "NPSTARK", "NPATOMX"]
+        lf_available_nptool_nplib = []
+        if os.path.exists(self.fn_nptool_nplib_option) == False:
+            new_contents = """# NPTool NPLib modules for lilak build selection.
+# Remove leading '#' to enable module in selection menu.
+# Lines starting with '#' are hidden from selection.
+
+NPCore
+NPPhysics
+NPSTARK
+NPATOMX
+
+# NPDetectorA
+# NPDetectorB
+"""
+            with open(self.fn_nptool_nplib_option, "w") as f:
+                f.write(new_contents)
+        with open(self.fn_nptool_nplib_option, "r") as f:
+            for line in f:
+                line = line.strip()
+                if len(line) == 0:
+                    continue
+                if line.startswith("#"):
+                    continue
+                token = line.split()[0]
+                if token.startswith("#"):
+                    continue
+                if token not in lf_available_nptool_nplib:
+                    lf_available_nptool_nplib.append(token)
+        if len(lf_available_nptool_nplib) == 0:
+            self.print_warn(f"{self.fn_nptool_nplib_option} has no enabled NPLib module. Using default list.")
+            lf_available_nptool_nplib = lf_default_nplib
+        return lf_available_nptool_nplib
 
     def select_one_option(self, question="", possible_options=[]):
         if len(question)==0 and len(possible_options)==0:
@@ -319,9 +358,11 @@ class lilak_configuration:
                             elif tokens[0] == "GRU_DIR": self.GRU_DIR = tokens[1]
                             elif tokens[0] == "GET_DIR": self.GET_DIR = tokens[1]
                             elif tokens[0] == "NPTOOL_DIR": self.NPTOOL_DIR = tokens[1]
-                            elif tokens[0] in ["LILAK_PROJECT_LIST", "LILAK_BIND_LIST"]:#, "NPTOOL_NPSLIB_LIST"]:
+                            elif tokens[0] in ["LILAK_PROJECT_LIST", "LILAK_BIND_LIST", "NPTOOL_NPLIB_LIST"]:
+                                if tokens[0] == "NPTOOL_NPLIB_LIST":
+                                    self.lf_nptool_nplib = []
                                 lastOption = tokens[0]
-                            elif tokens[0] not in ["LILAK_PROJECT_LIST", "LILAK_BIND_LIST"]:#, "NPTOOL_NPSLIB_LIST"]:
+                            elif tokens[0] not in ["LILAK_PROJECT_LIST", "LILAK_BIND_LIST", "NPTOOL_NPLIB_LIST"]:
                                 self.df_build_options[tokens[0]] = (True if tokens[1] == "ON" else False)
                     elif len(line) > 0 and line != ")" and line.strip().find("CACHE INTERNAL") < 0 and line.strip().find("LILAK") != 0:
                         comment = ""
@@ -329,10 +370,21 @@ class lilak_configuration:
                             line, comment = line[:line.find("#")].strip(), line[line.find("#") + 1:].strip()
                         elif lastOption in ["LILAK_PROJECT_LIST", "LILAK_BIND_LIST"]:
                             self.lf_lilak_projects.append(line)
-                        #elif lastOption in ["NPTOOL_NPSLIB_LIST"]:
-                        #    self.lf_nptoollib_list.append(line)
+                        elif lastOption == "NPTOOL_NPLIB_LIST":
+                            self.lf_nptool_nplib.append(line)
         else:
             self.first_lilak_configuration = True
+            self.lf_nptool_nplib = self.lf_available_nptool_nplib.copy()
+        if len(self.lf_nptool_nplib) == 0:
+            self.lf_nptool_nplib = self.lf_available_nptool_nplib.copy()
+        else:
+            lf_unique = []
+            for nplib_name in self.lf_nptool_nplib:
+                if nplib_name in self.lf_available_nptool_nplib and nplib_name not in lf_unique:
+                    lf_unique.append(nplib_name)
+            self.lf_nptool_nplib = lf_unique
+            if len(self.lf_nptool_nplib) == 0:
+                self.lf_nptool_nplib = self.lf_available_nptool_nplib.copy()
 
     def confirm_build_options(self):
         self.print_header("Confirm build options")
@@ -343,6 +395,8 @@ class lilak_configuration:
         print()
         for key, value in self.df_build_options.items():
             print(f"   {key} = {value}")
+        if self.df_build_options["BUILD_NPTOOL"]:
+            print(f"   NPTOOL_NPLIB_LIST = {':'.join(self.lf_nptool_nplib)}")
         print()
         self.print_project_list()
         print()
@@ -353,6 +407,9 @@ class lilak_configuration:
         prev_build_options = [key for key, value in self.df_build_options.items() if value]
         self.df_build_options = self.df_build_options0.copy()
         lf_chosen_key = set(self.select_multiple_options(self.df_build_options, prev_options=prev_build_options))
+        if "BUILD_NPTOOL" in lf_chosen_key and "BUILD_GEANT4_SIM" not in lf_chosen_key:
+            print("   BUILD_NPTOOL requires BUILD_GEANT4_SIM. Enabling BUILD_GEANT4_SIM.")
+            lf_chosen_key.add("BUILD_GEANT4_SIM")
         for key in lf_chosen_key:
             self.df_build_options[key] = True
             ###################################
@@ -370,6 +427,23 @@ class lilak_configuration:
                 if user_input_gg != '':
                     self.GET_DIR = user_input_gg
             ###################################
+        if self.df_build_options["BUILD_NPTOOL"] and self.df_build_options["BUILD_GEANT4_SIM"] == False:
+            self.df_build_options["BUILD_GEANT4_SIM"] = True
+            print("   BUILD_NPTOOL requires BUILD_GEANT4_SIM. Enabling BUILD_GEANT4_SIM.")
+        if self.df_build_options["BUILD_NPTOOL"]:
+            print()
+            print("Select NPLib modules to link with NPTOOLSIM")
+            prev_nptool_nplib = self.lf_nptool_nplib.copy()
+            if len(self.lf_available_nptool_nplib) == 0:
+                self.print_warn("No enabled NPLib modules in", self.fn_nptool_nplib_option)
+            lf_chosen_nptool_nplib = self.select_multiple_options(self.lf_available_nptool_nplib, prev_options=prev_nptool_nplib)
+            if len(lf_chosen_nptool_nplib) == 0:
+                self.lf_nptool_nplib = prev_nptool_nplib
+            else:
+                self.lf_nptool_nplib = []
+                for nplib_name in self.lf_available_nptool_nplib:
+                    if nplib_name in lf_chosen_nptool_nplib:
+                        self.lf_nptool_nplib.append(nplib_name)
 
     def select_and_add_project(self):
         self.print_header("Add Project")
@@ -552,6 +626,10 @@ class lilak_configuration:
         new_contents +=  '\nCACHE INTERNAL ""\n)' #####
         new_contents += f'\n\nset(GRU_DIR {self.GRU_DIR} CACHE INTERNAL "")' #####
         new_contents += f'\nset(GET_DIR {self.GET_DIR} CACHE INTERNAL "")' #####
+        jl_nptool_nplib = '\n'.join(self.lf_nptool_nplib)
+        new_contents +=  "\nset(NPTOOL_NPLIB_LIST ${NPTOOL_NPLIB_LIST}"
+        new_contents += f"\n{jl_nptool_nplib}"
+        new_contents +=  '\nCACHE INTERNAL ""\n)'
         new_contents +=  "\nset(LILAK_BIND_LIST ${LILAK_BIND_LIST}" #####
         new_contents += f"\n{jl_xmake_projects}"
         new_contents +=  '\nCACHE INTERNAL ""\n)'
@@ -1105,6 +1183,69 @@ complete -F _lilak_completions lilak
         with open(fn_lilak_command_sh, "w") as lilak_command_sh_file:
             lilak_command_sh_file.write(lilak_command_sh_content)
         os.chmod(fn_lilak_command_sh, 0o755)
+
+    def create_rootlogon_script(self):
+        self.print_header("Creating rootlogon.C",1)
+        fn_rootlogon = os.path.join(self.lilak_path, "macros/rootlogon.C")
+
+        lf_nptool_nplib = []
+        if self.df_build_options.get("BUILD_NPTOOL", False):
+            lf_nptool_nplib = self.lf_nptool_nplib.copy()
+        nplib_initializer = ", ".join(f'"{lib_name}"' for lib_name in lf_nptool_nplib)
+
+        new_contents = f"""{{
+    TString message = "libs: ";
+    TString libName = TString(gSystem->Getenv("LILAK_PATH"))+"/build/libLILAK";
+    int loadv = gSystem -> Load(libName);
+    if (loadv == 0 || loadv == 1) {{
+        message = message + "LILAK ";
+        gROOT -> ProcessLine("#include \\"LKCompiled.h\\"");
+    }}
+    else {{
+        cout << "Error while loading " << libName << endl;
+    }}
+
+    const char* nplibDirEnv = gSystem -> Getenv("NPLib_DIR");
+    if (nplibDirEnv == nullptr) {{
+        cout << "Warning: NPLib_DIR is not defined." << endl;
+    }}
+    else {{
+        for (auto name : {{{nplib_initializer}}})
+        {{
+            libName = TString(nplibDirEnv) + "/lib/lib" + name;
+            loadv = gSystem -> Load(libName);
+            if (loadv == 0 || loadv == 1) message = message + name + " ";
+            else                          cout << "Error while loading " << libName << endl;
+        }}
+    }}
+
+    cout << message << endl;
+
+    for (TString fileName : {{"README.lilak","readme.lilak"}})
+    {{
+        string line;
+        ifstream readme(fileName);
+        if (readme.is_open()) {{
+            while (getline(readme, line))
+                cout << line << endl;
+            break;
+        }}
+    }}
+}}
+"""
+
+        current_contents = ""
+        if os.path.exists(fn_rootlogon):
+            with open(fn_rootlogon, "r") as f:
+                current_contents = f.read()
+        if current_contents == new_contents:
+            print(f"{fn_rootlogon} # No changes")
+            return False
+
+        print(f"Updating {fn_rootlogon}")
+        with open(fn_rootlogon, "w") as f:
+            f.write(new_contents)
+        return True
 
     def summary(self):
         #print_out_source_lilak = False

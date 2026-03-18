@@ -2,7 +2,6 @@
 #include "G4UImanager.hh"
 //#include "G4GDMLParser.hh"
 #include "G4UIExecutive.hh"
-#include "G4strstreambuf.hh"
 #include "G4VisExecutive.hh"
 #include "G4ProcessTable.hh"
 #include "G4LogicalVolumeStore.hh"
@@ -96,7 +95,7 @@ void LKNPToolRunManager::CheckNPToolReactionFile()
         LKParameterContainer nptool_parameter(nppar_file_name);
         TIter next(&nptool_parameter);
         LKParameter* parameter;
-        while (parameter=(LKParameter*) next()) {
+        while ((parameter=(LKParameter*) next())) {
             TString name = parameter -> GetLastName();
             TString value = parameter -> GetValue();
             TString comment = parameter -> GetComment();

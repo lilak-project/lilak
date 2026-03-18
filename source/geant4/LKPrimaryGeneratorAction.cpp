@@ -2,7 +2,6 @@
 #include "G4ParticleTable.hh"
 #include "G4ParticleDefinition.hh"
 #include "G4SystemOfUnits.hh"
-#include <G4strstreambuf.hh>
 
 #include "LKPrimaryGeneratorAction.h"
 #include "LKG4RunManager.h"
@@ -44,7 +43,7 @@ void LKPrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
         G4ThreeVector momentum(px,py,pz);
         fParticleGun -> SetParticleMomentumDirection(momentum.unit());
 
-        G4strstreambuf* oldBuffer = dynamic_cast<G4strstreambuf*>(G4cout.rdbuf(0));
+        std::streambuf* oldBuffer = G4cout.rdbuf(nullptr);
         // Removing print outs in between here ------------->
         if (fReadMomentumOrEnergy) fParticleGun -> SetParticleMomentum(momentum.mag()*MeV);
         else                       fParticleGun -> SetParticleEnergy(momentum.mag()*MeV);

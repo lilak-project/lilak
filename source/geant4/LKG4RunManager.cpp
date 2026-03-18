@@ -2,7 +2,6 @@
 #include "G4UImanager.hh"
 //#include "G4GDMLParser.hh"
 #include "G4UIExecutive.hh"
-#include "G4strstreambuf.hh"
 #include "G4VisExecutive.hh"
 #include "G4ProcessTable.hh"
 #include "G4LogicalVolumeStore.hh"
@@ -159,7 +158,7 @@ void LKG4RunManager::InitializeGeometry()
 {
     g4man_info << "InitializeGeometry" << endl;
     if (fSuppressInitMessage) {
-        G4strstreambuf* suppressMessage = dynamic_cast<G4strstreambuf*>(G4cout.rdbuf(0));
+        std::streambuf* suppressMessage = G4cout.rdbuf(nullptr);
         // Suppress print outs in between here ------------->
         G4RunManager::InitializeGeometry();
         // <------------- to here
@@ -174,7 +173,7 @@ void LKG4RunManager::InitializePhysics()
 {
     g4man_info << "InitializePhysics" << endl;
     if (fSuppressInitMessage) {
-        G4strstreambuf* suppressMessage = dynamic_cast<G4strstreambuf*>(G4cout.rdbuf(0));
+        std::streambuf* suppressMessage = G4cout.rdbuf(nullptr);
         // Suppress print outs in between here ------------->
         G4RunManager::InitializePhysics();
         // <------------- to here
@@ -336,7 +335,7 @@ void LKG4RunManager::BeamOn(G4int numEvents, const char *macroFile, G4int numSel
         ConstructScoringWorlds();
 
         if (fSuppressInitMessage) {
-            G4strstreambuf* suppressMessage = dynamic_cast<G4strstreambuf*>(G4cout.rdbuf(0));
+            std::streambuf* suppressMessage = G4cout.rdbuf(nullptr);
             // Suppress print outs in between here ------------->
             RunInitialization();
             // <------------- to here
