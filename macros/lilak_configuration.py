@@ -151,6 +151,7 @@ class lilak_configuration:
         self.lf_nptool_nplib = []
         self.lf_top_directories  = ["build", "data", "log", "macros", "source", "examples", ".git", "common", "doc"]
         self.lf_prj_subdir_link  = ["container", "detector", "tool", "task"]
+        self.lf_prj_subdir_link_nptool = ["task_nptool"]
         self.lf_prj_subdir_xlink = ["source"]
         self.lf_sub_package_dirs = ["geant4", "get", "fftw", "mfm", "nptool"]
         self.lf_exclude_name_classfactory = ["LKDetectorSystem", "LKFrameBuilder"]
@@ -464,6 +465,13 @@ NPATOMX
                         if subdir in self.lf_prj_subdir_link:
                             is_project_directory = True
                             break
+                        if self.df_build_options["BUILD_NPTOOL"]:
+                            if subdir in self.lf_prj_subdir_link_nptool:
+                                is_project_directory = True
+                                break
+                            if subdir == "nptool":
+                                is_project_directory = True
+                                break
                         if subdir=="macros":
                             is_project_directory = True
                             break
@@ -522,9 +530,14 @@ NPATOMX
             self.lf_project_readme.append('"'+project_readme+'"')
             ls_project = os.listdir(self.lilak_path+"/"+project_name)
             project_cmake_contents1 = ""
-            if any(directory_name in self.lf_prj_subdir_link for directory_name in ls_project):
+            lf_prj_subdir_link = self.lf_prj_subdir_link.copy()
+            if self.df_build_options["BUILD_NPTOOL"]:
+                for directory_name in self.lf_prj_subdir_link_nptool:
+                    if directory_name not in lf_prj_subdir_link:
+                        lf_prj_subdir_link.append(directory_name)
+            if any(directory_name in lf_prj_subdir_link for directory_name in ls_project):
                 project_cmake_contents1 += "set(LILAK_SOURCE_DIRECTORY_LIST ${LILAK_SOURCE_DIRECTORY_LIST}\n"
-                project_cmake_contents1 += "".join("    ${CMAKE_CURRENT_SOURCE_DIR}/"+f"{directory_name}\n" for directory_name in ls_project if directory_name in self.lf_prj_subdir_link)
+                project_cmake_contents1 += "".join("    ${CMAKE_CURRENT_SOURCE_DIR}/"+f"{directory_name}\n" for directory_name in ls_project if directory_name in lf_prj_subdir_link)
                 project_cmake_contents1 += '    CACHE INTERNAL ""\n)\n\n'
             project_cmake_contents2 = ""
             if any(directory_name in self.lf_prj_subdir_xlink for directory_name in ls_project):
@@ -799,6 +812,10 @@ class {factory_name}
         lf_classes.sort()
         last_header = ''
         lf_group_names = []
+        lf_include_path_classfactory2 = self.lf_include_path_classfactory2.copy()
+        if self.df_build_options["BUILD_NPTOOL"]:
+            if "task_nptool" not in lf_include_path_classfactory2:
+                lf_include_path_classfactory2.append("task_nptool")
         if self.df_build_options["BUILD_MFM_CONVERTER"]==True:
             self.lf_include_path_classfactory3.append('mfm')
         for class_name, path_name in lf_classes:
@@ -808,7 +825,7 @@ class {factory_name}
                 continue
             for i in [1,2,3]:
                 if i==1: include_path = self.lf_include_path_classfactory1
-                if i==2: include_path = self.lf_include_path_classfactory2
+                if i==2: include_path = lf_include_path_classfactory2
                 if i==3: include_path = self.lf_include_path_classfactory3
                 if any(keyword in path_name for keyword in include_path):
                     if not jl_source_main:
@@ -928,6 +945,8 @@ class LKClassFactory
             run_cmake = True
         print(f'{self.lilak_path}/build')
         os.chdir(f'{self.lilak_path}/build')
+        if not os.path.exists("Makefile"):
+            run_cmake = True
         if run_cmake:
             print('cmake ..')
             os.system('cmake ..')
@@ -972,7 +991,7 @@ lilak() {{
         echo
         echo "LILAK (https://github.com/lilak-project)"
         echo
-        echo "Usage: lilak {{home|config_test|build|build_new|new|update|example|doc|find|geant4|run}} [input]"
+        echo "Usage: lilak {{home|config_test|build|build_new|new|update|example|doc|find|par|geant4|run}} [input]"
         echo
         echo "Commands:"
         echo "  home               Navigate to the lilak home directory."
@@ -984,6 +1003,7 @@ lilak() {{
         echo "  example            Navigate to the lilak examples directory."
         echo "  doc [input]        Print the reference link to the class documentation."
         echo "  find [input]       Find and navigate to the directory containing [input]."
+        echo "  par [input]        Open the parameter file editor in a local web browser."
         echo "  g4sim [input]      Execute the default Geant4 simulatoin program with the provided [input]."
         echo "  nptool [input]     Execute the default nptool simulatoin program with the provided [input]."
         echo "  run [input]        Execute the ROOT script with the provided [input]."
@@ -1098,6 +1118,13 @@ lilak() {{
                 fi
             fi
             ;;
+        par)
+            if [ -z "$2" ]; then
+                python3 "$LILAK_PATH/macros/lilak_parameter_editor.py"
+            else
+                python3 "$LILAK_PATH/macros/lilak_parameter_editor.py" "$2"
+            fi
+            ;;
         g4sim)
             if [ -z "$2" ]; then
                 {self.lilak_path}/macros/geant4_simulation.exe
@@ -1114,7 +1141,7 @@ lilak() {{
             ;;
         run)
             if [ -z "$2" ]; then
-                root -l '{self.lilak_path}/macros/run_lilak.C()'
+                root -l -q -e 'auto run = new LKRun(); run -> SetCollectPar(); run -> Init();'
             else
                 root -l '{self.lilak_path}/macros/run_lilak.C("'"$2"'")'
             fi
@@ -1151,7 +1178,7 @@ _lilak_completions() {{
     local curr_word prev_word
     curr_word="${{COMP_WORDS[COMP_CWORD]}}"
     prev_word="${{COMP_WORDS[COMP_CWORD-1]}}"
-    local commands="home config_test build build_new new update example doc find g4sim nptool run {" ".join(self.lf_lilak_projects)}"
+    local commands="home config_test build build_new new update example doc find par g4sim nptool run {" ".join(self.lf_lilak_projects)}"
     local subdir_projects="{" ".join(self.lf_lilak_projects)}"
 
     if [[ ${{COMP_CWORD}} == 1 ]]; then
@@ -1162,10 +1189,12 @@ _lilak_completions() {{
         COMPREPLY=( $(compgen -f "${{curr_word}}") )
     elif [[ $prev_word == "run" ]]; then
         COMPREPLY=( $(compgen -f "${{curr_word}}") )
+    elif [[ $prev_word == "par" ]]; then
+        COMPREPLY=( $(compgen -f "${{curr_word}}") )
     elif [[ ${{COMP_CWORD}} == 2 && " $subdir_projects " =~ " ${{COMP_WORDS[1]}} " ]]; then
         local project_path="$LILAK_PATH/${{COMP_WORDS[1]}}"
         if [ -d "$project_path" ]; then
-            local subdirs=$(find "$project_path" -maxdepth 1 -mindepth 1 -type d -exec basename {{}} \;)
+            local subdirs=$(find "$project_path" -maxdepth 1 -mindepth 1 -type d -exec basename {{}} \\;)
             COMPREPLY=( $(compgen -W "${{subdirs}}" -- "${{curr_word}}") )
         fi
     fi
@@ -1177,7 +1206,7 @@ _lilak_completions() {{
 complete -F _lilak_completions lilak
 
 # Optional: Add a message to confirm the script is sourced correctly
-#echo "LILAK is set. Use 'lilak {{home|config_test|build|build_new|new|update|example|doc|find|g4sim|nptool|run}}'"
+#echo "LILAK is set. Use 'lilak {{home|config_test|build|build_new|new|update|example|doc|find|par|g4sim|nptool|run}}'"
 """
         fn_lilak_command_sh = os.path.join(self.lilak_path, "macros/command_lilak.sh")
         with open(fn_lilak_command_sh, "w") as lilak_command_sh_file:

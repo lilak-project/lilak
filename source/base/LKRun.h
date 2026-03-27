@@ -128,6 +128,8 @@ class LKRun : public LKVirtualRun
 
         void SetLILAKRun() { fIsLILAKRun = true; }
 
+        void SetCollectPar(TString configName="") { fCollecteParAndPrintTo = (configName.IsNull()?"lilak_configure":configName); }
+
         /**
          */
         void ConfigViewer();
@@ -400,6 +402,8 @@ class LKRun : public LKVirtualRun
         TString fDrawOption;
 
         bool fIsLILAKRun = false;
+
+        TString fCollecteParAndPrintTo = "";
 
         LKDataViewer* fDataViewer = nullptr;
         LKDrawingGroup* fTopDrawingGroup = nullptr;

@@ -152,6 +152,13 @@ if(BUILD_GEANT4_SIM)
     include(${Geant4_USE_FILE})
 endif(BUILD_GEANT4_SIM)
 
+if(BUILD_NPTOOL)
+    find_package(NPLib REQUIRED)
+    include(${NPLib_USE_FILE})
+    include_directories(${NPLib_INCLUDE_DIRS})
+    message(STATUS "NPTool include directory: ${NPLib_INCLUDE_DIRS}")
+endif(BUILD_NPTOOL)
+
 foreach(_directory ${LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF})
     message(STATUS "source directory : " ${_directory})
     include_directories(${_directory})
@@ -280,18 +287,22 @@ endif(BUILD_GEANT4_SIM)
 
 add_library(LILAK SHARED ${LILAK_LIB_LIST})
 
+set(LILAK_EXTRA_LINK_LIBRARIES)
+if(BUILD_NPTOOL)
+    foreach(_nplib ${NPTOOL_NPLIB_LIST})
+        list(APPEND LILAK_EXTRA_LINK_LIBRARIES ${_nplib})
+    endforeach(_nplib)
+endif(BUILD_NPTOOL)
+list(REMOVE_DUPLICATES LILAK_EXTRA_LINK_LIBRARIES)
+
 if(BUILD_MFM_CONVERTER)
     #target_link_libraries(LILAK ${ROOT_LIBRARIES} Html Spectrum XMLIO GRU MultiFrame)
-    target_link_libraries(LILAK ${ROOT_LIBRARIES} Html Spectrum XMLIO MultiFrame)
+    target_link_libraries(LILAK ${ROOT_LIBRARIES} Html Spectrum XMLIO MultiFrame ${NPLib_LIBRARIES} ${LILAK_EXTRA_LINK_LIBRARIES})
 else(BUILD_MFM_CONVERTER)
-    target_link_libraries(LILAK ${ROOT_LIBRARIES})
+    target_link_libraries(LILAK ${ROOT_LIBRARIES} ${NPLib_LIBRARIES} ${LILAK_EXTRA_LINK_LIBRARIES})
 endif(BUILD_MFM_CONVERTER)
 
 if(BUILD_NPTOOL)
-    find_package(NPLib)
-    include(${NPLib_USE_FILE})
-
-    message(STATUS "NPTool include directory: ${NPLib_INCLUDE_DIRS}")
     message(STATUS "Geant4 version for NPTool: ${Geant4_VERSION}")
     add_compile_definitions(
         NPS_GEANT4_VERSION_MAJOR=${Geant4_VERSION_MAJOR}

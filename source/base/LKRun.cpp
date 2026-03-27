@@ -585,7 +585,6 @@ bool LKRun::Init()
     TString printAfterInit = "";
     Long64_t runAfterInit = -1;
     Long64_t exeAfterInit = -1;
-    TString collecteParAndPrintTo = "";
     bool drawAfterRun = false;
     TString drawOption = "";
     if (fIsLILAKRun)
@@ -621,11 +620,12 @@ bool LKRun::Init()
                 printAfterInit = "all";
         }
         if (lilakPar->CheckPar("collect_par")) {
-            collecteParAndPrintTo = lilakPar -> GetParString("collect_par");
-            if (collecteParAndPrintTo.IsNull()) collecteParAndPrintTo = "print";
-            fPar -> SetCollectParameters(true);
+            fCollecteParAndPrintTo = lilakPar -> GetParString("collect_par");
+            if (fCollecteParAndPrintTo.IsNull()) fCollecteParAndPrintTo = "print";
         }
     }
+    if (!fCollecteParAndPrintTo.IsNull())
+        fPar -> SetCollectParameters(true);
 
     int countParOrder = 1;
     fPar -> Require("lilak/add",          "LKTask",         "add task or detector class", "t/", countParOrder++);
@@ -1087,8 +1087,8 @@ bool LKRun::Init()
 
     lk_info << "Initialized!" << endl;
 
-    if (!collecteParAndPrintTo.IsNull()) {
-        fPar -> PrintCollection(collecteParAndPrintTo);
+    if (!fCollecteParAndPrintTo.IsNull()) {
+        fPar -> PrintCollection(fCollecteParAndPrintTo);
         fPar -> SetCollectParameters(false);
     }
 
