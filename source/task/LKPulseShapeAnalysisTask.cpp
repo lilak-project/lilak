@@ -33,7 +33,7 @@ bool LKPulseShapeAnalysisTask::Init()
     if (fDetectorPlane!=nullptr)
         fUsingDetectorPlane = true;
 
-    fChannelArray = fRun -> GetBranchA("RawData");
+    fChannelArray = fRun -> GetBranchA("RawData","GETChannel");
     fHitArray = fRun -> RegisterBranchA("Hit","LKHit",100);
 
     return true;

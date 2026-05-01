@@ -35,6 +35,7 @@ common/*
 !common/nptool*.mac
 !common/geant4*.mac
 doc/
+LKCompiled*
 LKClassFactory*
 LKG4DetectorConstructionFactory*
 LKNPDetectorConstructionFactory*

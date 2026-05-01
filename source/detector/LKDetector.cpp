@@ -27,6 +27,12 @@ void LKDetector::Print(Option_t *) const
 
 bool LKDetector::Init()
 {
+    fPar -> Require(fName+"/UsePixelSpace", "false", "/");
+    fPar -> Require(fName+"/binning_x",  "64,  -128, -128", "binning, range throuh x-axis", "/");
+    fPar -> Require(fName+"/binning_y",  "512, 0,    -512", "binning, range throuh y-axis", "/");
+    fPar -> Require(fName+"/binning_z",  "72,  0,     288", "binning, range throuh z-axis", "/");
+
+    fPar -> UpdatePar(fUsePixelSpace,fName+"/UsePixelSpace false");
     fPar -> UpdateBinning(fName+"/binning_x  64,  -128, -128  # binning, range throuh x-axis", fNX, fX1, fX2);
     fPar -> UpdateBinning(fName+"/binning_y  512, 0,    -512  # binning, range throuh y-axis", fNY, fY2, fY1);
     fPar -> UpdateBinning(fName+"/binning_z  72,  0,     288  # binning, range throuh z-axis", fNZ, fZ1, fZ2);
@@ -41,8 +47,6 @@ bool LKDetector::Init()
             return false;
         }
     }
-
-    fPar -> UpdatePar(fUsePixelSpace,fName+"/UsePixelSpace false");
 
     return true;
 }

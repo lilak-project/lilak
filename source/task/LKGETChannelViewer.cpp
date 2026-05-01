@@ -45,8 +45,8 @@ bool LKGETChannelViewer::Init()
     fPar -> UpdatePar(fSelAget,"LKGETChannelViewer/SelAget  0");
     fPar -> UpdatePar(fSelChan,"LKGETChannelViewer/SelChan  0");
 
-    fHitArray = fRun -> GetBranchA(fHitBranchName);
-    fChannelArray = fRun -> GetBranchA(fChannelBranchName);
+    fHitArray = fRun -> GetBranchA(fHitBranchName,"LKHit");
+    fChannelArray = fRun -> GetBranchA(fChannelBranchName,"GETChannel");
 
     if (fChannelAnalyzer==nullptr)
     {
