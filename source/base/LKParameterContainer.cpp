@@ -14,11 +14,229 @@
 #include "TSystemDirectory.h"
 #include "TList.h"
 #include "TFile.h"
+#include "TKey.h"
+#include "TTree.h"
+#include "TH1D.h"
+#include "TH2D.h"
+#include "TH1.h"
+#include "TCanvas.h"
+#include "TROOT.h"
+#include "TMath.h"
 
 #include "LKCompiled.h"
 #include "LKParameter.h"
 #include "LKParameterContainer.h"
 #include "LKMisc.h"
+#include "LKPainter.h"
+#include <algorithm>
+#include <cctype>
+#include <cmath>
+#include <map>
+
+namespace {
+struct LKDrawSpec {
+    TString parameterName;
+    TString canvasGroup;
+    TString expression;
+    TString cut;
+    TString drawOption;
+    TString histogramName;
+    TString histogramTitle;
+    bool makeHistogram = false;
+    bool autoHistogram = false;
+    bool rootAutoHistogram = false;
+    bool is2D = false;
+    int nx = 0;
+    int ny = 0;
+    double x1 = 0;
+    double x2 = 0;
+    double y1 = 0;
+    double y2 = 0;
+};
+
+TString LKStripQuotes(TString value)
+{
+    value = value.Strip(TString::kBoth);
+    if (value.Length() >= 2 && value[0] == '"' && value[value.Length()-1] == '"')
+        value = value(1, value.Length()-2);
+    return value;
+}
+
+TString LKSanitizeName(TString name)
+{
+    if (name.IsNull())
+        return "draw_hist";
+
+    TString out;
+    for (int i=0; i<name.Length(); ++i) {
+        char c = name[i];
+        if (std::isalnum(static_cast<unsigned char>(c)) || c=='_')
+            out += c;
+        else
+            out += '_';
+    }
+    while (out.Contains("__"))
+        out.ReplaceAll("__","_");
+    if (out.IsNull())
+        out = "draw_hist";
+    return out;
+}
+
+int LKAutoBins(Long64_t entries)
+{
+    auto safeEntries = std::max<Long64_t>(1, entries);
+    auto blockIndex = static_cast<int>((safeEntries - 1) / 2500);
+    return std::min(400, 50 * (blockIndex + 1));
+}
+
+void LKFixRange(double &minValue, double &maxValue)
+{
+    if (minValue > maxValue)
+        std::swap(minValue, maxValue);
+    if (minValue == maxValue) {
+        double delta = std::abs(minValue) * 0.1;
+        if (delta == 0)
+            delta = 1;
+        minValue -= delta;
+        maxValue += delta;
+    }
+}
+
+TString LKMakeDefaultHistogramTitle(TString expression, bool is2D)
+{
+    expression = LKStripQuotes(expression);
+    if (!is2D)
+        return Form(";%s;Counts", expression.Data());
+
+    int index = expression.Index(":");
+    TString yExpression = expression;
+    TString xExpression = expression;
+    if (index >= 0) {
+        yExpression = expression(0, index);
+        xExpression = expression(index+1, expression.Length()-index-1);
+    }
+    return Form(";%s;%s", xExpression.Data(), yExpression.Data());
+}
+
+TString LKQuoteCString(TString value)
+{
+    value.ReplaceAll("\\", "\\\\");
+    value.ReplaceAll("\"", "\\\"");
+    return Form("\"%s\"", value.Data());
+}
+
+TString LKMakeSafeVariableName(TString name, TString fallback="tree")
+{
+    name = LKStripQuotes(name);
+    name = name.Strip(TString::kBoth);
+    if (name.IsNull())
+        return fallback;
+
+    if (std::isdigit(static_cast<unsigned char>(name[0])))
+        return fallback;
+
+    for (int i=0; i<name.Length(); ++i) {
+        char c = name[i];
+        if (!(std::isalnum(static_cast<unsigned char>(c)) || c=='_'))
+            return fallback;
+    }
+
+    return name;
+}
+
+TString LKMakeTreeDrawPrint(const LKDrawSpec &spec, TString treeVarName, TString canvasName, TString canvasVarName, int padNumber, Long64_t entries, int nx=-1, int ny=-1, int nPads=-1, bool printCanvasSetup=true)
+{
+    TString cut = LKQuoteCString(spec.cut);
+    TString option = LKQuoteCString(spec.drawOption);
+    TString drawCommand = LKQuoteCString(Form("%s>>%s", spec.expression.Data(), spec.histogramName.Data()));
+    TString canvasLine;
+    if (printCanvasSetup) {
+        if (nx>0 && ny>0)
+            canvasLine = Form("auto %s = LKPainter::GetPainter() -> CanvasResize(%s, %d, %d, 1.0); LKPainter::DividePad(%s, %d);", canvasVarName.Data(), LKQuoteCString(canvasName).Data(), 500*nx, 380*ny, canvasVarName.Data(), nPads);
+        else
+            canvasLine = Form("auto %s = LKPainter::GetPainter() -> Canvas(%s);", canvasVarName.Data(), LKQuoteCString(canvasName).Data());
+    }
+    if (padNumber > 0) {
+        if (!canvasLine.IsNull())
+            canvasLine += "\n";
+        canvasLine = canvasLine + Form("%s -> cd(%d);", canvasVarName.Data(), padNumber);
+    }
+
+    if (spec.rootAutoHistogram)
+        return Form("%s%s %s -> Draw(%s, %s, %s); // %lld", canvasLine.Data(), canvasLine.IsNull() ? "" : "", treeVarName.Data(), drawCommand.Data(), cut.Data(), option.Data(), entries);
+
+    if (spec.autoHistogram) {
+        if (!spec.is2D) {
+            return Form(
+                "%s%snew TH1D(%s, %s, %d, %g, %g); %s -> Draw(%s, %s, %s); // %lld",
+                canvasLine.Data(),
+                canvasLine.IsNull() ? "" : " ",
+                LKQuoteCString(spec.histogramName).Data(),
+                LKQuoteCString(spec.histogramTitle).Data(),
+                spec.nx, spec.x1, spec.x2,
+                treeVarName.Data(),
+                drawCommand.Data(), cut.Data(), option.Data(), entries
+            );
+        }
+
+        return Form(
+            "%s%snew TH2D(%s, %s, %d, %g, %g, %d, %g, %g); %s -> Draw(%s, %s, %s); // %lld",
+            canvasLine.Data(),
+            canvasLine.IsNull() ? "" : " ",
+            LKQuoteCString(spec.histogramName).Data(),
+            LKQuoteCString(spec.histogramTitle).Data(),
+            spec.nx, spec.x1, spec.x2, spec.ny, spec.y1, spec.y2,
+            treeVarName.Data(),
+            drawCommand.Data(), cut.Data(), option.Data(), entries
+        );
+    }
+
+    TString histogramLine;
+    if (!spec.is2D) {
+        histogramLine = Form(
+            "new TH1D(%s, %s, %d, %g, %g);",
+            LKQuoteCString(spec.histogramName).Data(),
+            LKQuoteCString(spec.histogramTitle).Data(),
+            spec.nx, spec.x1, spec.x2
+        );
+    }
+    else {
+        histogramLine = Form(
+            "new TH2D(%s, %s, %d, %g, %g, %d, %g, %g);",
+            LKQuoteCString(spec.histogramName).Data(),
+            LKQuoteCString(spec.histogramTitle).Data(),
+            spec.nx, spec.x1, spec.x2, spec.ny, spec.y1, spec.y2
+        );
+    }
+
+    TString drawLine = Form("%s -> Draw(%s, %s, %s); // %lld", treeVarName.Data(), drawCommand.Data(), cut.Data(), option.Data(), entries);
+    if (!canvasLine.IsNull())
+        return canvasLine + " " + histogramLine + " " + drawLine;
+    return histogramLine + " " + drawLine;
+}
+
+TTree *LKFindFirstTreeInDirectory(TDirectory *directory)
+{
+    if (directory == nullptr)
+        return nullptr;
+
+    TIter nextKey(directory->GetListOfKeys());
+    TKey *key = nullptr;
+    while ((key = dynamic_cast<TKey*>(nextKey())) != nullptr) {
+        auto className = TString(key->GetClassName());
+        if (className == "TTree")
+            return dynamic_cast<TTree*>(key->ReadObj());
+        if (className == "TDirectoryFile" || className == "TDirectory") {
+            auto subDirectory = dynamic_cast<TDirectory*>(key->ReadObj());
+            auto tree = LKFindFirstTreeInDirectory(subDirectory);
+            if (tree != nullptr)
+                return tree;
+        }
+    }
+
+    return nullptr;
+}
+}
 
 using namespace std;
 
@@ -93,6 +311,342 @@ bool LKParameterContainer::IsEmpty() const
 {
     if (GetEntries()>0)
         return false;
+    return true;
+}
+
+bool LKParameterContainer::Draw(TString fileName, TString treeName)
+{
+    ReplaceEnvVariables(fileName);
+    ReplaceEnvVariables(treeName);
+
+    auto file = TFile::Open(fileName, "READ");
+    if (file == nullptr || file->IsZombie()) {
+        lk_error << "Cannot open input ROOT file " << fileName << endl;
+        return false;
+    }
+
+    TTree *tree = nullptr;
+    if (!treeName.IsNull())
+        tree = dynamic_cast<TTree*>(file->Get(treeName));
+    if (tree == nullptr)
+        tree = LKFindFirstTreeInDirectory(file);
+    if (tree == nullptr) {
+        lk_error << "Cannot find TTree in " << fileName << endl;
+        file->Close();
+        delete file;
+        return false;
+    }
+
+    auto drawOkay = Draw(tree);
+    file->Close();
+    delete file;
+    return drawOkay;
+}
+
+bool LKParameterContainer::Draw(TTree *tree)
+{
+    TFile *inputFile = nullptr;
+    TString inputFileNameForPrint;
+    TString inputTreeNameForPrint;
+    TString treeVarNameForPrint = "tree";
+    if (tree == nullptr) {
+        auto inputParameter = FindPar("draw/input", false);
+        if (inputParameter == nullptr) {
+            lk_error << "draw/input is not defined and no TTree was given." << endl;
+            return false;
+        }
+
+        auto inputValues = inputParameter->GetVString();
+        if (inputValues.empty()) {
+            lk_error << "draw/input does not have an input file name." << endl;
+            return false;
+        }
+
+        TString inputFileName = LKStripQuotes(inputValues[0]);
+        TString inputTreeName;
+        if (inputValues.size() > 1)
+            inputTreeName = LKStripQuotes(inputValues[1]);
+        ReplaceEnvVariables(inputFileName);
+        ReplaceEnvVariables(inputTreeName);
+
+        inputFile = TFile::Open(inputFileName, "READ");
+        if (inputFile == nullptr || inputFile->IsZombie()) {
+            lk_error << "Cannot open input ROOT file " << inputFileName << endl;
+            return false;
+        }
+
+        if (!inputTreeName.IsNull())
+            tree = dynamic_cast<TTree*>(inputFile->Get(inputTreeName));
+        if (tree == nullptr)
+            tree = LKFindFirstTreeInDirectory(inputFile);
+        if (tree == nullptr) {
+            lk_error << "Cannot find TTree from draw/input " << inputFileName << endl;
+            inputFile->Close();
+            delete inputFile;
+            return false;
+        }
+        inputFileNameForPrint = inputFileName;
+        inputTreeNameForPrint = tree->GetName();
+        treeVarNameForPrint = LKMakeSafeVariableName(inputTreeNameForPrint, "tree");
+    }
+    else {
+        if (tree->GetCurrentFile() != nullptr)
+            inputFileNameForPrint = tree->GetCurrentFile()->GetName();
+        inputTreeNameForPrint = tree->GetName();
+        treeVarNameForPrint = LKMakeSafeVariableName(inputTreeNameForPrint, "tree");
+    }
+
+    std::vector<LKDrawSpec> drawSpecs;
+    int drawIndex = 0;
+
+    TIter iterator(this);
+    LKParameter *parameter = nullptr;
+    while ((parameter = dynamic_cast<LKParameter*>(iterator()))) {
+        if (parameter == nullptr || parameter->IsLineComment())
+            continue;
+
+        TString parameterName = parameter->GetName();
+        bool isDrawParameter = (parameterName == "draw" || parameterName.BeginsWith("draw/"));
+        if (parameter->IsLegacy() && !isDrawParameter)
+            continue;
+        if (!isDrawParameter)
+            continue;
+        if (parameterName == "draw/input")
+            continue;
+
+        auto values = parameter->GetVString();
+        if (values.empty())
+            continue;
+
+        int splitIndex = -1;
+        for (int iValue=0; iValue<(int) values.size(); ++iValue) {
+            if (values[iValue] == ">>") {
+                splitIndex = iValue;
+                break;
+            }
+        }
+
+        LKDrawSpec spec;
+        spec.parameterName = parameterName;
+        spec.expression = LKStripQuotes(values[0]);
+        if (spec.expression.IsNull()) {
+            lk_warning << "Skipping empty draw expression in " << parameterName << endl;
+            continue;
+        }
+
+        if (parameterName.BeginsWith("draw/")) {
+            spec.canvasGroup = parameterName;
+            spec.canvasGroup.ReplaceAll("draw/","");
+        }
+
+        if (splitIndex < 0) {
+            if (values.size() > 1)
+                spec.cut = LKStripQuotes(values[1]);
+            if (values.size() > 2)
+                spec.drawOption = LKStripQuotes(values[2]);
+        }
+        else {
+            if (splitIndex > 1)
+                spec.cut = LKStripQuotes(values[1]);
+            if (splitIndex > 2)
+                spec.drawOption = LKStripQuotes(values[2]);
+        }
+
+        spec.is2D = spec.expression.Contains(":");
+
+        if (splitIndex >= 0) {
+            auto rightCount = (int) values.size() - splitIndex - 1;
+            if (rightCount <= 0) {
+                spec.makeHistogram = true;
+                spec.rootAutoHistogram = false;
+                spec.autoHistogram = true;
+                spec.histogramName = Form("draw_hist_%d_%s", drawIndex, LKSanitizeName(spec.expression).Data());
+                spec.histogramTitle = LKMakeDefaultHistogramTitle(spec.expression, spec.is2D);
+                drawSpecs.push_back(spec);
+                ++drawIndex;
+                continue;
+            }
+
+            spec.makeHistogram = true;
+            spec.histogramName = LKStripQuotes(values[splitIndex+1]);
+            if (spec.histogramName.IsNull())
+                spec.histogramName = Form("draw_hist_%d", drawIndex);
+
+            int index = splitIndex + 2;
+            if ((!spec.is2D && rightCount == 5) || (spec.is2D && rightCount == 8)) {
+                spec.histogramTitle = LKStripQuotes(values[index++]);
+            }
+            if (spec.histogramTitle.IsNull())
+                spec.histogramTitle = LKMakeDefaultHistogramTitle(spec.expression, spec.is2D);
+
+            if (!spec.is2D) {
+                if (rightCount != 4 && rightCount != 5) {
+                    lk_warning << "Skipping malformed 1D draw histogram spec in " << parameterName << endl;
+                    continue;
+                }
+                spec.nx = LKStripQuotes(values[index++]).Atoi();
+                spec.x1 = LKStripQuotes(values[index++]).Atof();
+                spec.x2 = LKStripQuotes(values[index++]).Atof();
+            }
+            else {
+                if (rightCount != 7 && rightCount != 8) {
+                    lk_warning << "Skipping malformed 2D draw histogram spec in " << parameterName << endl;
+                    continue;
+                }
+                spec.nx = LKStripQuotes(values[index++]).Atoi();
+                spec.x1 = LKStripQuotes(values[index++]).Atof();
+                spec.x2 = LKStripQuotes(values[index++]).Atof();
+                spec.ny = LKStripQuotes(values[index++]).Atoi();
+                spec.y1 = LKStripQuotes(values[index++]).Atof();
+                spec.y2 = LKStripQuotes(values[index++]).Atof();
+            }
+        }
+        else {
+            spec.makeHistogram = true;
+            spec.rootAutoHistogram = true;
+            spec.histogramName = Form("draw_hist_%d_%s", drawIndex, LKSanitizeName(spec.expression).Data());
+        }
+
+        drawSpecs.push_back(spec);
+        ++drawIndex;
+    }
+
+    if (drawSpecs.empty()) {
+        lk_warning << "No draw parameters were found." << endl;
+        if (inputFile != nullptr) {
+            inputFile->Close();
+            delete inputFile;
+        }
+        return false;
+    }
+
+    std::map<TString, std::vector<int>> groupedIndices;
+    for (int iSpec=0; iSpec<(int) drawSpecs.size(); ++iSpec) {
+        auto groupName = drawSpecs[iSpec].canvasGroup;
+        if (!groupName.IsNull())
+            groupedIndices[groupName].push_back(iSpec);
+    }
+
+    auto painter = LKPainter::GetPainter();
+    int standAloneIndex = 0;
+    std::map<TString, TCanvas*> canvasMap;
+    std::map<TString, int> padIndexMap;
+    std::map<TString, std::pair<int,int>> canvasDivisionMap;
+    std::map<TString, int> canvasPadCountMap;
+    std::map<TString, bool> canvasPrintDoneMap;
+    std::map<TString, TString> canvasPrintVarMap;
+    int canvasPrintIndex = 1;
+    bool printedDrawHeader = false;
+
+    for (int iSpec=0; iSpec<(int) drawSpecs.size(); ++iSpec) {
+        auto &spec = drawSpecs[iSpec];
+        TString canvasName;
+        TCanvas *canvas = nullptr;
+
+        if (spec.canvasGroup.IsNull()) {
+            int currentCanvasIndex = standAloneIndex++;
+            canvasName = Form("draw_%d_%s", currentCanvasIndex, LKSanitizeName(spec.expression).Data());
+            canvas = painter->Canvas(canvasName);
+            canvas->SetWindowPosition(40 + 30*currentCanvasIndex, 40 + 30*currentCanvasIndex);
+            canvas->cd();
+            canvasPrintVarMap[canvasName] = Form("cvs%d", canvasPrintIndex++);
+        }
+        else {
+            canvasName = Form("draw_%s", spec.canvasGroup.Data());
+            if (canvasMap.find(canvasName) == canvasMap.end()) {
+                Int_t nx = 1;
+                Int_t ny = 1;
+                LKPainter::PreDividePad(groupedIndices[spec.canvasGroup].size(), nx, ny);
+                canvas = painter->CanvasResize(canvasName, 500*nx, 380*ny, 1.0);
+                LKPainter::DividePad(canvas, groupedIndices[spec.canvasGroup].size());
+                canvasMap[canvasName] = canvas;
+                padIndexMap[canvasName] = 1;
+                canvasDivisionMap[canvasName] = {nx, ny};
+                canvasPadCountMap[canvasName] = groupedIndices[spec.canvasGroup].size();
+                canvasPrintDoneMap[canvasName] = false;
+                canvasPrintVarMap[canvasName] = Form("cvs%d", canvasPrintIndex++);
+            }
+            canvas = canvasMap[canvasName];
+            canvas->cd(padIndexMap[canvasName]++);
+        }
+
+        auto existingHistogram = gROOT->FindObject(spec.histogramName);
+        if (dynamic_cast<TH1*>(existingHistogram) != nullptr)
+            delete existingHistogram;
+
+        TString drawCommand = Form("%s>>%s", spec.expression.Data(), spec.histogramName.Data());
+        int padNumber = 0;
+        int nx = -1;
+        int ny = -1;
+        int nPads = -1;
+        if (!spec.canvasGroup.IsNull())
+            padNumber = padIndexMap[canvasName] - 1;
+        if (!spec.canvasGroup.IsNull() && canvasDivisionMap.find(canvasName) != canvasDivisionMap.end()) {
+            nx = canvasDivisionMap[canvasName].first;
+            ny = canvasDivisionMap[canvasName].second;
+            nPads = canvasPadCountMap[canvasName];
+        }
+        TH1 *histogram = nullptr;
+        Long64_t numEntries = 0;
+        if (!spec.rootAutoHistogram) {
+            gROOT->cd();
+            if (!spec.is2D)
+                histogram = new TH1D(spec.histogramName, spec.histogramTitle, spec.nx, spec.x1, spec.x2);
+            else
+                histogram = new TH2D(spec.histogramName, spec.histogramTitle, spec.nx, spec.x1, spec.x2, spec.ny, spec.y1, spec.y2);
+            numEntries = tree->Draw(drawCommand, spec.cut, "goff");
+        }
+        else {
+            gROOT->cd();
+            if (canvas != nullptr) {
+                if (padNumber > 0)
+                    canvas->cd(padNumber);
+                else
+                    canvas->cd();
+            }
+            numEntries = tree->Draw(drawCommand, spec.cut, spec.drawOption);
+            histogram = dynamic_cast<TH1*>(gROOT->FindObject(spec.histogramName));
+            if (histogram != nullptr)
+                histogram->SetDirectory(nullptr);
+        }
+        bool printCanvasSetup = true;
+        if (!spec.canvasGroup.IsNull()) {
+            printCanvasSetup = !canvasPrintDoneMap[canvasName];
+            canvasPrintDoneMap[canvasName] = true;
+        }
+        if (!printedDrawHeader) {
+            lk_cout << endl;
+            if (!inputFileNameForPrint.IsNull())
+                lk_cout << Form("auto file = TFile::Open(%s, \"READ\");", LKQuoteCString(inputFileNameForPrint).Data()) << endl;
+            if (!inputTreeNameForPrint.IsNull())
+                lk_cout << Form("auto %s = (TTree *) file -> Get(%s);", treeVarNameForPrint.Data(), LKQuoteCString(inputTreeNameForPrint).Data()) << endl;
+            printedDrawHeader = true;
+        }
+        lk_cout << LKMakeTreeDrawPrint(spec, treeVarNameForPrint, canvasName, canvasPrintVarMap[canvasName], padNumber, numEntries, nx, ny, nPads, printCanvasSetup) << endl;
+        if (!spec.rootAutoHistogram && canvas != nullptr) {
+            if (padNumber > 0)
+                canvas->cd(padNumber);
+            else
+                canvas->cd();
+        }
+        if (histogram != nullptr) {
+            if (spec.drawOption.IsNull())
+                histogram->Draw();
+            else
+                histogram->Draw(spec.drawOption);
+        }
+
+        if (canvas != nullptr) {
+            canvas->Modified();
+            canvas->Update();
+        }
+    }
+
+    if (inputFile != nullptr) {
+        inputFile->Close();
+        delete inputFile;
+    }
+
     return true;
 }
 
@@ -699,11 +1253,13 @@ void LKParameterContainer::PrintToFileOrScreen(TString fileName, TString printOp
             message = fileName + " created from LKParameterContainer::Print";
         }
         if (nptoolFormat)  {
-            fileOut << "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" << endl;
-            fileOut << "% " << message << endl;
-            fileOut << "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" << endl;
+            //fileOut << "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" << endl;
+            //fileOut << "% " << message << endl;
+            //fileOut << "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" << endl;
         }
-        else fileOut << com << " " << message << endl;
+        else {
+            //if (!message.IsNull()) fileOut << com << " " << message << endl;
+        }
     }
     else {
         if (useTObjectPrint) {

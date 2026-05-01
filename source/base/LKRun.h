@@ -126,9 +126,11 @@ class LKRun : public LKVirtualRun
 
         void AddParAfter(TString fname) { fParAddAfter = fname; }
 
-        void SetLILAKRun() { fIsLILAKRun = true; }
+        void SetLILAKRun(bool allow_execution=true) { fIsLILAKRun = true; fAllowLILAKRun = allow_execution; }
 
-        void SetCollectPar(TString configName="") { fCollecteParAndPrintTo = (configName.IsNull()?"lilak_configure":configName); }
+        void SetCollectPar(TString configName="") { fCollectParAndPrintTo = (configName.IsNull()?"lilak_configure":configName); }
+        void SetCollectSubPar(TString configName="") { fCollectSubParAndPrintTo = (configName.IsNull()?"lilak_configure":configName); }
+        void SetCollectBranchPar(TString configName="") { fCollectBranchParAndPrintTo = (configName.IsNull()?"lilak_configure":configName); }
 
         /**
          */
@@ -182,8 +184,10 @@ class LKRun : public LKVirtualRun
         //TObject *GetBranch(Int_t idx);
         //TObject *KeepBranch(TString name);
 
+        TClonesArray *GetBranchA(TString name, const char* className, bool complainIfDoNotExist=true);
         TClonesArray *GetBranchA(TString name, bool complainIfDoNotExist=true); ///< Get branch in TClonesArray by name. Return nullptr if branch is not inherited from TClonesArray
         TClonesArray *GetBranchA(Int_t idx);
+        TClonesArray *KeepBranchA(TString name, const char* className);
         TClonesArray *KeepBranchA(TString name);
         Int_t GetNumBranches() const { return fCountBranches; }
 
@@ -260,6 +264,7 @@ class LKRun : public LKVirtualRun
 
         TString GetFileHash(TString name);
         static TString ConfigureDataPath(TString name, bool search = false, TString pathData="", bool addVersion=false);
+        TString MakeAbsolutePathName(TString value);
         static bool CheckFileExistence(TString fileName);
 
         bool ExecuteEvent(Long64_t eventID=-1); ///< Run just one event of eventID.
@@ -331,6 +336,8 @@ class LKRun : public LKVirtualRun
         Long64_t fNumEventsInSplit = -1;
         TFile *fOutputFile = nullptr;
         TTree *fOutputTree = nullptr;
+        TString fLogFileName1;
+        TString fLogFileName2;
 
         TObjArray *fPersistentAddressArray = nullptr;
         TObjArray *fTemporaryAddressArray = nullptr;
@@ -380,6 +387,8 @@ class LKRun : public LKVirtualRun
         LKParameterContainer *fG4SDTable = nullptr;      ///< List of Geant4 sensitive detectors
         LKParameterContainer *fG4VolumeTable = nullptr;
         LKDetectorSystem *fDetectorSystem = nullptr;
+         
+        LKParameterContainer *fBranchPar = nullptr;
 
         std::vector<TString> fListOfGitBranches;
         std::vector<Int_t> fListOfNumTagsInGitBranches;
@@ -402,8 +411,11 @@ class LKRun : public LKVirtualRun
         TString fDrawOption;
 
         bool fIsLILAKRun = false;
+        bool fAllowLILAKRun = true;
 
-        TString fCollecteParAndPrintTo = "";
+        TString fCollectParAndPrintTo = "";
+        TString fCollectSubParAndPrintTo = "";
+        TString fCollectBranchParAndPrintTo = "";
 
         LKDataViewer* fDataViewer = nullptr;
         LKDrawingGroup* fTopDrawingGroup = nullptr;

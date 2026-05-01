@@ -30,8 +30,10 @@ class LKVirtualRun : public LKTask
         virtual bool RegisterObject(TString name, TObject *obj) = 0;
         virtual TClonesArray* RegisterBranchA(TString name, const char* className, Int_t size=100, bool persistent=true) = 0;
         virtual TString GetBranchName(Int_t idx) const = 0;
+        virtual TClonesArray *GetBranchA(TString name, const char* className, bool complainIfDoNotExist=true) = 0;
         virtual TClonesArray *GetBranchA(TString name, bool complainIfDoNotExist=true) = 0;
         virtual TClonesArray *GetBranchA(Int_t idx) = 0;
+        virtual TClonesArray *KeepBranchA(TString name, const char* className) = 0;
         virtual TClonesArray *KeepBranchA(TString name) = 0;
         virtual Int_t GetNumBranches() const = 0;
 
