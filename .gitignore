@@ -29,9 +29,6 @@ figures/
 #configurations and logs
 macros/command_lilak.sh
 macros/rootlogon.C
-log/*
-*.log
-!log/*.in
 
 #updating
 common/*

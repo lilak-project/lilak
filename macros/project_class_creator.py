@@ -2169,7 +2169,7 @@ class project_class_creator:
         #sys.path.append(self.lilak_path+'/macros/dummy_class_writter/')
         #from lilakcc import lilakcc
         #
-        self.lf_top_directories = ["build","data","log","macros","source"]
+        self.lf_top_directories = ["build","data","meta","macros","source"]
         self.lf_project_subdir = ["macros","container","detector","common","tool","task","geant4"]
         self.lf_creator_subdir = ["container","detector","tool","task","geant4"]
         ls_top = os.listdir("./")

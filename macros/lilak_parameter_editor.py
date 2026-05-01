@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import mimetypes
 import os
 import socket
 import subprocess
@@ -12,10 +13,11 @@ import urllib.parse
 import webbrowser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from typing import Optional
 
 
-FORMAT_SUFFIXES = [".mac", ".conf", ".par", ".txt"]
+FORMAT_SUFFIXES = [".mac", ".conf", ".par", ".txt", ".log"]
 FIND_LIMIT = 50
 
 
@@ -50,6 +52,64 @@ def resolve_input_path(file_name: str) -> Path:
                 return suffixed
 
     raise FileNotFoundError(file_name)
+
+
+def make_root_parameter_payload(path: Path):
+    template_path = lilak_root_path() / "meta" / "parameters" / "configure_LKRun.mac"
+    if not template_path.is_file():
+        raise FileNotFoundError(str(template_path))
+
+    content = template_path.read_text(encoding="utf-8")
+    rows = parse_parameter_text(content)
+    updated = False
+    for row in rows:
+        if row.get("kind") != "parameter":
+            continue
+        if (row.get("group") or "").strip() != "LKRun":
+            continue
+        if (row.get("name") or "").strip() != "InputFile":
+            continue
+        row["value"] = str(path)
+        row["unit"] = ""
+        row["enabled"] = True
+        updated = True
+        break
+
+    if not updated:
+        rows.append(
+            {
+                "kind": "parameter",
+                "group": "LKRun",
+                "name": "InputFile",
+                "value": str(path),
+                "unit": "",
+                "comment": "input file generated from lilak par [root file]",
+                "enabled": True,
+            }
+        )
+
+    generated_content = serialize_rows(rows)
+    generated_path = path.with_name(f"run_{path.stem}.mac")
+    generated_name = generated_path.name
+    return {
+        "name": generated_name,
+        "path": str(generated_path),
+        "content": generated_content,
+        "rows": parse_parameter_text(generated_content),
+        "saved_at": time.strftime("%H:%M:%S"),
+        "source_path": str(path),
+    }
+
+
+def create_run_parameter_file(root_path: Path, output_path: Optional[Path] = None) -> Path:
+    payload = make_root_parameter_payload(root_path)
+    if output_path is not None:
+        target = output_path.resolve()
+    else:
+        target = (Path.cwd() / Path(payload["name"])).resolve()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(payload["content"], encoding="utf-8")
+    return target
 
 
 def split_value_and_comment(text: str):
@@ -212,14 +272,32 @@ def parse_parameter_text(content: str):
         )
 
         if stripped.startswith("#"):
-            comment_enabled = stripped.startswith("##")
-            inner = stripped[2:].lstrip() if comment_enabled else stripped[1:].lstrip()
+            is_enabled_comment = stripped.startswith("##") and (len(stripped) == 2 or stripped[2].isspace())
+            is_line_comment = (len(stripped) == 1 or stripped[1].isspace()) or is_enabled_comment
+            if is_line_comment:
+                inner = stripped[2:].lstrip() if is_enabled_comment else stripped[1:].lstrip()
+                rows.append(
+                    {
+                        "kind": "comment",
+                        "enabled": is_enabled_comment,
+                        "group": "",
+                        "name": "",
+                        "value": "",
+                        "unit": "",
+                        "comment": inner,
+                        "line_no": line_no,
+                    }
+                )
+                continue
+
+            inner = stripped[1:]
             if should_try_parameter(inner):
                 parsed = parse_parameter_candidate(inner, current_group)
                 if parsed["kind"] == "group":
                     group_stack.append(parsed["full_name"] + "/")
                     continue
-                parsed["enabled"] = False
+                parsed["enabled"] = True
+                parsed["unit"] = "#"
                 parsed["line_no"] = line_no
                 rows.append(parsed)
                 continue
@@ -227,12 +305,12 @@ def parse_parameter_text(content: str):
             rows.append(
                 {
                     "kind": "comment",
-                    "enabled": comment_enabled,
+                    "enabled": False,
                     "group": "",
                     "name": "",
                     "value": "",
                     "unit": "",
-                    "comment": inner,
+                    "comment": inner.lstrip(),
                     "line_no": line_no,
                 }
             )
@@ -271,11 +349,12 @@ def serialize_rows(rows):
         value = row.get("value", "").strip()
         unit = row.get("unit", "").strip()
         comment = row.get("comment", "").strip()
-        prefix = "" if row.get("enabled", True) else "#"
+        is_commented_parameter = unit == "#"
+        prefix = "#" if is_commented_parameter else ("" if row.get("enabled", True) else "#")
         group_key = f"{unit}{group}" if group else unit
         if lines and previous_kind == "parameter" and previous_parameter_group != group_key and lines[-1] != "":
             lines.append("")
-        line = f"{prefix}{unit}{full_name}"
+        line = f"{prefix}{'' if is_commented_parameter else unit}{full_name}"
         if value:
             line += f"  {value}"
         if comment:
@@ -348,8 +427,7 @@ def list_directory(path_value: str):
     }
 
 
-def normalize_with_lkparametercontainer(content: str):
-    repo_root = Path(__file__).resolve().parent.parent
+def build_root_runtime_env(repo_root: Path):
     env = os.environ.copy()
     runtime_paths = [str(repo_root / "build")]
     try:
@@ -379,6 +457,114 @@ def normalize_with_lkparametercontainer(content: str):
             if item and item not in merged:
                 merged.append(item)
         env[key] = ":".join(merged)
+    return env
+
+
+def nptool_library_load_args(repo_root: Path):
+    build_options_file = repo_root / "meta" / "build_options.cmake"
+    if not build_options_file.is_file():
+        return []
+
+    text = build_options_file.read_text(encoding="utf-8")
+    if "set(BUILD_NPTOOL ON" not in text:
+        return []
+
+    nplib_dir = os.environ.get("NPLib_DIR", "").strip()
+    if not nplib_dir:
+        env_guess = build_root_runtime_env(repo_root)
+        nplib_dir = env_guess.get("NPLib_DIR", "").strip()
+    if not nplib_dir:
+        return []
+
+    root_args = []
+    in_nplib_list = False
+    for raw_line in text.splitlines():
+        trimmed = raw_line.lstrip()
+        if not in_nplib_list:
+            if trimmed.startswith("set(NPTOOL_NPLIB_LIST"):
+                in_nplib_list = True
+            continue
+        if trimmed.startswith("CACHE INTERNAL ") or trimmed == ")":
+            break
+        lib_name = trimmed.split()[0] if trimmed.split() else ""
+        if lib_name and lib_name != "${NPTOOL_NPLIB_LIST}":
+            root_args.extend(["-e", f'gSystem->Load("{nplib_dir}/lib/lib{lib_name}.dylib");'])
+    return root_args
+
+
+def make_temp_run_file(content: str, path_hint: str = ""):
+    target_path = (path_hint or "").strip()
+    if target_path:
+        target = Path(os.path.expanduser(os.path.expandvars(target_path)))
+        if not target.is_absolute():
+            target = (Path.cwd() / target).resolve()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=target.suffix or ".par",
+            prefix=".lilak_web_configure_",
+            dir=str(target.parent),
+            delete=False,
+            encoding="utf-8",
+        ) as handle:
+            handle.write(content)
+            temp_path = Path(handle.name)
+        return temp_path, target.parent
+
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        suffix=".par",
+        prefix="lilak_web_run_",
+        delete=False,
+        encoding="utf-8",
+    ) as handle:
+        handle.write(content)
+        temp_path = Path(handle.name)
+    return temp_path, lilak_root_path()
+
+
+def run_root_macro_with_parameter(content: str, path_hint: str = "", set_print_plane: int = 1, set_allow_run: int = 1):
+    lilak_root = lilak_root_path()
+    env = build_root_runtime_env(lilak_root)
+    temp_path, run_cwd = make_temp_run_file(content, path_hint)
+    run_path = str(temp_path)
+
+    macro_arg = f'{(lilak_root / "macros" / "run_lilak.C").as_posix()}("{run_path}",{set_print_plane},{set_allow_run})'
+
+    root_args = ["root", "-l", "-b", "-q", "-n"]
+    root_args.extend(nptool_library_load_args(lilak_root))
+    root_args.extend(["-e", f'gSystem->Load("{lilak_root}/build/libLILAK.dylib");'])
+    root_args.append(macro_arg)
+    root_args.extend(["-e", 'gSystem->Exit(0);'])
+
+    try:
+        result = subprocess.run(
+            root_args,
+            cwd=run_cwd,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    finally:
+        try:
+            temp_path.unlink()
+        except OSError:
+            pass
+
+    return {
+        "command": "",
+        "stdout": result.stdout,
+        "stderr": result.stderr,
+        "returncode": result.returncode,
+        "path": run_path,
+        "log_info": read_last_lk_output_log_info(),
+    }
+
+
+def normalize_with_lkparametercontainer(content: str):
+    repo_root = Path(__file__).resolve().parent.parent
+    env = build_root_runtime_env(repo_root)
 
     with tempfile.TemporaryDirectory(prefix="lilak_par_norm_") as temp_dir:
         temp_path = Path(temp_dir)
@@ -443,6 +629,659 @@ def find_matching_files(query: str):
                 if len(results) >= FIND_LIMIT:
                     return sorted(results)
     return sorted(results)
+
+
+def lilak_root_path() -> Path:
+    configured = os.environ.get("LILAK_PATH", "").strip()
+    if configured:
+        return Path(configured).expanduser().resolve()
+    return Path(__file__).resolve().parent.parent
+
+
+def read_par_class_entries():
+    class_list_path = lilak_root_path() / "meta" / "LKClassList.par.log"
+    if not class_list_path.is_file():
+        raise FileNotFoundError(str(class_list_path))
+    entries = []
+    for raw_line in class_list_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip().strip("/")
+        if line:
+            entries.append(line)
+    return sorted(dict.fromkeys(entries))
+
+
+def class_parameter_row_count(class_name: str) -> int:
+    parameter_path = lilak_root_path() / "meta" / "parameters" / f"configure_{class_name}.mac"
+    if not parameter_path.is_file():
+        return 0
+    try:
+        rows = parse_parameter_text(parameter_path.read_text(encoding="utf-8"))
+    except OSError:
+        return 0
+    return sum(1 for row in rows if row.get("kind") == "parameter")
+
+
+def normalize_class_tree_path(path_value: str) -> str:
+    value = (path_value or "").strip()
+    if not value or value == ".":
+        return ""
+    parts = []
+    for part in PurePosixPath(value).parts:
+        if part in ("", "."):
+            continue
+        if part == "..":
+            if parts:
+                parts.pop()
+            continue
+        parts.append(part)
+    return "/".join(parts)
+
+
+def list_class_directory(path_value: str):
+    current_dir = normalize_class_tree_path(path_value)
+    prefix = f"{current_dir}/" if current_dir else ""
+    directories = {}
+    files = []
+    for entry in read_par_class_entries():
+        if prefix:
+            if not entry.startswith(prefix):
+                continue
+            remainder = entry[len(prefix):]
+        else:
+            remainder = entry
+        if not remainder:
+            continue
+        parts = remainder.split("/")
+        if len(parts) == 1:
+            class_name = parts[0]
+            files.append(
+                {
+                    "name": class_name,
+                    "path": entry,
+                    "is_dir": False,
+                    "parameter_count": class_parameter_row_count(class_name),
+                }
+            )
+            continue
+        child_dir = parts[0]
+        directories.setdefault(
+            child_dir,
+            {
+                "name": child_dir,
+                "path": f"{prefix}{child_dir}".rstrip("/"),
+                "is_dir": True,
+            },
+        )
+    entries = sorted(directories.values(), key=lambda item: item["name"].lower())
+    entries.extend(sorted(files, key=lambda item: item["name"].lower()))
+    parent_dir = ""
+    if current_dir:
+        parent_dir = current_dir.rsplit("/", 1)[0] if "/" in current_dir else ""
+    return {
+        "current_dir": current_dir,
+        "parent_dir": parent_dir,
+        "entries": entries,
+    }
+
+
+def load_class_parameter_payload(class_path: str):
+    normalized = normalize_class_tree_path(class_path)
+    if not normalized:
+        raise FileNotFoundError("Class path not selected")
+    class_name = normalized.rsplit("/", 1)[-1]
+    parameter_path = lilak_root_path() / "meta" / "parameters" / f"configure_{class_name}.mac"
+    if not parameter_path.is_file():
+        raise FileNotFoundError(str(parameter_path))
+    payload = make_file_payload(parameter_path)
+    payload["class_name"] = class_name
+    payload["class_path"] = normalized
+    payload["source_path"] = str(parameter_path)
+    return payload
+
+
+def parse_branch_parameter_file(path: Path):
+    entries = []
+    if not path.is_file():
+        return entries
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split()
+        if len(parts) < 3:
+            continue
+        action, class_name, branch_name = parts[0], parts[1], parts[2]
+        entries.append(
+            {
+                "action": action,
+                "class_name": class_name,
+                "branch_name": branch_name,
+            }
+        )
+    return entries
+
+
+def local_doc_url_for_class(class_name: str):
+    doc_file = lilak_root_path() / "doc" / f"class{class_name}.html"
+    if doc_file.is_file():
+        return f"/doc/{doc_file.name}"
+    return ""
+
+
+def doc_url_for_class(class_name: str):
+    local_url = local_doc_url_for_class(class_name)
+    if local_url:
+        return local_url
+    return f"https://lilak-project.github.io/lilak_doxygen/class{class_name}.html"
+
+
+def terminal_doc_url_for_class(class_name: str):
+    return f"https://lilak-project.github.io/lilak_doxygen/class{class_name}.html"
+
+
+def read_named_class_log(file_name: str):
+    path = lilak_root_path() / "meta" / file_name
+    if not path.is_file():
+        return set()
+    values = set()
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip().strip("/")
+        if not line:
+            continue
+        values.add(line.rsplit("/", 1)[-1])
+    return values
+
+
+def class_kind_for_name(class_name: str):
+    if class_name in read_named_class_log("LKClassList.task.log"):
+        return "task"
+    if class_name in read_named_class_log("LKClassList.detector.log"):
+        return "detector"
+    return "class"
+
+
+def build_configure_report(content: str, path_hint: str = ""):
+    rows = parse_parameter_text(content)
+    class_names = []
+    seen = set()
+    for row in rows:
+        if row.get("kind") != "parameter":
+            continue
+        if (row.get("unit") or "").strip() == "#":
+            continue
+        if row.get("enabled") is False:
+            continue
+        if (row.get("group") or "").strip() != "lilak":
+            continue
+        if (row.get("name") or "").strip() != "add":
+            continue
+        class_name = (row.get("value") or "").strip()
+        if not class_name or class_name in seen:
+            continue
+        seen.add(class_name)
+        class_names.append(class_name)
+
+    configure_run = run_root_macro_with_parameter(content, path_hint, set_print_plane=0, set_allow_run=0)
+    log_info = configure_run.get("log_info", {})
+    repeated_log = {}
+    resolved_log_path = Path(log_info.get("resolved_path", "")) if log_info.get("resolved_path") else None
+    if resolved_log_path and resolved_log_path.is_file():
+        repeated_log = parse_lk_log_multimap(resolved_log_path)
+
+    input_branches = parse_branch_lines(repeated_log.get("branch/input", []))
+    classes = []
+    for class_name in class_names:
+        branch_path = lilak_root_path() / "meta" / "parameters" / f"branch_{class_name}.par"
+        branch_entries = parse_branch_parameter_file(branch_path)
+        uses = []
+        saves = []
+        for entry in branch_entries:
+            item = {
+                "branch_name": entry["branch_name"],
+                "class_name": entry["class_name"],
+                "action": entry["action"],
+                "doc_url": doc_url_for_class(entry["class_name"]),
+            }
+            if entry["action"] in {"get", "keep"}:
+                uses.append(item)
+            if entry["action"] in {"register", "keep"}:
+                saves.append(item)
+        classes.append(
+            {
+                "class_name": class_name,
+                "doc_url": doc_url_for_class(class_name),
+                "class_kind": class_kind_for_name(class_name),
+                "branch_file": str(branch_path),
+                "branch_file_exists": branch_path.is_file(),
+                "uses": uses,
+                "saves": saves,
+            }
+        )
+
+    return {
+        "classes": classes,
+        "input_branches": input_branches,
+        "count": len(classes),
+        "configure_log": {
+            "returncode": configure_run.get("returncode", 0),
+            "stdout": configure_run.get("stdout", ""),
+            "stderr": configure_run.get("stderr", ""),
+            "summary": log_info.get("summary", ""),
+            "kind": log_info.get("kind", ""),
+            "path": log_info.get("resolved_path", ""),
+            "input_file": log_info.get("parsed", {}).get("InputFile", ""),
+            "output_file": log_info.get("parsed", {}).get("OutputFile", ""),
+        },
+    }
+
+
+def format_terminal_configure_report(report: dict) -> str:
+    use_color = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+
+    def color(text: str, code: str) -> str:
+        if not use_color:
+            return text
+        return f"\033[{code}m{text}\033[0m"
+
+    def visible_len(text: str) -> int:
+        length = 0
+        inside_escape = False
+        for char in text:
+            if inside_escape:
+                if char == "m":
+                    inside_escape = False
+                continue
+            if char == "\033":
+                inside_escape = True
+                continue
+            length += 1
+        return length
+
+    def pad_visible(text: str, width: int) -> str:
+        return text + (" " * max(width - visible_len(text), 0))
+
+    def fit(text: str, width: int) -> str:
+        text = text or ""
+        if width <= 0:
+            return ""
+        if len(text) <= width:
+            return text.ljust(width)
+        if width <= 3:
+            return text[:width]
+        return text[: width - 3] + "..."
+
+    branch_class_align = 0
+    branch_name_align = 0
+
+    def branch_label(branch_name: str, class_name: str, prefix: str) -> str:
+        prefix_text = color(f"[{prefix}]", "36" if prefix == "input" else "33")
+        if class_name:
+            class_cell = pad_visible(f"({class_name})", branch_class_align)
+            branch_cell = pad_visible(branch_name, branch_name_align)
+            return f"{prefix_text} {class_cell} {branch_cell}"
+        return f"{prefix_text} {branch_name}"
+
+    def class_label(class_name: str, class_kind: str) -> str:
+        return f"{color(f'[{class_kind}]', '32')} {class_name}"
+
+    def branch_index_label(index: int, repeated: bool = False) -> str:
+        marker = f"*[{index}]" if repeated else f" [{index}]"
+        return color(marker, "33")
+
+    def task_index_label(index: int, repeated: bool = False) -> str:
+        marker = f"*[{index}]" if repeated else f" [{index}]"
+        return color(marker, "32")
+
+    lines = []
+    configure_log = report.get("configure_log", {}) or {}
+    classes = report.get("classes", []) or []
+    input_branches = report.get("input_branches", []) or []
+
+    branch_items = []
+    for item in input_branches:
+        branch_items.append((item.get("branch_name", ""), item.get("class_name", "")))
+    for item in classes:
+        for use in item.get("uses", []) or []:
+            branch_items.append((use.get("branch_name", ""), use.get("class_name", "")))
+        for save in item.get("saves", []) or []:
+            branch_items.append((save.get("branch_name", ""), save.get("class_name", "")))
+    branch_class_align = max((len(f"({class_name})") for _, class_name in branch_items if class_name), default=0)
+    branch_name_align = max((len(branch_name) for branch_name, _ in branch_items), default=0)
+
+    lines.append(color("========================================", "90"))
+    lines.append(color("LILAK Configure Report", "1;37"))
+    lines.append(color("========================================", "90"))
+    lines.append(f"Classes: {report.get('count', 0)}")
+    if configure_log.get("summary"):
+        summary = configure_log.get("summary")
+        status_color = "31" if "failed" in summary.lower() else "32"
+        lines.append(f"Status: {color(summary, status_color)}")
+    if configure_log.get("path"):
+        lines.append(f"Log: {configure_log.get('path')}")
+    if configure_log.get("input_file"):
+        lines.append(f"Input: {configure_log.get('input_file')}")
+    if configure_log.get("output_file"):
+        lines.append(f"Output: {configure_log.get('output_file')}")
+
+    tail_lines = []
+    if input_branches:
+        tail_lines.append("")
+        tail_lines.append(color("Input Branches", "1;36"))
+        tail_lines.append(color("----------------------------------------", "90"))
+        for item in input_branches:
+            branch_name = item.get("branch_name", "")
+            class_name = item.get("class_name", "")
+            tail_lines.append(f"  {branch_label(branch_name, class_name, 'input')}")
+            doc_url = terminal_doc_url_for_class(class_name)
+            if class_name:
+                tail_lines.append(f"    reference: {doc_url}")
+
+    graph_lines = []
+    if classes:
+        class_ref_lines = []
+        input_branch_map = {item.get("branch_name", ""): item for item in input_branches}
+        left_width = 34
+        middle_width = 34
+        right_width = 34
+        graph_lines.append(f"{fit('Input', left_width)}    {fit('Branch', middle_width)}    {fit('Task', right_width)}")
+        graph_lines.append(color(f"{'-' * left_width}    {'-' * middle_width}    {'-' * right_width}", "90"))
+
+        doc_lines = []
+        seen_doc_lines = set()
+        branch_indices = {}
+        branch_order = []
+        task_indices = {}
+        for item in classes:
+            class_name = item.get("class_name", "")
+            class_kind = item.get("class_kind", "class")
+            doc_url = terminal_doc_url_for_class(class_name)
+            class_text = class_label(class_name, class_kind)
+            if doc_url and class_name not in seen_doc_lines:
+                class_ref_lines.append(f"  {class_text}: {doc_url}")
+                seen_doc_lines.add(class_name)
+            if class_name not in task_indices:
+                task_indices[class_name] = len(task_indices) + 1
+
+            for use in item.get("uses", []) or []:
+                branch_name = use.get("branch_name", "")
+                branch_class = use.get("class_name", "")
+                branch_key = (branch_name, branch_class)
+                if branch_key not in branch_indices:
+                    branch_indices[branch_key] = len(branch_indices) + 1
+                    branch_order.append(branch_key)
+            for save in item.get("saves", []) or []:
+                branch_name = save.get("branch_name", "")
+                branch_class = save.get("class_name", "")
+                branch_key = (branch_name, branch_class)
+                if branch_key not in branch_indices:
+                    branch_indices[branch_key] = len(branch_indices) + 1
+                    branch_order.append(branch_key)
+        graph_rows = []
+        for item in classes:
+            class_name = item.get("class_name", "")
+            class_kind = item.get("class_kind", "class")
+            task_text = f"{task_index_label(task_indices.get(class_name, 0))} {class_label(class_name, class_kind)}"
+            for use in item.get("uses", []) or []:
+                branch_name = use.get("branch_name", "")
+                branch_class = use.get("class_name", "")
+                action = use.get("action", "get")
+                input_item = input_branch_map.get(branch_name, {})
+                input_text = ""
+                if input_item:
+                    input_text = branch_label(
+                        input_item.get("branch_name", ""),
+                        input_item.get("class_name", ""),
+                        "input",
+                    )
+                branch_key = (branch_name, branch_class)
+                branch_text = branch_label(branch_name, branch_class, 'branch')
+                arrow = color("--read-->", "34") if action == "get" else color("..keep...", "32")
+                graph_rows.append((input_text, branch_text, task_text, arrow, True, class_name, branch_key))
+
+            for save in item.get("saves", []) or []:
+                branch_name = save.get("branch_name", "")
+                branch_class = save.get("class_name", "")
+                action = save.get("action", "register")
+                if action == "keep":
+                    continue
+                branch_key = (branch_name, branch_class)
+                branch_text = branch_label(branch_name, branch_class, 'branch')
+                arrow = color("<-write--", "33")
+                graph_rows.append(("", branch_text, task_text, arrow, False, class_name, branch_key))
+
+        if not graph_rows:
+            graph_lines.append("No branch relations found")
+        else:
+            left_align = max((visible_len(item[0]) for item in graph_rows), default=0)
+            middle_align = max(
+                (
+                    visible_len(f"{branch_index_label(branch_indices.get(item[6], 0))} {item[1]}")
+                    for item in graph_rows
+                ),
+                default=0,
+            )
+            right_align = max((visible_len(item[2]) for item in graph_rows), default=0)
+            seen_task_rows = set()
+            seen_branch_rows = set()
+            relation_align = max((visible_len(item[3]) for item in graph_rows), default=0)
+            connector_align = 2
+            for left_text, middle_text, right_text, arrow, left_to_right, task_key, branch_key in graph_rows:
+                left_cell = pad_visible(left_text, left_align)
+                branch_index = branch_indices.get(branch_key, 0)
+                branch_text = f"{branch_index_label(branch_index, repeated=branch_key in seen_branch_rows)} {middle_text}"
+                middle_cell = pad_visible(branch_text, middle_align)
+                seen_branch_rows.add(branch_key)
+                if task_key in seen_task_rows:
+                    right_cell = task_index_label(task_indices.get(task_key, 0), repeated=True)
+                else:
+                    right_cell = right_text
+                    seen_task_rows.add(task_key)
+                right_cell = pad_visible(right_cell, right_align)
+                relation_cell = pad_visible(arrow, relation_align)
+                connector = "->" if left_text else ""
+                connector_cell = pad_visible(connector, connector_align)
+                graph_lines.append(f"{left_cell} {connector_cell} {middle_cell} {relation_cell} {right_cell}")
+
+        if class_ref_lines:
+            tail_lines.append("")
+            tail_lines.append(color("Task/Detector References", "1;32"))
+            tail_lines.append(color("----------------------------------------", "90"))
+            tail_lines.extend(class_ref_lines)
+
+        tail_lines.append("")
+        tail_lines.append(color("Graph", "1;35"))
+        tail_lines.append(color("----------------------------------------", "90"))
+        tail_lines.extend(graph_lines)
+
+    stdout = (configure_log.get("stdout", "") or "").strip()
+    stderr = (configure_log.get("stderr", "") or "").strip()
+    if stdout:
+        lines.append(color("ROOT stdout", "1;34"))
+        lines.append(color("----------------------------------------", "90"))
+        lines.append(stdout)
+    if stderr:
+        lines.append("")
+        lines.append(color("ROOT stderr", "1;31"))
+        lines.append(color("----------------------------------------", "90"))
+        lines.append(stderr)
+
+    lines.extend(tail_lines)
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def find_matching_classes_for_branch(branch_name: str, class_name: str):
+    branch_name = (branch_name or "").strip()
+    class_name = (class_name or "").strip()
+    if not branch_name or not class_name:
+        return {"entries": [], "current_dir": "", "parent_dir": ""}
+
+    branch_to_class_path = {}
+    for entry in read_par_class_entries():
+        branch_to_class_path[entry.rsplit("/", 1)[-1]] = entry
+
+    entries = []
+    for branch_file in sorted((lilak_root_path() / "meta" / "parameters").glob("branch_*.par")):
+        target_class = branch_file.stem.removeprefix("branch_")
+        branch_entries = parse_branch_parameter_file(branch_file)
+        matched = any(
+            item["action"] in {"get", "keep"}
+            and item["branch_name"] == branch_name
+            and item["class_name"] == class_name
+            for item in branch_entries
+        )
+        if not matched:
+            continue
+        class_path = branch_to_class_path.get(target_class, target_class)
+        entries.append(
+            {
+                "name": target_class,
+                "path": class_path,
+                "is_dir": False,
+                "parameter_count": class_parameter_row_count(target_class),
+            }
+        )
+
+    return {
+        "current_dir": f"{class_name}/{branch_name}",
+        "parent_dir": "",
+        "entries": entries,
+    }
+
+
+def run_lilak_with_content(content: str, path_hint: str = ""):
+    return run_root_macro_with_parameter(content, path_hint, set_print_plane=1, set_allow_run=1)
+
+
+def parse_lk_log_multimap(path: Path):
+    parsed = {}
+    if not path.is_file():
+        return parsed
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.rstrip()
+        if not line.strip():
+            continue
+        parts = line.split()
+        if not parts:
+            continue
+        key = parts[0]
+        value = line[len(key):].strip()
+        parsed.setdefault(key, []).append(value)
+    return parsed
+
+
+def parse_branch_lines(values):
+    entries = []
+    for value in values or []:
+        parts = value.split()
+        if len(parts) < 2:
+            continue
+        class_name, branch_name = parts[0], parts[1]
+        entries.append(
+            {
+                "class_name": class_name,
+                "branch_name": branch_name,
+                "doc_url": doc_url_for_class(class_name),
+            }
+        )
+    return entries
+
+
+def parse_lk_log_file(path: Path):
+    parsed = {}
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.rstrip()
+        if not line.strip():
+            continue
+        parts = line.split()
+        if not parts:
+            continue
+        key = parts[0]
+        value = line[len(key):].strip()
+        parsed[key] = value
+    return parsed
+
+
+def summarize_lk_log_info(log_info):
+    link_target = log_info.get("link_target", "")
+    if not link_target:
+        return "Run failed: lk_last_output.log is empty"
+
+    kind = log_info.get("kind", "unknown")
+    parsed = log_info.get("parsed", {})
+    initialized = parsed.get("Initialized", "")
+    num_events = parsed.get("num_events", "")
+    run_time = parsed.get("run_time", "")
+
+    if kind == "run":
+        details = []
+        if num_events:
+            details.append(f"{num_events} events")
+        if run_time:
+            details.append(run_time)
+        suffix = f" ({', '.join(details)})" if details else ""
+        return f"Run completed{suffix}"
+    if kind == "init":
+        if initialized == "1":
+            return "Initialization finished, but run did not complete"
+        return "Initialization failed"
+    return "Run finished, but log type is unknown"
+
+
+def read_last_lk_output_log_info():
+    link_path = lilak_root_path() / "data" / "lk_last_output.log"
+    if not link_path.exists() and not link_path.is_symlink():
+        return {
+            "link_path": str(link_path),
+            "link_target": "",
+            "resolved_path": "",
+            "kind": "missing",
+            "summary": "Run failed: lk_last_output.log does not exist",
+            "content": "",
+            "parsed": {},
+        }
+
+    raw_target = os.readlink(link_path) if link_path.is_symlink() else ""
+    if not raw_target:
+        return {
+            "link_path": str(link_path),
+            "link_target": "",
+            "resolved_path": "",
+            "kind": "empty",
+            "summary": "Run failed: lk_last_output.log is empty",
+            "content": "",
+            "parsed": {},
+        }
+
+    resolved_path = Path(raw_target)
+    if not resolved_path.is_absolute():
+        resolved_path = (link_path.parent / resolved_path).resolve()
+
+    content = ""
+    parsed = {}
+    if resolved_path.is_file():
+        content = resolved_path.read_text(encoding="utf-8")
+        parsed = parse_lk_log_file(resolved_path)
+
+    base_name = resolved_path.name
+    kind = "unknown"
+    if base_name.startswith("run_"):
+        kind = "run"
+    elif base_name.startswith("init_"):
+        kind = "init"
+    elif base_name.startswith("eor_"):
+        kind = "eor"
+
+    info = {
+        "link_path": str(link_path),
+        "link_target": raw_target,
+        "resolved_path": str(resolved_path),
+        "kind": kind,
+        "content": content,
+        "parsed": parsed,
+    }
+    info["summary"] = summarize_lk_log_info(info)
+    return info
 
 
 HTML_PAGE = """<!doctype html>
@@ -558,6 +1397,26 @@ HTML_PAGE = """<!doctype html>
       color: #ffffff;
       border-color: #9070b4;
     }
+    .menu-switch-button[data-menu-toggle="all"] {
+      background: #e6edf5;
+      color: #36526c;
+      border-color: #cfdae6;
+    }
+    .menu-switch-button[data-menu-toggle="all"].active {
+      background: #7d96b1;
+      color: #ffffff;
+      border-color: #687f97;
+    }
+    .menu-switch-button[data-menu-toggle="run"] {
+      background: #dcefe4;
+      color: #27563f;
+      border-color: #bddcc9;
+    }
+    .menu-switch-button[data-menu-toggle="run"].active {
+      background: #63a07a;
+      color: #ffffff;
+      border-color: #4f8765;
+    }
     .menu-panels {
       display: block;
     }
@@ -597,6 +1456,17 @@ HTML_PAGE = """<!doctype html>
     .toolbar-button:hover {
       filter: brightness(0.96);
     }
+    .toolbar-button:disabled,
+    .toolbar-group[data-menu-panel="file"] .toolbar-button:disabled,
+    .toolbar-group[data-menu-panel="view"] .toolbar-button:disabled,
+    .toolbar-group[data-menu-panel="run"] .toolbar-button:disabled {
+      background: #eeeeee;
+      color: #9a9a9a;
+      border-color: #d7d7d7;
+      cursor: default;
+      filter: none;
+      box-shadow: none;
+    }
     .toolbar-button.active {
       background: #7ea9d1;
       color: #ffffff;
@@ -621,6 +1491,20 @@ HTML_PAGE = """<!doctype html>
       background: #a88bc9;
       color: #ffffff;
       border-color: #9070b4;
+    }
+    .toolbar-group[data-menu-panel="run"] {
+      background: #e8f3ec;
+      align-items: flex-start;
+    }
+    .toolbar-group[data-menu-panel="run"] .toolbar-button {
+      background: #dcefe4;
+      color: #27563f;
+      border-color: #c7e1d0;
+    }
+    .toolbar-group[data-menu-panel="run"] .toolbar-button.active {
+      background: #63a07a;
+      color: #ffffff;
+      border-color: #4f8765;
     }
     .toolbar-button.recent,
     .quick-button.recent {
@@ -694,6 +1578,9 @@ HTML_PAGE = """<!doctype html>
     .status-text.warn {
       color: #7b3020;
     }
+    .status-text.error {
+      color: #b00020;
+    }
     .status-text.ok {
       color: #2f6b57;
     }
@@ -707,6 +1594,9 @@ HTML_PAGE = """<!doctype html>
     }
     .message-bar.warn {
       color: #7b3020;
+    }
+    .message-bar.error {
+      color: #b00020;
     }
     .message-bar.ok {
       color: #2f6b57;
@@ -869,6 +1759,44 @@ HTML_PAGE = """<!doctype html>
     }
     tr.comment-row {
       background: var(--comment);
+    }
+    tr.commented-parameter-row td {
+      background: #eceff1;
+    }
+    tr.commented-parameter-row td input[type="text"] {
+      background: #eceff1;
+      color: #7a7f85;
+    }
+    tr.duplicate-parameter-row td {
+      background: #fffbe8;
+    }
+    tr.duplicate-parameter-row td input[type="text"] {
+      background: #ffffff;
+    }
+    tr.active-duplicate-parameter-row td {
+      background: #ffeef4;
+    }
+    tr.active-duplicate-parameter-row td input[type="text"] {
+      background: #ffffff;
+    }
+    tr.commented-duplicate-parameter-row td {
+      background: #fffbe8;
+    }
+    tr.commented-duplicate-parameter-row td input[type="text"] {
+      background: #ffffff;
+      color: #7a7f85;
+    }
+    tr.selected.duplicate-parameter-row td {
+      background: #fffbe8;
+    }
+    tr.selected.active-duplicate-parameter-row td {
+      background: #ffeef4;
+    }
+    tr.selected.commented-duplicate-parameter-row td {
+      background: #fffbe8;
+    }
+    tr.selected.commented-parameter-row td {
+      background: #eceff1;
     }
     tr.group-header td {
       background: #e1edf8;
@@ -1066,6 +1994,198 @@ HTML_PAGE = """<!doctype html>
       order: 2;
     }
     .navigator-actions .quick-button { white-space: nowrap; }
+    .run-panel {
+      display: grid;
+      gap: 8px;
+      flex: 1 1 480px;
+      min-width: 280px;
+    }
+    .run-panel.expanded {
+      width: 100%;
+    }
+    .run-output {
+      width: 100%;
+      min-height: 160px;
+      border: 1px solid #c7e1d0;
+      border-radius: 10px;
+      background: #ffffff;
+      color: #244334;
+      font: 12px/1.5 var(--mono);
+      padding: 10px;
+      white-space: pre-wrap;
+      overflow: auto;
+    }
+    .run-output.expanded {
+      min-height: calc(100vh - 220px);
+      height: calc(100vh - 220px);
+    }
+    .run-output a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .run-output a:hover {
+      text-decoration: underline;
+    }
+    .configure-report {
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .configure-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .configure-legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .configure-legend-line {
+      width: 28px;
+      height: 0;
+      border-top: 2px solid #7f9db8;
+      position: relative;
+      display: inline-block;
+    }
+    .configure-legend-line.read {
+      border-top-color: #4f82b4;
+    }
+    .configure-legend-line.write {
+      border-top-color: #d07a2d;
+    }
+    .configure-legend-line.keep {
+      border-top-color: #4f9b54;
+      border-top-style: dashed;
+    }
+    .configure-legend-line.input-match {
+      border-top-color: #8c98a6;
+    }
+    .configure-legend-line.arrow::after {
+      content: "";
+      position: absolute;
+      right: -1px;
+      top: -5px;
+      width: 0;
+      height: 0;
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+      border-left: 6px solid currentColor;
+    }
+    .configure-legend-line.read.arrow {
+      color: #4f82b4;
+    }
+    .configure-legend-line.write.arrow {
+      color: #d07a2d;
+    }
+    .configure-graph {
+      position: relative;
+      min-width: 0;
+    }
+    .configure-svg {
+      position: absolute;
+      inset: 0;
+      overflow: visible;
+      pointer-events: none;
+    }
+    .configure-edge {
+      stroke-width: 2.1;
+      fill: none;
+      opacity: 0.9;
+    }
+    .configure-edge.read {
+      stroke: #4f82b4;
+    }
+    .configure-edge.write {
+      stroke: #d07a2d;
+    }
+    .configure-edge.keep {
+      stroke: #4f9b54;
+      stroke-width: 2.4;
+      opacity: 0.95;
+      stroke-dasharray: 6 4;
+    }
+    .configure-edge.input-match {
+      stroke: #8c98a6;
+      stroke-width: 1.8;
+      opacity: 0.8;
+    }
+    .configure-node {
+      position: absolute;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 2px 6px rgba(80, 80, 80, 0.06);
+      padding: 4px 6px;
+      font-size: 11px;
+      line-height: 1.12;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .configure-node.branch {
+      border-color: #cfdbe8;
+      background: #f7fbff;
+    }
+    .configure-node.input {
+      border-color: #d9dce2;
+      background: #fafbfc;
+    }
+    .configure-node.class {
+      border-color: #d7e4d4;
+      background: #f7fcf6;
+    }
+    .configure-node-title {
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 1px;
+    }
+    .configure-node-head {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .configure-node-head .configure-node-title {
+      margin-bottom: 0;
+      flex: 1 1 auto;
+    }
+    .configure-add-button {
+      border: 1px solid #c5d8eb;
+      background: #d8e6f4;
+      color: #203448;
+      border-radius: 6px;
+      padding: 0 5px;
+      height: 18px;
+      font-size: 10px;
+      line-height: 16px;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+    .configure-node-subtitle {
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .configure-node-subtitle a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .configure-node-subtitle a:hover,
+    .configure-node-title a:hover {
+      text-decoration: underline;
+    }
+    .configure-empty {
+      color: var(--muted);
+      font-style: italic;
+    }
     .navigator-list {
       display: grid;
       align-content: start;
@@ -1150,9 +2270,11 @@ HTML_PAGE = """<!doctype html>
           <div class="menu-bar">
             <div class="menu-head">
               <div class="menu-switches">
-                <button class="menu-switch-button active" data-menu-toggle="file">FILE</button>
-                <button class="menu-switch-button active" data-menu-toggle="view">VIEW</button>
-                <button class="menu-switch-button active" data-menu-toggle="parameter">PARAMETER</button>
+                <button class="menu-switch-button active" data-menu-toggle="all">ALL</button>
+                <button class="menu-switch-button" data-menu-toggle="file">FILE</button>
+                <button class="menu-switch-button" data-menu-toggle="view">VIEW</button>
+                <button class="menu-switch-button" data-menu-toggle="parameter">PARAMETER</button>
+                <button class="menu-switch-button" data-menu-toggle="run">LILAK</button>
               </div>
               <span class="brand">LILAK Parameter Table</span>
             </div>
@@ -1190,6 +2312,23 @@ HTML_PAGE = """<!doctype html>
                 <button class="toolbar-button" data-action="row-copy"><span class="icon">&#10697;</span>copy</button>
                 <button class="toolbar-button" data-action="row-paste"><span class="icon">&#10753;</span>paste</button>
               </div>
+
+              <div class="toolbar-group" data-menu-panel="run">
+                <span class="menu-label">RUN</span>
+                <div class="run-panel">
+                  <div class="toolbar-row">
+                    <button class="toolbar-button" data-action="run-task"><span class="icon">?</span>add</button>
+                    <button class="toolbar-button" data-action="run-configure"><span class="icon">&#9881;</span>configure</button>
+                    <button class="toolbar-button" data-action="run-current"><span class="icon">&#9654;</span>run</button>
+                    <button class="toolbar-button" data-action="run-expand"><span class="icon">&#8645;</span>expand</button>
+                    <button class="toolbar-button" data-action="run-status"><span class="icon">&#9432;</span>status</button>
+                    <button class="toolbar-button" data-action="run-log"><span class="icon">&#8801;</span>log</button>
+                    <button class="toolbar-button" data-action="run-info"><span class="icon">i</span>info</button>
+                    <button class="toolbar-button" data-action="run-file"><span class="icon">&#128193;</span>file</button>
+                  </div>
+                  <div class="run-output" id="runOutput"></div>
+                </div>
+              </div>
             </div>
 
             <div class="status-bar">
@@ -1217,16 +2356,44 @@ HTML_PAGE = """<!doctype html>
       clipboardRows: [],
       lastAction: "",
       viewMode: "default",
-      activeMenu: "file",
+      activeMenu: "all",
       rawMode: "original",
       rawParseTimer: null,
-      untitledIndex: 1
+      untitledIndex: 1,
+      runOutput: "",
+      runOutputIsHtml: false,
+      runPanelView: "",
+      runStatusOutput: "",
+      runStatusMessage: "",
+      hasRunResult: false,
+      runPanelExpanded: false
     };
 
     const statusEl = document.getElementById("status");
     const tableWrapEl = document.getElementById("tableWrap");
     const tabBarEl = document.getElementById("tabBar");
     const menuBarEl = document.querySelector(".menu-bar");
+    const runOutputHostEl = document.getElementById("runOutput");
+
+    if (runOutputHostEl) {
+      runOutputHostEl.addEventListener("click", async (event) => {
+        const button = event.target.closest("[data-config-add]");
+        if (!button) {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        const currentTab = currentEditorTab();
+        try {
+          await createNavigatorTab("matchclass", currentTab?.id || null, {
+            branchName: button.dataset.branchName || "",
+            className: button.dataset.branchClass || ""
+          });
+        } catch (error) {
+          setStatus(error.message, "warn");
+        }
+      });
+    }
 
     function setStatus(message, tone = "") {
       statusEl.textContent = message;
@@ -1238,8 +2405,62 @@ HTML_PAGE = """<!doctype html>
         button.classList.toggle("active", button.dataset.menuToggle === state.activeMenu);
       }
       for (const panel of document.querySelectorAll("[data-menu-panel]")) {
-        panel.style.display = panel.dataset.menuPanel === state.activeMenu ? "flex" : "none";
+        const panelName = panel.dataset.menuPanel;
+        const showAllPanel = state.activeMenu === "all" && ["file", "view", "parameter"].includes(panelName);
+        panel.style.display = showAllPanel || panelName === state.activeMenu ? "flex" : "none";
       }
+      const runPanelEl = document.querySelector(".run-panel");
+      if (runPanelEl) {
+        runPanelEl.classList.toggle("expanded", state.runPanelExpanded);
+      }
+      const runOutputEl = document.getElementById("runOutput");
+      if (runOutputEl) {
+        if (state.runOutputIsHtml) {
+          runOutputEl.innerHTML = state.runOutput || "";
+        } else {
+          runOutputEl.textContent = state.runOutput || "";
+        }
+        runOutputEl.classList.toggle("expanded", state.runPanelExpanded);
+      }
+      const runConfigureButton = document.querySelector('[data-action="run-configure"]');
+      if (runConfigureButton) {
+        runConfigureButton.disabled = !currentEditorTab();
+      }
+      const runCurrentButton = document.querySelector('[data-action="run-current"]');
+      if (runCurrentButton) {
+        const tab = currentEditorTab();
+        runCurrentButton.disabled = !canRunCurrentTab(tab);
+      }
+      const runExpandButton = document.querySelector('[data-action="run-expand"]');
+      if (runExpandButton) {
+        runExpandButton.textContent = state.runPanelExpanded ? "collapse" : "expand";
+      }
+      for (const button of document.querySelectorAll('[data-action="run-status"], [data-action="run-log"], [data-action="run-info"], [data-action="run-file"]')) {
+        button.disabled = !state.hasRunResult;
+      }
+    }
+
+    function currentRunContent(tab) {
+      if (!tab) {
+        return "";
+      }
+      if (state.viewMode === "raw") {
+        return tab.rawDraft ?? tab.content ?? "";
+      }
+      return serializeRowsForRaw(rowsInCurrentViewOrder(tab));
+    }
+
+    function canRunCurrentTab(tab) {
+      if (!tab) {
+        return false;
+      }
+      const current = currentRunContent(tab);
+      return current !== (tab.lastRunContent || "");
+    }
+
+    function isRunStatusFailure(summary, returncode = 0) {
+      const text = String(summary || "").toLowerCase();
+      return returncode !== 0 || text.includes("failed") || text.includes("did not complete");
     }
 
     function statusLabelForTab(tab) {
@@ -1359,7 +2580,8 @@ HTML_PAGE = """<!doctype html>
         if (lines.length && previousKind === "parameter" && previousParameterGroup !== groupKey && lines[lines.length - 1] !== "") {
           lines.push("");
         }
-        let line = (row.enabled === false ? "#" : "") + (row.unit || "").trim() + fullName;
+        const isCommentedParameter = (row.unit || "").trim() === "#";
+        let line = (isCommentedParameter ? "#" : (row.enabled === false ? "#" : "")) + (isCommentedParameter ? "" : (row.unit || "").trim()) + fullName;
         if ((row.value || "").trim()) {
           line += "  " + row.value.trim();
         }
@@ -1420,6 +2642,47 @@ HTML_PAGE = """<!doctype html>
       tab.dirty = tab.content !== tab.originalContent;
     }
 
+    function parameterIdentity(row) {
+      if (!row || row.kind !== "parameter") {
+        return "";
+      }
+      const group = (row.group || "").trim();
+      const name = (row.name || "").trim();
+      if (!name) {
+        return "";
+      }
+      return `${group}::${name}`;
+    }
+
+    function duplicateParameterIds(rows) {
+      const counts = new Map();
+      for (const row of rows || []) {
+        const key = parameterIdentity(row);
+        if (!key) continue;
+        counts.set(key, (counts.get(key) || 0) + 1);
+      }
+      const duplicates = new Set();
+      for (const row of rows || []) {
+        const key = parameterIdentity(row);
+        if (key && (counts.get(key) || 0) > 1) {
+          duplicates.add(row.id);
+        }
+      }
+      return duplicates;
+    }
+
+    function duplicateParameterKeys(rows) {
+      const counts = new Map();
+      for (const row of rows || []) {
+        const key = parameterIdentity(row);
+        if (!key) continue;
+        counts.set(key, (counts.get(key) || 0) + 1);
+      }
+      return Array.from(counts.entries())
+        .filter(([, count]) => count > 1)
+        .map(([key]) => key);
+    }
+
     function tabLabel(tab) {
       const name = tab.type === "navigator"
         ? `[${tab.title}]`
@@ -1446,7 +2709,9 @@ HTML_PAGE = """<!doctype html>
         const base = `${group}${row.name}`;
         const value = row.value ? `  ${row.value}` : "";
         const comment = row.comment ? `  # ${row.comment}` : "";
-        return (row.enabled === false ? "#" : "") + base + value + comment;
+        const isCommentedParameter = (row.unit || "").trim() === "#";
+        const unit = isCommentedParameter ? "" : (row.unit || "").trim();
+        return (isCommentedParameter ? "#" : (row.enabled === false ? "#" : "")) + unit + base + value + comment;
       }).join("\\n");
 
       const tab = {
@@ -1462,7 +2727,8 @@ HTML_PAGE = """<!doctype html>
         rawDraft: payload.content || content,
         normalizedDraft: "",
         normalizedSource: "",
-        dirty: false
+        dirty: false,
+        lastRunContent: ""
       };
       state.tabs.push(tab);
       state.untitledIndex += 1;
@@ -1470,13 +2736,17 @@ HTML_PAGE = """<!doctype html>
       setStatus(`Opened ${tab.title}`, "ok");
     }
 
-    async function createNavigatorTab(action, targetEditorId = null) {
-      if (action === "open" || action === "saveas") {
+    async function createNavigatorTab(action, targetEditorId = null, options = {}) {
+      if (action === "open" || action === "saveas" || action === "findclass" || action === "matchclass") {
         const existing = actionNavigatorTab(action);
         if (existing) {
           existing.targetEditorId = targetEditorId || existing.targetEditorId;
           const sourceEditor = getEditorTab(targetEditorId) || getEditorTab(activeTab()?.id);
-          existing.browserPath = sourceEditor?.path || existing.browserPath || "";
+          existing.browserPath = (action === "findclass" || action === "matchclass") ? (existing.browserPath || "") : (sourceEditor?.path || existing.browserPath || "");
+          if (action === "matchclass") {
+            existing.matchBranchName = options.branchName || "";
+            existing.matchClassName = options.className || "";
+          }
           state.activeTabId = existing.id;
           await refreshNavigatorTab(existing, existing.browserPath || "");
           render();
@@ -1491,10 +2761,12 @@ HTML_PAGE = """<!doctype html>
         title: action.toUpperCase(),
         action,
         targetEditorId: sourceEditor?.id || null,
-        browserPath: sourceEditor?.path || "",
-        fileName: sourceEditor?.path ? sourceEditor.path.split("/").pop() : sourceEditor?.title || "",
+        browserPath: (action === "findclass" || action === "matchclass") ? "" : (sourceEditor?.path || ""),
+        fileName: (action === "findclass" || action === "matchclass") ? "" : (sourceEditor?.path ? sourceEditor.path.split("/").pop() : sourceEditor?.title || ""),
         currentDir: "",
-        entries: []
+        entries: [],
+        matchBranchName: options.branchName || "",
+        matchClassName: options.className || ""
       };
       state.tabs.push(tab);
       state.activeTabId = tab.id;
@@ -1504,10 +2776,18 @@ HTML_PAGE = """<!doctype html>
     }
 
     async function refreshNavigatorTab(tab, pathValue) {
-      const response = await fetch("/api/listdir", {
+      const endpoint = tab.action === "findclass"
+        ? "/api/classdir"
+        : tab.action === "matchclass"
+          ? "/api/classmatch"
+          : "/api/listdir";
+      const requestBody = tab.action === "matchclass"
+        ? { branch_name: tab.matchBranchName || "", class_name: tab.matchClassName || "" }
+        : { path: pathValue || "" };
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: pathValue || "" })
+        body: JSON.stringify(requestBody)
       });
       const payload = await response.json();
       if (!response.ok) {
@@ -1540,21 +2820,65 @@ HTML_PAGE = """<!doctype html>
           }
           setActiveTab(node.dataset.tabId);
         });
+        node.addEventListener("dblclick", async (event) => {
+          if (event.target.dataset.closeTab) {
+            return;
+          }
+          const tab = getEditorTab(node.dataset.tabId);
+          if (!tab) {
+            return;
+          }
+          try {
+            setActiveTab(node.dataset.tabId);
+            await saveActiveTab();
+          } catch (error) {
+            setStatus(error.message, "warn");
+          }
+        });
       }
     }
 
     function groupedRows(rows) {
-      const order = [];
+      const parameterOrder = [];
+      const commentedParameterOrder = [];
+      const commentOrder = [];
       const groups = new Map();
       for (const row of rows) {
         const key = row.kind === "comment" ? "__comment__" : parameterGroupKey(row);
         if (!groups.has(key)) {
           groups.set(key, []);
-          order.push(key);
+          if (key === "__comment__") commentOrder.push(key);
+          else if ((row.unit || "").trim() === "#") commentedParameterOrder.push(key);
+          else parameterOrder.push(key);
         }
         groups.get(key).push(row);
       }
-      return { order, groups };
+      for (const key of parameterOrder) {
+        const groupRows = groups.get(key) || [];
+        const activeRows = groupRows.filter((row) => !((row.unit || "").trim() === "#"));
+        const commentedRows = groupRows.filter((row) => (row.unit || "").trim() === "#");
+        groups.set(key, [...activeRows, ...commentedRows]);
+      }
+      const lilakFirst = [];
+      const activeRest = [];
+      for (const key of parameterOrder) {
+        if (key === "lilak") lilakFirst.push(key);
+        else activeRest.push(key);
+      }
+      return { order: [...lilakFirst, ...activeRest, ...commentedParameterOrder, ...commentOrder], groups };
+    }
+
+    function rowsInCurrentViewOrder(tab) {
+      if (!tab || state.viewMode !== "group") {
+        return tab?.rows || [];
+      }
+      const grouped = groupedRows(tab.rows || []);
+      const orderedRows = [];
+      for (const key of grouped.order) {
+        const groupRows = grouped.groups.get(key) || [];
+        orderedRows.push(...groupRows);
+      }
+      return orderedRows;
     }
 
     function groupEnabledState(rows) {
@@ -1673,6 +2997,7 @@ HTML_PAGE = """<!doctype html>
         return;
       }
 
+      const duplicateIds = duplicateParameterIds(tab.rows || []);
       const rowsHtml = [];
       let groupViewHeaderHtml = "";
       if (state.viewMode === "group") {
@@ -1714,13 +3039,13 @@ HTML_PAGE = """<!doctype html>
           `);
           if (!collapsed) {
             for (const row of groupRows) {
-              rowsHtml.push(renderRow(row, visualIndex));
+              rowsHtml.push(renderRow(row, visualIndex, duplicateIds));
               visualIndex += 1;
             }
           }
         }
       } else {
-        tab.rows.forEach((row, index) => rowsHtml.push(renderRow(row, index + 1)));
+        tab.rows.forEach((row, index) => rowsHtml.push(renderRow(row, index + 1, duplicateIds)));
       }
 
       tableWrapEl.innerHTML = `
@@ -1813,10 +3138,15 @@ HTML_PAGE = """<!doctype html>
     }
 
     function renderNavigator(tab) {
+      const isClassNavigator = tab.action === "findclass" || tab.action === "matchclass";
       const confirmLabel = tab.action === "open" ? "Open"
         : tab.action === "new" ? "Create"
         : tab.action === "save" ? "Save"
+        : isClassNavigator ? "Add"
         : "Save As";
+      const pathLabel = isClassNavigator ? "Class Path" : "Path";
+      const fileLabel = isClassNavigator ? "Class" : "File Name";
+      const pathValue = escapeHtml(tab.currentDir || tab.browserPath || "");
       tableWrapEl.innerHTML = `
         <div class="navigator-wrap">
           <div class="navigator-panel">
@@ -1824,11 +3154,11 @@ HTML_PAGE = """<!doctype html>
               <div class="navigator-inputs">
                 <div class="navigator-field">
                   <div class="navigator-row">
-                    <span class="navigator-label">Path</span>
+                    <span class="navigator-label">${pathLabel}</span>
                     <div class="navigator-actions">
                       <button class="quick-button" id="navUpBtn"><span class="icon">&#8593;</span>up</button>
                     </div>
-                    <input type="text" id="navPathInput" value="${escapeHtml(tab.currentDir || tab.browserPath || "")}">
+                    <input type="text" id="navPathInput" value="${pathValue}">
                     <div class="navigator-actions">
                       <button class="quick-button" id="navRefreshBtn"><span class="icon">&#8635;</span>navigate</button>
                     </div>
@@ -1836,8 +3166,8 @@ HTML_PAGE = """<!doctype html>
                 </div>
                 <div class="navigator-field">
                   <div class="navigator-row">
-                    <span class="navigator-label">File Name</span>
-                    <input type="text" id="navFileInput" value="${escapeHtml(tab.fileName || "")}" placeholder="file name">
+                    <span class="navigator-label">${fileLabel}</span>
+                    <input type="text" id="navFileInput" value="${escapeHtml(tab.fileName || "")}" placeholder="${isClassNavigator ? "class name" : "file name"}">
                     <div class="navigator-actions">
                       <button class="quick-button" id="navConfirmBtn">${confirmLabel}</button>
                     </div>
@@ -1849,7 +3179,7 @@ HTML_PAGE = """<!doctype html>
           <div class="navigator-list">
             ${(tab.entries || []).map((entry) => `
               <div class="navigator-entry ${entry.is_dir ? "dir" : "file"}" data-entry-path="${entry.path}" data-entry-dir="${entry.is_dir ? "1" : "0"}">
-                <span class="name">${entry.is_dir ? "▸" : "•"} ${escapeHtml(entry.name)}</span>
+                <span class="name">${entry.is_dir ? "▸" : "•"} ${escapeHtml(entry.name)}${isClassNavigator && !entry.is_dir ? ` (${Number(entry.parameter_count || 0)})` : ""}</span>
                 <span class="path">${escapeHtml(entry.path)}</span>
               </div>
             `).join("") || '<div class="empty">No entries</div>'}
@@ -1896,9 +3226,9 @@ HTML_PAGE = """<!doctype html>
             renderTable();
             return;
           }
-          fileInput.value = entryEl.querySelector(".name").textContent.replace(/^[▸•]\\s*/, "");
-          tab.fileName = fileInput.value;
-        });
+	          fileInput.value = (entryPath || "").split("/").pop() || "";
+	          tab.fileName = fileInput.value;
+	        });
         entryEl.addEventListener("dblclick", async () => {
           try {
             await confirmNavigator(tab, entryEl.dataset.entryPath);
@@ -1915,6 +3245,11 @@ HTML_PAGE = """<!doctype html>
       const path = fileName ? `${basePath.replace(/\\/+$/, "")}/${fileName}` : basePath;
       if (!path) {
         throw new Error("Select path first");
+      }
+      if (tab.action === "findclass" || tab.action === "matchclass") {
+        await addClassParameters(path);
+        closeTab(tab.id, { preserveStatus: true });
+        return;
       }
       if (tab.action === "open") {
         await openFileByPath(path);
@@ -1944,13 +3279,90 @@ HTML_PAGE = """<!doctype html>
       render();
     }
 
-    function renderRow(row, visualIndex) {
+    async function addClassParameters(classPath) {
+      const response = await fetch("/api/classparams", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: classPath })
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Class parameter load failed");
+      }
+
+      const importedRows = (payload.rows || []).map((row) => cloneRow(normalizeRow({ ...row, id: "" })));
+      const addRow = cloneRow(normalizeRow({
+        kind: "parameter",
+        id: "",
+        enabled: true,
+        group: "lilak",
+        name: "add",
+        value: payload.class_name || classPath.split("/").pop() || "",
+        unit: "",
+        comment: ""
+      }));
+      const addedRows = [addRow, ...importedRows];
+
+      let tab = currentEditorTab();
+      if (!tab) {
+        const duplicateKeys = duplicateParameterKeys(addedRows);
+        createTabFromPayload({
+          name: `configure_${payload.class_name || "class"}.mac`,
+          path: "",
+          rows: addedRows,
+          content: ""
+        });
+        const newTab = currentEditorTab();
+        if (newTab) {
+          setSelectedRows(addedRows.map((row) => row.id), addedRows[addedRows.length - 1]?.id || null);
+        }
+        if (duplicateKeys.length > 0) {
+          setStatus(`Duplicate parameter: ${duplicateKeys.join(", ")}`, "error");
+        } else {
+          setStatus(`Created new parameter file from ${payload.class_name}`, "ok");
+        }
+        render();
+        if (state.runPanelView === "configure") {
+          await configureCurrentTab();
+        }
+        return;
+      }
+
+      const duplicateKeys = duplicateParameterKeys([...(tab.rows || []), ...addedRows]);
+      tab.rows.push(...addedRows);
+      updateDirty(tab);
+      tab.rawDraft = tab.content;
+      state.activeTabId = tab.id;
+      setSelectedRows(addedRows.map((row) => row.id), addedRows[addedRows.length - 1]?.id || null);
+      render();
+      if (state.runPanelView === "configure") {
+        await configureCurrentTab();
+        if (duplicateKeys.length > 0) {
+          setStatus(`Duplicate parameter: ${duplicateKeys.join(", ")}`, "error");
+        }
+        return;
+      }
+      if (duplicateKeys.length > 0) {
+        setStatus(`Duplicate parameter: ${duplicateKeys.join(", ")}`, "error");
+      } else {
+        setStatus(`Added ${addedRows.length} row${addedRows.length !== 1 ? "s" : ""} from ${payload.class_name}`, "ok");
+      }
+    }
+
+    function renderRow(row, visualIndex, duplicateIds = new Set()) {
       const selected = state.selectedRowIds.includes(row.id) ? "selected" : "";
       const commentClass = row.kind === "comment" ? "comment-row" : "";
+      const isCommentedParameter = row.kind === "parameter" && (row.unit || "").trim() === "#";
+      const isDuplicateParameter = row.kind === "parameter" && duplicateIds.has(row.id);
+      const commentedParameterClass = isCommentedParameter ? "commented-parameter-row" : "";
+      const duplicateParameterClass = isDuplicateParameter ? "duplicate-parameter-row" : "";
+      const duplicateStateClass = isDuplicateParameter
+        ? (isCommentedParameter ? "commented-duplicate-parameter-row" : "active-duplicate-parameter-row")
+        : "";
       const checked = state.selectedRowIds.includes(row.id) ? "checked" : "";
       if (row.kind === "comment") {
         return `
-          <tr class="${selected} ${commentClass}" data-row-id="${row.id}">
+          <tr class="${selected} ${commentClass} ${commentedParameterClass} ${duplicateParameterClass} ${duplicateStateClass}" data-row-id="${row.id}">
             <td class="row-id">${visualIndex}</td>
             <td><input type="checkbox" data-field="selected" ${checked}></td>
             <td colspan="5" class="comment-cell">
@@ -1963,7 +3375,7 @@ HTML_PAGE = """<!doctype html>
       if (state.viewMode === "rich" && (row.value || "").includes(",")) {
         const parts = (row.value || "").split(",").map((item) => item.trim()).filter(Boolean);
         const parentRow = `
-          <tr class="${selected} ${commentClass}" data-row-id="${row.id}">
+          <tr class="${selected} ${commentClass} ${commentedParameterClass} ${duplicateParameterClass} ${duplicateStateClass}" data-row-id="${row.id}">
             <td class="row-id">${visualIndex}</td>
             <td><input type="checkbox" data-field="selected" ${checked}></td>
             <td><input type="text" data-field="group" value="${escapeHtml(row.group || "")}"></td>
@@ -1988,7 +3400,7 @@ HTML_PAGE = """<!doctype html>
         return parentRow + subRows;
       }
       return `
-        <tr class="${selected} ${commentClass}" data-row-id="${row.id}">
+        <tr class="${selected} ${commentClass} ${commentedParameterClass} ${duplicateParameterClass} ${duplicateStateClass}" data-row-id="${row.id}">
           <td class="row-id">${visualIndex}</td>
           <td><input type="checkbox" data-field="selected" ${checked}></td>
           <td><input type="text" data-field="group" value="${escapeHtml(row.group || "")}"></td>
@@ -2090,6 +3502,7 @@ HTML_PAGE = """<!doctype html>
     }
 
     function render() {
+      renderMenuPanels();
       renderTabs();
       renderTable();
     }
@@ -2215,6 +3628,7 @@ HTML_PAGE = """<!doctype html>
         tab.content = tab.rawDraft ?? tab.content ?? "";
         tab.dirty = tab.content !== tab.originalContent;
       } else {
+        tab.rows = rowsInCurrentViewOrder(tab);
         updateDirty(tab);
       }
       const response = await fetch("/api/save", {
@@ -2223,7 +3637,7 @@ HTML_PAGE = """<!doctype html>
         body: JSON.stringify(
           state.viewMode === "raw"
             ? { path, content: tab.rawDraft ?? tab.content ?? "" }
-            : { path, rows: tab.rows }
+            : { path, rows: rowsInCurrentViewOrder(tab) }
         )
       });
       const payload = await response.json();
@@ -2267,7 +3681,7 @@ HTML_PAGE = """<!doctype html>
       setStatus("Restored from disk", "ok");
     }
 
-    function closeTab(tabId) {
+    function closeTab(tabId, options = {}) {
       const index = state.tabs.findIndex((tab) => tab.id === tabId);
       if (index < 0) return;
       state.tabs.splice(index, 1);
@@ -2278,7 +3692,9 @@ HTML_PAGE = """<!doctype html>
         setSelectedRows([]);
       }
       render();
-      setStatus("Tab closed");
+      if (!options.preserveStatus) {
+        setStatus("Tab closed");
+      }
     }
 
     function newTab() {
@@ -2350,28 +3766,391 @@ HTML_PAGE = """<!doctype html>
     }
 
     async function findFile() {
-      const query = window.prompt("Find file");
-      if (!query) return;
-      const response = await fetch("/api/find", {
+      const tab = currentEditorTab();
+      await createNavigatorTab("findclass", tab?.id || null);
+    }
+
+    function renderConfigureReportHtml(payload) {
+      const classes = payload.classes || [];
+      const inputBranches = payload.input_branches || [];
+      const configureLog = payload.configure_log || {};
+      const inputFilePath = configureLog.input_file || "";
+      const inputFileLabel = inputFilePath ? inputFilePath.split("/").pop() : "input";
+      const inputLegendLabel = inputFilePath ? `input file: ${inputFileLabel}` : "input file: none";
+      if (classes.length === 0) {
+        return '<div class="configure-report"><div class="configure-empty">No classes found in lilak/add</div></div>';
+      }
+      const inputNodes = [];
+      const branchNodes = [];
+      const classNodes = [];
+      const inputIndex = new Map();
+      const branchIndex = new Map();
+      const classIndex = new Map();
+      const classEdges = [];
+      const inputEdges = [];
+      const ensureInputNode = (branchName, branchClassName, branchDocUrl) => {
+        const key = `${branchName}::${branchClassName}`;
+        if (!inputIndex.has(key)) {
+          inputIndex.set(key, inputNodes.length);
+          inputNodes.push({
+            key,
+            branch_name: branchName,
+            branch_class_name: branchClassName,
+            branch_doc_url: branchDocUrl || "#",
+          });
+        }
+        return inputIndex.get(key);
+      };
+      const ensureBranchNode = (branchName, branchClassName, branchDocUrl) => {
+        const key = `${branchName}::${branchClassName}`;
+        if (!branchIndex.has(key)) {
+          branchIndex.set(key, branchNodes.length);
+          branchNodes.push({
+            key,
+            branch_name: branchName,
+            branch_class_name: branchClassName,
+            branch_doc_url: branchDocUrl || "#",
+          });
+        }
+        return branchIndex.get(key);
+      };
+      const ensureClassNode = (className, classDocUrl, classKind) => {
+        if (!classIndex.has(className)) {
+          classIndex.set(className, classNodes.length);
+          classNodes.push({
+            class_name: className,
+            class_doc_url: classDocUrl || "#",
+            class_kind: classKind || "class",
+          });
+        }
+        return classIndex.get(className);
+      };
+      for (const entry of classes) {
+        const classNodeIndex = ensureClassNode(entry.class_name, entry.doc_url, entry.class_kind);
+        for (const item of (entry.uses || [])) {
+          const branchNodeIndex = ensureBranchNode(item.branch_name, item.class_name, item.doc_url);
+          classEdges.push({
+            branch_index: branchNodeIndex,
+            class_index: classNodeIndex,
+            direction: item.action === "keep" ? "keep" : "read",
+          });
+        }
+        for (const item of (entry.saves || [])) {
+          if (item.action === "keep") {
+            continue;
+          }
+          const branchNodeIndex = ensureBranchNode(item.branch_name, item.class_name, item.doc_url);
+          classEdges.push({
+            branch_index: branchNodeIndex,
+            class_index: classNodeIndex,
+            direction: "write",
+          });
+        }
+      }
+      for (const item of inputBranches) {
+        const inputNodeIndex = ensureInputNode(item.branch_name, item.class_name, item.doc_url);
+        const branchNodeIndex = branchIndex.get(`${item.branch_name}::${item.class_name}`);
+        if (branchNodeIndex !== undefined) {
+          inputEdges.push({
+            input_index: inputNodeIndex,
+            branch_index: branchNodeIndex,
+            direction: "input-match",
+          });
+        }
+      }
+      if (classEdges.length === 0 && inputEdges.length === 0) {
+        return '<div class="configure-report"><div class="configure-empty">No branch relations found for classes in lilak/add</div></div>';
+      }
+      const inputNodeWidth = 180;
+      const branchNodeWidth = 180;
+      const classNodeWidth = 180;
+      const nodeHeight = 38;
+      const topPadding = 10;
+      const sidePadding = 12;
+      const columnGap = 120;
+      const verticalGap = 14;
+      const rowCount = Math.max(inputNodes.length, branchNodes.length, classNodes.length);
+      const graphHeight = Math.max(
+        72,
+        topPadding * 2 + rowCount * nodeHeight + Math.max(0, rowCount - 1) * verticalGap
+      );
+      const graphWidth = sidePadding * 2 + inputNodeWidth + columnGap + branchNodeWidth + columnGap + classNodeWidth + 20;
+      const inputPositions = inputNodes.map((_, index) => ({
+        x: sidePadding,
+        y: topPadding + index * (nodeHeight + verticalGap),
+      }));
+      const branchPositions = branchNodes.map((_, index) => ({
+        x: sidePadding + inputNodeWidth + columnGap,
+        y: topPadding + index * (nodeHeight + verticalGap),
+      }));
+      const classPositions = classNodes.map((_, index) => ({
+        x: graphWidth - sidePadding - classNodeWidth,
+        y: topPadding + index * (nodeHeight + verticalGap),
+      }));
+      const readMarkerId = `configureArrowRead_${Math.random().toString(36).slice(2, 10)}`;
+      const writeMarkerId = `configureArrowWrite_${Math.random().toString(36).slice(2, 10)}`;
+      const inputEdgeSlots = inputNodes.map(() => ({ match: 0 }));
+      const branchInputEdgeSlots = branchNodes.map(() => ({ match: 0 }));
+      for (const edge of inputEdges) {
+        inputEdgeSlots[edge.input_index].match += 1;
+        branchInputEdgeSlots[edge.branch_index].match += 1;
+      }
+      const branchEdgeSlots = branchNodes.map(() => ({ read: 0, write: 0, keep: 0 }));
+      const classEdgeSlots = classNodes.map(() => ({ read: 0, write: 0, keep: 0 }));
+      for (const edge of classEdges) {
+        branchEdgeSlots[edge.branch_index][edge.direction] += 1;
+        classEdgeSlots[edge.class_index][edge.direction] += 1;
+      }
+      const inputEdgeUsed = inputNodes.map(() => ({ match: 0 }));
+      const branchInputEdgeUsed = branchNodes.map(() => ({ match: 0 }));
+      const inputEdgeLayouts = inputEdges.map((edge) => {
+        const iTotal = inputEdgeSlots[edge.input_index].match;
+        const bTotal = branchInputEdgeSlots[edge.branch_index].match;
+        const iIndex = inputEdgeUsed[edge.input_index].match++;
+        const bIndex = branchInputEdgeUsed[edge.branch_index].match++;
+        const spread = 7;
+        return {
+          inputOffset: (iIndex - (iTotal - 1) / 2) * spread,
+          branchOffset: (bIndex - (bTotal - 1) / 2) * spread,
+        };
+      });
+      const branchEdgeUsed = branchNodes.map(() => ({ read: 0, write: 0, keep: 0 }));
+      const classEdgeUsed = classNodes.map(() => ({ read: 0, write: 0, keep: 0 }));
+      const edgeLayouts = classEdges.map((edge) => {
+        const edgeType = edge.direction === "keep" ? "keep" : edge.direction;
+        const bTotal = branchEdgeSlots[edge.branch_index][edgeType];
+        const cTotal = classEdgeSlots[edge.class_index][edgeType];
+        const bIndex = branchEdgeUsed[edge.branch_index][edgeType]++;
+        const cIndex = classEdgeUsed[edge.class_index][edgeType]++;
+        const spread = 7;
+        const branchOffset = (bIndex - (bTotal - 1) / 2) * spread;
+        const classOffset = (cIndex - (cTotal - 1) / 2) * spread;
+        return { branchOffset, classOffset };
+      });
+      return `
+        <div class="configure-report">
+          <div class="configure-legend">
+            <span class="configure-legend-item"><span class="configure-legend-line input-match"></span><span>input: run log branch matched to parameter branch</span></span>
+            <span class="configure-legend-item"><span>${escapeHtml(inputLegendLabel)}</span></span>
+            <span class="configure-legend-item"><span class="configure-legend-line read arrow"></span><span>read: branch to class</span></span>
+            <span class="configure-legend-item"><span class="configure-legend-line write arrow"></span><span>write: class to branch</span></span>
+            <span class="configure-legend-item"><span class="configure-legend-line keep"></span><span>keep: branch shared/kept</span></span>
+          </div>
+          <div class="configure-graph" style="width:${graphWidth}px; height:${graphHeight}px;">
+            <svg class="configure-svg" viewBox="0 0 ${graphWidth} ${graphHeight}" preserveAspectRatio="none">
+              <defs>
+                <marker id="${readMarkerId}" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+                  <path d="M0,0 L6,3 L0,6 z" fill="#4f82b4"></path>
+                </marker>
+                <marker id="${writeMarkerId}" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+                  <path d="M0,0 L6,3 L0,6 z" fill="#d07a2d"></path>
+                </marker>
+              </defs>
+              ${inputEdges.map((edge, edgeIndex) => {
+                const layout = inputEdgeLayouts[edgeIndex];
+                const inputPos = inputPositions[edge.input_index];
+                const branchPos = branchPositions[edge.branch_index];
+                const edgeGap = 8;
+                const inputX = inputPos.x + inputNodeWidth + edgeGap;
+                const inputY = inputPos.y + nodeHeight / 2 + layout.inputOffset;
+                const branchX = branchPos.x - edgeGap;
+                const branchY = branchPos.y + nodeHeight / 2 + layout.branchOffset;
+                return `<line class="configure-edge input-match" x1="${inputX}" y1="${inputY}" x2="${branchX}" y2="${branchY}"></line>`;
+              }).join("")}
+              ${classEdges.map((edge, edgeIndex) => {
+                const layout = edgeLayouts[edgeIndex];
+                const branchPos = branchPositions[edge.branch_index];
+                const classPos = classPositions[edge.class_index];
+                const edgeGap = 8;
+                const branchX = branchPos.x + branchNodeWidth + edgeGap;
+                const branchY = branchPos.y + nodeHeight / 2 + layout.branchOffset;
+                const classX = classPos.x - edgeGap;
+                const classY = classPos.y + nodeHeight / 2 + layout.classOffset;
+                if (edge.direction === "read") {
+                  return `<line class="configure-edge read" marker-end="url(#${readMarkerId})" x1="${branchX}" y1="${branchY}" x2="${classX}" y2="${classY}"></line>`;
+                }
+                if (edge.direction === "keep") {
+                  return `<line class="configure-edge keep" x1="${branchX}" y1="${branchY}" x2="${classX}" y2="${classY}"></line>`;
+                }
+                return `<line class="configure-edge write" marker-end="url(#${writeMarkerId})" x1="${classX}" y1="${classY}" x2="${branchX}" y2="${branchY}"></line>`;
+              }).join("")}
+            </svg>
+            ${inputNodes.map((node, index) => `
+              <div class="configure-node input" style="left:${inputPositions[index].x}px; top:${inputPositions[index].y}px; width:${inputNodeWidth}px; height:${nodeHeight}px;">
+                <div class="configure-node-title">${escapeHtml(node.branch_name || "")}</div>
+                <div class="configure-node-subtitle">
+                  <a href="${escapeHtml(node.branch_doc_url || "#")}" target="_blank" rel="noopener noreferrer">${escapeHtml(node.branch_class_name || "")}</a>
+                </div>
+              </div>
+            `).join("")}
+            ${branchNodes.map((node, index) => `
+              <div class="configure-node branch" style="left:${branchPositions[index].x}px; top:${branchPositions[index].y}px; width:${branchNodeWidth}px; height:${nodeHeight}px;">
+                <div class="configure-node-head">
+                  <div class="configure-node-title">${escapeHtml(node.branch_name || "")}</div>
+                  <button class="configure-add-button" data-config-add="1" data-branch-name="${escapeHtml(node.branch_name || "")}" data-branch-class="${escapeHtml(node.branch_class_name || "")}">add</button>
+                </div>
+                <div class="configure-node-subtitle">
+                  <a href="${escapeHtml(node.branch_doc_url || "#")}" target="_blank" rel="noopener noreferrer">${escapeHtml(node.branch_class_name || "")}</a>
+                </div>
+              </div>
+            `).join("")}
+            ${classNodes.map((node, index) => `
+              <div class="configure-node class" style="left:${classPositions[index].x}px; top:${classPositions[index].y}px; width:${classNodeWidth}px; height:${nodeHeight}px;">
+                <div class="configure-node-title">
+                  <a href="${escapeHtml(node.class_doc_url || "#")}" target="_blank" rel="noopener noreferrer">${escapeHtml(node.class_name || "")}</a>
+                </div>
+                <div class="configure-node-subtitle">${escapeHtml(node.class_kind || "class")}</div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    async function configureCurrentTab() {
+      const tab = currentEditorTab();
+      if (!tab) {
+        throw new Error("No editor tab selected");
+      }
+      const response = await fetch("/api/configure_report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query })
+        body: JSON.stringify({
+          content: currentRunContent(tab),
+          path: tab.path || ""
+        })
       });
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error || "Find failed");
+        throw new Error(payload.error || "Configure load failed");
       }
-      if (!payload.matches.length) {
-        throw new Error("No matching files");
+      state.runOutput = renderConfigureReportHtml(payload);
+      state.runOutputIsHtml = true;
+      state.runPanelView = "configure";
+      renderMenuPanels();
+      setStatus(`Loaded configure view for ${payload.count || 0} class${(payload.count || 0) !== 1 ? "es" : ""}`, "ok");
+    }
+
+    async function runCurrentTab() {
+      const tab = currentEditorTab();
+      if (!tab) {
+        throw new Error("No editor tab selected");
       }
-      const listing = payload.matches.map((item, index) => `${index + 1}. ${item}`).join("\\n");
-      const choice = window.prompt(`Select file number\\n${listing}`, "1");
-      if (!choice) return;
-      const selected = payload.matches[Number(choice) - 1];
-      if (!selected) {
-        throw new Error("Invalid selection");
+      setStatus("Running current parameter file...");
+
+      const content = currentRunContent(tab);
+
+      const response = await fetch("/api/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path: tab.path || "",
+          content
+        })
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Run failed");
       }
-      await openFileByPath(selected);
+
+      const blocks = [];
+      if (payload.command) {
+        blocks.push(`$ ${payload.command}`);
+      }
+      if (payload.stdout) {
+        blocks.push(payload.stdout.trimEnd());
+      }
+      if (payload.stderr) {
+        blocks.push(payload.stderr.trimEnd());
+      }
+      state.runOutput = blocks.filter(Boolean).join("\\n\\n");
+      state.runOutputIsHtml = false;
+      state.runPanelView = "run";
+      state.runStatusOutput = state.runOutput;
+      const summary = payload.log_info?.summary || "";
+      state.hasRunResult = true;
+      state.runStatusMessage = summary || (payload.returncode === 0 ? "Run finished" : `Run failed (${payload.returncode})`);
+      tab.lastRunContent = content;
+      renderMenuPanels();
+      const failure = isRunStatusFailure(summary, payload.returncode);
+      if (summary) {
+        setStatus(summary, failure ? "error" : "ok");
+      } else {
+        setStatus(payload.returncode === 0 ? "Run finished" : `Run failed (${payload.returncode})`, failure ? "error" : "ok");
+      }
+    }
+
+    function showRunStatus() {
+      if (!state.hasRunResult) {
+        throw new Error("No run result available");
+      }
+      state.runOutput = state.runStatusOutput || "";
+      state.runOutputIsHtml = false;
+      state.runPanelView = "status";
+      renderMenuPanels();
+      setStatus(state.runStatusMessage || "Status loaded", isRunStatusFailure(state.runStatusMessage, 0) ? "error" : "ok");
+    }
+
+    function toggleRunPanelExpanded() {
+      state.runPanelExpanded = !state.runPanelExpanded;
+      renderMenuPanels();
+      setStatus(state.runPanelExpanded ? "Run panel expanded" : "Run panel collapsed", "ok");
+    }
+
+    async function fetchRunLogInfo() {
+      const response = await fetch("/api/run_log_info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({})
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Failed to load run log info");
+      }
+      return payload;
+    }
+
+    async function showRunLog() {
+      const payload = await fetchRunLogInfo();
+      state.runOutput = payload.content || "";
+      state.runOutputIsHtml = false;
+      state.runPanelView = "log";
+      renderMenuPanels();
+      setStatus(payload.summary || "Log loaded", "ok");
+    }
+
+    async function showRunInfo() {
+      const payload = await fetchRunLogInfo();
+      const parsed = payload.parsed || {};
+      const lines = [
+        `Status: ${payload.summary || ""}`,
+        `Log: ${payload.resolved_path || payload.link_target || ""}`,
+        parsed.RunName ? `RunName: ${parsed.RunName}` : "",
+        parsed.RunID ? `RunID: ${parsed.RunID}` : "",
+        parsed.Tag ? `Tag: ${parsed.Tag}` : "",
+        parsed.Initialized ? `Initialized: ${parsed.Initialized}` : "",
+        parsed.num_events ? `Events: ${parsed.num_events}` : "",
+        parsed.run_time ? `RunTime: ${parsed.run_time}` : "",
+      ].filter(Boolean);
+      state.runOutput = lines.join("\\n");
+      state.runOutputIsHtml = false;
+      state.runPanelView = "info";
+      renderMenuPanels();
+      setStatus(payload.summary || "Info loaded", "ok");
+    }
+
+    async function showRunFiles() {
+      const payload = await fetchRunLogInfo();
+      const parsed = payload.parsed || {};
+      const lines = [
+        parsed.InputFile ? `InputFile: ${parsed.InputFile}` : "InputFile: ",
+        parsed.OutputFile ? `OutputFile: ${parsed.OutputFile}` : "OutputFile: ",
+      ];
+      state.runOutput = lines.join("\\n");
+      state.runOutputIsHtml = false;
+      state.runPanelView = "file";
+      renderMenuPanels();
+      setStatus(payload.summary || "File info loaded", "ok");
     }
 
     function bindMenus() {
@@ -2433,6 +4212,30 @@ HTML_PAGE = """<!doctype html>
               case "file-find":
                 await findFile();
                 break;
+              case "run-task":
+                await findFile();
+                break;
+              case "run-configure":
+                await configureCurrentTab();
+                break;
+              case "run-current":
+                await runCurrentTab();
+                break;
+              case "run-expand":
+                toggleRunPanelExpanded();
+                break;
+              case "run-status":
+                showRunStatus();
+                break;
+              case "run-log":
+                await showRunLog();
+                break;
+              case "run-info":
+                await showRunInfo();
+                break;
+              case "run-file":
+                await showRunFiles();
+                break;
               case "file-save-as": {
                 const tab = getEditorTab(activeTab()?.id) || getEditorTab(activeTab()?.targetEditorId);
                 if (!tab) throw new Error("No editor tab selected");
@@ -2489,6 +4292,20 @@ HTML_PAGE = """<!doctype html>
       render();
     }
 
+    function isEditableEventTarget(target) {
+      if (!target) {
+        return false;
+      }
+      const tagName = (target.tagName || "").toLowerCase();
+      if (tagName === "input" || tagName === "textarea" || tagName === "select") {
+        return true;
+      }
+      if (typeof target.isContentEditable === "boolean" && target.isContentEditable) {
+        return true;
+      }
+      return false;
+    }
+
     window.addEventListener("keydown", (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
@@ -2498,6 +4315,19 @@ HTML_PAGE = """<!doctype html>
       if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "z") {
         event.preventDefault();
         restoreActiveTab().catch((error) => setStatus(error.message, "warn"));
+        return;
+      }
+      if (!event.metaKey && !event.ctrlKey && !event.altKey && (event.key === "Delete" || event.key === "Backspace")) {
+        if (isEditableEventTarget(event.target)) {
+          return;
+        }
+        const tab = currentEditorTab();
+        const selectedIds = selectedRowIdsForTab(tab);
+        if (!tab || selectedIds.length === 0) {
+          return;
+        }
+        event.preventDefault();
+        removeSelectedRow();
       }
     });
 
@@ -2509,7 +4339,7 @@ HTML_PAGE = """<!doctype html>
 
 
 class ParameterEditorServer(ThreadingHTTPServer):
-    def __init__(self, server_address, initial_file: Path | None):
+    def __init__(self, server_address, initial_file: Optional[Path]):
         super().__init__(server_address, RequestHandler)
         self.initial_file = initial_file
 
@@ -2541,10 +4371,28 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _send_file(self, path: Path):
+        body = path.read_bytes()
+        mime_type, _ = mimetypes.guess_type(str(path))
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", (mime_type or "application/octet-stream"))
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/":
             self._send_html(HTML_PAGE)
+            return
+        if parsed.path.startswith("/doc/"):
+            relative_path = parsed.path[len("/doc/"):].lstrip("/")
+            doc_root = lilak_root_path() / "doc"
+            target = (doc_root / relative_path).resolve()
+            if not str(target).startswith(str(doc_root.resolve())) or not target.is_file():
+                self._send_json({"error": "Not found"}, status=HTTPStatus.NOT_FOUND)
+                return
+            self._send_file(target)
             return
         if parsed.path == "/api/bootstrap":
             if self.server.initial_file is None:
@@ -2597,9 +4445,40 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self._send_json({"content": normalize_with_lkparametercontainer(content)})
                 return
 
+            if parsed.path == "/api/run":
+                content = payload.get("content", "")
+                path_hint = payload.get("path", "")
+                self._send_json(run_lilak_with_content(content, path_hint))
+                return
+
+            if parsed.path == "/api/run_log_info":
+                self._send_json(read_last_lk_output_log_info())
+                return
+
             if parsed.path == "/api/find":
                 matches = find_matching_files(payload.get("query", ""))
                 self._send_json({"matches": matches})
+                return
+
+            if parsed.path == "/api/classdir":
+                self._send_json(list_class_directory(payload.get("path", "")))
+                return
+
+            if parsed.path == "/api/classparams":
+                self._send_json(load_class_parameter_payload(payload.get("path", "")))
+                return
+
+            if parsed.path == "/api/classmatch":
+                self._send_json(
+                    find_matching_classes_for_branch(
+                        payload.get("branch_name", ""),
+                        payload.get("class_name", ""),
+                    )
+                )
+                return
+
+            if parsed.path == "/api/configure_report":
+                self._send_json(build_configure_report(payload.get("content", ""), payload.get("path", "")))
                 return
 
             if parsed.path == "/api/listdir":
@@ -2613,6 +4492,9 @@ class RequestHandler(BaseHTTPRequestHandler):
             return
         except RuntimeError as error:
             self._send_json({"error": str(error)}, status=HTTPStatus.BAD_REQUEST)
+            return
+        except Exception as error:
+            self._send_json({"error": str(error)}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
             return
 
         self._send_json({"error": "Not found"}, status=HTTPStatus.NOT_FOUND)
@@ -2630,15 +4512,45 @@ def main():
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--no-browser", action="store_true")
+    parser.add_argument("--configure-report", action="store_true", help="Print terminal configure report for the given parameter file and exit")
+    parser.add_argument("--make-run", action="store_true", help="Create a run parameter file from an input ROOT file and exit")
+    parser.add_argument("--output", help="Output path for --make-run")
     args = parser.parse_args()
 
     initial_file = None
     if args.file:
         try:
-            initial_file = resolve_input_path(args.file)
+            if args.make_run:
+                initial_file = Path(os.path.expanduser(os.path.expandvars(args.file))).resolve()
+                if not initial_file.is_file():
+                    raise FileNotFoundError(args.file)
+            else:
+                initial_file = resolve_input_path(args.file)
         except FileNotFoundError:
             print(f"Cannot find parameter file: {args.file}", file=sys.stderr)
             return 1
+
+    if args.make_run:
+        if initial_file is None:
+            print("ROOT file is required for --make-run", file=sys.stderr)
+            return 1
+        output_path = None
+        if args.output:
+            output_path = Path(os.path.expanduser(os.path.expandvars(args.output)))
+            if not output_path.is_absolute():
+                output_path = (Path.cwd() / output_path).resolve()
+        created = create_run_parameter_file(initial_file, output_path)
+        print(created)
+        return 0
+
+    if args.configure_report:
+        if initial_file is None:
+            print("Parameter file is required for --configure-report", file=sys.stderr)
+            return 1
+        content = initial_file.read_text(encoding="utf-8")
+        report = build_configure_report(content, str(initial_file))
+        print(format_terminal_configure_report(report), end="")
+        return 0
 
     port = args.port or pick_port()
     server = ParameterEditorServer((args.host, port), initial_file)

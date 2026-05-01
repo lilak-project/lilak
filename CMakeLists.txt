@@ -20,7 +20,7 @@ set(BUILD_NPTOOL        OFF CACHE INTERNAL "") # NPTool simulation
 set(NPTOOL_NPLIB_LIST       CACHE INTERNAL "") # NPTool NPLib modules to link
 
 #---Configuration
-include(log/build_options.cmake)
+include(meta/build_options.cmake)
 
 add_compile_definitions(LILAK_COMPILED)
 
@@ -190,7 +190,7 @@ foreach(_directory ${LILAK_SOURCE_DIRECTORY_LIST})
         list(APPEND LILAK_ROOT_LINKED_CLASS_LIST ${class_name})
     endforeach(_full_name)
     list(APPEND PRAGMA_LINE_CPP_CLASS_LIST "\n")
-    configure_file(${LILAK_PATH}/log/LinkDef.h.in ${CMAKE_BINARY_DIR}/link_${_name}_LinkDef.h @ONLY)
+    configure_file(${LILAK_PATH}/meta/LinkDef.h.in ${CMAKE_BINARY_DIR}/link_${_name}_LinkDef.h @ONLY)
     file(GLOB LILAK_${_name}_LINKDEF_FILE ${CMAKE_BINARY_DIR}/link_${_name}_LinkDef.h)
 endforeach(_directory)
 
@@ -236,7 +236,7 @@ if(BUILD_NPTOOL)
     endforeach(_g4directory)
 endif(BUILD_NPTOOL)
 
-include_directories(${LILAK_PATH}/log)
+include_directories(${LILAK_PATH}/source/base)
 
 add_definitions(${ROOT_CXX_FLAGS})
 
@@ -447,10 +447,11 @@ foreach(_executable ${LILAK_EXECUTABLE_LIST})
     endif(BUILD_MFM_CONVERTER)
 endforeach(_executable)
 
-configure_file(${LILAK_PATH}/log/LKLog.cmake.in ${LILAK_PATH}/log/LKLog.cmake @ONLY)
+configure_file(${LILAK_PATH}/meta/LKLog.cmake.in ${LILAK_PATH}/meta/LKLog.cmake @ONLY)
 add_custom_target(LILAK_LOG ALL
-                  COMMAND ${CMAKE_COMMAND} -P ${LILAK_PATH}/log/LKLog.cmake
+                  COMMAND ${CMAKE_COMMAND} -P ${LILAK_PATH}/meta/LKLog.cmake
                   VERBATIM)
 add_dependencies(LILAK LILAK_LOG)
 
 file(MAKE_DIRECTORY ${LILAK_PATH}/data)
+file(MAKE_DIRECTORY ${LILAK_PATH}/data/log)
