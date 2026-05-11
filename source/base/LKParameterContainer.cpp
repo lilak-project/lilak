@@ -3,6 +3,7 @@
 #include <sstream>
 #include <iostream>
 #include <stdlib.h>
+#include <limits.h>
 
 #include "TROOT.h"
 #include "TSystem.h"
@@ -318,7 +319,6 @@ Int_t LKParameterContainer::AddFile(TString parName, TString fileName)
             TString trialPath = path + "/" + fileName;
             if (hasFormat)
             {
-                //lk_debug << trialPath << endl;
                 if (!TString(gSystem -> Which(".", trialPath.Data())).IsNull()) {
                     existFile = true;
                     foundPath = trialPath;
@@ -327,7 +327,6 @@ Int_t LKParameterContainer::AddFile(TString parName, TString fileName)
             else {
                 for (auto format : formatStrings) {
                     TString trialPathFormat = trialPath + "." + format;
-                    //lk_debug << trialPathFormat << endl;
                     if (!TString(gSystem -> Which(".", trialPathFormat.Data())).IsNull()) {
                         existFile = true;
                         foundPath = trialPathFormat;
@@ -625,20 +624,54 @@ void LKParameterContainer::Print(Option_t *option) const
     PrintToFileOrScreen("",TString(option));
 }
 
+TString LKParameterContainer::GetCommonGroup() const
+{
+    TIter iterator(this);
+    LKParameter *parameter;
+    TString commonGroup;
+
+    while (true) {
+        parameter = dynamic_cast<LKParameter*>(iterator());
+        if (parameter==nullptr)
+            break;
+        if (parameter -> IsLineComment())
+            continue;
+        auto group = parameter -> GetGroup();
+        if (group.IsNull()) {
+            commonGroup = "";
+            break;
+        }
+        if (commonGroup.IsNull()) commonGroup = group;
+        else if (commonGroup!=group) {
+            commonGroup = "";
+            break;
+        }
+    }
+
+    return commonGroup;
+}
+
 void LKParameterContainer::PrintToFileOrScreen(TString fileName, TString printOptions) const
 {
-    bool appendToFile     = LKMisc::CheckOption(printOptions,"app",true);
-    bool showLineIndex    = LKMisc::CheckOption(printOptions,"i",true);
-    bool showLineComment  = LKMisc::CheckOption(printOptions,"l",true);
-    bool useTObjectPrint  = LKMisc::CheckOption(printOptions,"t",true);
-    bool nptoolCommentOut = LKMisc::CheckOption(printOptions,"%",false);
-    bool nptoolFormat     = LKMisc::CheckOption(printOptions,"nptool",true);
+    bool printHeaderTail  = LKMisc::CheckOption(printOptions,"ht     #print header and tail",true);
+    bool appendToFile     = LKMisc::CheckOption(printOptions,"app    #incase printing out to file, append.",true);
+    bool showLineIndex    = LKMisc::CheckOption(printOptions,"idx    #print index",true);
+    bool showLineComment  = LKMisc::CheckOption(printOptions,"lcm    #print line comment",true);
+    bool useTObjectPrint  = LKMisc::CheckOption(printOptions,"tobj   #use TObject::Print()",true);
+    bool comIsPercent     = LKMisc::CheckOption(printOptions,"cm%    #use % for comment marker",false);
+    bool commentOutAll    = LKMisc::CheckOption(printOptions,"cmall  #comment out all parameters",true);
+    bool nptoolFormat     = LKMisc::CheckOption(printOptions,"nptool #use nptool format",true);
+    TString commonGroup = GetCommonGroup();
     if (nptoolFormat) {
-        LKMisc::AddOption(printOptions,"n",true);
-        LKMisc::AddOption(printOptions,"m",true);
-        LKMisc::AddOption(printOptions,"v",true);
-        LKMisc::AddOption(printOptions,"1",true);
+        LKMisc::AddOption(printOptions,"nptool",true);
+        LKMisc::AddOption(printOptions,"mname",true);
+        LKMisc::AddOption(printOptions,"eval",true);
+        if (!commonGroup.IsNull())
+            LKMisc::AddOption(printOptions,"nptool",1);
     }
+
+    TString com = "#";
+    if (comIsPercent) com = "%";
 
     bool printToScreen = ( fileName.IsNull());
     bool printToFile   = (!fileName.IsNull());
@@ -646,7 +679,7 @@ void LKParameterContainer::PrintToFileOrScreen(TString fileName, TString printOp
     if (fileName.Index(".")<0)
         fileName = fileName + ".mac";
 
-    if (printToScreen) {
+    if (printToScreen && printHeaderTail) {
         e_cout << endl;
         lk_info << "Parameter Container " << fName << endl;
     }
@@ -656,12 +689,12 @@ void LKParameterContainer::PrintToFileOrScreen(TString fileName, TString printOp
     {
         TString message;
         if (appendToFile) {
-            lk_info << "Appending to " << fileName << endl;
+            if (printHeaderTail) lk_info << "Appending to " << fileName << endl;
             fileOut.open(fileName,std::ios::app);
             message = fileName + " appending from LKParameterContainer::Print";
         }
         else {
-            lk_info << "Writting " << fileName << endl;
+            if (printHeaderTail) lk_info << "Writting " << fileName << endl;
             fileOut.open(fileName);
             message = fileName + " created from LKParameterContainer::Print";
         }
@@ -670,7 +703,7 @@ void LKParameterContainer::PrintToFileOrScreen(TString fileName, TString printOp
             fileOut << "% " << message << endl;
             fileOut << "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" << endl;
         }
-        else fileOut << "# " << message << endl;
+        else fileOut << com << " " << message << endl;
     }
     else {
         if (useTObjectPrint) {
@@ -684,16 +717,9 @@ void LKParameterContainer::PrintToFileOrScreen(TString fileName, TString printOp
     LKParameter *parameter;
     TString preGroup = "";
 
-    if (nptoolFormat) {
-        while (true) {
-            parameter = dynamic_cast<LKParameter*>(iterator());
-            if (parameter -> IsLineComment()) continue;
-            break;
-        }
-        auto group = parameter -> GetGroup();
-        if (nptoolCommentOut) fileOut << "%" << group << endl;
-        else fileOut << group << endl;
-        iterator.Reset();
+    if (nptoolFormat && !commonGroup.IsNull()) {
+        if (comIsPercent) fileOut << "%" << commonGroup << endl;
+        else fileOut << commonGroup << endl;
     }
 
     while ((parameter = dynamic_cast<LKParameter*>(iterator())))
@@ -744,9 +770,10 @@ void LKParameterContainer::PrintToFileOrScreen(TString fileName, TString printOp
     if (printToFile && nptoolFormat)
         fileOut << endl;
 
-    if (printToScreen)
+    if (printToScreen && printHeaderTail) {
         lk_info << "End of Parameter Container " << fName << endl;
         e_cout << endl;
+    }
 }
 
 LKParameterContainer *LKParameterContainer::CloneParameterContainer(TString name, bool addTemporary) const
@@ -931,6 +958,91 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
         lk_warning << "Parameter " << name << " already exist! Overwritting ... to " << name << " " << value << endl;
     }
 
+    if (name.Index("?")>=0)
+    {
+        auto lfTokNames = name.Tokenize("/");
+        auto numTok = lfTokNames -> GetEntries();
+        TString finalName;
+        for (auto iTok=0; iTok<numTok; ++iTok)
+        {
+            TString tokName = ((TObjString *) lfTokNames->At(iTok)) -> GetString();
+            if (tokName[0]!='?') {
+                if (finalName.IsNull()) finalName = tokName;
+                else finalName = finalName + "/" + tokName;
+                continue;
+            }
+            TString formula;
+            bool goodToAdd = false;
+            while (true) {
+                tokName = tokName(1, tokName.Sizeof()-2);
+                int coType = 0;
+                int coSize = 0;
+                int coIndex = 0;
+
+                if      (tokName.Index("<" )>0) { coType = 1; coIndex = tokName.Index("<" ); coSize = 1; }
+                else if (tokName.Index(">" )>0) { coType = 2; coIndex = tokName.Index(">" ); coSize = 1; }
+                else if (tokName.Index("<=")>0) { coType = 3; coIndex = tokName.Index("<="); coSize = 2; }
+                else if (tokName.Index(">=")>0) { coType = 4; coIndex = tokName.Index(">="); coSize = 2; }
+                else if (tokName.Index("==")>0) { coType = 5; coIndex = tokName.Index("=="); coSize = 2; }
+                else if (tokName.Index("!=")>0) { coType = 6; coIndex = tokName.Index("!="); coSize = 2; }
+                else                            { coType = 0; coIndex = tokName.Sizeof(); }
+
+                bool lGood = true;
+                bool lExist = false;
+                TString lName = tokName(0,coIndex);
+                TString lValue;
+
+                bool rGood = true;
+                bool rExist = false;
+                TString rName = tokName(coIndex+coSize,tokName.Sizeof());
+                TString rValue;
+
+                if (lName.Index("{")==0&&lName.EndsWith("}")) {
+                    lName = lName(1, lName.Sizeof()-3);
+                    lExist = CheckPar(lName);
+                    if (lExist) lValue = GetParString(lName);
+                    else lGood = false;
+                }
+                else
+                    lValue = lName;
+
+                if (coType==0 && lExist)
+                    lValue = "1";
+                else {
+                    if (rName.Index("{")==0&&rName.EndsWith("}")) {
+                        rName = rName(1, rName.Sizeof()-3);
+                        rExist = CheckPar(rName);
+                        if (rExist) rValue = GetParString(rName);
+                        else rGood = false;
+                    }
+                    else
+                        rValue = rName;
+                }
+
+                if (lGood==false||rGood==false) {
+                    goodToAdd = false;
+                    break;
+                }
+
+                if      (coType==0) formula = Form("%s"    ,lValue.Data()              );
+                else if (coType==1) formula = Form("%s<%s ",lValue.Data(),rValue.Data());
+                else if (coType==2) formula = Form("%s>%s ",lValue.Data(),rValue.Data());
+                else if (coType==3) formula = Form("%s<=%s",lValue.Data(),rValue.Data());
+                else if (coType==4) formula = Form("%s>=%s",lValue.Data(),rValue.Data());
+                else if (coType==5) formula = Form("%s==%s",lValue.Data(),rValue.Data());
+                else if (coType==6) formula = Form("%s!=%s",lValue.Data(),rValue.Data());
+
+                goodToAdd = bool(TFormula("goodToAdd",formula).Eval(0));
+                break;
+            }
+            if (goodToAdd==false) {
+                lk_info << "Skip add par: " << tokName << " is false. (" << formula << ")" << endl;
+                return false;
+            }
+        }
+        name = finalName;
+    }
+
     if (name.IsNull()&&value.IsNull()&&!comment.IsNull()) {
         SetLineComment(comment);
         return true;
@@ -1040,6 +1152,16 @@ LKParameter *LKParameterContainer::SetParCont(TString name) {
     return SetLineComment(Form("input container %s", name.Data()));
 }
 
+void LKParameterContainer::UpdatePar(LKBinning &value, TString name) const
+{
+    int nx; double x1, x2;
+    int ny; double y1, y2;
+    if (UpdateBinning(name, nx, x1, x2, ny, y1, y2))
+        value.SetNMM(nx, x1, x2, ny, y1, y2);
+    else if (UpdateBinning(name, nx, x1, x2))
+        value.SetXNMM(nx, x1, x2);
+}
+
 bool LKParameterContainer::UpdateBinning(TString name, Int_t &n, Double_t &x1, Double_t &x2) const
 {
     if (CheckPar(name) && GetParN(name)>=3)
@@ -1047,6 +1169,21 @@ bool LKParameterContainer::UpdateBinning(TString name, Int_t &n, Double_t &x1, D
         n = GetParInt(name,0);
         x1 = GetParDouble(name,1);
         x2 = GetParDouble(name,2);
+        return true;
+    }
+    return false;
+}
+
+bool LKParameterContainer::UpdateBinning(TString name, Int_t &nx, Double_t &x1, Double_t &x2, Int_t &ny, Double_t &y1, Double_t &y2) const
+{
+    if (CheckPar(name) && GetParN(name)>=6)
+    {
+        nx = GetParInt(name,0);
+        x1 = GetParDouble(name,1);
+        x2 = GetParDouble(name,2);
+        ny = GetParInt(name,3);
+        y1 = GetParDouble(name,4);
+        y2 = GetParDouble(name,5);
         return true;
     }
     return false;
@@ -1265,10 +1402,10 @@ LKParameter *LKParameterContainer::FindParFree(TString givenName, bool terminate
 
     if (fParameterCollectionMode && fCollectedParameterContainer->FindPar(givenName)==nullptr)
     {
-        if (parameterIsFound)
-            fCollectedParameterContainer -> AddLine(Form("%s",parameterFound->GetLine().Data()));
-        else
-            fCollectedParameterContainer -> AddLine(Form("%s",givenName.Data()));
+        TString line;
+        if (parameterIsFound) line = Form("%s",parameterFound->GetLine().Data());
+        else                  line = Form("%s",givenName.Data());
+        fCollectedParameterContainer -> AddLine(line);
     }
 
     if (parameterIsFound)
@@ -1334,10 +1471,10 @@ LKParameter *LKParameterContainer::FindPar(TString givenName, bool terminateIfNu
 
     if (fParameterCollectionMode && fCollectedParameterContainer->FindPar(givenName)==nullptr)
     {
-        if (parameterIsFound)
-            fCollectedParameterContainer -> AddLine(Form("%s",parameterFound->GetLine().Data()));
-        else
-            fCollectedParameterContainer -> AddLine(Form("%s",givenName.Data()));
+        TString line;
+        if (parameterIsFound) line = Form("%s",parameterFound->GetLine().Data());
+        else                  line = Form("%s",givenName.Data());
+        fCollectedParameterContainer -> AddLine(line);
     }
 
     if (parameterIsFound)
@@ -1367,7 +1504,7 @@ void LKParameterContainer::PrintCollection(TString fileName)
 {
     fCollectedParameterContainer -> Sort();
     if (fileName.IsNull() || fileName=="print")
-        fCollectedParameterContainer -> Print("r:i:c:l");
+        fCollectedParameterContainer -> Print("raw:idx:parcm:lcm");
     else
         fCollectedParameterContainer -> SaveAs(fileName);
 }

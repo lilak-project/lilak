@@ -2,8 +2,10 @@
 #include "LKPainter.h"
 
 #include "TColorWheel.h"
-#include "TColor.h"
+#include "TObjString.h"
+#include "TObjArray.h"
 #include "TMarker.h"
+#include "TColor.h"
 #include "TH2D.h"
 #include "TMath.h"
 #include "TText.h"
@@ -528,42 +530,108 @@ void LKMisc::DrawFonts()
     }
 }
 
+int LKMisc::Index1(TString option, TString pat)
+{
+    int idx = option.Index(pat);
+
+    auto iComment = pat.Index("#",1);
+    TString comment;
+    if (iComment>0) {
+        comment = pat(iComment+1,pat.Sizeof());
+        pat = pat(0,iComment);
+        pat = pat.Strip(TString::kBoth);
+        comment = comment.Strip(TString::kBoth);
+    }
+
+    bool help = false;
+    if (option.Index("?")>0) {
+        if (comment) cout << "- " << pat << "  # " << comment << endl;
+        else cout << "- " << pat << endl;
+        help = true;
+    }
+
+    return idx;
+}
+
 TString LKMisc::FindOption(TString &option, TString name, bool removeAfter, int addValue)
 {
     TString opcopy = Form(":%s:",option.Data());
-    int idxName = opcopy.Index(Form(":%s",name.Data()));
-    if (idxName<0)
-        return "";
-    idxName = idxName + 1;
-    int idxColon = opcopy.Index(":",idxName);
-    int idxEqual = opcopy.Index("=",idxName);
-    int idxNext = idxName + name.Sizeof()-1;
-    if (idxNext!=idxEqual && idxNext!=idxColon)
-        return "";
+    auto iComment = name.Index("#",1);
+    auto iSkipComment = name.Index("#!",1);
+    bool skipComment = (iSkipComment>1);
+    TString comment;
+    if (iComment>0) {
+        comment = name(iComment+1,name.Sizeof());
+        name = name(0,iComment);
+        comment = comment.Strip(TString::kBoth);
+    }
+    name = name.Strip(TString::kBoth);
+
+    bool help = false;
+    if (skipComment==false&&name.Index("?")<0&&CheckOption(option,"?",true,0)) {
+        if (comment) cout << "- " << name << "  # " << comment << endl;
+        else cout << "- " << name << endl;
+        help = true;
+    }
+
+    if (name.Index("||")>0)
+    {
+        TString foundOption;
+        auto nameList = name.Tokenize("||");
+        auto numNames = nameList -> GetEntries();
+        for (auto iName=0; iName<numNames; ++iName)
+        {
+            TString tokName = ((TObjString *) nameList->At(iName)) -> GetString();
+            tokName = tokName.Strip(TString::kBoth);
+            TString found = FindOption(option,tokName,removeAfter,addValue);
+            if (foundOption.IsNull()) foundOption = found;
+            else foundOption = foundOption + "||" + found;
+        }
+        if (help) option = option + ":?";
+        return foundOption;
+    }
+    else
+    {
+        int idxName = opcopy.Index(Form(":%s",name.Data()));
+        if (idxName<0) {
+            if (help) option = option + ":?";
+            return "";
+        }
+        idxName = idxName + 1;
+        int idxColon = opcopy.Index(":",idxName);
+        int idxEqual = opcopy.Index("=",idxName);
+        int idxNext = idxName + name.Sizeof()-1;
+        if (idxNext!=idxEqual && idxNext!=idxColon) {
+            if (help) option = option + ":?";
+            return "";
+        }
         //return Form("%s*",name); // found option which do not exact
 
-    if (idxEqual<0||idxEqual>idxColon) {
-        if (removeAfter)
-            opcopy.ReplaceAll(Form(":%s:",name.Data()),":");
-        option = opcopy(1,opcopy.Sizeof()-3);
-        return name; // found option but value do not exist
+        if (idxEqual<0||idxEqual>idxColon) {
+            if (removeAfter)
+                opcopy.ReplaceAll(Form(":%s:",name.Data()),":");
+            option = opcopy(1,opcopy.Sizeof()-3);
+            if (help) option = option + ":?";
+            return name; // found option but value do not exist
+        }
+        TString value = opcopy(idxEqual+1,idxColon-idxEqual-1);
+        if (removeAfter) {
+            opcopy.ReplaceAll(Form(":%s=%s:",name.Data(),value.Data()),":");
+            option = opcopy(1,opcopy.Sizeof()-3);
+        }
+        if (addValue!=0) {
+            if (removeAfter)
+                e_error << "Cannot add value while removing option!" << endl;
+            if (value.IsDec()==false)
+                e_error << "Cannot add value to non decimal number!" << endl;
+            int valueInt = value.Atoi();
+            valueInt = valueInt + addValue;
+            opcopy.ReplaceAll(Form(":%s=%s:",name.Data(),value.Data()),Form(":%s=%d:",name.Data(),valueInt));
+            option = opcopy(1,opcopy.Sizeof()-3);
+        }
+        if (help) option = option + ":?";
+        return value;
     }
-    TString value = opcopy(idxEqual+1,idxColon-idxEqual-1);
-    if (removeAfter) {
-        opcopy.ReplaceAll(Form(":%s=%s:",name.Data(),value.Data()),":");
-        option = opcopy(1,opcopy.Sizeof()-3);
-    }
-    if (addValue!=0) {
-        if (removeAfter)
-            e_error << "Cannot add value while removing option!" << endl;
-        if (value.IsDec()==false)
-            e_error << "Cannot add value to non decimal number!" << endl;
-        int valueInt = value.Atoi();
-        valueInt = valueInt + addValue;
-        opcopy.ReplaceAll(Form(":%s=%s:",name.Data(),value.Data()),Form(":%s=%d:",name.Data(),valueInt));
-        option = opcopy(1,opcopy.Sizeof()-3);
-    }
-    return value;
 }
 
 int LKMisc::FindOptionInt(TString option, TString name, int emptyValue)
@@ -609,13 +677,22 @@ bool LKMisc::RemoveOption(TString &option, TString name)
 
 void LKMisc::AddOption(TString &original, TString adding)
 {
-    if (LKMisc::CheckOption(original,adding)==false)
+    if (LKMisc::CheckOption(original,adding)==false) {
+        auto iComment = adding.Index("#",1);
+        if (iComment>0)
+            adding = adding(0,iComment);
+        adding = adding.Strip(TString::kBoth);
         original = original + ":" + adding;
+    }
 }
 
 void LKMisc::AddOption(TString &original, TString adding, TString value)
 {
     LKMisc::RemoveOption(original,adding);
+    auto iComment = adding.Index("#",1);
+    if (iComment>0)
+        adding = adding(0,iComment);
+    adding = adding.Strip(TString::kBoth);
     TString option = Form("%s=%s",adding.Data(),value.Data());
     original = original + ":" + option;
 }
@@ -623,6 +700,10 @@ void LKMisc::AddOption(TString &original, TString adding, TString value)
 void LKMisc::AddOption(TString &original, TString adding, double value)
 {
     LKMisc::RemoveOption(original,adding);
+    auto iComment = adding.Index("#",1);
+    if (iComment>0)
+        adding = adding(0,iComment);
+    adding = adding.Strip(TString::kBoth);
     TString option = Form("%s=%f",adding.Data(),value);
     while (option[option.Sizeof()-2]=='0')
         option = option(0,option.Sizeof()-2);
@@ -632,6 +713,10 @@ void LKMisc::AddOption(TString &original, TString adding, double value)
 void LKMisc::AddOption(TString &original, TString adding, int value)
 {
     LKMisc::RemoveOption(original,adding);
+    auto iComment = adding.Index("#",1);
+    if (iComment>0)
+        adding = adding(0,iComment);
+    adding = adding.Strip(TString::kBoth);
     TString option = Form("%s=%d",adding.Data(),value);
     original = original + ":" + option;
 }

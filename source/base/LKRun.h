@@ -49,13 +49,13 @@ class LKRun : public LKVirtualRun
 
         /**
          * ## options
-         * - all  : Print all (below)
-         * - gen  : Print general information
-         * - par  : Print parameter information
-         * - out  : Print output information
-         * - in   : Print input information
-         * - det  : Print detector information
-         * - task : Print detector information
+         * - gen  : print general information
+         * - par  : print parameter information
+         * - out  : print output information
+         * - in   : print input information
+         * - det  : print detector information
+         * - task : print detector information
+         * - all  : print all
          */
         void Print(Option_t *option="all") const;
 
@@ -127,6 +127,8 @@ class LKRun : public LKVirtualRun
         void AddParAfter(TString fname) { fParAddAfter = fname; }
 
         void SetLILAKRun() { fIsLILAKRun = true; }
+
+        void SetCollectPar(TString configName="") { fCollecteParAndPrintTo = (configName.IsNull()?"lilak_configure":configName); }
 
         /**
          */
@@ -330,9 +332,9 @@ class LKRun : public LKVirtualRun
         TFile *fOutputFile = nullptr;
         TTree *fOutputTree = nullptr;
 
-        TObjArray *fPersistentBranchArray = nullptr;
-        TObjArray *fTemporaryBranchArray = nullptr;
-        TObjArray *fInputTreeBranchArray = nullptr;
+        TObjArray *fPersistentAddressArray = nullptr;
+        TObjArray *fTemporaryAddressArray = nullptr;
+        TObjArray *fInputTreeAddressArray = nullptr;
 
         Int_t fCountBranches = 0;
         TClonesArray **fBranchPtr;
@@ -400,6 +402,8 @@ class LKRun : public LKVirtualRun
         TString fDrawOption;
 
         bool fIsLILAKRun = false;
+
+        TString fCollecteParAndPrintTo = "";
 
         LKDataViewer* fDataViewer = nullptr;
         LKDrawingGroup* fTopDrawingGroup = nullptr;

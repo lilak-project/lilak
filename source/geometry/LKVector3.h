@@ -165,9 +165,11 @@ class LKVector3 : public TVector3
         TVector3 GetXYZ() const;
         TVector3 GetIJK() const;
 
+#ifdef LILAK_COMPILED
         TArrow *ArrowXY();
         TArrow *ArrowYZ();
         TArrow *ArrowZX();
+#endif
 
         void Rotate(Double_t angle, Axis ka=kNon);
 

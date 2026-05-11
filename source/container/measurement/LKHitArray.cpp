@@ -837,14 +837,14 @@ Double_t LKHitArray::GetAZX() const { return fW * (fEZX - fEZ * fEX); }
 TVector3 LKHitArray::GetMean()          const { return TVector3(fEX,fEY,fEZ); }
 TVector3 LKHitArray::GetVariance()      const { return TVector3(fEXX-fEX*fEX,fEYY-fEY*fEY,fEZZ-fEZ*fEZ); }
 TVector3 LKHitArray::GetCovariance()    const { return TVector3(fEXY-fEX*fEY,fEYZ-fEY*fEZ,fEZX-fEZ*fEX); }
-TVector3 LKHitArray::GetStdDev()        const { return TVector3(TMath::Sqrt(fEXY-fEX*fEY),TMath::Sqrt(fEYZ-fEY*fEZ),TMath::Sqrt(fEZX-fEZ*fEX)); }
+TVector3 LKHitArray::GetStdDev()        const { return TVector3(TMath::Sqrt(fEXX-fEX*fEX),TMath::Sqrt(fEYY-fEY*fEY),TMath::Sqrt(fEZZ-fEZ*fEZ)); }
 TVector3 LKHitArray::GetSquaredMean()   const { return TVector3(fEXX,fEYY,fEZZ); }
 TVector3 LKHitArray::GetCoSquaredMean() const { return TVector3(fEXY,fEYZ,fEZX); }
 
 LKVector3 LKHitArray::GetMean(axis_t ref)          const { return LKVector3(fEX,fEY,fEZ,ref); }
 LKVector3 LKHitArray::GetVariance(axis_t ref)      const { return LKVector3(fEXX-fEX*fEX,fEYY-fEY*fEY,fEZZ-fEZ*fEZ,ref); }
 LKVector3 LKHitArray::GetCovariance(axis_t ref)    const { return LKVector3(fEXY-fEX*fEY,fEYZ-fEY*fEZ,fEZX-fEZ*fEX,ref); }
-LKVector3 LKHitArray::GetStdDev(axis_t ref)        const { return LKVector3(TMath::Sqrt(fEXY-fEX*fEY),TMath::Sqrt(fEYZ-fEY*fEZ),TMath::Sqrt(fEZX-fEZ*fEX),ref); }
+LKVector3 LKHitArray::GetStdDev(axis_t ref)        const { return LKVector3(TMath::Sqrt(fEXX-fEX*fEX),TMath::Sqrt(fEYY-fEY*fEY),TMath::Sqrt(fEZZ-fEZ*fEZ),ref); }
 LKVector3 LKHitArray::GetSquaredMean(axis_t ref)   const { return LKVector3(fEXX,fEYY,fEZZ,ref); }
 LKVector3 LKHitArray::GetCoSquaredMean(axis_t ref) const { return LKVector3(fEXY,fEYZ,fEZX,ref); }
 

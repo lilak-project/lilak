@@ -397,12 +397,30 @@ void LKLinearTrack::FillTrajectory(TGraphErrors* graphTrack, LKVector3::Axis axi
     }
 }
 
+void LKLinearTrack::FillTrajectory(TGraphErrors* graphTrack, LKVector3::Axis axis1, LKVector3::Axis axis2)
+{
+    for (double r : {0.,1.})
+    {
+        auto pos = LKVector3(ExtrapolateByRatio(r),LKVector3::kZ);
+        graphTrack -> SetPoint(graphTrack->GetN(), pos.At(axis1), pos.At(axis2));
+    }
+}
+
 void LKLinearTrack::FillTrajectory3D(TGraph2DErrors* graphTrack3D, LKVector3::Axis axis1, LKVector3::Axis axis2, LKVector3::Axis axis3, bool (*fisout)(TVector3 pos))
 {
     for (double r : {0.,1.})
     {
         auto pos = LKVector3(ExtrapolateByRatio(r),LKVector3::kZ);
         if (fisout(pos)) break;
+        graphTrack3D -> SetPoint(graphTrack3D->GetN(), pos.At(axis1), pos.At(axis2), pos.At(axis3));
+    }
+}
+
+void LKLinearTrack::FillTrajectory3D(TGraph2DErrors* graphTrack3D, LKVector3::Axis axis1, LKVector3::Axis axis2, LKVector3::Axis axis3)
+{
+    for (double r : {0.,1.})
+    {
+        auto pos = LKVector3(ExtrapolateByRatio(r),LKVector3::kZ);
         graphTrack3D -> SetPoint(graphTrack3D->GetN(), pos.At(axis1), pos.At(axis2), pos.At(axis3));
     }
 }

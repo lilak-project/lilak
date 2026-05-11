@@ -2,6 +2,7 @@
 
 #include "TStyle.h"
 #include "TText.h"
+#include "TSystem.h"
 
 #include "LKLogger.h"
 #include "LKRun.h"
@@ -191,6 +192,7 @@ bool LKGETChannelViewer::Init()
     fHistMCAANumber -> GetXaxis() -> SetBinLabel(fBinXMenu[2],"Next");
     fHistMCAANumber -> GetXaxis() -> SetBinLabel(fBinXMenu[3],"Select");
     fHistMCAANumber -> GetXaxis() -> SetBinLabel(fBinXMenu[4],"Find Evt.");
+    fHistMCAANumber -> GetXaxis() -> SetBinLabel(fBinXMenu[5],"Save");
     fHistMCAANumber -> GetXaxis() -> SetLabelSize(0.08);
     fHistMCAANumber -> SetMaximum(fFillMaximum);
     for (auto i=0; i<fNumMenu; ++i) fHistMCAANumber -> SetBinContent(fBinXMenu[i],fBinYMenu[i],1);
@@ -745,6 +747,38 @@ void LKGETChannelViewer::SelectMenu(int valMenu, bool update)
         }
         else {
             lk_info << "Skipping to event containing CAAC = " << fSelCobo << " " << fSelAsad << " " << fSelAget << " " << fSelChan << " ... ?" << endl;
+        }
+    }
+    else if (valMenu==5)
+    {
+        TString dirName = Form("viewer_%s", fRun->MakeFullRunName(1).Data());
+        gSystem -> Exec(Form("mkdir -p %s/",dirName.Data()));
+        TString mainName = Form("%s/Event%lld_CAAC%d%d%d%02d", dirName.Data(), fRun->GetCurrentEventID(), fSelCobo, fSelAsad, fSelAget, fSelChan);
+        lk_info << "Saving Event " << mainName << endl;
+        {
+            TString pngName = mainName + ".png";
+            fCvsMain -> SaveAs(pngName);
+        }
+        {
+            TString rootName = mainName + ".root";
+            auto file = new TFile(rootName,"recreate");
+            fCvsMain -> Write();
+            fHistMCAAChannels -> Write();
+            auto numGraphs = fGraphArrayMCAA -> GetEntries();
+            for (auto iGraph=0; iGraph<numGraphs; ++iGraph)
+            {
+                auto graph = (TGraph*) fGraphArrayMCAA -> At(iGraph);
+                graph -> SetName(Form("graph_m%d",iGraph));
+                graph -> Write();
+            }
+            fHistIndvChannels -> Write();
+            numGraphs = fGraphArrayIndv -> GetEntries();
+            for (auto iGraph=0; iGraph<numGraphs; ++iGraph)
+            {
+                auto graph = (TGraph*) fGraphArrayIndv -> At(iGraph);
+                graph -> SetName(Form("graph_i%d",iGraph));
+                graph -> Write();
+            }
         }
     }
     //ResetActive(0);

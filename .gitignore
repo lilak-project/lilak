@@ -12,6 +12,7 @@ output/
 *.root
 *.graw
 *.gdml
+link_*
 
 #figures
 figures/
@@ -27,12 +28,12 @@ figures/
 
 #configurations and logs
 macros/command_lilak.sh
-log/*
-*.log
-!log/*.in
+macros/rootlogon.C
 
 #updating
-common/
+common/*
+!common/nptool*.mac
+!common/geant4*.mac
 doc/
 LKClassFactory*
 LKG4DetectorConstructionFactory*

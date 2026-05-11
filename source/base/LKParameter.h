@@ -23,10 +23,19 @@ class LKParameter : public TNamed
         virtual ~LKParameter();
 
         virtual void Clear(Option_t *option = "");
-        /// r : show raw value
-        /// e : show evaluatated value
-        /// c : show parameter comment
-        virtual void Print(Option_t *option = "e:c") const;
+
+        /*
+        * ## options
+        * - raw: show raw parameter values before replacings and evaluations
+        * - eval: show evaluated parameter values (default)
+        * - parcm: show parameter comments
+        * - nptool: use nptool format
+        * - mname: use main name instead of full name
+        * - cm%: use % as comment charactor (this is for nptool format)
+        * - cmall: comment out the whole line
+        * - ntab: number of tabs before starting the line
+        */
+        virtual void Print(Option_t *option = "eval:parcm") const;
 
         virtual Bool_t IsSortable() const { return true; }
         virtual Int_t Compare(const TObject *obj) const;
@@ -50,13 +59,7 @@ class LKParameter : public TNamed
         TString GetLastName() const;
 
         TString GetGroup(int ith) const;
-        /// r : show raw value
-        /// e : show evaluatated value
-        /// c : show parameter comment
-        /// n : use nptool format
-        /// 1 : tab=1 (for nptool format)
-        /// m : print only main name without groups
-        TString GetLine(TString option="e:c") const;
+        TString GetLine(TString option="eval:parcm") const;
 
         bool    CheckTypeInt   (int i=-1) const;
         bool    CheckTypeLong  (int i=-1) const;

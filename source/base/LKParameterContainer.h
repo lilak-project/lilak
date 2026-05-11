@@ -32,6 +32,10 @@ typedef LKVector3::Axis axis_t;
 using namespace std;
 
 /**
+ * @brief
+ *  LKParameterContainer containing list of LKParameter
+ *
+ * @details
  * ## LKParameterContainer
  *  LKParameterContainer is a list of parameters defined by LKParameter
  *  The key features of LKParameter are [group], [name], [value], [comment].
@@ -53,7 +57,7 @@ using namespace std;
  *
  * ## [value]
  *  - [value] can be a single value or a list of values.
- *  - If [value] is a list of values, they should be separated by empty spaces.
+ *  - If [value] is a list of values, they should be separated by commas.
  *  - [value] can reference other parameters values using {...}. ex) {[name]}, {[name][1]}.
  *  - [value] can reference environment variable using e{...}. ex) e{ROOTSYS}, e{HOME}, e{LILAK_PATH}
  *
@@ -124,29 +128,11 @@ class LKParameterContainer : public TObjArray
         LKParameterContainer(const char *parName); ///< Constructor with input parameter file name
         virtual ~LKParameterContainer() {}
 
-        /**
-         * Print to screen or file
-         *
-         * ## How to give option
-         *
-         * If file name is not given, parameter container will be printed on the screen. ex) Print()
-         * If file name is given with an extension (".par") parameter container will be written to the file. ex) Print("file.par")
-         * Options may be added with and addition to ":" or space. ex) Print("file.par:line#:par#"), Print("eval:par#")
-         *
-         * ## options
-         *
-         * - i : show line index
-         * - l : show line comments
-         * - t : print from TObjArray::Print()
-         * - r : show raw parameter value
-         * - e : evaluate and replace all unraveled variables with ({par},+,-,...)
-         * - c : show parameter comments
-         */
-        virtual void Print(Option_t *option="i:l:e:c") const;
-        void SaveAs(const char *fileName, Option_t *option = "") const;
+        virtual void Print(Option_t *option="idx:ht:lcm:eval:parcm") const;
+        void SaveAs(const char *fileName, Option_t *option="ht:lcm:eval:parcm") const;
         LKParameterContainer *CloneParameterContainer(TString name="", bool addTemporary=false) const;
 
-        void PrintToFileOrScreen(TString fileName, TString printOptions="i:l:e:c") const;
+        void PrintToFileOrScreen(TString fileName, TString printOptions="idx:ht:lcm:eval:parcm") const;
 
         void Recompile();
 
@@ -169,12 +155,15 @@ class LKParameterContainer : public TObjArray
         bool SearchAndAddPar(TString dirName="");
 
         LKParameter* GetParameter(int idx) { return (LKParameter*) At(idx); }
+        TString GetCommonGroup() const;
 
 #ifdef LILAK_BUILD_JSONCPP
         Int_t  AddJsonTree(const Json::Value &value, TString treeName="");
 #endif
 
         Int_t  AddLine(std::string line); ///< Set parameter by line
+        Int_t  AddLine(TString line) { std::string ssline = line.Data(); return AddLine(ssline); }
+        Int_t  AddLine(const char* line) { std::string ssline = line; return AddLine(ssline); }
         Bool_t AddPar(TString name, TString val, TString comment=""); ///< Set parameter TString
         Bool_t AddPar(TString name, Int_t val, TString comment="")    { return AddPar(name,Form("%d",val),comment); } ///< Set parameter Int_t
         Bool_t AddPar(TString name, Long64_t val, TString comment="") { return AddPar(name,Form("%lld",val),comment); } ///< Set parameter Double_t
@@ -234,8 +223,9 @@ class LKParameterContainer : public TObjArray
         void UpdatePar(TString   &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParString(name,idx); } ///< See UpdatePar(Bool_t, TString, int)
         void UpdatePar(axis_t    &value, TString name, int idx=-1) const { if (CheckPar(name)) value = GetParAxis  (name,idx); } ///< See UpdatePar(Bool_t, TString, int)
         void UpdatePar(TVector3  &value, TString name)             const { if (CheckPar(name)) value = GetParV3    (name);     } ///< See UpdatePar(Bool_t, TString, int)
-        void UpdatePar(LKBinning &value, TString name)             const { int n; double x1, x2; if (UpdateBinning(name, n, x1, x2)) value.SetXNMM(n, x1, x2); }
-        bool UpdateBinning(TString name, Int_t &n, Double_t &x1, Double_t &x2) const;
+        void UpdatePar(LKBinning &value, TString name) const;
+        bool UpdateBinning(TString name, Int_t &n,  Double_t &x1, Double_t &x2) const;
+        bool UpdateBinning(TString name, Int_t &nx, Double_t &x1, Double_t &x2, Int_t &ny, Double_t &y1, Double_t &y2) const;
         void UpdateV3(TString name, Double_t &x, Double_t &y, Double_t &z) const;
 
         Bool_t               InitPar(Bool_t    dfValue, TString name, int idx=-1) const { if (CheckParWithValue(name,dfValue)) return GetParBool   (name, idx); return dfValue; }

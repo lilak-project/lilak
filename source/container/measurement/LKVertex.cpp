@@ -24,10 +24,10 @@ void LKVertex::Print(Option_t *option) const
 
     if (opts.Index("s")>=0)
         e_info << "Vertex at (" << fX << "," << fY << "," << fZ
-            << ") [mm] containing " << GetNumTracks() << "tracks" << endl;
+            << ") [mm] containing " << GetNumTracks() << " tracks" << endl;
     else //if (opts.Index("a")>=0)
         e_info << "Vertex at (" << setw(12) << fX <<"," << setw(12) << fY <<"," << setw(12) << fZ
-            << ") [mm] containing " << GetNumTracks() << "tracks" << endl;
+            << ") [mm] containing " << GetNumTracks() << " tracks" << endl;
 }
 
 void LKVertex::Copy(TObject &obj) const

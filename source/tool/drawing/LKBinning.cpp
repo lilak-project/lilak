@@ -83,29 +83,57 @@ TH2D* LKBinning::NewH2(TString name, TString title)
     return hist;
 }
 
-void LKBinning::SetBinning(TH1 *hist)
+void LKBinning::SetBinning(TH1 *hist, bool useCurrentRange)
 {
-    if (hist->InheritsFrom(TH2::Class())) {
-        TString title = hist -> GetXaxis() -> GetTitle();
-        fBinningX.SetTitle(title);
-        int    nx = hist -> GetNbinsX();
-        double x1 = hist -> GetXaxis() -> GetBinLowEdge(1);
-        double x2 = hist -> GetXaxis() -> GetBinUpEdge(nx);
-        fBinningX.SetXNMM(nx,x1,x2);
-        TString titley = hist -> GetYaxis() -> GetTitle();
-        fBinningY.SetTitle(titley);
-        int    ny = hist -> GetNbinsY();
-        double y1 = hist -> GetYaxis() -> GetBinLowEdge(1);
-        double y2 = hist -> GetYaxis() -> GetBinUpEdge(ny);
-        fBinningY.SetXNMM(ny,y1,y2);
+    if (useCurrentRange)
+    {
+        if (hist->InheritsFrom(TH2::Class())) {
+            TString title = hist -> GetXaxis() -> GetTitle();
+            fBinningX.SetTitle(title);
+            double wx = hist->GetXaxis()->GetBinWidth(1);
+            double x1 = hist->GetXaxis()->GetBinLowEdge(hist->GetXaxis()->GetFirst());
+            double x2 = hist->GetXaxis()->GetBinUpEdge (hist->GetXaxis()->GetLast());
+            fBinningX.SetXMMW(x1,x2,wx);
+            TString titley = hist -> GetYaxis() -> GetTitle();
+            fBinningY.SetTitle(titley);
+            double wy = hist->GetYaxis()->GetBinWidth(1);
+            double y1 = hist->GetYaxis()->GetBinLowEdge(hist->GetYaxis()->GetFirst());
+            double y2 = hist->GetYaxis()->GetBinUpEdge (hist->GetYaxis()->GetLast());
+            fBinningY.SetXMMW(y1,y2,wy);
+        }
+        else if (hist->InheritsFrom(TH1::Class())) {
+            TString title = hist -> GetXaxis() -> GetTitle();
+            fBinningX.SetTitle(title);
+            double wx = hist->GetXaxis()->GetBinWidth(1);
+            double x1 = hist->GetXaxis()->GetBinLowEdge(hist->GetXaxis()->GetFirst());
+            double x2 = hist->GetXaxis()->GetBinUpEdge (hist->GetXaxis()->GetLast());
+            fBinningX.SetXMMW(x1,x2,wx);
+        }
     }
-    else if (hist->InheritsFrom(TH1::Class())) {
-        TString title = hist -> GetXaxis() -> GetTitle();
-        fBinningX.SetTitle(title);
-        int    nx = hist -> GetNbinsX();
-        double x1 = hist -> GetXaxis() -> GetBinLowEdge(1);
-        double x2 = hist -> GetXaxis() -> GetBinUpEdge(nx);
-        fBinningX.SetXNMM(nx,x1,x2);
+    else
+    {
+        if (hist->InheritsFrom(TH2::Class())) {
+            TString title = hist -> GetXaxis() -> GetTitle();
+            fBinningX.SetTitle(title);
+            int    nx = hist -> GetNbinsX();
+            double x1 = hist -> GetXaxis() -> GetBinLowEdge(1);
+            double x2 = hist -> GetXaxis() -> GetBinUpEdge(nx);
+            fBinningX.SetXNMM(nx,x1,x2);
+            TString titley = hist -> GetYaxis() -> GetTitle();
+            fBinningY.SetTitle(titley);
+            int    ny = hist -> GetNbinsY();
+            double y1 = hist -> GetYaxis() -> GetBinLowEdge(1);
+            double y2 = hist -> GetYaxis() -> GetBinUpEdge(ny);
+            fBinningY.SetXNMM(ny,y1,y2);
+        }
+        else if (hist->InheritsFrom(TH1::Class())) {
+            TString title = hist -> GetXaxis() -> GetTitle();
+            fBinningX.SetTitle(title);
+            int    nx = hist -> GetNbinsX();
+            double x1 = hist -> GetXaxis() -> GetBinLowEdge(1);
+            double x2 = hist -> GetXaxis() -> GetBinUpEdge(nx);
+            fBinningX.SetXNMM(nx,x1,x2);
+        }
     }
 }
 

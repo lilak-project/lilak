@@ -1,5 +1,5 @@
 # CMakeLists.txt LILAK project.
-cmake_minimum_required(VERSION 3.2 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 
 project(LILAK)
 
@@ -17,9 +17,10 @@ set(LILAK_PROJECT_MAIN      CACHE INTERNAL "")
 set(GRU_DIR              "" CACHE INTERNAL "")
 set(GET_DIR              "" CACHE INTERNAL "")
 set(BUILD_NPTOOL        OFF CACHE INTERNAL "") # NPTool simulation
+set(NPTOOL_NPLIB_LIST       CACHE INTERNAL "") # NPTool NPLib modules to link
 
 #---Configuration
-include(log/build_options.cmake)
+include(meta/build_options.cmake)
 
 add_compile_definitions(LILAK_COMPILED)
 
@@ -36,6 +37,11 @@ if(BUILD_GEANT4_SIM)
 endif(BUILD_GEANT4_SIM)
 
 if(BUILD_NPTOOL)
+    if(NOT BUILD_GEANT4_SIM)
+        message(WARNING "BUILD_NPTOOL requires BUILD_GEANT4_SIM. Forcing BUILD_GEANT4_SIM=ON.")
+        set(BUILD_GEANT4_SIM ON CACHE INTERNAL "" FORCE)
+        add_compile_definitions(LILAK_GEANT4)
+    endif()
     add_compile_definitions(LILAK_NPTOOL)
 endif(BUILD_NPTOOL)
 
@@ -48,6 +54,7 @@ message(STATUS "Create Git log         : " ${CREATE_GIT_LOG})
 message(STATUS "Activate Eve package   : " ${ACTIVATE_EVE})
 message(STATUS "Build Geant4 simulation: " ${BUILD_GEANT4_SIM})
 message(STATUS "Build nptool simulation: " ${BUILD_NPTOOL})
+message(STATUS "NPTool NPLib list      : " ${NPTOOL_NPLIB_LIST})
 message(STATUS "Build Doxygen document : " ${BUILD_DOXYGEN_DOC})
 message(STATUS "Build MFM converter    : " ${BUILD_MFM_CONVERTER})
 message(STATUS "Main Project           : " ${LILAK_PROJECT_MAIN})
@@ -59,6 +66,8 @@ set(LILAK_SOURCE_DIRECTORY_LIST
     ${LILAK_PATH}/source/tool/pulse_analysis
     ${LILAK_PATH}/source/tool/hough_transform
     ${LILAK_PATH}/source/tool/drawing
+    ${LILAK_PATH}/source/tool/beam_pid
+    ${LILAK_PATH}/source/tool/attenuator
     ${LILAK_PATH}/source/geometry
     ${LILAK_PATH}/source/detector
     ${LILAK_PATH}/source/container
@@ -143,6 +152,13 @@ if(BUILD_GEANT4_SIM)
     include(${Geant4_USE_FILE})
 endif(BUILD_GEANT4_SIM)
 
+if(BUILD_NPTOOL)
+    find_package(NPLib REQUIRED)
+    include(${NPLib_USE_FILE})
+    include_directories(${NPLib_INCLUDE_DIRS})
+    message(STATUS "NPTool include directory: ${NPLib_INCLUDE_DIRS}")
+endif(BUILD_NPTOOL)
+
 foreach(_directory ${LILAK_SOURCE_DIRECTORY_LIST_XLINKDEF})
     message(STATUS "source directory : " ${_directory})
     include_directories(${_directory})
@@ -174,7 +190,7 @@ foreach(_directory ${LILAK_SOURCE_DIRECTORY_LIST})
         list(APPEND LILAK_ROOT_LINKED_CLASS_LIST ${class_name})
     endforeach(_full_name)
     list(APPEND PRAGMA_LINE_CPP_CLASS_LIST "\n")
-    configure_file(${LILAK_PATH}/log/LinkDef.h.in ${CMAKE_BINARY_DIR}/link_${_name}_LinkDef.h @ONLY)
+    configure_file(${LILAK_PATH}/meta/LinkDef.h.in ${CMAKE_BINARY_DIR}/link_${_name}_LinkDef.h @ONLY)
     file(GLOB LILAK_${_name}_LINKDEF_FILE ${CMAKE_BINARY_DIR}/link_${_name}_LinkDef.h)
 endforeach(_directory)
 
@@ -220,7 +236,7 @@ if(BUILD_NPTOOL)
     endforeach(_g4directory)
 endif(BUILD_NPTOOL)
 
-include_directories(${LILAK_PATH}/log)
+include_directories(${LILAK_PATH}/source/base)
 
 add_definitions(${ROOT_CXX_FLAGS})
 
@@ -271,46 +287,112 @@ endif(BUILD_GEANT4_SIM)
 
 add_library(LILAK SHARED ${LILAK_LIB_LIST})
 
+set(LILAK_EXTRA_LINK_LIBRARIES)
+if(BUILD_NPTOOL)
+    foreach(_nplib ${NPTOOL_NPLIB_LIST})
+        list(APPEND LILAK_EXTRA_LINK_LIBRARIES ${_nplib})
+    endforeach(_nplib)
+endif(BUILD_NPTOOL)
+list(REMOVE_DUPLICATES LILAK_EXTRA_LINK_LIBRARIES)
+
 if(BUILD_MFM_CONVERTER)
     #target_link_libraries(LILAK ${ROOT_LIBRARIES} Html Spectrum XMLIO GRU MultiFrame)
-    target_link_libraries(LILAK ${ROOT_LIBRARIES} Html Spectrum XMLIO MultiFrame)
+    target_link_libraries(LILAK ${ROOT_LIBRARIES} Html Spectrum XMLIO MultiFrame ${NPLib_LIBRARIES} ${LILAK_EXTRA_LINK_LIBRARIES})
 else(BUILD_MFM_CONVERTER)
-    target_link_libraries(LILAK ${ROOT_LIBRARIES})
+    target_link_libraries(LILAK ${ROOT_LIBRARIES} ${NPLib_LIBRARIES} ${LILAK_EXTRA_LINK_LIBRARIES})
 endif(BUILD_MFM_CONVERTER)
 
 if(BUILD_NPTOOL)
-    find_package(NPLib)
-    include(${NPLib_USE_FILE})
-
-    message(STATUS "NPTool include directory: ${NPLib_INCLUDE_DIRS}")
-
-    #find_package(NPSimulation)
-    #include(${NPSimulation_USE_FILE})
-    #include_directories(${NPSimulation_INCLUDE_DIRS})
-    #message(STATUS "NPSimulation_USE_FILE     : " ${NPSimulation_USE_FILE})
-    #message(STATUS "NPSimulation_INCLUDE_DIRS:")
-    #foreach(dir ${NPSimulation_INCLUDE_DIRS})
-    #    message(STATUS "  ${dir}")
-    #endforeach()
+    message(STATUS "Geant4 version for NPTool: ${Geant4_VERSION}")
+    add_compile_definitions(
+        NPS_GEANT4_VERSION_MAJOR=${Geant4_VERSION_MAJOR}
+        NPS_GEANT4_VERSION_MINOR=${Geant4_VERSION_MINOR}
+    )
 
     string(REPLACE /NPLib/include /NPSimulation NPTOOLSIM_PATH ${NPLib_INCLUDE_DIRS})
 
-    #include(${NPTOOLSIM_PATH}/Core)
-    #include(${NPTOOLSIM_PATH}/Process)
-    #include(${NPTOOLSIM_PATH}/EventGenerator)
-
+    #file(GLOB NPTOOLSIM_DETECTOR_DIRS ${NPTOOLSIM_PATH}/Detectors/*)
     set(NPTOOL_SIMULATION_SOURCE_DIRECTORY_LIST
         ${NPTOOLSIM_PATH}/Core
         ${NPTOOLSIM_PATH}/Process
         ${NPTOOLSIM_PATH}/EventGenerator
+        #${NPTOOLSIM_PATH}/Scorers
+        #${NPTOOLSIM_DETECTOR_DIRS}
+        #${NPTOOLSIM_PATH}/Detectors/STARK
         CACHE INTERNAL ""
     )
 
     foreach(_directory ${NPTOOL_SIMULATION_SOURCE_DIRECTORY_LIST})
         message(STATUS "NPSimulation directory : " ${_directory})
         include_directories(${_directory})
-        file(GLOB LILAK_NPTOOL_SOURCE_FILES ${_directory}/*.cc)
+        get_filename_component(_np_subdir_name ${_directory} NAME)
         file(GLOB LILAK_NPTOOL_HEADER_FILES ${_directory}/*.hh)
+
+        if(_np_subdir_name STREQUAL "Process")
+            if(Geant4_VERSION_MAJOR GREATER 10)
+                message(STATUS "NPTool Process: Geant4 > 10, compile without IonIonElastic")
+                add_compile_definitions(GEANT4_11 USE_NEUTRONHP)
+                set(LILAK_NPTOOL_SOURCE_FILES
+                    ${_directory}/ThreeBody.cc
+                    ${_directory}/FissionDecay.cc
+                    ${_directory}/Decay.cc
+                    ${_directory}/BeamReaction.cc
+                    ${_directory}/FastDriftElectron.cc
+                    ${_directory}/PhysicsList.cc
+                    ${_directory}/G4DriftElectron.cc
+                    ${_directory}/G4IonizationWithDE.cc
+                    ${_directory}/G4DriftElectronPhysics.cc
+                    ${_directory}/G4DEAbsorption.cc
+                    ${_directory}/G4DEAmplification.cc
+                    ${_directory}/G4DETransport.cc
+                    ${_directory}/menate_R.cc
+                    ${_directory}/NeutronHPphysics.cc
+                    ${_directory}/NeutronHPMessenger.cc
+                )
+            elseif(Geant4_VERSION_MAJOR GREATER 9 AND Geant4_VERSION_MINOR GREATER 4)
+                message(STATUS "NPTool Process: Geant4 10.5+, compile with NeutronHPphysics")
+                add_compile_definitions(USE_NEUTRONHP)
+                set(LILAK_NPTOOL_SOURCE_FILES
+                    ${_directory}/ThreeBody.cc
+                    ${_directory}/FissionDecay.cc
+                    ${_directory}/Decay.cc
+                    ${_directory}/BeamReaction.cc
+                    ${_directory}/FastDriftElectron.cc
+                    ${_directory}/NPIonIonInelasticPhysic.cc
+                    ${_directory}/PhysicsList.cc
+                    ${_directory}/G4DriftElectron.cc
+                    ${_directory}/G4IonizationWithDE.cc
+                    ${_directory}/G4DriftElectronPhysics.cc
+                    ${_directory}/G4DEAbsorption.cc
+                    ${_directory}/G4DEAmplification.cc
+                    ${_directory}/G4DETransport.cc
+                    ${_directory}/menate_R.cc
+                    ${_directory}/NeutronHPphysics.cc
+                    ${_directory}/NeutronHPMessenger.cc
+                )
+            else()
+                message(STATUS "NPTool Process: Geant4 <= 10.4, compile without NeutronHPphysics")
+                set(LILAK_NPTOOL_SOURCE_FILES
+                    ${_directory}/ThreeBody.cc
+                    ${_directory}/FissionDecay.cc
+                    ${_directory}/Decay.cc
+                    ${_directory}/BeamReaction.cc
+                    ${_directory}/FastDriftElectron.cc
+                    ${_directory}/NPIonIonInelasticPhysic.cc
+                    ${_directory}/PhysicsList.cc
+                    ${_directory}/G4DriftElectron.cc
+                    ${_directory}/G4IonizationWithDE.cc
+                    ${_directory}/G4DriftElectronPhysics.cc
+                    ${_directory}/G4DEAbsorption.cc
+                    ${_directory}/G4DEAmplification.cc
+                    ${_directory}/G4DETransport.cc
+                    ${_directory}/menate_R.cc
+                )
+            endif()
+        else()
+            file(GLOB LILAK_NPTOOL_SOURCE_FILES ${_directory}/*.cc)
+        endif()
+
         foreach(_file ${LILAK_NPTOOL_SOURCE_FILES})
             list(APPEND NPSIM_LIB_LIST ${_file})
         endforeach(_file)
@@ -319,8 +401,21 @@ if(BUILD_NPTOOL)
         endforeach(_file)
     endforeach(_directory)
 
+    set(NPTOOLSIM_EXTRA_LIBRARIES
+        NPTrackInfo
+        NPInitialConditions
+        NPInteractionCoordinates
+        NPReactionConditions
+        NPFissionConditions
+    )
+    foreach(_nplib ${NPTOOL_NPLIB_LIST})
+        list(APPEND NPTOOLSIM_EXTRA_LIBRARIES ${_nplib})
+    endforeach(_nplib)
+    list(REMOVE_DUPLICATES NPTOOLSIM_EXTRA_LIBRARIES)
+    message(STATUS "NPTool extra libraries : ${NPTOOLSIM_EXTRA_LIBRARIES}")
+
     add_library(NPTOOLSIM SHARED ${NPSIM_LIB_LIST})
-    target_link_libraries(NPTOOLSIM ${Geant4_LIBRARIES} ${NPLib_LIBRARIES} "-lNPTrackInfo -lNPInitialConditions -lNPInteractionCoordinates -lNPReactionConditions -lNPFissionConditions")
+    target_link_libraries(NPTOOLSIM ${ROOT_LIBRARIES} ${Geant4_LIBRARIES} ${NPLib_LIBRARIES} ${NPTOOLSIM_EXTRA_LIBRARIES})
 endif(BUILD_NPTOOL)
 
 foreach(_executable ${LILAK_EXECUTABLE_LIST})
@@ -352,10 +447,11 @@ foreach(_executable ${LILAK_EXECUTABLE_LIST})
     endif(BUILD_MFM_CONVERTER)
 endforeach(_executable)
 
-configure_file(${LILAK_PATH}/log/LKLog.cmake.in ${LILAK_PATH}/log/LKLog.cmake @ONLY)
+configure_file(${LILAK_PATH}/meta/LKLog.cmake.in ${LILAK_PATH}/meta/LKLog.cmake @ONLY)
 add_custom_target(LILAK_LOG ALL
-                  COMMAND ${CMAKE_COMMAND} -P ${LILAK_PATH}/log/LKLog.cmake
+                  COMMAND ${CMAKE_COMMAND} -P ${LILAK_PATH}/meta/LKLog.cmake
                   VERBATIM)
 add_dependencies(LILAK LILAK_LOG)
 
 file(MAKE_DIRECTORY ${LILAK_PATH}/data)
+file(MAKE_DIRECTORY ${LILAK_PATH}/data/log)

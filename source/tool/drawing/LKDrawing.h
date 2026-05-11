@@ -1,7 +1,7 @@
 #ifndef LKDRAWING_HH
 #define LKDRAWING_HH
 
-#include "LKRunTimeMeasure.h"
+//#include "LKRunTimeMeasure.h"
 #include "TPaveStats.h"
 #include "TPaveText.h"
 #include "TObjArray.h"
@@ -16,6 +16,7 @@
 #include "TF1.h"
 #include "TH1.h"
 #include "TH2.h"
+#include "TH3.h"
 #include <vector>
 using namespace std;
 
@@ -26,6 +27,7 @@ class LKDrawing : public TObjArray
     public:
         LKDrawing(TString name="");
         LKDrawing(TObject* obj, TObject* obj1=nullptr, TObject* obj2=nullptr, TObject* obj3=nullptr);
+        LKDrawing(TObject* obj, TString drawStyle);
         ~LKDrawing() {}
 
         virtual const char* GetName() const;
@@ -89,12 +91,17 @@ class LKDrawing : public TObjArray
         void GetPadCorner(TPad *cvs, int iCorner, double &x_corner, double &y_corner, double &x_unit, double &y_unit);
         void GetPadCornerBoxDimension(TPad *cvs, int iCorner, double dx, double dy, double &x1, double &y1, double &x2, double &y2);
         TPaveStats* MakeStats(TPad *cvs);
-        TPaveStats* MakeStatsBox(TPad *cvs, int iCorner=0, int fillStyle=-1);
+        TPaveStats* FindStatsBox(TPad *cvs);
+        TPaveStats* ApplyStyleStatsBox(TPad *cvs, int iCorner=0, int fillStyle=-1);
         void MakeLegendBelowStats(TPad* cvs, TLegend *legend);
         void MakeLegendCorner(TPad* cvs, TLegend *legend, int iCorner=0);
         void MakePaveTextCorner(TPad* cvs, TPaveText *pvtt, int iCorner=0);
-        void SetMainHist(TPad *pad, TH1* hist);
         void SetMainTitle(TString title);
+
+        bool ApplyStyle(TString drawStyle);
+        bool ApplyStylePad(TPad *pad);
+        bool ApplyStyleHist(TH1* hist);
+        bool ApplyStyleLegend(TLegend *legend, TPaveStats* statsbox=nullptr);
 
         TH2D* MakeGraphFrame();
         TH2D* MakeGraphFrame(TGraph* graph, TString mxyTitle="");
@@ -110,9 +117,8 @@ class LKDrawing : public TObjArray
         int FindOptionInt(TString option, int value) { return LKMisc::FindOptionInt(fGlobalOption,option,value); }
         double FindOptionDouble(TString option, double value) { return LKMisc::FindOptionDouble(fGlobalOption,option,value); }
         TString FindOptionString(TString option, TString value) { return LKMisc::FindOptionString(fGlobalOption,option,value); }
+        void RemoveOption(TString option) { LKMisc::RemoveOption(fGlobalOption,option); }
 
-        ////////////////////////////////////////////////////////////////////////////////////
-        void RemoveOption(TString option);
         /**
          * - log[x,y,z]
          * - grid[x,y]
@@ -122,17 +128,18 @@ class LKDrawing : public TObjArray
          * - create_frame : create frame if no frame histogram exist
          */
         void AddOption(TString option) { LKMisc::AddOption(fGlobalOption,option); }
+
         /**
          * - [x,y][1,2] : SetRangeUser x,y
          * - [l,r,b,t]_margin : canvas margin
          * - pave_dx : (0.280) statistics box dx
          * - pave_line_dy : (0.050) statistics box dy for each line
-         * - font : (132) default font
+         * - font : (42) default font
          * - [m,x,y,z]_[title/label]_[size/font/offset] : text attributes (m for top main title)
          * - pad_color : pad color (TODO)
          * - stats_corner : place statistics box at the corner of frame (0:TR,1:TL,2:BL,3:BR)
          * - pave_corner : place pave text at the corner of frame (0:TR,1:TL,2:BL,3:BR)
-         * - pave_attribute : if 0, use default pave text attibute (white bg, black text with 132)
+         * - pave_attribute : if 0, use default pave text attibute (white bg, black text with 42)
          * - legend_corner : place legend box at top corner of histogram frame (0:TR,1:TL,2:BL,3:BR)
          * - opt_stat : ksiourmen (default is 1111)
          *      k = 1;  kurtosis printed
@@ -177,7 +184,8 @@ class LKDrawing : public TObjArray
             SetBottomMargin(bmg);
             SetTopMargin(tmg);
         }
-        void SetCanvasSize(int dx, int dy, bool resize=true) { AddOption("cvs_dx",dx); AddOption("cvs_dy",dy); if (resize) AddOption("cvs_resize"); }
+        //void SetCanvasSize(int dx, int dy, bool resize=true) { AddOption("cvs_w",dx); AddOption("cvs_h",dy); if (resize) AddOption("cvs_resize"); }
+        void SetCanvasSize(int dx, int dy, double resize=-1) { AddOption("cvs_w",dx); AddOption("cvs_h",dy); if (resize>0) AddOption("cvs_r",resize); }
         void SetRangeUser(double x1, double x2, double y1, double y2) { SetRangeUserX(x1, x2); SetRangeUserY(y1, y2); }
         void SetRangeUserX(double x1, double x2) { AddOption("x1",x1); AddOption("x2",x2); }
         void SetRangeUserY(double y1, double y2) { AddOption("y1",y1); AddOption("y2",y2); }
@@ -201,15 +209,17 @@ class LKDrawing : public TObjArray
         void SetPaveDx(double dx) { AddOption("pave_dx",dx); }
         void SetPaveLineDy(double dyline) { AddOption("pave_line_dy",dyline); }
         void SetPaveSize(double dx, double dyline) { SetPaveDx(dx); SetPaveLineDy(dyline); }
-        void SetCloneReplaceMainHist(TString name="") { AddOption("cr_mainh"); if (name.IsNull()==false) AddOption("cr_mainh_name",name); } ///< Clone fMainHist and replace fMainHist
+        void SetCloneReplaceMainHist(TString name="") { if (name.IsNull()==false) AddOption("clone_mainh",name); else AddOption("clone_mainh"); } ///< Clone fMainHist and replace fMainHist
         void SetCreateFrame(TString name="", TString title="", TString option=""); ///< Create frame if no frame histogram exist.
         void SetCreateLegend(int iCorner=-1, double dx=0, double dyline=0);
         void SetLegendTransparent();
+        void SetAutoMax() { AddOption("auto_max"); }
 
         /**
          * Use one of the style files from lilak/common/draw_style
          */
         void SetStyle(TString drawStyle);
+        void Update(TString option="");
 
         ////////////////////////////////////////////////////////////////////////////////////
         bool GetFit() const { if (fFitFunction!=nullptr) return true; return false; }
@@ -223,7 +233,7 @@ class LKDrawing : public TObjArray
         void MakeLegend(bool remake=false);
 
     private:
-        TString fGlobalOption = "stats_corner:font=132:opt_stat=1110";
+        TString fGlobalOption = "stats_corner:font=42";
         vector<TString> fTitleArray;
         vector<TString> fDrawOptionArray;
 

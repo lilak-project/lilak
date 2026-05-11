@@ -232,6 +232,7 @@ TCanvas *LKPainter::CanvasResize(TString name, int width0, int height0, double r
     GetSizeResize(width, height, width0, height0, ratio);
     UpdateNextCanvasPosition();
     auto cvs = NewCanvas(name,name, fXCurrentCanvas, fYCurrentCanvas, width, height);
+    //cvs -> SetWindowSize(width+(width-cvs->GetWw()), height+(height-cvs->GetWh()));
     return cvs;
 }
 
@@ -243,10 +244,71 @@ TCanvas *LKPainter::CanvasSize(TString name, int width, int height)
     return cvs;
 }
 
+TCanvas *LKPainter::CanvasDefault(TCanvas *cvs, double ratio)
+{
+    TString name = cvs -> GetName();
+    delete cvs;
+    return CanvasDefault(name, ratio);
+    int width, height;
+    GetSizeDefault(width, height, ratio);
+    cvs -> SetCanvasSize(width, height);
+    //cvs -> SetWindowSize(width, height);
+    return cvs;
+}
+
+TCanvas *LKPainter::CanvasFull(TCanvas *cvs, double ratio1, double ratio2)
+{
+    TString name = cvs -> GetName();
+    delete cvs;
+    return CanvasFull(name, ratio1, ratio2);
+    int width, height;
+    GetSizeFull(width, height, ratio1, ratio2);
+    cvs -> SetCanvasSize(width, height);
+    //cvs -> SetWindowSize(width, height);
+    return cvs;
+}
+
+TCanvas *LKPainter::CanvasSquare(TCanvas *cvs, double ratio)
+{
+    TString name = cvs -> GetName();
+    delete cvs;
+    return CanvasSquare(name, ratio);
+    int width, height;
+    GetSizeSquare(width, height, ratio);
+    cvs -> SetCanvasSize(width, height);
+    //cvs -> SetWindowSize(width, height);
+    return cvs;
+}
+
+TCanvas *LKPainter::CanvasResize(TCanvas *cvs, int width0, int height0, double ratio)
+{
+    TString name = cvs -> GetName();
+    delete cvs;
+    return CanvasResize(name, width0, height0, ratio);
+    int width, height;
+    GetSizeResize(width, height, width0, height0, ratio);
+    cvs -> SetCanvasSize(width, height);
+    cvs -> Modified();
+    cvs -> Update();
+    lk_debug << width << " " << width-cvs->GetWw() << " " <<  height << " " << height-cvs->GetWh() << endl;
+    //cvs -> SetWindowSize(width+(width-cvs->GetWw()), height+(height-cvs->GetWh()));
+    //cvs -> SetWindowSize(width+(width-cvs->GetWw()), height+80);
+    return cvs;
+}
+
+TCanvas *LKPainter::CanvasSize(TCanvas *cvs, int width, int height)
+{
+    TString name = cvs -> GetName();
+    delete cvs;
+    return CanvasSize(name, width, height);
+    cvs -> SetCanvasSize(width, height);
+    //cvs -> SetWindowSize(width, height);
+    return cvs;
+}
+
 bool LKPainter::DividePad(TPad* cvs, Int_t n, Float_t xmargin, Float_t ymargin, Int_t color)
 {
     Int_t nx, ny;
-
     //if (CheckOption("wide_canvas"))
     {
         if      (n== 1) { nx =  1; ny =  1; }

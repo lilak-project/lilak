@@ -45,6 +45,7 @@ class LKDrawingGroup : public TObjArray
     public:
         LKDrawingGroup(TString name="", int groupLevel=0);
         LKDrawingGroup(TString fileName, TString groupSelection);
+        LKDrawingGroup(TObject* obj, TString drawStyle="");
         LKDrawingGroup(TFile* file, TString groupSelection="");
         ~LKDrawingGroup() {}
 
@@ -57,12 +58,16 @@ class LKDrawingGroup : public TObjArray
         /// wx=900 : set widow size x
         /// wy=800 : set widow size x
         /// resize=1 : resize by factor
-        virtual void Draw(Option_t *option="all");
+        virtual void Draw(Option_t *option="");
         virtual void Print(Option_t *option="") const;
         virtual Int_t Write(const char *name = nullptr, Int_t option=TObject::kSingleKey, Int_t bufsize = 0) const;
         virtual void Browse(TBrowser *b);
         void WriteFile(TString fileName="", TString option="");
         void WriteFitParameterFile(TString tag="");
+
+        LKDataViewer *GetViewer() { return fViewer; }
+
+        void Update(TString option="");
 
         LKDataViewer* CreateViewer();
 
@@ -94,7 +99,7 @@ class LKDrawingGroup : public TObjArray
         void SetCanvasDivision(int divX, int divY) { fDivX = divX; fDivY = divY; }
         int GetDivX() const { return fDivX; }
         int GetDivY() const { return fDivY; }
-        void SetCanvasSize(int dx, int dy, bool resize=true) { fDXCvs = dx; fDYCvs = dy; fFixCvsSize = !resize; }
+        void SetCanvasSize(int dx, int dy, double resize=-1) { fDXCvs = dx; fDYCvs = dy; if (resize>0) { fFixCvsSize = false; AddOption("cvs_r",resize); }}
         void SetCanvasSizeRatio(int dx, int dy) { fDXCvs = dx; fDYCvs = dy; }
         void AddPad(TPad *pad) { if (fPadArray==nullptr) fPadArray = new TObjArray(); fPadArray -> Add(pad); }
         void SetPadVerticalNumbering(bool v=true) { AddOption("vertical_pad_numbering"); }
@@ -133,6 +138,7 @@ class LKDrawingGroup : public TObjArray
         int        GetNumAllDrawings() const;
         int        GetNumAllDrawingObjects() const;
 
+        void ApplyStyle(TString drawStyle);
         void SetStyle(TString drawStyle);
 
         void SetDraw(bool draw);

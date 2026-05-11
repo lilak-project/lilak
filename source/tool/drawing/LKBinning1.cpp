@@ -1,9 +1,7 @@
 #include "LKBinning1.h"
 #include "LKBinning.h"
 #include "LKLogger.h"
-#include "LKDrawing.h"
 #include <iostream>
-#include "LKDrawing.h"
 using namespace std;
 
 ClassImp(LKBinning1);
