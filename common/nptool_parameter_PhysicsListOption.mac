@@ -1,0 +1,26 @@
+EmPhysicsList                   Option4 # INCLXX_EM Option1 Option2 Option3 Option4 Standard Livermore Penelope
+DefaultCutOff                   1 # mm
+IonBinaryCascadePhysics         0
+NPIonInelasticPhysics           0
+EmExtraPhysics                  0
+HadronElasticPhysics            0
+StoppingPhysics                 0
+OpticalPhysics                  0
+DriftElectronPhysics            0
+HadronPhysicsQGSP_BIC_HP        0
+HadronPhysicsQGSP_BERT_HP       0
+HadronPhysicsINCLXX             0
+HadronPhysicsQGSP_INCLXX_HP     0
+HadronPhysicsQGSP_INCLXX        0
+HadronPhysicsFTFP_INCLXX_HP     0
+HadronPhysicsFTFP_INCLXX        0
+Decay                           0
+IonGasModels                    0
+pai                             0
+pai_photon                      0
+Menate_R                        0
+NeutronHP                       0
+Shielding                       0
+Shielding_HPT                   0
+ShieldingLEND                   0
+#LevelData                       #Z A File

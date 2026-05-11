@@ -55,7 +55,9 @@ class LKLinearTrack : public LKTracklet, public LKGeoLine
         //virtual TGraph *TrajectoryOnPlane(axis_t axis1, axis_t axis2, Double_t scale=1);
         //virtual TGraph *TrajectoryOnPlane(LKDetectorPlane *plane, Double_t scale=1);
         virtual void FillTrajectory(TGraphErrors* graphTrack, LKVector3::Axis axis1, LKVector3::Axis axis2, bool (*fisout)(TVector3 pos));
+        virtual void FillTrajectory(TGraphErrors* graphTrack, LKVector3::Axis axis1, LKVector3::Axis axis2);
         virtual void FillTrajectory3D(TGraph2DErrors* graphTrack3D, LKVector3::Axis axis1, LKVector3::Axis axis2, LKVector3::Axis axis3, bool (*fisout)(TVector3 pos));
+        virtual void FillTrajectory3D(TGraph2DErrors* graphTrack3D, LKVector3::Axis axis1, LKVector3::Axis axis2, LKVector3::Axis axis3);
         virtual TGraph *ProjectionOnPlane(axis_t axis1, axis_t axis2, Double_t scale=1);
 
     protected:

@@ -60,9 +60,10 @@ class LKG4RunManager : public G4RunManager, public LKGear
         virtual void NextEvent();
         virtual void WriteToFile(TObject *obj);
         virtual void EndOfRun();
+        virtual void CreateVertex();
         virtual void WriteTextFile();
 
-        virtual void SetCollectPar(TString name) { fCollecteParAndPrintTo = "collected_parameters"; }
+        virtual void SetCollectPar(TString name) { fCollecteParAndPrintTo = "collected_lkg4runmanager"; }
 
     public:
         virtual void Initialize();
@@ -76,6 +77,7 @@ class LKG4RunManager : public G4RunManager, public LKGear
 
         TFile* fFile;
         TTree* fTree;
+        TClonesArray *fVertexArray;
         TClonesArray *fTrackArray;
         TObjArray *fStepArrayList;
         std::vector<TString> fStepNameList;
@@ -115,6 +117,7 @@ class LKG4RunManager : public G4RunManager, public LKGear
         bool fUseVisMode = false;
         TString fG4CommandFileName;
         TString fOutputFileName;
+        int fEventCountForMessage = 1;
 
         Long64_t fRandomSeed = 0;
         std::vector<TString> fSDNames;

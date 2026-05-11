@@ -69,7 +69,7 @@ class LKVirtualRun : public LKTask
         virtual Int_t GetDivision() const { return 0; }
         virtual TString GetMainName() const { return "VirtualRun"; }
         virtual TString GetTag() const { return "virtual"; }
-        TString MakeFullRunName(int useparated=false) const { return "VirtualRun"; }
+        virtual TString MakeFullRunName(int useparated=false) const { return "VirtualRun"; }
 
         virtual void SetDataPath(TString path) = 0;
         virtual TString GetDataPath() = 0;
@@ -109,6 +109,8 @@ class LKVirtualRun : public LKTask
         virtual bool RunEvent(Long64_t eventID) = 0;
         virtual bool RunSelectedEvent(TString selection) = 0;
         virtual void RunOnline(Long64_t numEvents) = 0;
+
+        virtual void ClearArrays() = 0;
 
         virtual bool ExecuteEvent(Long64_t eventID) = 0;
         virtual bool ExecuteNextEvent() = 0;

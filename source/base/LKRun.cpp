@@ -39,9 +39,9 @@ LKRun::LKRun(TString runName, Int_t id, Int_t division, TString tag)
     fDivision = division;
     fTag = tag;
     fFriendTrees = new TObjArray();
-    fPersistentBranchArray = new TObjArray();
-    fTemporaryBranchArray = new TObjArray();
-    fInputTreeBranchArray = new TObjArray();
+    fPersistentAddressArray = new TObjArray();
+    fTemporaryAddressArray = new TObjArray();
+    fInputTreeAddressArray = new TObjArray();
     fBranchPtr = new TClonesArray*[100];
     for (Int_t iBranch = 0; iBranch < 100; ++iBranch)
         fBranchPtr[iBranch] = nullptr;
@@ -242,22 +242,20 @@ void LKRun::Print(Option_t *option) const
     bool printDetectors = false;
     bool printTasks = true;
 
-    if (printOptions.Index("all")>=0) {
+    if (LKMisc::CheckOption(printOptions,"gen  # print general information  ")) printGeneral    = true;
+    if (LKMisc::CheckOption(printOptions,"par  # print parameter information")) printParameters = true;
+    if (LKMisc::CheckOption(printOptions,"out  # print output information   ")) printOutputs    = true;
+    if (LKMisc::CheckOption(printOptions,"in   # print input information    ")) printInputs     = true;
+    if (LKMisc::CheckOption(printOptions,"det  # print detector information ")) printDetectors  = true;
+    if (LKMisc::CheckOption(printOptions,"task # print detector information ")) printTasks      = true;
+    if (LKMisc::CheckOption(printOptions,"all  # print all")) {
         printGeneral = true;
         printParameters = true;
         printOutputs = true;
         printInputs = true;
         printDetectors = true;
         printTasks = true;
-        printOptions.ReplaceAll("all","");
     }
-    if (printOptions.Index("gen")>=0) { printGeneral = true;    printOptions.ReplaceAll("gen",""); }
-    if (printOptions.Index("par")>=0) { printParameters = true; printOptions.ReplaceAll("par",""); }
-    if (printOptions.Index("out")>=0) { printOutputs = true;    printOptions.ReplaceAll("out",""); }
-    if (printOptions.Index("in" )>=0) { printInputs = true;     printOptions.ReplaceAll("in", ""); }
-    if (printOptions.Index("det")>=0) { printDetectors = true;  printOptions.ReplaceAll("det",""); }
-    if (printOptions.Index("task")>=0) { printTasks = true;     printOptions.ReplaceAll("task",""); }
-
     e_cout << endl;
 
     if (printGeneral) LKRun::PrintLILAK();
@@ -338,22 +336,22 @@ void LKRun::PrintEvent(Long64_t entry, TString branchNames, Int_t numPrintCut)
 
     if (entry>=0)
         LKRun::GetEntry(entry);
-    for (auto branchArray : {fPersistentBranchArray, fInputTreeBranchArray})
+    for (auto addressArray : {fPersistentAddressArray, fInputTreeAddressArray})
     {
-        Int_t numBranches = branchArray -> GetEntries();
+        Int_t numBranches = addressArray -> GetEntries();
         for (Int_t iBranch = 0; iBranch < numBranches; iBranch++)
         {
-            auto branch = (TClonesArray *) branchArray -> At(iBranch);
-            if (branch -> InheritsFrom(TClonesArray::Class()))
+            auto dataArray = (TClonesArray *) addressArray -> At(iBranch);
+            if (dataArray -> InheritsFrom(TClonesArray::Class()))
             {
-                TString branchName = branch -> GetName();
+                TString branchName = dataArray -> GetName();
                 if (selectBranches&&branchNames.Index(branchName)<0)
                     continue;
-                auto array = (TClonesArray *) branch;
+                auto array = (TClonesArray *) dataArray;
                 auto numObj = array -> GetEntries();
                 e_cout << endl;
                 if (numObj==0) {
-                    lk_info << "[" << branchName << "] 0 objects in this branch" << endl;
+                    lk_info << "[" << branchName << "] 0 objects in this array" << endl;
                     continue;
                 }
                 int numPrint = numObj;
@@ -366,8 +364,8 @@ void LKRun::PrintEvent(Long64_t entry, TString branchNames, Int_t numPrintCut)
                     object -> Print();
                 }
             }
-            else if (branch -> InheritsFrom(TObject::Class())) {
-                branch -> Print();
+            else if (dataArray -> InheritsFrom(TObject::Class())) {
+                dataArray -> Print();
             }
         }
     }
@@ -587,7 +585,6 @@ bool LKRun::Init()
     TString printAfterInit = "";
     Long64_t runAfterInit = -1;
     Long64_t exeAfterInit = -1;
-    TString collecteParAndPrintTo = "";
     bool drawAfterRun = false;
     TString drawOption = "";
     if (fIsLILAKRun)
@@ -623,11 +620,12 @@ bool LKRun::Init()
                 printAfterInit = "all";
         }
         if (lilakPar->CheckPar("collect_par")) {
-            collecteParAndPrintTo = lilakPar -> GetParString("collect_par");
-            if (collecteParAndPrintTo.IsNull()) collecteParAndPrintTo = "print";
-            fPar -> SetCollectParameters(true);
+            fCollecteParAndPrintTo = lilakPar -> GetParString("collect_par");
+            if (fCollecteParAndPrintTo.IsNull()) fCollecteParAndPrintTo = "print";
         }
     }
+    if (!fCollecteParAndPrintTo.IsNull())
+        fPar -> SetCollectParameters(true);
 
     int countParOrder = 1;
     fPar -> Require("lilak/add",          "LKTask",         "add task or detector class", "t/", countParOrder++);
@@ -844,7 +842,7 @@ bool LKRun::Init()
         fInputTree -> GetEntry(0);
         for (Int_t iBranch = 0; iBranch < fCountBranches; iBranch++) {
             TString branchName = fBranchNames.at(iBranch);
-            fInputTreeBranchArray -> Add(fBranchPtr[iBranch]);
+            fInputTreeAddressArray -> Add(fBranchPtr[iBranch]);
             if (branchName.Index("MCStep")==0) {
                 arrMCStepIDs.push_back(branchName.ReplaceAll("MCStep","").Data());
                 ++numMCStepIDs;
@@ -875,7 +873,7 @@ bool LKRun::Init()
                 friendTree -> GetEntry(0);
                 if (fBranchPtrMap[branchName]==nullptr)
                     fBranchPtrMap[branchName] = fBranchPtr[fCountBranches];
-                fInputTreeBranchArray -> Add(fBranchPtr[fCountBranches]);
+                fInputTreeAddressArray -> Add(fBranchPtr[fCountBranches]);
                 fBranchNames.push_back(branchName);
                 fCountBranches++;
                 TString clonesClassName = fBranchPtr[fCountBranches-1] -> GetClass() -> GetName();
@@ -992,6 +990,11 @@ bool LKRun::Init()
         fRunHeader -> SetName("RunHeader");
         fRunHeader -> AddPar("MainP_Version",LILAK_MAINPROJECT_VERSION);
         fRunHeader -> AddPar("LILAK_Version",LILAK_VERSION);
+        fRunHeader -> AddPar("NumProjects",N_LILAK_PROJECT);
+        for (auto iProject=0; iProject<N_LILAK_PROJECT; ++iProject)
+            fRunHeader -> AddPar(Form("ProjectName/%d",iProject),LILAK_PROJECT_NAME(iProject));
+        for (auto iProject=0; iProject<N_LILAK_PROJECT; ++iProject)
+            fRunHeader -> AddPar(Form("ProjectVersion/%d",iProject),LILAK_PROJECT_VERSION(iProject));
         fRunHeader -> AddPar("LILAK_HostName",LILAK_HOSTNAME);
         fRunHeader -> AddPar("LILAK_UserName",LILAK_USERNAME);
         fRunHeader -> AddPar("LILAK_Path",LILAK_PATH);
@@ -1008,7 +1011,7 @@ bool LKRun::Init()
         fRunHeader -> AddPar("RunID",fRunID);
         for (auto i=0; i<fRunIDList.size(); ++i) {
             auto runID = fRunIDList.at(i);
-            fRunHeader -> AddPar(Form("run_%d",i),runID);
+            fRunHeader -> AddPar(Form("run/%d",i),runID);
         }
         fRunHeader -> AddPar("Division",fDivision);
         fRunHeader -> AddPar("Tag",fTag);
@@ -1084,8 +1087,8 @@ bool LKRun::Init()
 
     lk_info << "Initialized!" << endl;
 
-    if (!collecteParAndPrintTo.IsNull()) {
-        fPar -> PrintCollection(collecteParAndPrintTo);
+    if (!fCollecteParAndPrintTo.IsNull()) {
+        fPar -> PrintCollection(fCollecteParAndPrintTo);
         fPar -> SetCollectParameters(false);
     }
 
@@ -1149,9 +1152,9 @@ bool LKRun::RegisterBranch(TString name, TObject *obj, bool persistent)
     if (persistent) {
         if (fOutputTree != nullptr)
             fOutputTree -> Branch(name, obj, 32000, 0);
-        fPersistentBranchArray -> Add(obj);
+        fPersistentAddressArray -> Add(obj);
     } else {
-        fTemporaryBranchArray -> Add(obj);
+        fTemporaryAddressArray -> Add(obj);
     }
     lk_info << "Output branch " << name << " " << persistencyMessage << endl;
 
@@ -1202,11 +1205,14 @@ TClonesArray* LKRun::RegisterBranchA(TString name, const char* className, Int_t 
     fCountBranches++;
 
     if (persistent) {
-        if (fOutputTree != nullptr)
+        if (fOutputTree != nullptr) {
             fOutputTree -> Branch(name, array, 32000, 1);
-        fPersistentBranchArray -> Add(array);
+            array -> SetName(name);
+        }
+        fPersistentAddressArray -> Add(array);
     } else {
-        fTemporaryBranchArray -> Add(array);
+        array -> SetName(name);
+        fTemporaryAddressArray -> Add(array);
     }
     lk_info << "Output branch " << name << " " << persistencyMessage << endl;
 
@@ -1544,17 +1550,17 @@ bool LKRun::ExecuteEvent(Long64_t eventID)
 void LKRun::ClearArrays()
 {
     // fBranchPtr contains branches from input file too.
-    // So we use fPersistentBranchArray fTemporaryBranchArray for ouput branch initialization
+    // So we use fPersistentAddressArray fTemporaryAddressArray for ouput branch initialization
     // @todo We may need to sort out branch that needs clear before Exec()
-    for (auto branchArray : {fPersistentBranchArray, fTemporaryBranchArray}) {
-        Int_t numBranches = branchArray -> GetEntries();
+    for (auto addressArray : {fPersistentAddressArray, fTemporaryAddressArray}) {
+        Int_t numBranches = addressArray -> GetEntries();
         for (Int_t iBranch = 0; iBranch < numBranches; iBranch++) {
-            auto branch = (TClonesArray *) branchArray -> At(iBranch);
-            branch -> Clear("C");
-            //if (branch -> InheritsFrom(TClonesArray::Class()))
-            //    ((TClonesArray *) branch) -> Clear("C");
+            auto dataArray = (TClonesArray *) addressArray -> At(iBranch);
+            dataArray -> Clear("C");
+            //if (dataArray -> InheritsFrom(TClonesArray::Class()))
+            //    ((TClonesArray *) dataArray) -> Clear("C");
             //else
-            //    branch -> Clear();
+            //    dataArray -> Clear();
         }
     }
 }

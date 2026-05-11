@@ -55,8 +55,9 @@ class lilak_configuration:
         change1 = self.create_build_option_file()
         change2 = self.create_classfactory()
         change2 = self.g4dc_classfactory()
+        change3 = self.create_rootlogon_script()
         #change3 = self.create_lilak_class_reference()
-        lf_changes = [change0, change1, change2]
+        lf_changes = [change0, change1, change2, change3]
         self.copy_common_files_from_project()
         run_cmake = run_cmake or (True in lf_changes)
         self.create_lilak_command_script()
@@ -133,7 +134,8 @@ class lilak_configuration:
         self.GRU_DIR = "/usr/local/gru"
         self.GET_DIR = "/usr/local/get"
         self.NPTOOL_DIR = ""
-        self.fn_build_option = os.path.join(os.path.join(self.lilak_path, "log"), "build_options.cmake")
+        self.fn_build_option = os.path.join(os.path.join(self.lilak_path, "meta"), "build_options.cmake")
+        self.fn_nptool_nplib_option = os.path.join(os.path.join(self.lilak_path, "meta"), "nptool_nplib_options.conf")
         self.nm_main_project = "lilak"
         self.df_build_options0 = {
             #"ACTIVATE_EVE": False,
@@ -145,13 +147,18 @@ class lilak_configuration:
             #"CREATE_GIT_LOG": True,
         }
         self.df_build_options = self.df_build_options0.copy()
-        self.lf_top_directories  = ["build", "data", "log", "macros", "source", "examples", ".git", "common", "doc"]
+        self.lf_available_nptool_nplib = self.load_nptool_nplib_options()
+        self.lf_nptool_nplib = []
+        self.lf_top_directories  = ["build", "data", "meta", "macros", "source", "examples", ".git", "common", "doc"]
         self.lf_prj_subdir_link  = ["container", "detector", "tool", "task"]
+        self.lf_prj_subdir_link_nptool = ["task_nptool"]
         self.lf_prj_subdir_xlink = ["source"]
         self.lf_sub_package_dirs = ["geant4", "get", "fftw", "mfm", "nptool"]
         self.lf_exclude_name_classfactory = ["LKDetectorSystem", "LKFrameBuilder"]
         self.lf_exclude_path_classfactory = ["zzz", "temp", "figures", "data"]
-        self.lf_include_path_classfactory = [["detector"],["task"]]
+        self.lf_include_path_classfactory1 = ["detector"]
+        self.lf_include_path_classfactory2 = ["task"]
+        self.lf_include_path_classfactory3 = []
         self.lf_include_name_classfactory = ["DetectorConstruction", "DC"]
         self.lf_executable_path_candidate = ["macros","simulation"]
         self.lf_lilak_projects = []
@@ -160,6 +167,41 @@ class lilak_configuration:
         self.lf_cmake_projects = []
         self.lf_xmake_projects = []
         self.first_lilak_configuration = False
+
+    def load_nptool_nplib_options(self):
+        lf_default_nplib = ["NPCore", "NPPhysics", "NPSTARK", "NPATOMX"]
+        lf_available_nptool_nplib = []
+        if os.path.exists(self.fn_nptool_nplib_option) == False:
+            new_contents = """# NPTool NPLib modules for lilak build selection.
+# Remove leading '#' to enable module in selection menu.
+# Lines starting with '#' are hidden from selection.
+
+NPCore
+NPPhysics
+NPSTARK
+NPATOMX
+
+# NPDetectorA
+# NPDetectorB
+"""
+            with open(self.fn_nptool_nplib_option, "w") as f:
+                f.write(new_contents)
+        with open(self.fn_nptool_nplib_option, "r") as f:
+            for line in f:
+                line = line.strip()
+                if len(line) == 0:
+                    continue
+                if line.startswith("#"):
+                    continue
+                token = line.split()[0]
+                if token.startswith("#"):
+                    continue
+                if token not in lf_available_nptool_nplib:
+                    lf_available_nptool_nplib.append(token)
+        if len(lf_available_nptool_nplib) == 0:
+            self.print_warn(f"{self.fn_nptool_nplib_option} has no enabled NPLib module. Using default list.")
+            lf_available_nptool_nplib = lf_default_nplib
+        return lf_available_nptool_nplib
 
     def select_one_option(self, question="", possible_options=[]):
         if len(question)==0 and len(possible_options)==0:
@@ -317,9 +359,11 @@ class lilak_configuration:
                             elif tokens[0] == "GRU_DIR": self.GRU_DIR = tokens[1]
                             elif tokens[0] == "GET_DIR": self.GET_DIR = tokens[1]
                             elif tokens[0] == "NPTOOL_DIR": self.NPTOOL_DIR = tokens[1]
-                            elif tokens[0] in ["LILAK_PROJECT_LIST", "LILAK_BIND_LIST"]:#, "NPTOOL_NPSLIB_LIST"]:
+                            elif tokens[0] in ["LILAK_PROJECT_LIST", "LILAK_BIND_LIST", "NPTOOL_NPLIB_LIST"]:
+                                if tokens[0] == "NPTOOL_NPLIB_LIST":
+                                    self.lf_nptool_nplib = []
                                 lastOption = tokens[0]
-                            elif tokens[0] not in ["LILAK_PROJECT_LIST", "LILAK_BIND_LIST"]:#, "NPTOOL_NPSLIB_LIST"]:
+                            elif tokens[0] not in ["LILAK_PROJECT_LIST", "LILAK_BIND_LIST", "NPTOOL_NPLIB_LIST"]:
                                 self.df_build_options[tokens[0]] = (True if tokens[1] == "ON" else False)
                     elif len(line) > 0 and line != ")" and line.strip().find("CACHE INTERNAL") < 0 and line.strip().find("LILAK") != 0:
                         comment = ""
@@ -327,10 +371,21 @@ class lilak_configuration:
                             line, comment = line[:line.find("#")].strip(), line[line.find("#") + 1:].strip()
                         elif lastOption in ["LILAK_PROJECT_LIST", "LILAK_BIND_LIST"]:
                             self.lf_lilak_projects.append(line)
-                        #elif lastOption in ["NPTOOL_NPSLIB_LIST"]:
-                        #    self.lf_nptoollib_list.append(line)
+                        elif lastOption == "NPTOOL_NPLIB_LIST":
+                            self.lf_nptool_nplib.append(line)
         else:
             self.first_lilak_configuration = True
+            self.lf_nptool_nplib = self.lf_available_nptool_nplib.copy()
+        if len(self.lf_nptool_nplib) == 0:
+            self.lf_nptool_nplib = self.lf_available_nptool_nplib.copy()
+        else:
+            lf_unique = []
+            for nplib_name in self.lf_nptool_nplib:
+                if nplib_name in self.lf_available_nptool_nplib and nplib_name not in lf_unique:
+                    lf_unique.append(nplib_name)
+            self.lf_nptool_nplib = lf_unique
+            if len(self.lf_nptool_nplib) == 0:
+                self.lf_nptool_nplib = self.lf_available_nptool_nplib.copy()
 
     def confirm_build_options(self):
         self.print_header("Confirm build options")
@@ -341,6 +396,8 @@ class lilak_configuration:
         print()
         for key, value in self.df_build_options.items():
             print(f"   {key} = {value}")
+        if self.df_build_options["BUILD_NPTOOL"]:
+            print(f"   NPTOOL_NPLIB_LIST = {':'.join(self.lf_nptool_nplib)}")
         print()
         self.print_project_list()
         print()
@@ -351,6 +408,9 @@ class lilak_configuration:
         prev_build_options = [key for key, value in self.df_build_options.items() if value]
         self.df_build_options = self.df_build_options0.copy()
         lf_chosen_key = set(self.select_multiple_options(self.df_build_options, prev_options=prev_build_options))
+        if "BUILD_NPTOOL" in lf_chosen_key and "BUILD_GEANT4_SIM" not in lf_chosen_key:
+            print("   BUILD_NPTOOL requires BUILD_GEANT4_SIM. Enabling BUILD_GEANT4_SIM.")
+            lf_chosen_key.add("BUILD_GEANT4_SIM")
         for key in lf_chosen_key:
             self.df_build_options[key] = True
             ###################################
@@ -368,6 +428,23 @@ class lilak_configuration:
                 if user_input_gg != '':
                     self.GET_DIR = user_input_gg
             ###################################
+        if self.df_build_options["BUILD_NPTOOL"] and self.df_build_options["BUILD_GEANT4_SIM"] == False:
+            self.df_build_options["BUILD_GEANT4_SIM"] = True
+            print("   BUILD_NPTOOL requires BUILD_GEANT4_SIM. Enabling BUILD_GEANT4_SIM.")
+        if self.df_build_options["BUILD_NPTOOL"]:
+            print()
+            print("Select NPLib modules to link with NPTOOLSIM")
+            prev_nptool_nplib = self.lf_nptool_nplib.copy()
+            if len(self.lf_available_nptool_nplib) == 0:
+                self.print_warn("No enabled NPLib modules in", self.fn_nptool_nplib_option)
+            lf_chosen_nptool_nplib = self.select_multiple_options(self.lf_available_nptool_nplib, prev_options=prev_nptool_nplib)
+            if len(lf_chosen_nptool_nplib) == 0:
+                self.lf_nptool_nplib = prev_nptool_nplib
+            else:
+                self.lf_nptool_nplib = []
+                for nplib_name in self.lf_available_nptool_nplib:
+                    if nplib_name in lf_chosen_nptool_nplib:
+                        self.lf_nptool_nplib.append(nplib_name)
 
     def select_and_add_project(self):
         self.print_header("Add Project")
@@ -388,6 +465,13 @@ class lilak_configuration:
                         if subdir in self.lf_prj_subdir_link:
                             is_project_directory = True
                             break
+                        if self.df_build_options["BUILD_NPTOOL"]:
+                            if subdir in self.lf_prj_subdir_link_nptool:
+                                is_project_directory = True
+                                break
+                            if subdir == "nptool":
+                                is_project_directory = True
+                                break
                         if subdir=="macros":
                             is_project_directory = True
                             break
@@ -446,9 +530,14 @@ class lilak_configuration:
             self.lf_project_readme.append('"'+project_readme+'"')
             ls_project = os.listdir(self.lilak_path+"/"+project_name)
             project_cmake_contents1 = ""
-            if any(directory_name in self.lf_prj_subdir_link for directory_name in ls_project):
+            lf_prj_subdir_link = self.lf_prj_subdir_link.copy()
+            if self.df_build_options["BUILD_NPTOOL"]:
+                for directory_name in self.lf_prj_subdir_link_nptool:
+                    if directory_name not in lf_prj_subdir_link:
+                        lf_prj_subdir_link.append(directory_name)
+            if any(directory_name in lf_prj_subdir_link for directory_name in ls_project):
                 project_cmake_contents1 += "set(LILAK_SOURCE_DIRECTORY_LIST ${LILAK_SOURCE_DIRECTORY_LIST}\n"
-                project_cmake_contents1 += "".join("    ${CMAKE_CURRENT_SOURCE_DIR}/"+f"{directory_name}\n" for directory_name in ls_project if directory_name in self.lf_prj_subdir_link)
+                project_cmake_contents1 += "".join("    ${CMAKE_CURRENT_SOURCE_DIR}/"+f"{directory_name}\n" for directory_name in ls_project if directory_name in lf_prj_subdir_link)
                 project_cmake_contents1 += '    CACHE INTERNAL ""\n)\n\n'
             project_cmake_contents2 = ""
             if any(directory_name in self.lf_prj_subdir_xlink for directory_name in ls_project):
@@ -550,6 +639,10 @@ class lilak_configuration:
         new_contents +=  '\nCACHE INTERNAL ""\n)' #####
         new_contents += f'\n\nset(GRU_DIR {self.GRU_DIR} CACHE INTERNAL "")' #####
         new_contents += f'\nset(GET_DIR {self.GET_DIR} CACHE INTERNAL "")' #####
+        jl_nptool_nplib = '\n'.join(self.lf_nptool_nplib)
+        new_contents +=  "\nset(NPTOOL_NPLIB_LIST ${NPTOOL_NPLIB_LIST}"
+        new_contents += f"\n{jl_nptool_nplib}"
+        new_contents +=  '\nCACHE INTERNAL ""\n)'
         new_contents +=  "\nset(LILAK_BIND_LIST ${LILAK_BIND_LIST}" #####
         new_contents += f"\n{jl_xmake_projects}"
         new_contents +=  '\nCACHE INTERNAL ""\n)'
@@ -703,6 +796,12 @@ class {factory_name}
     def create_classfactory(self):
         change_in_class_factory = False
         jl_source_main = ""
+        jl_source_main += f'    if (fRun==nullptr)\n'
+        jl_source_main += f'        return;\n\n'
+        jl_init_class_lines1 = ""
+        jl_init_class_lines2 = ""
+        jl_init_class_lines3 = ""
+        jl_init_class_lines4 = ""
         jl_include_headers = ""
         jl_source_print = ""
         lf_search_path = []
@@ -712,22 +811,62 @@ class {factory_name}
         lf_classes = self.scan_directories(self.lilak_path, lf_search_path)
         lf_classes.sort()
         last_header = ''
+        lf_group_names = []
+        lf_detector_classes = []
+        lf_task_classes = []
+        lf_nptool_task_classes = []
+        lf_mfm_classes = []
+        lf_container_classes = []
+        lf_detector_scan_paths = ["source/detector"]
+        lf_task_scan_paths = ["source/task"]
+        lf_nptool_task_scan_paths = []
+        lf_mfm_scan_paths = []
+        lf_container_scan_paths = ["source/container"]
+        lf_tool_scan_paths = ["source/tool"]
+        for project in self.lf_lilak_projects:
+            lf_detector_scan_paths.append(f"{project}/detector")
+            lf_task_scan_paths.append(f"{project}/task")
+            lf_nptool_task_scan_paths.append(f"{project}/task_nptool")
+            lf_mfm_scan_paths.append(f"{project}/mfm")
+            lf_container_scan_paths.append(f"{project}/container")
+            lf_tool_scan_paths.append(f"{project}/tool")
+        lf_include_path_classfactory2 = self.lf_include_path_classfactory2.copy()
+        if self.df_build_options["BUILD_NPTOOL"]:
+            if "task_nptool" not in lf_include_path_classfactory2:
+                lf_include_path_classfactory2.append("task_nptool")
         if self.df_build_options["BUILD_MFM_CONVERTER"]==True:
-            self.lf_include_path_classfactory.append(['mfm'])
+            self.lf_include_path_classfactory3.append('mfm')
         for class_name, path_name in lf_classes:
             if any(keyword in path_name for keyword in self.lf_exclude_path_classfactory):
                 continue
             if any(keyword in class_name for keyword in self.lf_exclude_name_classfactory):
                 continue
-            for include_path in self.lf_include_path_classfactory:
+            candidate_file_name = self.lilak_path + "/" + path_name + "/" + class_name + ".h"
+            candidate_file_path = os.path.join(self.lilak_path, candidate_file_name)
+            with open(candidate_file_path, "r") as candidate_file:
+                contents_of_file = candidate_file.read()
+            for i in [1,2,3]:
+                if i==1: include_path = self.lf_include_path_classfactory1
+                if i==2: include_path = lf_include_path_classfactory2
+                if i==3: include_path = self.lf_include_path_classfactory3
                 if any(keyword in path_name for keyword in include_path):
                     if not jl_source_main:
-                        jl_source_main  = f'    if      (name=="{class_name}") {{ e_info << "Adding {class_name}" << endl; fRun -> Add(new {class_name}); }} // {path_name}\n'
+                        jl_source_main += f'    if      (name=="{class_name}") {{ e_info << "Adding {class_name}" << endl; fRun -> Add(new {class_name}); }} // {path_name}\n'
                     else:
+                        #if last_header!=class_name[:2]: jl_source_main += f'\n'
                         jl_source_main += f'    else if (name=="{class_name}") {{ e_info << "Adding {class_name}" << endl; fRun -> Add(new {class_name}); }} // {path_name}\n'
                     jl_source_print    += f'    e_cout << "{class_name}" << endl;\n'
                     jl_include_headers += f'#include "{class_name}.h"\n'
                     last_header = class_name[:2]
+                    if True:
+                        i_group = path_name.find('/')
+                        group_name = path_name[:i_group]
+                        if group_name not in lf_group_names:
+                            lf_group_names.append(group_name)
+                            jl_init_class_lines1 += f'     fLD.push_back("{group_name}"); // {group_name}\n'
+                            jl_init_class_lines2 += f'     std::vector<TString> lf_classes_in_{group_name}; // {group_name}\n'
+                            jl_init_class_lines4 += f'     fLL.push_back(lf_classes_in_{group_name}); // {group_name}\n'
+                        jl_init_class_lines3 += f'     lf_classes_in_{group_name}.push_back("{class_name}");// {path_name}\n'
         jl_source_main += f'\n'
         jl_source_main += f'    else {{ e_warning << "Class " << name << " is not in the class factory!" << endl; }}\n'
         # Create the source file content
@@ -737,6 +876,12 @@ class {factory_name}
 void LKClassFactory::Print()
 {{
 {jl_source_print}}}\n
+void LKClassFactory::Init()
+{{
+{jl_init_class_lines1}
+{jl_init_class_lines2}
+{jl_init_class_lines3}
+{jl_init_class_lines4}}}\n
 void LKClassFactory::Add(TString name)
 {{
 {jl_source_main}}}"""
@@ -748,16 +893,108 @@ void LKClassFactory::Add(TString name)
 class LKRun;\n
 class LKClassFactory
 {
+    private:
+        LKRun* fRun = nullptr;
+        std::vector<TString> fLD; // list of directories
+        std::vector<std::vector<TString>> fLL; // list of "list of classes" for each directory\n
     public:
-        LKClassFactory(LKRun* run) { fRun = run; }
+        LKClassFactory() { Init(); }
+        LKClassFactory(LKRun* run) { fRun = run; Init(); }
         virtual ~LKClassFactory() {}\n
         void Print();
+        void Init();
         void Add(TString name);\n
-        LKRun* fRun;
+        std::vector<TString> GetListOfDirectories() { return fLD; }
+        std::vector<std::vector<TString>> GetListOfLD() { return fLL; }
 };\n
 #endif"""
         if (self.check_content_and_recreate_file("source/base/LKClassFactory.cpp", source_content)): change_in_class_factory = True 
         if (self.check_content_and_recreate_file("source/base/LKClassFactory.h",   header_content)): change_in_class_factory = True 
+        lf_detector_classes = []
+        lf_detector_scan_classes = self.scan_directories(self.lilak_path, lf_detector_scan_paths)
+        lf_detector_scan_classes.sort()
+        for class_name, _path_name in lf_detector_scan_classes:
+            if class_name in self.lf_exclude_name_classfactory:
+                continue
+            if class_name not in lf_detector_classes:
+                lf_detector_classes.append(class_name)
+
+        lf_task_classes = []
+        lf_task_scan_classes = self.scan_directories(self.lilak_path, lf_task_scan_paths)
+        lf_task_scan_classes.sort()
+        for class_name, _path_name in lf_task_scan_classes:
+            if class_name not in lf_task_classes:
+                lf_task_classes.append(class_name)
+
+        lf_nptool_task_classes = []
+        lf_nptool_task_scan_classes = self.scan_directories(self.lilak_path, lf_nptool_task_scan_paths)
+        lf_nptool_task_scan_classes.sort()
+        for class_name, _path_name in lf_nptool_task_scan_classes:
+            if class_name not in lf_task_classes:
+                lf_task_classes.append(class_name)
+            if class_name not in lf_nptool_task_classes:
+                lf_nptool_task_classes.append(class_name)
+
+        lf_par_classes = []
+        for class_name, path_name in lf_detector_scan_classes + lf_task_scan_classes + lf_nptool_task_scan_classes:
+            if class_name in self.lf_exclude_name_classfactory:
+                continue
+            path_with_class = f"{path_name}/{class_name}"
+            if path_with_class not in lf_par_classes:
+                lf_par_classes.append(path_with_class)
+        if "LKRun" not in lf_par_classes:
+            lf_par_classes.append("LKRun")
+        lf_par_classes.sort()
+
+        lf_mfm_classes = []
+        lf_mfm_scan_classes = self.scan_directories(self.lilak_path, lf_mfm_scan_paths)
+        lf_mfm_scan_classes.sort()
+        for class_name, _path_name in lf_mfm_scan_classes:
+            if class_name not in lf_mfm_classes:
+                lf_mfm_classes.append(class_name)
+
+        lf_container_classes = []
+        lf_container_scan_classes = self.scan_directories(self.lilak_path, lf_container_scan_paths)
+        lf_container_scan_classes.sort()
+        for class_name, _path_name in lf_container_scan_classes:
+            if class_name not in lf_container_classes:
+                lf_container_classes.append(class_name)
+
+        lf_tool_classes = []
+        lf_tool_scan_classes = self.scan_directories(self.lilak_path, lf_tool_scan_paths)
+        lf_tool_scan_classes.sort()
+        for class_name, _path_name in lf_tool_scan_classes:
+            if class_name not in lf_tool_classes:
+                lf_tool_classes.append(class_name)
+
+        detector_log_content = "\n".join(lf_detector_classes)
+        task_log_content = "\n".join(lf_task_classes)
+        par_log_content = "\n".join(lf_par_classes)
+        nptool_task_log_content = "\n".join(lf_nptool_task_classes)
+        mfm_log_content = "\n".join(lf_mfm_classes)
+        container_log_content = "\n".join(lf_container_classes)
+        tool_log_content = "\n".join(lf_tool_classes)
+        if detector_log_content:
+            detector_log_content += "\n"
+        if task_log_content:
+            task_log_content += "\n"
+        if par_log_content:
+            par_log_content += "\n"
+        if nptool_task_log_content:
+            nptool_task_log_content += "\n"
+        if mfm_log_content:
+            mfm_log_content += "\n"
+        if container_log_content:
+            container_log_content += "\n"
+        if tool_log_content:
+            tool_log_content += "\n"
+        if (self.check_content_and_recreate_file("meta/LKClassList.detector.log", detector_log_content)): change_in_class_factory = True
+        if (self.check_content_and_recreate_file("meta/LKClassList.task.log", task_log_content)): change_in_class_factory = True
+        if (self.check_content_and_recreate_file("meta/LKClassList.par.log", par_log_content)): change_in_class_factory = True
+        if (self.check_content_and_recreate_file("meta/LKClassList.nptool_task.log", nptool_task_log_content)): change_in_class_factory = True
+        if (self.check_content_and_recreate_file("meta/LKClassList.mfm.log", mfm_log_content)): change_in_class_factory = True
+        if (self.check_content_and_recreate_file("meta/LKClassList.container.log", container_log_content)): change_in_class_factory = True
+        if (self.check_content_and_recreate_file("meta/LKClassList.tool.log", tool_log_content)): change_in_class_factory = True
         #update_source = False
         #update_header = False
         #source_file_path = os.path.join(self.lilak_path, "source/base/LKClassFactory.cpp")
@@ -815,6 +1052,8 @@ class LKClassFactory
             run_cmake = True
         print(f'{self.lilak_path}/build')
         os.chdir(f'{self.lilak_path}/build')
+        if not os.path.exists("Makefile"):
+            run_cmake = True
         if run_cmake:
             print('cmake ..')
             os.system('cmake ..')
@@ -853,17 +1092,221 @@ update_git_repos() {{
     cd "$original_dir"
 }}
 
+lilak_write_current_tag_list() {{
+    local output_file="$1"
+    local version_line=""
+    local branch=""
+    local count=""
+    local hash=""
+    {{
+        if [ -d "$LILAK_PATH/.git" ]; then
+            branch=$(git -C "$LILAK_PATH" rev-parse --abbrev-ref HEAD 2>/dev/null)
+            count=$(git -C "$LILAK_PATH" rev-list --count "$branch" 2>/dev/null)
+            hash=$(git -C "$LILAK_PATH" rev-parse --short "$branch" 2>/dev/null)
+            if [ -n "$branch" ] && [ -n "$count" ] && [ -n "$hash" ]; then
+                echo "lilak ${{branch}}.${{count}}.${{hash}}"
+            fi
+        fi
+        for project_dir in {" ".join(self.lf_lilak_projects)}; do
+            if [ -d "$LILAK_PATH/$project_dir/.git" ]; then
+                branch=$(git -C "$LILAK_PATH/$project_dir" rev-parse --abbrev-ref HEAD 2>/dev/null)
+                count=$(git -C "$LILAK_PATH/$project_dir" rev-list --count "$branch" 2>/dev/null)
+                hash=$(git -C "$LILAK_PATH/$project_dir" rev-parse --short "$branch" 2>/dev/null)
+                if [ -n "$branch" ] && [ -n "$count" ] && [ -n "$hash" ]; then
+                    echo "${{project_dir}} ${{branch}}.${{count}}.${{hash}}"
+                fi
+            fi
+        done
+    }} > "$output_file"
+}}
+
+lilak_print_read_draw_missing_classes() {{
+    local container_log="$LILAK_PATH/meta/LKClassList.container.log"
+    local getter_conf="$LILAK_PATH/meta/lilak_read_getters.conf"
+    local member_conf="$LILAK_PATH/meta/lilak_read_members.conf"
+    if [ ! -f "$container_log" ]; then
+        return
+    fi
+    local missing_classes
+    missing_classes=$(
+        python3 - "$container_log" "$getter_conf" "$member_conf" <<'PY'
+import sys
+from pathlib import Path
+
+container_path = Path(sys.argv[1])
+getter_path = Path(sys.argv[2])
+member_path = Path(sys.argv[3])
+
+def load_first_tokens(path):
+    values = set()
+    if not path.exists():
+        return values
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        values.add(line.split()[0])
+    return values
+
+containers = [line.strip() for line in container_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+configured = load_first_tokens(getter_path) | load_first_tokens(member_path)
+missing = [name for name in containers if name not in configured]
+for name in missing:
+    print(name)
+PY
+    )
+    if [ -z "$missing_classes" ]; then
+        return
+    fi
+    echo
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo "Missing read_draw configuration for container classes:"
+    echo
+    echo "  getters: $getter_conf"
+    echo "  members: $member_conf"
+    echo
+    while IFS= read -r class_name; do
+        [ -z "$class_name" ] && continue
+        local header_path=""
+        header_path=$(find "$LILAK_PATH" \
+            -not -path "$LILAK_PATH/build/*" \
+            -not -path "$LILAK_PATH/meta/*" \
+            -not -path "$LILAK_PATH/doc/*" \
+            -not -path "$LILAK_PATH/temp/*" \
+            -not -path "$LILAK_PATH/zzz/*" \
+            -name "${{class_name}}.h" -print -quit)
+        echo "  ${{class_name}}"
+        echo "    reference: https://lilak-project.github.io/lilak_doxygen/class${{class_name}}.html"
+        if [ -n "$header_path" ]; then
+            echo "    header: $header_path"
+        fi
+    done <<< "$missing_classes"
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+}}
+
+lilak_warn_if_make_meta_is_stale() {{
+    local current_tags="$LILAK_PATH/meta/LKCompiledTags.log"
+    local last_meta_tags="$LILAK_PATH/meta/LKLastMakeMetaTags.log"
+    if [ ! -f "$current_tags" ]; then
+        return
+    fi
+    if [ ! -f "$last_meta_tags" ]; then
+        echo
+        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        echo "make_meta snapshot is missing."
+        echo "Run: lilak make_meta"
+        echo "Current tag list: $current_tags"
+        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        return
+    fi
+    if ! cmp -s "$current_tags" "$last_meta_tags"; then
+        echo
+        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        echo "Current build git tags differ from the last make_meta snapshot."
+        echo "Run: lilak make_meta"
+        echo "Last make_meta snapshot: $last_meta_tags"
+        echo "Current build tags      : $current_tags"
+        echo "Diff:"
+        diff -u "$last_meta_tags" "$current_tags" || true
+        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    fi
+}}
+
+lilak_run_make_meta_for_stale_classes() {{
+    local par_list_file="$LILAK_PATH/meta/LKClassList.par.log"
+    if [ ! -f "$par_list_file" ]; then
+        return
+    fi
+
+    local stale_classes=()
+    local class_entry=""
+    while IFS= read -r class_entry || [ -n "$class_entry" ]; do
+        class_entry="${{class_entry%%[[:space:]]*}}"
+        [ -z "$class_entry" ] && continue
+
+        local class_name="${{class_entry##*/}}"
+        local configure_file="$LILAK_PATH/meta/parameters/configure_${{class_name}}.mac"
+        local branch_file="$LILAK_PATH/meta/parameters/branch_${{class_name}}.par"
+        local header_file=""
+        local source_file=""
+        local newest_source=""
+
+        if [ "$class_name" = "LKRun" ]; then
+            header_file="$LILAK_PATH/source/base/LKRun.h"
+            source_file="$LILAK_PATH/source/base/LKRun.cpp"
+        else
+            if [ -f "$LILAK_PATH/${{class_entry}}.h" ]; then
+                header_file="$LILAK_PATH/${{class_entry}}.h"
+            else
+                header_file=$(find "$LILAK_PATH" \
+                    -not -path "$LILAK_PATH/build/*" \
+                    -not -path "$LILAK_PATH/meta/*" \
+                    -not -path "$LILAK_PATH/doc/*" \
+                    -not -path "$LILAK_PATH/temp/*" \
+                    -not -path "$LILAK_PATH/zzz/*" \
+                    -name "${{class_name}}.h" -print -quit)
+            fi
+            if [ -f "$LILAK_PATH/${{class_entry}}.cpp" ]; then
+                source_file="$LILAK_PATH/${{class_entry}}.cpp"
+            else
+                source_file=$(find "$LILAK_PATH" \
+                    -not -path "$LILAK_PATH/build/*" \
+                    -not -path "$LILAK_PATH/meta/*" \
+                    -not -path "$LILAK_PATH/doc/*" \
+                    -not -path "$LILAK_PATH/temp/*" \
+                    -not -path "$LILAK_PATH/zzz/*" \
+                    -name "${{class_name}}.cpp" -print -quit)
+            fi
+        fi
+
+        newest_source=""
+        if [ -n "$header_file" ] && [ -f "$header_file" ]; then
+            newest_source="$header_file"
+        fi
+        if [ -n "$source_file" ] && [ -f "$source_file" ]; then
+            if [ -z "$newest_source" ] || [ "$source_file" -nt "$newest_source" ]; then
+                newest_source="$source_file"
+            fi
+        fi
+        [ -z "$newest_source" ] && continue
+
+        if [ "$class_name" = "LKRun" ]; then
+            if [ ! -f "$configure_file" ] || [ "$newest_source" -nt "$configure_file" ]; then
+                stale_classes+=("$class_name")
+            fi
+        else
+            if [ ! -f "$configure_file" ] || [ ! -f "$branch_file" ] || [ "$newest_source" -nt "$configure_file" ] || [ "$newest_source" -nt "$branch_file" ]; then
+                stale_classes+=("$class_name")
+            fi
+        fi
+    done < "$par_list_file"
+
+    if [ "${{#stale_classes[@]}}" -eq 0 ]; then
+        return
+    fi
+
+    echo
+    echo "Running make_meta for updated classes:"
+    printf '  %s\n' "${{stale_classes[@]}}"
+    echo
+
+    local class_name=""
+    for class_name in "${{stale_classes[@]}}"; do
+        lilak make_meta "$class_name"
+    done
+}}
+
 # Define the lilak function
 lilak() {{
     if [ -z "$1" ]; then
         echo
         echo "LILAK (https://github.com/lilak-project)"
         echo
-        echo "Usage: lilak {{home|config_test|build|build_new|new|update|example|doc|find|geant4|run}} [input]"
+        echo "Usage: lilak {{home|configure|build|build_new|new|update|example|doc|find|make_meta|make_run|par|g4sim|nptool|run|read|draw}} [input]"
         echo
         echo "Commands:"
         echo "  home               Navigate to the lilak home directory."
-        echo "  config_test        Configuration test without make"
+        echo "  configure [input]  Without input: configuration test without make. With parameter file: print terminal configure report."
         echo "  build [input]      Build LILAK with [input]; parallel jobs flag. ex) lilak build -j10"
         echo "  build_new          Clean build-directory and rebuild the package (asks for confirmation)."
         echo "  new                Run script to create new project"
@@ -871,9 +1314,14 @@ lilak() {{
         echo "  example            Navigate to the lilak examples directory."
         echo "  doc [input]        Print the reference link to the class documentation."
         echo "  find [input]       Find and navigate to the directory containing [input]."
+        echo "  make_meta [input]  Generate meta parameter files for all classes or one class."
+        echo "  make_run [input]   Create a run parameter file from input ROOT file using configure_LKRun.mac."
+        echo "  par [input]        Open the parameter file editor in a local web browser."
         echo "  g4sim [input]      Execute the default Geant4 simulatoin program with the provided [input]."
         echo "  nptool [input]     Execute the default nptool simulatoin program with the provided [input]."
         echo "  run [input]        Execute the ROOT script with the provided [input]."
+        echo "  read [input]       Create a ROOT macro that reads a LILAK output ROOT file."
+        echo "  draw [input]       Draw using a parameter file, or generate draw examples from a ROOT file."
         echo
         echo "Project commands:"
         for project_readme in {" ".join(self.lf_project_readme)}; do
@@ -886,6 +1334,17 @@ lilak() {{
         home)
             cd "$LILAK_PATH" || echo "Directory not found: $LILAK_PATH"
             echo "Changed directory to: $(pwd)"
+            ;;
+        configure)
+            local original_dir=$(pwd)
+            if [ -z "$2" ]; then
+                cd "$LILAK_PATH"
+                "$LILAK_PATH/lilak.sh" -t
+                export LD_LIBRARY_PATH="$LILAK_PATH/build:$LD_LIBRARY_PATH"
+            else
+                python3 "$LILAK_PATH/macros/lilak_parameter_editor.py" --configure-report "$2"
+            fi
+            cd "$original_dir"
             ;;
         config_test)
             local original_dir=$(pwd)
@@ -904,6 +1363,9 @@ lilak() {{
             else
                 "$LILAK_PATH/lilak.sh" -j"$2"
             fi
+            lilak_run_make_meta_for_stale_classes
+            lilak_warn_if_make_meta_is_stale
+            lilak_print_read_draw_missing_classes
             export LD_LIBRARY_PATH="$LILAK_PATH/build:$LD_LIBRARY_PATH"
             cd "$original_dir"
             ;;
@@ -931,6 +1393,9 @@ lilak() {{
                 else
                     "$LILAK_PATH/lilak.sh" -j"$2"
                 fi
+                lilak_run_make_meta_for_stale_classes
+                lilak_warn_if_make_meta_is_stale
+                lilak_print_read_draw_missing_classes
                 export LD_LIBRARY_PATH="$LILAK_PATH/build:$LD_LIBRARY_PATH"
                 cd "$original_dir"
             else
@@ -968,6 +1433,7 @@ lilak() {{
             else
                 file=$(find "$LILAK_PATH" \
                         -not -path "$LILAK_PATH/build/*" \
+                        -not -path "$LILAK_PATH/meta/*" \
                         -not -path "$LILAK_PATH/doc/*" \
                         -not -path "$LILAK_PATH/temp/*" \
                         -not -path "$LILAK_PATH/zzz/*" \
@@ -983,6 +1449,95 @@ lilak() {{
                 else
                     echo "No files containing '$2' found."
                 fi
+            fi
+            ;;
+        make_meta)
+            par_list_file="$LILAK_PATH/meta/LKClassList.par.log"
+            if [ ! -f "$par_list_file" ]; then
+                echo "Class list not found: $par_list_file"
+                return 1
+            fi
+            target_class="$2"
+            found_target=0
+            generated_files=()
+            mkdir -p "$LILAK_PATH/meta/parameters"
+            if [ "$target_class" = "LKRun" ]; then
+                found_target=1
+                par_file="$LILAK_PATH/meta/parameters/configure_LKRun.mac"
+                root_command="root -l -q -e 'auto run = new LKRun(); run -> SetCollectPar(\\"${{par_file}}\\"); run -> Init();'"
+                echo
+                echo "=============================="
+                echo "Class: LKRun"
+                echo "$root_command"
+                eval "$root_command"
+                run_status=$?
+                if [ -f "$par_file" ]; then
+                    generated_files+=("$par_file")
+                fi
+                if [ "${{#generated_files[@]}}" -gt 0 ]; then
+                    echo
+                    echo "Generated files:"
+                    printf '%s\\n' "${{generated_files[@]}}"
+                fi
+                return "$run_status"
+            fi
+            while IFS= read -r class_entry || [ -n "$class_entry" ]; do
+                class_entry="${{class_entry%%[[:space:]]*}}"
+                if [ -z "$class_entry" ]; then
+                    continue
+                fi
+                class_name="${{class_entry##*/}}"
+                if [ -n "$target_class" ] && [ "$class_name" != "$target_class" ]; then
+                    continue
+                fi
+                found_target=1
+                par_file="$LILAK_PATH/meta/parameters/configure_${{class_name}}.mac"
+                branch_file="$LILAK_PATH/meta/parameters/branch_${{class_name}}.par"
+                if [ "$class_name" = "LKRun" ]; then
+                    root_command="root -l -q -e 'auto run = new LKRun(); run -> SetCollectPar(\\"${{par_file}}\\"); run -> Init();'"
+                else
+                    root_command="root -l -q -e 'auto run = new LKRun(); run -> Add(new ${{class_name}}); run -> SetCollectSubPar(\\"${{par_file}}\\"); run -> SetCollectBranchPar(\\"${{branch_file}}\\"); run -> Init();'"
+                fi
+                echo
+                echo "=============================="
+                echo "Class: ${{class_name}}"
+                echo "$root_command"
+                eval "$root_command"
+                run_status=$?
+                if [ -f "$par_file" ]; then
+                    generated_files+=("$par_file")
+                fi
+                if [ "$class_name" != "LKRun" ] && [ -f "$branch_file" ]; then
+                    generated_files+=("$branch_file")
+                fi
+            done < "$par_list_file"
+            if [ -n "$target_class" ] && [ "$found_target" -eq 0 ]; then
+                echo "Class not found in $par_list_file: $target_class"
+                return 1
+            fi
+            if [ "${{#generated_files[@]}}" -gt 0 ]; then
+                echo
+                echo "Generated files:"
+                printf '%s\\n' "${{generated_files[@]}}"
+            fi
+            lilak_write_current_tag_list "$LILAK_PATH/meta/LKLastMakeMetaTags.log"
+            echo
+            echo "Saved make_meta tag snapshot:"
+            echo "$LILAK_PATH/meta/LKLastMakeMetaTags.log"
+            lilak_print_read_draw_missing_classes
+            ;;
+        make_run)
+            if [ -z "$2" ]; then
+                echo "Error: Please provide input ROOT file."
+                return 1
+            fi
+            python3 "$LILAK_PATH/macros/lilak_parameter_editor.py" --make-run "$2" ${{3:+--output "$3"}}
+            ;;
+        par)
+            if [ -z "$2" ]; then
+                python3 "$LILAK_PATH/macros/lilak_parameter_editor.py"
+            else
+                python3 "$LILAK_PATH/macros/lilak_parameter_editor.py" "$2"
             fi
             ;;
         g4sim)
@@ -1001,9 +1556,79 @@ lilak() {{
             ;;
         run)
             if [ -z "$2" ]; then
-                root -l '{self.lilak_path}/macros/run_lilak.C()'
+                root -l -q -e 'auto run = new LKRun(); run -> SetCollectPar(); run -> Init();'
             else
                 root -l '{self.lilak_path}/macros/run_lilak.C("'"$2"'")'
+            fi
+            ;;
+        read)
+            if [ -z "$2" ]; then
+                echo "Error: Please provide LILAK output ROOT file."
+                return 1
+            elif [[ "${{2##*.}}" != "root" ]]; then
+                echo "Error: lilak read only accepts .root files."
+                return 1
+            else
+                python3 "$LILAK_PATH/macros/make_read_lilak_macro.py" "$2" "$3"
+            fi
+            ;;
+        draw)
+            if [ -z "$2" ]; then
+                local draw_example_file="tree_draw.mac"
+                if [ -e "$draw_example_file" ]; then
+                    draw_example_file="tree_draw.example.mac"
+                fi
+                cat > "$draw_example_file" <<'EOF'
+draw/input "data.root" "event"
+
+# GETChannel : GETChannel
+# reference: https://lilak-project.github.io/lilak_doxygen/classGETChannel.html
+draw GETChannel.fCobo
+draw GETChannel.fAsad
+draw GETChannel.fAget
+draw GETChannel.fChan
+EOF
+                echo "Created example parameter file: $draw_example_file"
+            elif [[ "${{2##*.}}" == "root" ]]; then
+                python3 "$LILAK_PATH/macros/make_draw_lilak_macro.py" "$2" "$3"
+            else
+                root -l "$LILAK_PATH/macros/run_tree_draw.C(\\"$2\\")"
+            fi
+            ;;
+        run_web)
+            if [ -z "$2" ]; then
+                echo "Error: Please provide parameter file."
+                return 1
+            else
+                build_options_file="$LILAK_PATH/meta/build_options.cmake"
+                root_args=(-l -b -q -n)
+                if [ -f "$build_options_file" ] && grep -q 'set(BUILD_NPTOOL ON' "$build_options_file"; then
+                    if [ -z "$NPLib_DIR" ]; then
+                        echo "Error: NPLib_DIR is not set."
+                        return 1
+                    fi
+                    in_nplib_list=0
+                    while IFS= read -r line; do
+                        trimmed="${{line#"${{line%%[![:space:]]*}}"}}"
+                        if [ "$in_nplib_list" -eq 0 ]; then
+                            if [[ "$trimmed" == set\\(NPTOOL_NPLIB_LIST* ]]; then
+                                in_nplib_list=1
+                            fi
+                            continue
+                        fi
+                        if [[ "$trimmed" == "CACHE INTERNAL "* ]] || [[ "$trimmed" == ")" ]]; then
+                            break
+                        fi
+                        lib_name="${{trimmed%%[[:space:]]*}}"
+                        if [ -n "$lib_name" ] && [ "$lib_name" != '${{NPTOOL_NPLIB_LIST}}' ]; then
+                            root_args+=(-e "gSystem->Load(\\"$NPLib_DIR/lib/lib${{lib_name}}.dylib\\");")
+                        fi
+                    done < "$build_options_file"
+                fi
+                root_args+=(-e "gSystem->Load(\\"$LILAK_PATH/build/libLILAK.dylib\\");")
+                root_args+=(-e "gROOT->Macro(\\"$LILAK_PATH/macros/run_lilak.C(\\\\\\"$2\\\\\\",1)\\");")
+                root_args+=(-e 'gSystem->Exit(0);')
+                root "${{root_args[@]}}"
             fi
             ;;
         *)
@@ -1038,7 +1663,7 @@ _lilak_completions() {{
     local curr_word prev_word
     curr_word="${{COMP_WORDS[COMP_CWORD]}}"
     prev_word="${{COMP_WORDS[COMP_CWORD-1]}}"
-    local commands="home config_test build build_new new update example doc find g4sim nptool run {" ".join(self.lf_lilak_projects)}"
+    local commands="home configure build build_new new update example doc find make_meta make_run par g4sim nptool run read draw {" ".join(self.lf_lilak_projects)}"
     local subdir_projects="{" ".join(self.lf_lilak_projects)}"
 
     if [[ ${{COMP_CWORD}} == 1 ]]; then
@@ -1049,10 +1674,20 @@ _lilak_completions() {{
         COMPREPLY=( $(compgen -f "${{curr_word}}") )
     elif [[ $prev_word == "run" ]]; then
         COMPREPLY=( $(compgen -f "${{curr_word}}") )
+    elif [[ $prev_word == "read" ]]; then
+        COMPREPLY=( $(compgen -f "${{curr_word}}") )
+    elif [[ $prev_word == "draw" ]]; then
+        COMPREPLY=( $(compgen -f "${{curr_word}}") )
+    elif [[ $prev_word == "configure" ]]; then
+        COMPREPLY=( $(compgen -f "${{curr_word}}") )
+    elif [[ $prev_word == "make_run" ]]; then
+        COMPREPLY=( $(compgen -f "${{curr_word}}") )
+    elif [[ $prev_word == "par" ]]; then
+        COMPREPLY=( $(compgen -f "${{curr_word}}") )
     elif [[ ${{COMP_CWORD}} == 2 && " $subdir_projects " =~ " ${{COMP_WORDS[1]}} " ]]; then
         local project_path="$LILAK_PATH/${{COMP_WORDS[1]}}"
         if [ -d "$project_path" ]; then
-            local subdirs=$(find "$project_path" -maxdepth 1 -mindepth 1 -type d -exec basename {{}} \;)
+            local subdirs=$(find "$project_path" -maxdepth 1 -mindepth 1 -type d -exec basename {{}} \\;)
             COMPREPLY=( $(compgen -W "${{subdirs}}" -- "${{curr_word}}") )
         fi
     fi
@@ -1064,12 +1699,75 @@ _lilak_completions() {{
 complete -F _lilak_completions lilak
 
 # Optional: Add a message to confirm the script is sourced correctly
-echo "LILAK is set. Use 'lilak {{home|config_test|build|build_new|new|update|example|doc|find|g4sim|nptool|run}}'"
+#echo "LILAK is set. Use 'lilak {{home|configure|build|build_new|new|update|example|doc|find|make_meta|make_run|par|g4sim|nptool|run}}'"
 """
         fn_lilak_command_sh = os.path.join(self.lilak_path, "macros/command_lilak.sh")
         with open(fn_lilak_command_sh, "w") as lilak_command_sh_file:
             lilak_command_sh_file.write(lilak_command_sh_content)
         os.chmod(fn_lilak_command_sh, 0o755)
+
+    def create_rootlogon_script(self):
+        self.print_header("Creating rootlogon.C",1)
+        fn_rootlogon = os.path.join(self.lilak_path, "macros/rootlogon.C")
+
+        lf_nptool_nplib = []
+        if self.df_build_options.get("BUILD_NPTOOL", False):
+            lf_nptool_nplib = self.lf_nptool_nplib.copy()
+        nplib_initializer = ", ".join(f'"{lib_name}"' for lib_name in lf_nptool_nplib)
+
+        new_contents = f"""{{
+    TString message = "libs: ";
+    TString libName = TString(gSystem->Getenv("LILAK_PATH"))+"/build/libLILAK";
+    int loadv = gSystem -> Load(libName);
+    if (loadv == 0 || loadv == 1) {{
+        message = message + "LILAK ";
+        gROOT -> ProcessLine("#include \\"LKCompiled.h\\"");
+    }}
+    else {{
+        cout << "Error while loading " << libName << endl;
+    }}
+
+    const char* nplibDirEnv = gSystem -> Getenv("NPLib_DIR");
+    if (nplibDirEnv == nullptr) {{
+        cout << "Warning: NPLib_DIR is not defined." << endl;
+    }}
+    else {{
+        for (auto name : {{{nplib_initializer}}})
+        {{
+            libName = TString(nplibDirEnv) + "/lib/lib" + name;
+            loadv = gSystem -> Load(libName);
+            if (loadv == 0 || loadv == 1) message = message + name + " ";
+            else                          cout << "Error while loading " << libName << endl;
+        }}
+    }}
+
+    cout << message << endl;
+
+    for (TString fileName : {{"README.lilak","readme.lilak"}})
+    {{
+        string line;
+        ifstream readme(fileName);
+        if (readme.is_open()) {{
+            while (getline(readme, line))
+                cout << line << endl;
+            break;
+        }}
+    }}
+}}
+"""
+
+        current_contents = ""
+        if os.path.exists(fn_rootlogon):
+            with open(fn_rootlogon, "r") as f:
+                current_contents = f.read()
+        if current_contents == new_contents:
+            print(f"{fn_rootlogon} # No changes")
+            return False
+
+        print(f"Updating {fn_rootlogon}")
+        with open(fn_rootlogon, "w") as f:
+            f.write(new_contents)
+        return True
 
     def summary(self):
         #print_out_source_lilak = False

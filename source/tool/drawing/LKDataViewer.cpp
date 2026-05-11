@@ -32,7 +32,7 @@ LKDataViewer::LKDataViewer(LKDrawingGroup *top, const TGWindow *p, UInt_t w, UIn
     TString fileName = top -> GetFileName();
     fTitle = Form("[%s] %s",name.Data(),fileName.Data());
     AddGroup(top);
-    fTopDrawingGroup->SetName(top->GetName());
+    //fTopDrawingGroup->SetName(top->GetName());
 }
 
 LKDataViewer::LKDataViewer(LKDrawing *drawing, const TGWindow *p, UInt_t w, UInt_t h)
@@ -173,7 +173,6 @@ bool LKDataViewer::InitFrames()
 
     e_info << fTabGroup.size() << " groups added" << endl;
 
-    //ProcessLayoutTopTab(0, -1);
     ProcessGotoTopTab(0, -1);
 
     fInitialized = true;
@@ -183,20 +182,21 @@ bool LKDataViewer::InitFrames()
 
 void LKDataViewer::Draw(TString option)
 {
-    fDrawOption = option;
-    fResizeFactorX = LKMisc::FindOptionDouble(fDrawOption,"r",1);
-    fResizeFactorY = LKMisc::FindOptionDouble(fDrawOption,"r",1);
-    fWindowSizeX = LKMisc::FindOptionInt(fDrawOption,"wx",0);
-    fWindowSizeY = LKMisc::FindOptionInt(fDrawOption,"wy",0);
-    fMinimumUIComponents = LKMisc::CheckOption(fDrawOption,"m");
-    auto loadAllCanvases = LKMisc::CheckOption(fDrawOption,"l");
-    auto saveAllCanvases = LKMisc::CheckOption(fDrawOption,"s");
-    fCanvasFillColor = (LKMisc::CheckOption(fDrawOption,"dm")?kGray:0);
-    fCanvasFillColor = LKMisc::FindOptionInt(fDrawOption,"fc",fCanvasFillColor);
+    fDrawOption = TString(option);
+    fMinimumUIComponents = LKMisc::CheckOption     (fDrawOption,"v_minc   # minimum component mode");
+    auto loadAllCanvases = LKMisc::CheckOption     (fDrawOption,"v_loada  # load all canvas from the beginning");
+    auto saveAllCanvases = LKMisc::CheckOption     (fDrawOption,"v_savea  # load and save all canvas from the beginning");
+    fCanvasFillColor     =(LKMisc::CheckOption     (fDrawOption,"v_dark   # dark mode (Just using kGray background for now)")?kGray:0);
+    fCanvasFillColor     = LKMisc::FindOptionInt   (fDrawOption,"v_fcolor # set fill background color",fCanvasFillColor);
+    fWindowSizeX         = LKMisc::FindOptionInt   (fDrawOption,"v_wsx    # x window size",0);
+    fWindowSizeY         = LKMisc::FindOptionInt   (fDrawOption,"v_wsy    # y window size",0);
+    fResizeFactorX       = LKMisc::FindOptionDouble(fDrawOption,"v_rsx    # x resize factor",1);
+    fResizeFactorY       = LKMisc::FindOptionDouble(fDrawOption,"v_rsy    # y resize factor",1);
 
-    if (fMinimumUIComponents) {
+    LKMisc::RemoveOption(fDrawOption,"viewer");
+
+    if (fMinimumUIComponents)
         lk_info << "Hiding all UI components" << endl;
-    }
 
     InitFrames();
 
@@ -213,6 +213,7 @@ void LKDataViewer::Print(Option_t *opt) const
 {
     lk_info << fTitle << endl;
     fTopDrawingGroup -> Print();
+    fTabSpace -> Print();
 }
 
 void LKDataViewer::SetName(const char* name)
@@ -235,9 +236,8 @@ void LKDataViewer::CreateMainCanvas()
     LKDrawingGroup *group = nullptr;
 
     TIter next(fTopDrawingGroup);
-    while ((group = (LKDrawingGroup*) next())) {
+    while ((group = (LKDrawingGroup*) next()))
         AddGroupTab(group);
-    }
 
     //fPublicGroupIsAdded = true;
     //fPublicTabIndex = AddGroupTab(fPublicGroup);
@@ -266,8 +266,8 @@ int LKDataViewer::AddGroupTab(LKDrawingGroup* group, int iTab, int iSub)
         fSubTabGroup[iTab].push_back(group);
     }
 
-    TString tabName = group -> GetName();
-    TString cvsName = group -> GetName();
+    TString tabName = Form("DV_%s",group -> GetName());
+    TString cvsName = Form("DV_%s",group -> GetName());
     TGCompositeFrame *tabFrame;
     tabFrame = tabSpace->AddTab(tabName);
 
@@ -288,9 +288,8 @@ int LKDataViewer::AddGroupTab(LKDrawingGroup* group, int iTab, int iSub)
     }
     else
     {
-        if (iSub<0) tabSpace -> Connect("Selected(Int_t)", "LKDataViewer", this, Form("ProcessReloadTab(=%d)",iTab));
-        //else        tabSpace -> Connect("Selected(Int_t)", "LKDataViewer", this, Form("ProcessReloadTab(=%d)",iSub));
-        //tabSpace -> Print();
+        if (iSub<0) tabSpace -> Connect("Selected(Int_t)", "LKDataViewer", this, "ProcessGotoSelectedTab(Int_t)");
+        else        tabSpace -> Connect("Selected(Int_t)", "LKDataViewer", this, "ProcessGotoSelectedSubTab(Int_t)");
         if (isMainTabs) {
             fSubTabSpace.push_back(tabSpace);
             fNumSubTabs.push_back(0);
@@ -528,6 +527,7 @@ void LKDataViewer::CreateTabControlSection()
 {
     auto section = NewGroupFrame("Tab Control");
 
+    //NewButton(frname="Tab Control",);
     auto frame1 = NewHzFrame(section,1);
     fButton_T = NewTextButton(frame1);
     fButton_U_M = NewTextButton(frame1);
@@ -790,23 +790,16 @@ void LKDataViewer::SetManageDrawing(LKDrawing* drawing)
     }
 }
 
-void LKDataViewer::ProcessLayoutTopTab(int iTab, int iSub)
+void LKDataViewer::ProcessGotoSelectedTab(Int_t iTab)
 {
-    int tabID = 0;
-    if (iTab>=0)
-        tabID = iTab;
-    else if (!TString(fNumberInput->GetText()).IsNull()) {
-        tabID = fNumberInput->GetIntNumber();
-        fNumberInput->Clear();
-    }
-    if (tabID<0 || tabID>=fTabSpace->GetNumberOfTabs()) {
-        SendOutMessage(Form("Invalid tab ID: %d",tabID));
-        return;
-    }
-    //if (iSub>=0)
-    //    ProcessLayoutSubTab(iSub,layout);
-    //else
-    //    fTabSpace -> SetTab(tabID);
+    int iSub = -1;
+    ProcessGotoTopTab(iTab, iSub, false, 701);
+}
+
+void LKDataViewer::ProcessGotoSelectedSubTab(Int_t iSub)
+{
+    int iTab = fCurrentTabID;
+    ProcessGotoTopTab(iTab, iSub, false, 702);
 }
 
 void LKDataViewer::ProcessGotoTopTab(int iTab, int iSub, bool layout, int signal)
@@ -847,62 +840,6 @@ void LKDataViewer::ProcessGotoTopTab(int iTab, int iSub, bool layout, int signal
 
     if (iSub>=0)
         ProcessGotoSubTab(iSub,layout);
-}
-
-//void LKDataViewer::ProcessGotoTopTabSelected(Int_t id)
-//{
-//    if (fLayoutButIgnoreSelectedSignal) {
-//        fLayoutButIgnoreSelectedSignal = false;
-//        return;
-//    }
-//    ProcessGotoTopTab(id, -1, false, 8);
-//}
-//
-//void LKDataViewer::ProcessGotoTopTabClicked()
-//{
-//    fLayoutButIgnoreSelectedSignal = true;
-//    ProcessGotoTopTab(-1,-1,1,9);
-//}
-
-void LKDataViewer::ProcessLayoutSubTab(int iSub)
-{
-//    if (fCurrentSubTabSpace==nullptr)
-//        return;
-//
-//    int updateID = 0;
-//    if (iSub>=0)
-//        updateID = iSub;
-//    else if (iSub==-2)
-//        updateID = fCurrentSubTabID;
-//    else if (iSub==-1)
-//    {
-//        if (!TString(fNumberInput->GetText()).IsNull()) {
-//            updateID = fNumberInput->GetIntNumber();
-//            fNumberInput->Clear();
-//        }
-//    }
-//
-//    if (updateID < 0 || updateID >= fCurrentSubTabSpace->GetNumberOfTabs()) {
-//        SendOutMessage(Form("Invalid tab ID: %d",updateID));
-//        return;
-//    }
-//
-//    fCurrentGroup = fSubTabGroup[fCurrentTabID][updateID];
-//    fCurrentCanvas = fSubTabGroup[fCurrentTabID][updateID] -> GetCanvas();
-//    fCurrentSubTabSpace->SetTab(updateID);
-//
-//    if (fSubTabShouldBeUpdated[fCurrentTabID][updateID]) {
-//        fSubTabShouldBeUpdated[fCurrentTabID][updateID] = false;
-//        fCurrentGroup -> Draw(fDrawOption);
-//        fCurrentCanvas -> Modified();
-//        fCurrentCanvas -> Update();
-//    }
-//    if (layout) fCurrentSubTabSpace->Layout();
-//    TString tabName = *(fCurrentSubTabSpace->GetTabTab(updateID)->GetText());
-//    SendOutMessage(Form("Switched to sub-tab %s (%d,%d)",tabName.Data(),fCurrentTabID,updateID));
-//
-//    fCurrentSubTabID = updateID;
-//
 }
 
 void LKDataViewer::ProcessGotoSubTab(int iSub, bool layout)
@@ -955,7 +892,6 @@ void LKDataViewer::ProcessPrevTab()
     }
 
     ProcessGotoTopTab(updateID,-1,1,3);
-    //ProcessLayoutTopTab(updateID,-1);
 }
 
 void LKDataViewer::ProcessNextTab()
@@ -969,7 +905,6 @@ void LKDataViewer::ProcessNextTab()
     }
 
     ProcessGotoTopTab(updateID,-1,1,4);
-    //ProcessLayoutTopTab(updateID,-1);
 }
 
 void LKDataViewer::ProcessPrevSubTab()
@@ -1006,32 +941,39 @@ void LKDataViewer::ProcessNextSubTab()
 
 void LKDataViewer::ProcessPrevEvent()
 {
+#ifdef LILAK_COMPILED
     if (fRun==nullptr)
         return;
 
     fRun -> ExecutePreviousEvent();
+#endif
 }
 
 void LKDataViewer::ProcessNextEvent()
 {
+#ifdef LILAK_COMPILED
     if (fRun==nullptr)
         return;
 
     fRun -> ExecuteNextEvent();
+#endif
 }
 
 void LKDataViewer::ProcessGotoEvent()
 {
+#ifdef LILAK_COMPILED
     if (fRun==nullptr)
         return;
 
     int eventID = fNumberInput->GetIntNumber();
     fNumberInput->Clear();
     fRun -> ExecuteEvent(eventID);
+#endif
 }
 
 void LKDataViewer::ProcessExecuteRun()
 {
+#ifdef LILAK_COMPILED
     if (fRun==nullptr)
         return;
 
@@ -1039,6 +981,7 @@ void LKDataViewer::ProcessExecuteRun()
     //fRun -> SetSkipEndOfRun(true);
     //fRun -> SetAutoTermination(false);
     //fRun -> Run();
+#endif
 }
 
 void LKDataViewer::ProcessSetEventRange(int i)
@@ -1048,6 +991,7 @@ void LKDataViewer::ProcessSetEventRange(int i)
 
 void LKDataViewer::ProcessExecuteEvents()
 {
+#ifdef LILAK_COMPILED
     if (fRun==nullptr)
         return;
 
@@ -1055,6 +999,7 @@ void LKDataViewer::ProcessExecuteEvents()
     //fRun -> SetSkipEndOfRun(true);
     //fRun -> SetAutoTermination(false);
     //fRun -> Run();
+#endif
 }
 
 void LKDataViewer::ProcessExitViewer()
@@ -1070,6 +1015,7 @@ void LKDataViewer::ProcessTabSelection(Int_t id)
     SendOutMessage(Form("Switched to tab %d", id));
 }
 
+//TODO
 void LKDataViewer::ProcessReLoadCCanvas()
 {
     if (fCurrentGroup==nullptr)
@@ -1507,11 +1453,14 @@ void LKDataViewer::ProcessNavigateCanvas(int iMode)
     {
         if      (iMode==-1) { fCurrentCanvasX = 0; fCurrentCanvasY = 0; }
         else if (iMode==0) {}
-        else if (iMode==1) { if (fCurrentCanvasX==0)      return; fCurrentCanvasX--; }
-        else if (iMode==2) { if (fCurrentCanvasX==divX-1) return; fCurrentCanvasX++; }
-        else if (iMode==3) { if (fCurrentCanvasY==divY-1) return; fCurrentCanvasY++; }
-        else if (iMode==4) { if (fCurrentCanvasY==0)      return; fCurrentCanvasY--; }
-        drawingNumber = fCurrentCanvasY*divX + fCurrentCanvasX;
+        else if (iMode==1) { if (fCurrentCanvasX==0)      return; fCurrentCanvasX--; } // XXX
+        else if (iMode==2) { if (fCurrentCanvasX==divX-1) return; fCurrentCanvasX++; } // XXX
+        else if (iMode==3) { if (fCurrentCanvasY==divY-1) return; fCurrentCanvasY++; } // XXX
+        else if (iMode==4) { if (fCurrentCanvasY==0)      return; fCurrentCanvasY--; } // XXX
+        if (fCurrentGroup -> CheckOption("vertical_pad_numbering"))
+            drawingNumber = fCurrentCanvasX*divY + fCurrentCanvasY;
+        else
+            drawingNumber = fCurrentCanvasY*divX + fCurrentCanvasX;
         int cvsNumber = 1 + drawingNumber;
 
         if (fCurrentTPad!=nullptr) {
@@ -1585,7 +1534,6 @@ void LKDataViewer::ProcessToggleNavigateCanvas()
 
     fCurrentDrawing -> CopyTo(drawing,true);
 
-    //ProcessLayoutTopTab(fPublicTabIndex, pNumber);
     ProcessGotoTopTab(fPublicTabIndex, pNumber, 1, 10);
     fCurrentGroup -> SetName(fCurrentDrawing->GetName());
     ProcessReLoadCCanvas();
@@ -1593,7 +1541,6 @@ void LKDataViewer::ProcessToggleNavigateCanvas()
 
 void LKDataViewer::ProcessUndoToggleCanvas()
 {
-    //ProcessLayoutTopTab(fSaveTabID, fSaveSubTabID);
     ProcessGotoTopTab(fSaveTabID, fSaveSubTabID, 1, 11);
 }
 

@@ -476,3 +476,9 @@ LKSiChannel* LKSiDetector::GetRegisteredChannel(int side, int strip, int lr)
         channel = (LKSiChannel*) fRegisteredChannelArray.At(idx);
     return channel;
 }
+
+LKSiChannel* LKSiDetector::GetRegisteredChannel(int i)
+{
+    LKSiChannel* channel = (LKSiChannel*) fRegisteredChannelArray.At(i);
+    return channel;
+}

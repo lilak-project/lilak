@@ -103,6 +103,8 @@ class LKTestRun : public LKVirtualRun
         virtual bool RunSelectedEvent(TString selection) { return false; }
         virtual void RunOnline(Long64_t numEvents) {}
 
+        virtual void ClearArrays() {};
+
         virtual bool ExecuteEvent(Long64_t eventID) { return false; }
         virtual bool ExecuteNextEvent() { return false; }
         virtual bool ExecutePreviousEvent() { return false; }

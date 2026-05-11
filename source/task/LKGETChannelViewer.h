@@ -94,7 +94,7 @@ class LKGETChannelViewer : public LKTask, public LKPadInteractive
         int fYMin = -1000;
         int fYMax = 5000;
 
-        int fNumMenu = 5;
+        int fNumMenu = 6;
         int fNumMCAA = 4;
         int fNumCobo = 4;   ///< par
         int fNumAsad = 4;   ///< par

@@ -2,7 +2,6 @@
 #include "G4UImanager.hh"
 //#include "G4GDMLParser.hh"
 #include "G4UIExecutive.hh"
-#include "G4strstreambuf.hh"
 #include "G4VisExecutive.hh"
 #include "G4ProcessTable.hh"
 #include "G4LogicalVolumeStore.hh"
@@ -16,6 +15,8 @@
 #include "TSystem.h"
 #include "TObjString.h"
 
+#include "LKVertex.h"
+#include "LKCompiled.h"
 #include "LKEventAction.h"
 #include "LKG4RunManager.h"
 #include "LKG4RunMessenger.h"
@@ -65,9 +66,11 @@ void LKG4RunManager::AddParameterContainer(TString fname)
     fOutputFileName       = fPar -> InitPar("g4output.root","LKG4Manager/G4OutputFile ?? # name of the output file this will contain branches of TClonesArray defined by LILAK containers");
     fRandomSeed           = fPar -> InitPar((Long64_t)time(0),"LKG4Manager/RandomSeed ?? # set random seed to root and geant4 random generator. Random seed will be time(0) if this parameter is not set");
     fSDNames              = fPar -> InitPar(std::vector<TString>{},"LKG4Manager/SensitiveDetectors ?? # not really used at the moment");
-    fGeneratorFileName    = fPar -> InitPar(TString(), "LKG4Manager/PGAGeneratorFile ?? Generator file");
+    fGeneratorFileName    = fPar -> InitPar(TString(), "LKG4Manager/PGAGeneratorFile ?? # Generator file");
     fDetectorConstructionName = fPar -> InitPar("", "LKG4Manager/DetectorCosntruction ?? # Name of the geant4 DC (Detector Construction) name. To add DC through this parameter, user must place DC-class either in geant4 or nptool in project-directory. Class name (which should be same as the class file name) must contain \"DetectorConstruction\" or \"DC\".");
     fWriteTextFile = fPar -> InitPar(false, "LKG4Manager/WriteTextFile ??");
+    fEventCountForMessage = fPar -> InitPar(1,"LKG4Manager/EventCountForMessage ??");
+    if (fEventCountForMessage<0) fEventCountForMessage = 1;
 
     fStepPersistency        = fPar -> InitPar(true,"persistency/MCStep"       );
     fEdepSumPersistency     = fPar -> InitPar(true,"persistency/MCEdepSum"    );
@@ -155,7 +158,7 @@ void LKG4RunManager::InitializeGeometry()
 {
     g4man_info << "InitializeGeometry" << endl;
     if (fSuppressInitMessage) {
-        G4strstreambuf* suppressMessage = dynamic_cast<G4strstreambuf*>(G4cout.rdbuf(0));
+        std::streambuf* suppressMessage = G4cout.rdbuf(nullptr);
         // Suppress print outs in between here ------------->
         G4RunManager::InitializeGeometry();
         // <------------- to here
@@ -170,7 +173,7 @@ void LKG4RunManager::InitializePhysics()
 {
     g4man_info << "InitializePhysics" << endl;
     if (fSuppressInitMessage) {
-        G4strstreambuf* suppressMessage = dynamic_cast<G4strstreambuf*>(G4cout.rdbuf(0));
+        std::streambuf* suppressMessage = G4cout.rdbuf(nullptr);
         // Suppress print outs in between here ------------->
         G4RunManager::InitializePhysics();
         // <------------- to here
@@ -233,7 +236,9 @@ void LKG4RunManager::Run(G4int argc, char **argv, const G4String &type)
     if (fG4CommandFileName.IsNull()==false) {
         g4man_info << "Adding geant4 command macro " << fG4CommandFileName << endl;
         // TODO
-        g4CommandContainer -> AddFile(fG4CommandFileName);
+        int count_parameters = g4CommandContainer -> AddFile(fG4CommandFileName);
+        if (count_parameters==0)
+            count_parameters = g4CommandContainer -> AddFile(TString(LILAK_PATH)+"/common/"+fG4CommandFileName);
     }
     auto g4CommandContainer2 = fPar -> CreateGroupContainer("G4");
     if (g4CommandContainer2->GetEntries()>0) {
@@ -330,7 +335,7 @@ void LKG4RunManager::BeamOn(G4int numEvents, const char *macroFile, G4int numSel
         ConstructScoringWorlds();
 
         if (fSuppressInitMessage) {
-            G4strstreambuf* suppressMessage = dynamic_cast<G4strstreambuf*>(G4cout.rdbuf(0));
+            std::streambuf* suppressMessage = G4cout.rdbuf(nullptr);
             // Suppress print outs in between here ------------->
             RunInitialization();
             // <------------- to here
@@ -385,6 +390,12 @@ void LKG4RunManager::InitOutputFile()
     g4man_info << "Adding mctrack branch MCTrack" << endl;
     fTrackArray = new TClonesArray("LKMCTrack", 100);
     fTree -> Branch("MCTrack", &fTrackArray);
+    fTrackArray -> SetName("MCTrack");
+
+    g4man_info << "Adding mcvertex branch MCVertex" << endl;
+    fVertexArray = new TClonesArray("LKVertex", 10);
+    fTree -> Branch("MCVertex", &fVertexArray);
+    fVertexArray -> SetName("MCVertex");
 
     fStepArrayList = new TObjArray();
 
@@ -417,6 +428,7 @@ void LKG4RunManager::InitOutputFile()
 
             auto stepArray = new TClonesArray("LKMCStep", 10000);
             fTree -> Branch(stepName, &stepArray);
+            stepArray -> SetName(stepName);
             fStepArrayList -> Add(stepArray);
             fStepNameList.push_back(stepName);
 
@@ -424,6 +436,7 @@ void LKG4RunManager::InitOutputFile()
             fIdxOfCopyNo[copyNo] = fNumActiveVolumes;
             //g4man_info << "Adding new esum branch " << esumName << " for detector " << detName << endl;
             //fTree -> Branch(esumName, &fEdepSumArray[fNumActiveVolumes]); // TODO
+            //fEdepSumArray[fNumActiveVolumes] -> SetName(esumName);
             ++fNumActiveVolumes;
         }
     }
@@ -579,7 +592,15 @@ void LKG4RunManager::SetNumEvents(Int_t numEvents)
 
 void LKG4RunManager::NextEvent()
 {
-    g4man_info << "End of Event " << fTree -> GetEntries() << endl;
+    CreateVertex();
+
+    auto eventID = fTree -> GetEntries();
+    if (eventID!=1&&eventID%fEventCountForMessage!=0) {
+        lk_set_message(false);
+    }
+    g4man_info << "End of Event " << eventID << endl;
+    lk_set_message(true);
+
     fTree -> Fill();
 
     fTrackArray -> Clear("C");
@@ -613,6 +634,38 @@ void LKG4RunManager::EndOfRun()
         WriteTextFile();
 
     fFile -> Close();
+}
+
+void LKG4RunManager::CreateVertex()
+{
+    fVertexArray -> Clear();
+
+    int countVertices = 0;
+    auto numTracks = fTrackArray -> GetEntries();
+    for (auto iTrack=0; iTrack<numTracks; ++iTrack)
+    {
+        auto track = (LKMCTrack*) fTrackArray -> At(iTrack);
+        auto vertex0 = track -> GetVertex(0);
+
+        int vertexIndex = -1;
+        for (auto iVertex=0; iVertex<countVertices; ++iVertex) {
+            auto vertex1 = (LKVertex*) fVertexArray -> At(iVertex);
+            if (vertex0.X()==vertex1->X() && vertex0.Y()==vertex1->Y() && vertex0.Z()==vertex1->Z()) {
+                vertexIndex = iVertex;
+                break;
+            }
+        }
+
+        LKVertex* vertex = nullptr;
+        if (vertexIndex<0) {
+            vertexIndex = countVertices++;
+            vertex = (LKVertex*) fVertexArray -> ConstructedAt(vertexIndex);
+            vertex -> SetPosition(vertex0);
+        }
+        else
+            vertex = (LKVertex*) fVertexArray -> At(vertexIndex);
+        vertex -> AddTrack(track);
+    }
 }
 
 void LKG4RunManager::WriteTextFile()
