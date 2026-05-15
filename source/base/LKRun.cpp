@@ -2,6 +2,8 @@
 #include <iostream>
 #include <ctime>
 #include <sstream>
+#include <map>
+#include <vector>
 
 #include "TEnv.h"
 #include "TStyle.h"
@@ -614,6 +616,7 @@ bool LKRun::Init()
     Long64_t exeAfterInit = -1;
     bool drawAfterRun = false;
     TString drawOption = "";
+    std::vector<std::pair<TString,TString>> lilakCollectedParameters;
     if (fIsLILAKRun)
     {
         LKClassFactory classFactory(this);
@@ -621,6 +624,17 @@ bool LKRun::Init()
         int verbose = 0;
         lilakPar -> UpdatePar(verbose,"verbose");
         if (verbose>0) lilakPar -> Print();
+        TIter nextLilakPar(lilakPar);
+        LKParameter* lilakParameter = nullptr;
+        while ((lilakParameter=(LKParameter*)nextLilakPar())) {
+            if (lilakParameter == nullptr)
+                continue;
+            if (lilakParameter -> IsLegacy())
+                continue;
+            if (lilakParameter -> IsLineComment())
+                continue;
+            lilakCollectedParameters.emplace_back(lilakParameter -> GetName(), lilakParameter -> GetRaw());
+        }
         TIter nextAdd(lilakPar->CreateMultiParContainer("add"));
         LKParameter* parameter;
         while ((parameter=(LKParameter*)nextAdd())) {
@@ -668,6 +682,51 @@ bool LKRun::Init()
     fPar -> Require("lilak/run",          "0",              "run [no] after init. Execute all events if [no] is 0", "t/", countParOrder++);
     fPar -> Require("lilak/draw",         "0",              "execute Draw()", "t/", countParOrder++);
     fPar -> Require("lilak/execute",      "0",              "execute event [no] after init", "t/", countParOrder++);
+
+    if (!fCollectParAndPrintTo.IsNull())
+    {
+        auto collectedPar = fPar -> GetCollectedParameterContainer();
+        if (collectedPar != nullptr)
+        {
+            std::map<std::string, int> lilakParCountMap;
+            for (auto lilakParameter : lilakCollectedParameters)
+            {
+                TString parName = "lilak/" + lilakParameter.first;
+                TString parValue = lilakParameter.second;
+
+                auto parKey = std::string(parName.Data());
+                auto count = lilakParCountMap[parKey];
+                lilakParCountMap[parKey] = count + 1;
+
+                if (count == 0)
+                {
+                    auto collectedParameter = collectedPar -> FindPar(parName);
+                    if (collectedParameter != nullptr)
+                    {
+                        collectedParameter -> SetPar(
+                            parName,
+                            parValue,
+                            parValue,
+                            "",
+                            1,
+                            collectedParameter -> GetCompare()
+                        );
+                        collectedParameter -> ResetType();
+                        collectedParameter -> SetIsStandard();
+                    }
+                    else
+                    {
+                        collectedPar -> AddLine(parName + " " + parValue);
+                    }
+                }
+                else
+                {
+                    auto copiedParameter = new LKParameter(parName + " " + parValue);
+                    collectedPar -> Add(copiedParameter);
+                }
+            }
+        }
+    }
 
     fPar -> Require("LKRun/Name",         "run",            "name of the run", "",  countParOrder++);
     fPar -> Require("LKRun/RunID",        0,                "run number",      "",  countParOrder++);
@@ -1888,7 +1947,17 @@ LKDetector *LKRun::FindDetector(const char *name)
 
     LKClassFactory factory(this);
     factory.Add(name);
-    return fDetectorSystem -> FindDetector(name);
+    detector = fDetectorSystem -> FindDetector(name);
+    if (detector)
+    {
+        detector -> SetRun(this);
+        detector -> AddPar(fPar);
+        auto detIsInitialized = detector -> Init();
+        if (detIsInitialized==false) {
+            lk_error << "Error while initializing " << name << endl;
+        }
+    }
+    return detector;
 }
 
 LKDetectorPlane *LKRun::FindDetectorPlane(const char *name)
@@ -1899,7 +1968,17 @@ LKDetectorPlane *LKRun::FindDetectorPlane(const char *name)
 
     LKClassFactory factory(this);
     factory.Add(name);
-    return fDetectorSystem -> FindDetectorPlane(name);
+    plane = fDetectorSystem -> FindDetectorPlane(name);
+    if (plane)
+    {
+        plane -> SetRun(this);
+        plane -> AddPar(fPar);
+        auto detIsInitialized = plane -> Init();
+        if (detIsInitialized==false) {
+            lk_error << "Error while initializing " << name << endl;
+        }
+    }
+    return plane;
 }
 
 vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchTag, TString searchOption2)

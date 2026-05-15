@@ -58,6 +58,7 @@ bool LKMFMConversionTask::Init()
                 lk_error << "Cannot use two different inputs from LKMFMConversionTask/InputFileName and LKRun/SearchRun" << endl;
                 lk_error << "Using input from LKMFMConversionTask/InputFileName ..." << endl;
             }
+            fTriggerInputFileNameArray.clear();
             fTriggerInputFileNameArray.push_back(inputFileName);
         }
     }
