@@ -35,7 +35,7 @@ common/*
 !common/nptool*.mac
 !common/geant4*.mac
 doc/
-LKCompiled*
+LKCompiled.h
 LKClassFactory*
 LKG4DetectorConstructionFactory*
 LKNPDetectorConstructionFactory*
@@ -50,3 +50,9 @@ trash/
 __pycache__
 .AppleDouble
 .DS_Store
+
+#meta
+meta/*
+!meta/*.in
+!meta/*.conf
+!meta/parameters
