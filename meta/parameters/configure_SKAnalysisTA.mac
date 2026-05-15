@@ -1,0 +1,18 @@
+
+#SKSiArrayPlane/EveThreshold   300  # # threshold for default peak finding method
+#SKSiArrayPlane/EventCountForMessage     2000  # event count for message at event accumulation
+#SKSiArrayPlane/FigurePath     .  # path to save figues
+#SKSiArrayPlane/fillOption     hit  # fill option to fill detector histogram
+#SKSiArrayPlane/jumpEventSize  2000  # jump event value amount when jump event button is clicked
+#SKSiArrayPlane/skipToEnergy   500  # energy to reference when, button(skip to event containing channel with pulse height>energy) is clicked
+
+analysis/binning_cal_energy   
+
+ko2421/beam_energy            
+ko2421/beam_rate              
+ko2421/n_target               
+ko2421/run_time               
+
+#stark/ForceMapping            
+stark/Mapping1                  # name of detector mapping file
+stark/Mapping2                  # name of channel mapping file

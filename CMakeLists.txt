@@ -60,14 +60,20 @@ message(STATUS "Build MFM converter    : " ${BUILD_MFM_CONVERTER})
 message(STATUS "Main Project           : " ${LILAK_PROJECT_MAIN})
 
 #---Add source directories. Directory should be under "/path/to/LILAK/"
+set(LILAK_TOOL_SOURCE_DIRECTORY_LIST
+    ${LILAK_PATH}/source/tool
+)
+file(GLOB LILAK_TOOL_SOURCE_SUBDIRS RELATIVE ${LILAK_PATH}/source/tool ${LILAK_PATH}/source/tool/*)
+list(SORT LILAK_TOOL_SOURCE_SUBDIRS)
+foreach(_subdir ${LILAK_TOOL_SOURCE_SUBDIRS})
+    if(IS_DIRECTORY ${LILAK_PATH}/source/tool/${_subdir})
+        list(APPEND LILAK_TOOL_SOURCE_DIRECTORY_LIST ${LILAK_PATH}/source/tool/${_subdir})
+    endif()
+endforeach()
+
 set(LILAK_SOURCE_DIRECTORY_LIST
     ${LILAK_PATH}/source/base
-    ${LILAK_PATH}/source/tool
-    ${LILAK_PATH}/source/tool/pulse_analysis
-    ${LILAK_PATH}/source/tool/hough_transform
-    ${LILAK_PATH}/source/tool/drawing
-    ${LILAK_PATH}/source/tool/beam_pid
-    ${LILAK_PATH}/source/tool/attenuator
+    ${LILAK_TOOL_SOURCE_DIRECTORY_LIST}
     ${LILAK_PATH}/source/geometry
     ${LILAK_PATH}/source/detector
     ${LILAK_PATH}/source/container
@@ -179,6 +185,15 @@ foreach(_directory ${LILAK_SOURCE_DIRECTORY_LIST})
 
     file(GLOB LILAK_${_name}_SOURCE_FILES ${_directory}/*.cpp)
     file(GLOB LILAK_${_name}_HEADER_FILES ${_directory}/*.h)
+
+    if(NOT BUILD_MFM_CONVERTER AND "${_directory}" STREQUAL "${LILAK_PATH}/source/tool/get_convter")
+        list(REMOVE_ITEM LILAK_${_name}_SOURCE_FILES
+            ${LILAK_PATH}/source/tool/get_convter/LKGETConverter.cpp
+        )
+        list(REMOVE_ITEM LILAK_${_name}_HEADER_FILES
+            ${LILAK_PATH}/source/tool/get_convter/LKGETConverter.h
+        )
+    endif()
 
     # list separate strings using ";". list append add semicolon automatically just after previous string.
     set(PRAGMA_LINE_CPP_CLASS_LIST)
@@ -299,7 +314,7 @@ if(BUILD_MFM_CONVERTER)
     #target_link_libraries(LILAK ${ROOT_LIBRARIES} Html Spectrum XMLIO GRU MultiFrame)
     target_link_libraries(LILAK ${ROOT_LIBRARIES} Html Spectrum XMLIO MultiFrame ${NPLib_LIBRARIES} ${LILAK_EXTRA_LINK_LIBRARIES})
 else(BUILD_MFM_CONVERTER)
-    target_link_libraries(LILAK ${ROOT_LIBRARIES} ${NPLib_LIBRARIES} ${LILAK_EXTRA_LINK_LIBRARIES})
+    target_link_libraries(LILAK ${ROOT_LIBRARIES} Spectrum ${NPLib_LIBRARIES} ${LILAK_EXTRA_LINK_LIBRARIES})
 endif(BUILD_MFM_CONVERTER)
 
 if(BUILD_NPTOOL)

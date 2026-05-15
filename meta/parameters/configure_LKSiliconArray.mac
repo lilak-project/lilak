@@ -1,0 +1,17 @@
+
+LKDetector/UsePixelSpace      false  # /
+#LKDetector/binning_x          64,  -128, -128  # binning, range throuh x-axis
+#LKDetector/binning_y          512, 0,    -512  # binning, range throuh y-axis
+#LKDetector/binning_z          72,  0,     288  # binning, range throuh z-axis
+
+#LKSiliconArray/EveThreshold   300  # # threshold for default peak finding method
+#LKSiliconArray/EventCountForMessage     2000  # event count for message at event accumulation
+#LKSiliconArray/FigurePath     .  # path to save figues
+#LKSiliconArray/fillOption     hit  # fill option to fill detector histogram
+#LKSiliconArray/jumpEventSize  2000  # jump event value amount when jump event button is clicked
+#LKSiliconArray/skipToEnergy   500  # energy to reference when, button(skip to event containing channel with pulse height>energy) is clicked
+
+#stark/ForceMapping            
+stark/Mapping1                  # name of detector mapping file
+stark/Mapping2                  # name of channel mapping file
+stark/MappingPath               # name of silicon mapping directory or detector mapping file

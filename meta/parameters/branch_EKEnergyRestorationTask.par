@@ -1,0 +1,4 @@
+get                           LKSiChannel SiChannel
+register                      EKSiHit SiHit_12RdE
+register                      EKSiHit SiHit_12RE
+register                      EKSiHit SiHit_16R

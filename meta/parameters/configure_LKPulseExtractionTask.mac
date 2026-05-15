@@ -1,0 +1,9 @@
+
+LKPulseExtractionTask/analysisName      
+LKPulseExtractionTask/channelIsInverted 
+LKPulseExtractionTask/fixPedestal       
+LKPulseExtractionTask/tbHeightCut       100,4000
+LKPulseExtractionTask/tbRange 0 512
+LKPulseExtractionTask/tbRangeCut        1, 511
+LKPulseExtractionTask/tbWidthCut        20 40
+LKPulseExtractionTask/threshold         

@@ -366,6 +366,86 @@ def serialize_rows(rows):
     return "\n".join(lines) + ("\n" if lines else "")
 
 
+def parameter_key(row):
+    return ((row.get("group") or "").strip(), (row.get("name") or "").strip())
+
+
+def strip_wrapping_quotes(value: str) -> str:
+    value = (value or "").strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        return value[1:-1]
+    return value
+
+
+def find_parameter_row(rows, group, name):
+    for row in rows:
+        if row.get("kind") != "parameter":
+            continue
+        if parameter_key(row) == (group, name):
+            return row
+    return None
+
+
+def is_parameter_enabled(row):
+    if row is None:
+        return False
+    if (row.get("unit") or "").strip() == "#":
+        return False
+    return row.get("enabled", True) is not False
+
+
+def normalize_searchrun_mfm_rows(rows):
+    search_rows = [
+        row
+        for row in rows
+        if row.get("kind") == "parameter"
+        and parameter_key(row) == ("LKRun", "SearchRun")
+        and is_parameter_enabled(row)
+    ]
+    use_mfm_search = any((row.get("value") or "").strip().split()[:1] == ["mfm"] for row in search_rows)
+    if not use_mfm_search:
+        return rows
+
+    input_file_row = find_parameter_row(rows, "LKRun", "InputFile")
+    input_file_value = strip_wrapping_quotes(input_file_row.get("value", "")) if input_file_row else ""
+    input_path_value = str(Path(input_file_value).expanduser().parent) if input_file_value else ""
+
+    if input_file_row is not None:
+        input_file_row["unit"] = "#"
+        input_file_row["enabled"] = True
+
+    if input_path_value and input_path_value != ".":
+        input_path_row = find_parameter_row(rows, "LKRun", "InputPath")
+        if input_path_row is None:
+            insert_index = 0
+            for index, row in enumerate(rows):
+                if row.get("kind") == "parameter" and (row.get("group") or "").strip() == "LKRun":
+                    insert_index = index + 1
+            rows.insert(
+                insert_index,
+                {
+                    "kind": "parameter",
+                    "enabled": True,
+                    "group": "LKRun",
+                    "name": "InputPath",
+                    "value": input_path_value,
+                    "unit": "",
+                    "comment": "path generated from LKRun/InputFile for SearchRun mfm",
+                },
+            )
+        else:
+            input_path_row["value"] = input_path_value
+            input_path_row["unit"] = ""
+            input_path_row["enabled"] = True
+
+    get_input_row = find_parameter_row(rows, "LKGETConversionTask", "InputFileName")
+    if get_input_row is not None:
+        get_input_row["unit"] = "#"
+        get_input_row["enabled"] = True
+
+    return rows
+
+
 def make_file_payload(path: Path):
     content = path.read_text(encoding="utf-8")
     return {
@@ -769,9 +849,6 @@ def local_doc_url_for_class(class_name: str):
 
 
 def doc_url_for_class(class_name: str):
-    local_url = local_doc_url_for_class(class_name)
-    if local_url:
-        return local_url
     return f"https://lilak-project.github.io/lilak_doxygen/class{class_name}.html"
 
 
@@ -4418,10 +4495,11 @@ class RequestHandler(BaseHTTPRequestHandler):
                     target = (Path.cwd() / target).resolve()
                 target.parent.mkdir(parents=True, exist_ok=True)
                 if "content" in payload:
-                    content = payload.get("content", "")
+                    rows = parse_parameter_text(payload.get("content", ""))
                 else:
                     rows = payload.get("rows", [])
-                    content = serialize_rows(rows)
+                rows = normalize_searchrun_mfm_rows(rows)
+                content = serialize_rows(rows)
                 rows = parse_parameter_text(content)
                 target.write_text(content, encoding="utf-8")
                 self._send_json(

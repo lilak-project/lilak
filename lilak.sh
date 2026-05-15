@@ -17,12 +17,16 @@ fi
 # Check if the script is being sourced or executed
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     # Script is executed
+    status=0
     if [[ $# -eq 1 ]]; then
         "${LILAK_PATH}/macros/lilak_configuration.py" "$1"
+        status=$?
     else
         "${LILAK_PATH}/macros/lilak_configuration.py"
+        status=$?
     fi
     source "${LILAK_PATH}/macros/command_lilak.sh"
+    exit $status
 else
     # Script is sourced
     source "${LILAK_PATH}/macros/command_lilak.sh"

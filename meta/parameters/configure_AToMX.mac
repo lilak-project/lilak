@@ -1,0 +1,18 @@
+
+#ATMicromegas/EveThreshold     300  # # threshold for default peak finding method
+#ATMicromegas/EventCountForMessage       2000  # event count for message at event accumulation
+#ATMicromegas/FigurePath       .  # path to save figues
+#ATMicromegas/fillOption       hit  # fill option to fill detector histogram
+#ATMicromegas/jumpEventSize    2000  # jump event value amount when jump event button is clicked
+ATMicromegas/padsize_x        4
+ATMicromegas/padsize_z        4
+#ATMicromegas/skipToEnergy     500  # energy to reference when, button(skip to event containing channel with pulse height>energy) is clicked
+
+atomx/EveThreshold            300
+atomx/Mapping                 /Users/jungwoo/Research/lilak/common/micromegas_mapping_caac_zx.txt  # cobo asad aget chan iz ix
+atomx/MaxCobo                 6  # maximum number of cobos
+atomx/UsePixelSpace           false  # /
+#atomx/binning_x               64,  -128, -128  # binning, range throuh x-axis
+#atomx/binning_y               512, 0,    -512  # binning, range throuh y-axis
+#atomx/binning_z               72,  0,     288  # binning, range throuh z-axis
+atomx/tb_to_length            1  # mm

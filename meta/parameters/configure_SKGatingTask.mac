@@ -1,0 +1,15 @@
+
+SKGatingTask/DetIDRange       
+SKGatingTask/KeyEnergyType    jj  # evaluation of key energy jj: Etot=dEJunction+EJunction, jo: Etot=dEOhmic+EOhmic, oo: Etot=dEOhmic+EOhmic, xj: Etot=EJunction
+SKGatingTask/dEDetIDRange     
+SKGatingTask/file_cutG_Etot_Theta       
+SKGatingTask/file_cutG_dE_E   
+SKGatingTask/file_cutG_dE_Etot          
+SKGatingTask/gate_deDetID     
+SKGatingTask/gate_detID       
+SKGatingTask/useEPair         
+SKGatingTask/useEPairBoth     
+SKGatingTask/useEPairOnlyE    
+SKGatingTask/useEPairOnlydE   
+SKGatingTask/useNotEPair      
+SKGatingTask/useScintGate     

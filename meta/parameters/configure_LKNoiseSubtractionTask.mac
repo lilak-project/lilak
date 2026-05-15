@@ -1,0 +1,2 @@
+
+LKNoiseSubtractionTask/FluctuationThreshold       200  # if meanStdDv of channel > [FluctuationThreshold], channel is assumed to have signal

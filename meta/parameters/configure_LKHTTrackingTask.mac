@@ -1,0 +1,12 @@
+
+LKHTTrackingTask/binning_r    100, 0, 0  # range 0, 0 will set range automatically
+LKHTTrackingTask/binning_t    100, 0, 0  # range 0, 0 will set range automatically
+LKHTTrackingTask/binning_x    100, -100, 100  # x-axis binning for hough transform image space
+LKHTTrackingTask/binning_y    100, -100, 100  # y-axis binning for hough transform image space
+LKHTTrackingTask/binning_z    100, -100, 100  # z-axis binning for hough transform image space
+LKHTTrackingTask/hit_branch   Hit  # branch name containing LKHit
+LKHTTrackingTask/mode         xy, zy  # Choose from xy, yz, yz, yx, zx, zy. If two different modes are selected, two HT-trackers will be created
+LKHTTrackingTask/num_hits_cut 3  # Skip event if number of hits in event is lower than this cut
+LKHTTrackingTask/transform_ct 0, 0, 0  # transform center, is center point where transform is performed.
+
+persistency/Track             true
