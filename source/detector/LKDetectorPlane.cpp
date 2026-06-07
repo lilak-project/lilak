@@ -242,8 +242,8 @@ bool LKDetectorPlane::SetDataFromBranch()
         hitBranchName = fPar -> GetParString(hitBranchParName);
     }
     lk_info << "hit-branch name is " << hitBranchName << endl;
-    auto hitArray = fRun -> GetBranchA(hitBranchName);
-    if (hitArray==nullptr)
+    auto hitArray = fRun -> GetBranchA(hitBranchName,"LKHit");
+    if (hitArray==nullptr||TString(hitArray->GetName())=="dummy")
         lk_warning << "hit array deosn't exist!" << endl;
     else if (hitArray->GetClass()->InheritsFrom("LKHit")==false)
         lk_warning << hitBranchName << " branch is not an array of class inheriting LKHit!" << endl;
@@ -258,8 +258,8 @@ bool LKDetectorPlane::SetDataFromBranch()
         padBranchName = fPar -> GetParString(padBranchParName);
     }
     lk_info << "pad-branch name is " << padBranchName << endl;
-    auto padArray = fRun -> GetBranchA(padBranchName);
-    if (padArray==nullptr)
+    auto padArray = fRun -> GetBranchA(padBranchName,"LKPad");
+    if (padArray==nullptr||TString(hitArray->GetName())=="dummy")
         lk_warning << "pad array deosn't exist!" << endl;
     else if (padArray->GetClass()->InheritsFrom("LKPad")==false)
         lk_warning << padBranchName << " branch is not an array of class inheriting LKPad!" << endl;

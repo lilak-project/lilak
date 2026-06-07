@@ -128,25 +128,31 @@ void LKParameter::SetPar(TString name, TString raw, TString value, TString comme
         fMainName = fName;
     }
 
+    if (value.EndsWith("]")) {
+        int i1 = value.Index(" [");
+        int i2 = value.Index("]");
+        if (i2>i1) {
+            int nn = i2 - i1 - 1;
+            fUnit = value(i1+2,nn-1);
+            value = value(0, i1);
+        }
+    }
+
     if (fTitle.IsNull() && !fValue.IsNull()) fTitle = fValue;
     if (!fTitle.IsNull() && fValue.IsNull()) fValue = fTitle;
 
     SetValue(value);
-    if (name.EndsWith(")") && value.IsDec()) {
-        int i1 = name.Index("(");
-        int i2 = name.Index(")");
-        if (i2>i1) {
-            int nn = i2 - i1 - 1;
-            TString unit = name(name.Index("(")+1,nn);
-            TranslateUnit(value,unit);
-        }
-    }
+
+    TranslateUnit();
 }
 
-void LKParameter::TranslateUnit(TString value, TString unit)
+void LKParameter::TranslateUnit()
 {
-    if (unit=="t") {
-        time_t start_time = value.Atoll();
+    if (fUnit.IsNull())
+        return;
+
+    if (fUnit=="tm" && fValue.IsDec()) {
+        time_t start_time = fValue.Atoll();
         struct tm *now = localtime(&start_time);
         TString ymd = Form("%04d.%02d.%02d",now->tm_year+1900,now->tm_mon+1,now->tm_mday);
         TString hms = Form("%02d:%02d:%02d",now->tm_hour,now->tm_min,now->tm_sec);
@@ -154,8 +160,16 @@ void LKParameter::TranslateUnit(TString value, TString unit)
     }
 }
 
+void LKParameter::SetUnit(TString value)
+{
+    fUnit = value;
+}
+
 void LKParameter::SetValue(TString line)
 {
+    if (line.Contains(">>"))
+        line.ReplaceAll(">>", " ,>>, ");
+
     if (line[0]=='\"' && line[line.Length()-1]=='\"') {
         TString line1 = TString(line(1,line.Length()-2));
         if (line1.Index("\"")<0)
@@ -749,13 +763,14 @@ TString LKParameter::GetLine(TString printOptions) const
 
     TString comment = fComment;
     TString value = fValue;
+    TString unit = (fUnit.IsNull()?"":Form(" [%s]",fUnit.Data()));
     if (showBothRawEval) {
         value = fTitle;
-        comment = TString("--> ") + fValue + " " + comment_charactor + " " + comment;
+        comment = TString("--> ") + fValue + unit + comment_charactor + " " + comment;
     }
-    else if (showEval) value = fValue;
     else if (showRaw) value = fTitle;
-    else value = fValue;
+    //else if (showEval) value = fValue;
+    else value = fValue + unit;
 
     int vwidth = 30;
     if      (value.Sizeof()>60)  vwidth = 80;

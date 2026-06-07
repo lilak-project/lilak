@@ -44,7 +44,8 @@ class LKParameter : public TNamed
         void ReadFile(TString fileName, int lineNo=0);
         void SetPar(TString name, TString raw, TString value, TString comment, int parameterType=1, int compare=-1);
         void SetValue(TString value);
-        void TranslateUnit(TString value, TString unit);
+        void SetUnit(TString value);
+        void TranslateUnit();
 
         //const char *GetName()
         TString GetGroup()      const { return fGroup; }
@@ -52,6 +53,7 @@ class LKParameter : public TNamed
         TString GetComment()    const { return fComment; }
         TString GetRaw()        const { return fTitle; }
         TString GetValue()      const { return fValue; }
+        TString GetUnit()       const { return fUnit; }
         int     GetN()          const { return fNumValues; }
         int     GetType()       const { return fType; }
 
@@ -116,6 +118,7 @@ class LKParameter : public TNamed
         TString fMainName; ///< group of parameter
         //TString fTitle; ///< raw value with no replacements
         TString fValue; ///< configured value
+        TString fUnit; ///< unit
         TString fComment;
         int fNumValues = 0;
         std::vector<TString> fValueArray;
@@ -178,7 +181,7 @@ class LKParameter : public TNamed
             return header;
         }
 
-    ClassDef(LKParameter, 2)
+    ClassDef(LKParameter, 3)
 };
 
 #endif

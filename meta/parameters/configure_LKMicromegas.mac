@@ -1,0 +1,18 @@
+
+LKDetector/EveThreshold       300
+LKDetector/Mapping            /Users/jungwoo/Research/lilak/common/micromegas_mapping_caac_zx.txt  # cobo asad aget chan iz ix
+LKDetector/MaxCobo            6  # maximum number of cobos
+LKDetector/UsePixelSpace      false  # /
+#LKDetector/binning_x          64,  -128, -128  # binning, range throuh x-axis
+#LKDetector/binning_y          512, 0,    -512  # binning, range throuh y-axis
+#LKDetector/binning_z          72,  0,     288  # binning, range throuh z-axis
+LKDetector/tb_to_length       1  # mm
+
+#LKMicromegas/EveThreshold     300  # # threshold for default peak finding method
+#LKMicromegas/EventCountForMessage       2000  # event count for message at event accumulation
+#LKMicromegas/FigurePath       .  # path to save figues
+#LKMicromegas/fillOption       hit  # fill option to fill detector histogram
+#LKMicromegas/jumpEventSize    2000  # jump event value amount when jump event button is clicked
+LKMicromegas/padsize_x        4
+LKMicromegas/padsize_z        4
+#LKMicromegas/skipToEnergy     500  # energy to reference when, button(skip to event containing channel with pulse height>energy) is clicked

@@ -11,7 +11,7 @@ LKNoiseSubtractionTask::LKNoiseSubtractionTask()
 
 bool LKNoiseSubtractionTask::Init()
 {
-    fChannelArray = fRun -> GetBranchA("RawData");
+    fChannelArray = fRun -> GetBranchA("RawData","GETChannel");
     //fChannelArray = fRun -> KeepBranchA("RawData");
     //fChannelArray = fRun -> RegisterBranchA("NSData","LKChannelD",100);
     fAna = new LKNoiseAnalyzer();

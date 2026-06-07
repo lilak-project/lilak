@@ -116,6 +116,8 @@ bool LKMicromegas::Init()
     int cobo, asad, aget, chan, iz, ix;
     while (fileCAACMap >> cobo >> asad >> aget >> chan >> iz >> ix)
     {
+        iz = iz-1;
+        ix = ix-1;
         auto padID = iz + ix*fNZ;
         fMapCAACToPadID[cobo][asad][aget][chan] = padID;
         auto pad = (LKPad*) fChannelArray -> At(padID);
@@ -310,6 +312,7 @@ void LKMicromegas::FillDataToHistEventDisplay2(Option_t *option)
 
     TString title;
 
+    GetHistEventDisplay2();
     if (fAccumulateEvents==0)
         fHistEventDisplay2 -> Reset();
 

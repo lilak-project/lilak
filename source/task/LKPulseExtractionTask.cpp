@@ -9,7 +9,7 @@ LKPulseExtractionTask::LKPulseExtractionTask()
 
 bool LKPulseExtractionTask::Init()
 {
-    fChannelArray = fRun -> GetBranchA("RawData");
+    fChannelArray = fRun -> GetBranchA("RawData","GETChannel");
 
     fPar -> UpdatePar(fAnalysisName      ,"LKPulseExtractionTask/analysisName");
     fPar -> UpdatePar(fThreshold         ,"LKPulseExtractionTask/threshold");

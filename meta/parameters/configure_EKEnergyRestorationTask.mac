@@ -1,0 +1,9 @@
+
+persistency/SiHit_12RE        true
+persistency/SiHit_12RdE       true
+persistency/SiHit_16R         true
+
+reco/IgnoreMultHit            
+
+stark/EnergyCalibrationFile   
+stark/PositionCalibrationFile 

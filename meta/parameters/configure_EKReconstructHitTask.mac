@@ -1,0 +1,6 @@
+
+persistency/RecoHit           true
+
+reco/IgnoreMultHit            
+
+stark/SiDetectorHeight        

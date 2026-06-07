@@ -31,6 +31,7 @@ LKEvePlane::LKEvePlane(const char *name, const char *title)
 
 LKChannelAnalyzer* LKEvePlane::GetChannelAnalyzer(int id)
 {
+    fPar -> Require(fName+"/EveThreshold",300, "# threshold for default peak finding method", "t/");
     if (fChannelAnalyzer==nullptr)
     {
         fChannelAnalyzer = new LKChannelAnalyzer();

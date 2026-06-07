@@ -306,14 +306,14 @@ TCanvas *LKPainter::CanvasSize(TCanvas *cvs, int width, int height)
     return cvs;
 }
 
-bool LKPainter::DividePad(TPad* cvs, Int_t n, Float_t xmargin, Float_t ymargin, Int_t color)
+bool LKPainter::PreDividePad(Int_t n, Int_t &nx, Int_t &ny)
 {
-    Int_t nx, ny;
     //if (CheckOption("wide_canvas"))
     {
         if      (n== 1) { nx =  1; ny =  1; }
         else if (n<= 2) { nx =  2; ny =  1; }
         else if (n<= 3) { nx =  3; ny =  1; }
+        else if (n<= 4) { nx =  2; ny =  2; }
         else if (n<= 6) { nx =  3; ny =  2; }
         else if (n<= 8) { nx =  4; ny =  2; }
         else if (n<= 9) { nx =  3; ny =  3; }
@@ -370,6 +370,13 @@ bool LKPainter::DividePad(TPad* cvs, Int_t n, Float_t xmargin, Float_t ymargin, 
     //    }
     //}
 
+    return true;
+}
+
+bool LKPainter::DividePad(TPad* cvs, Int_t n, Float_t xmargin, Float_t ymargin, Int_t color)
+{
+    Int_t nx, ny;
+    PreDividePad(n, nx, ny);
     LKPainter::DividePad(cvs, nx, ny, xmargin, ymargin, color);
     return true;
 }

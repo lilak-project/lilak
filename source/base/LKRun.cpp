@@ -2,6 +2,8 @@
 #include <iostream>
 #include <ctime>
 #include <sstream>
+#include <map>
+#include <vector>
 
 #include "TEnv.h"
 #include "TStyle.h"
@@ -52,7 +54,7 @@ LKRun::LKRun(TString runName, Int_t id, Int_t division, TString tag)
 
     fDetectorSystem = new LKDetectorSystem();
 
-    ifstream log_branch_list(TString(LILAK_PATH)+"/log/LKBranchList.log");
+    ifstream log_branch_list(TString(LILAK_PATH)+"/meta/LKBranchList.log");
     string line;
     TString hashTag, branchName;
     Int_t numTags = -1;
@@ -93,6 +95,18 @@ LKRun::LKRun(TString runName, Int_t id, Int_t division, TString tag)
     CreateParameterContainer();
 
     AlwaysPrintMessage();
+
+    {
+        time_t start_time = time(0);
+        time_t tt_start_time = start_time;
+        struct tm *now = localtime(&tt_start_time);
+        TString ymd = Form("%04d%02d%02d",now->tm_year+1900,now->tm_mon+1,now->tm_mday);
+        TString hms = Form("%02d%02d%02d",now->tm_hour,now->tm_min,now->tm_sec);
+        TString stamp_name = "";//TString("ready_") + ymd + "_" + hms + ".log";
+        TString lastLogName = TString(LILAK_PATH) + "/data/lk_last_output.log";
+        unlink(lastLogName.Data());
+        symlink(fLogFileName1.Data(), lastLogName.Data());
+    }
 }
 
 void LKRun::PrintLILAK()
@@ -225,6 +239,7 @@ TString LKRun::ConfigureFileName()
 {
     auto fileName = MakeFullRunName();
     fileName = LKRun::ConfigureDataPath(fileName,false,fOutputPath);
+    fileName = MakeAbsolutePathName(fileName);
     return fileName;
 }
 
@@ -318,6 +333,8 @@ void LKRun::Print(Option_t *option) const
             lk_info << "Output: " << endl;
             e_cout << "   " << fOutputFileName << endl;
             e_cout << "      Entries " << fOutputTree -> GetEntries() << endl;
+            if (!fLogFileName1.IsNull()) e_cout << "   " << fLogFileName1 << endl;
+            if (!fLogFileName2.IsNull()) e_cout << "   " << fLogFileName2 << endl;
             auto branchList = fOutputTree -> GetListOfBranches();
             auto numBranches = branchList -> GetEntries();
             for (auto ib=0; ib<numBranches; ++ib)
@@ -399,7 +416,7 @@ TString LKRun::ConfigureDataPath(TString name, bool search, TString pathData, bo
     {
         string line;
         TString hashTag, branchName;
-        ifstream log_branch_list(TString(LILAK_PATH)+"/log/LKBranchList.log");
+        ifstream log_branch_list(TString(LILAK_PATH)+"/meta/LKBranchList.log");
         std::vector<TString> listOfHashVersions;
         while (getline(log_branch_list, line)) {
             istringstream ss(line);
@@ -497,6 +514,16 @@ TString LKRun::ConfigureDataPath(TString name, bool search, TString pathData, bo
     }
 }
 
+TString LKRun::MakeAbsolutePathName(TString value)
+{
+    gSystem -> ExpandPathName(value);
+    if (!value.BeginsWith("/")) {
+        auto cwd = TString(gSystem -> WorkingDirectory());
+        value = gSystem -> ConcatFileName(cwd, value);
+    }
+    return value;
+}
+
 void LKRun::Add(LKTask *task)
 {
     if (task -> IsEventTrigger()) {
@@ -533,6 +560,7 @@ void LKRun::AddInputFile(TString fileName, TString treeName)
 {
     //if (fInputFileName.IsNull()) fInputFileName = fileName;
     TString configuredName = LKRun::ConfigureDataPath(fileName,true,fOutputPath);
+    configuredName = MakeAbsolutePathName(configuredName);
     if (configuredName.IsNull()) {
         lk_error << "Input file " << fileName << " cannot be configured" << endl;
         fErrorInputFile = true;
@@ -547,6 +575,7 @@ void LKRun::AddInputFile(TString fileName, TString treeName)
 void LKRun::AddFriend(TString fileName)
 {
     TString configuredName = LKRun::ConfigureDataPath(fileName,true,fOutputPath);
+    configuredName = MakeAbsolutePathName(configuredName);
     if (configuredName.IsNull()) {
         lk_error << "Friend file " << fileName << " cannot be configured" << endl;
         fErrorInputFile = true;
@@ -587,6 +616,7 @@ bool LKRun::Init()
     Long64_t exeAfterInit = -1;
     bool drawAfterRun = false;
     TString drawOption = "";
+    std::vector<std::pair<TString,TString>> lilakCollectedParameters;
     if (fIsLILAKRun)
     {
         LKClassFactory classFactory(this);
@@ -594,6 +624,17 @@ bool LKRun::Init()
         int verbose = 0;
         lilakPar -> UpdatePar(verbose,"verbose");
         if (verbose>0) lilakPar -> Print();
+        TIter nextLilakPar(lilakPar);
+        LKParameter* lilakParameter = nullptr;
+        while ((lilakParameter=(LKParameter*)nextLilakPar())) {
+            if (lilakParameter == nullptr)
+                continue;
+            if (lilakParameter -> IsLegacy())
+                continue;
+            if (lilakParameter -> IsLineComment())
+                continue;
+            lilakCollectedParameters.emplace_back(lilakParameter -> GetName(), lilakParameter -> GetRaw());
+        }
         TIter nextAdd(lilakPar->CreateMultiParContainer("add"));
         LKParameter* parameter;
         while ((parameter=(LKParameter*)nextAdd())) {
@@ -620,12 +661,18 @@ bool LKRun::Init()
                 printAfterInit = "all";
         }
         if (lilakPar->CheckPar("collect_par")) {
-            fCollecteParAndPrintTo = lilakPar -> GetParString("collect_par");
-            if (fCollecteParAndPrintTo.IsNull()) fCollecteParAndPrintTo = "print";
+            fCollectParAndPrintTo = lilakPar -> GetParString("collect_par");
+            if (fCollectParAndPrintTo.IsNull()) fCollectParAndPrintTo = "print";
         }
     }
-    if (!fCollecteParAndPrintTo.IsNull())
+    if (!fCollectParAndPrintTo.IsNull())
         fPar -> SetCollectParameters(true);
+    if (!fCollectBranchParAndPrintTo.IsNull()) {
+        if (fBranchPar==nullptr) {
+            fBranchPar = new LKParameterContainer();
+            //fBranchPar -> SetCollectParameters(true);
+        }
+    }
 
     int countParOrder = 1;
     fPar -> Require("lilak/add",          "LKTask",         "add task or detector class", "t/", countParOrder++);
@@ -635,6 +682,51 @@ bool LKRun::Init()
     fPar -> Require("lilak/run",          "0",              "run [no] after init. Execute all events if [no] is 0", "t/", countParOrder++);
     fPar -> Require("lilak/draw",         "0",              "execute Draw()", "t/", countParOrder++);
     fPar -> Require("lilak/execute",      "0",              "execute event [no] after init", "t/", countParOrder++);
+
+    if (!fCollectParAndPrintTo.IsNull())
+    {
+        auto collectedPar = fPar -> GetCollectedParameterContainer();
+        if (collectedPar != nullptr)
+        {
+            std::map<std::string, int> lilakParCountMap;
+            for (auto lilakParameter : lilakCollectedParameters)
+            {
+                TString parName = "lilak/" + lilakParameter.first;
+                TString parValue = lilakParameter.second;
+
+                auto parKey = std::string(parName.Data());
+                auto count = lilakParCountMap[parKey];
+                lilakParCountMap[parKey] = count + 1;
+
+                if (count == 0)
+                {
+                    auto collectedParameter = collectedPar -> FindPar(parName);
+                    if (collectedParameter != nullptr)
+                    {
+                        collectedParameter -> SetPar(
+                            parName,
+                            parValue,
+                            parValue,
+                            "",
+                            1,
+                            collectedParameter -> GetCompare()
+                        );
+                        collectedParameter -> ResetType();
+                        collectedParameter -> SetIsStandard();
+                    }
+                    else
+                    {
+                        collectedPar -> AddLine(parName + " " + parValue);
+                    }
+                }
+                else
+                {
+                    auto copiedParameter = new LKParameter(parName + " " + parValue);
+                    collectedPar -> Add(copiedParameter);
+                }
+            }
+        }
+    }
 
     fPar -> Require("LKRun/Name",         "run",            "name of the run", "",  countParOrder++);
     fPar -> Require("LKRun/RunID",        0,                "run number",      "",  countParOrder++);
@@ -652,7 +744,6 @@ bool LKRun::Init()
     fPar -> Require("LKRun/EventCountForMessage", 20000,    "",                                   "t", countParOrder++);
     fPar -> Require("LKRun/UpdateOutputFile",     false,    "update root file with option update","t/", countParOrder++);
     fPar -> Require("LKRun/FileName",             "",       "file name will be fixed to this name if it is not null string","t/", countParOrder++);
-
 
     if (!fRunNameIsSet) {
         fPar -> UpdatePar(fRunName,  "LKRun/Name");
@@ -722,6 +813,8 @@ bool LKRun::Init()
     TString searchTag;
     TString searchOption2;
 
+    bool doNotNeedOrFoundInputFile = true;
+
     Int_t idxInput = 1;
     if (fInputFileName.IsNull())
     {
@@ -729,6 +822,7 @@ bool LKRun::Init()
         {}
         else if (useInputFileParameter)
         {
+            doNotNeedOrFoundInputFile = true;
             LKParameterContainer* fileNameArray = fPar -> CreateMultiParContainer("LKRun/InputFile");
             TIter next(fileNameArray);
             LKParameter *parameter = nullptr;
@@ -737,9 +831,14 @@ bool LKRun::Init()
                 if (!fileName.IsNull())
                     fInputFileNameArray.push_back(fileName);
             }
+            if (fInputFileNameArray.size()==0) {
+                lk_error << "Input file do not exist!" << endl;
+                doNotNeedOrFoundInputFile = false;
+            }
         }
         else if (useSearchRunParameter)
         {
+            doNotNeedOrFoundInputFile = true;
             LKParameterContainer* inputPathArray = fPar -> CreateMultiParContainer("LKRun/InputPath");
             TIter next(inputPathArray);
             LKParameter *parameter = nullptr;
@@ -769,6 +868,10 @@ bool LKRun::Init()
                 vector<TString> inputFiles = SearchRunFiles(fRunID,searchTag, searchOption2);
                 for (auto fileName : inputFiles)
                     fInputFileNameArray.push_back(fileName);
+            }
+            if (fInputFileNameArray.size()==0) {
+                lk_error << "Search failed with tag " << searchTag << endl;
+                doNotNeedOrFoundInputFile = false;
             }
         }
 
@@ -923,18 +1026,24 @@ bool LKRun::Init()
         lk_warning << "Input file is not set!" << endl;
     }
 
+    if (!fCollectSubParAndPrintTo.IsNull())
+        fPar -> SetCollectParameters(true);
+
+    bool detIsInitialized = true;
     if (fDetectorSystem->GetEntries()!=0)
     {
         fDetectorSystem -> SetRun(this);
         fDetectorSystem -> SetPar(fPar);
-        bool detIsInitialized = fDetectorSystem -> Init();
+        detIsInitialized = fDetectorSystem -> Init();
         if (detIsInitialized==false) {
             lk_error << "Error while initializing detectors" << endl;
-            return false;
+            //return false;
         }
         fDetectorSystem -> SetTransparency(80);
         fDetectorSystem -> Print();
     }
+    if (!fCollectSubParAndPrintTo.IsNull())
+        fPar -> SetCollectParameters(false);
 
     if (fOutputPath.IsNull() && fPar -> CheckPar("LKRun/OutputPath"))
         fOutputPath = fPar -> GetParString("LKRun/OutputPath");
@@ -952,6 +1061,7 @@ bool LKRun::Init()
     }
     else {
         fOutputFileName = LKRun::ConfigureDataPath(fOutputFileName,false,fOutputPath,fAddVersion);
+        fOutputFileName = MakeAbsolutePathName(fOutputFileName);
         fOuputHash = GetFileHash(fOutputFileName);
     }
 
@@ -1041,6 +1151,16 @@ bool LKRun::Init()
         }
     }
 
+    for (Int_t iBranch = 0; iBranch < fCountBranches; iBranch++) {
+        TString branchName = fBranchNames.at(iBranch);
+        TString clonesClassName = fBranchPtr[iBranch] -> GetClass() -> GetName();
+        fRunHeader -> AddPar("branch/input",Form("%s %s",clonesClassName.Data(),branchName.Data()),"");
+    }
+
+    if (!fCollectSubParAndPrintTo.IsNull())
+        fPar -> SetCollectParameters(true);
+
+    bool initializedTasks = false;
     if (fUsingEventTrigger)
     {
         lk_info << "Initializing event trigger task " << fEventTrigger -> GetName() << "." << endl;
@@ -1050,10 +1170,10 @@ bool LKRun::Init()
 
         if (fEventTrigger -> Init() == false) {
             lk_warning << "Initialization failed!" << endl;
-            fInitialized = false;
+            initializedTasks = false;
         }
     }
-    fInitialized = InitTasks();
+    initializedTasks = InitTasks();
 
     for (auto iPlane=0; iPlane<fDetectorSystem->GetNumPlanes(); ++iPlane) {
         auto plane = fDetectorSystem -> GetDetectorPlane(iPlane);
@@ -1061,12 +1181,10 @@ bool LKRun::Init()
         plane -> Init2();
     }
 
-    if (fInitialized) {
-        lk_info << fNumEntries << " input entries" << endl;
-        lk_info << "LKRun initialized!" << endl;
+    if (!fCollectSubParAndPrintTo.IsNull()) {
+        fPar -> PrintCollection(fCollectSubParAndPrintTo);
+        fPar -> SetCollectParameters(false);
     }
-    else
-        lk_error << "[LKRun] FAILED initializing tasks." << endl;
 
     fPar -> UpdatePar(fNumEntriesLimit,"LKRun/EntriesLimit");
     if (fNumEntriesLimit>0 && fNumEntries>fNumEntriesLimit) {
@@ -1085,33 +1203,70 @@ bool LKRun::Init()
         lk_info << "Event count for message = " << fEventCountForMessage << endl;
     }
 
-    lk_info << "Initialized!" << endl;
-
-    if (!fCollecteParAndPrintTo.IsNull()) {
-        fPar -> PrintCollection(fCollecteParAndPrintTo);
+    if (!fCollectParAndPrintTo.IsNull()) {
+        fPar -> PrintCollection(fCollectParAndPrintTo);
         fPar -> SetCollectParameters(false);
+    }
+    if (!fCollectBranchParAndPrintTo.IsNull()) {
+        //fBranchPar -> PrintCollection(fCollectBranchParAndPrintTo);
+        fBranchPar -> SaveAs(fCollectBranchParAndPrintTo);
     }
 
     if (!printAfterInit.IsNull())
         Print(printAfterInit);
 
-    if (runAfterInit>=0 || exeAfterInit>=0)
     {
-        if (runAfterInit>=0)
-        {
-            if (runAfterInit==0) Run();
-            else Run(runAfterInit);
-        }
-        else if (exeAfterInit>=0)
-        {
-            ExecuteEvent(exeAfterInit);
-        }
-        else {
-        }
-
-        if (drawAfterRun) Draw(drawOption);
-        return true;
+        time_t start_time = time(0);
+        time_t tt_start_time = start_time;
+        struct tm *now = localtime(&tt_start_time);
+        TString ymd = Form("%04d%02d%02d",now->tm_year+1900,now->tm_mon+1,now->tm_mday);
+        TString hms = Form("%02d%02d%02d",now->tm_hour,now->tm_min,now->tm_sec);
+        TString justName = fOutputFileName(fOutputFileName.Last('/')+1,fOutputFileName.Index(".root")-fOutputFileName.Last('/')-1);
+        fLogFileName1 = TString(LILAK_PATH) + "/data/log/" + "init_" + ymd + "_" + hms + ".log";
+        fLogFileName2 = TString(LILAK_PATH) + "/data/log/" + "init_" + justName + ".log";
+        fRunHeader -> AddPar("init_log1",fLogFileName1);
+        fRunHeader -> AddPar("init_log2",fLogFileName2);
     }
+
+    fInitialized = (doNotNeedOrFoundInputFile&&detIsInitialized&&initializedTasks);
+    fRunHeader -> AddPar("InitInput",doNotNeedOrFoundInputFile);
+    fRunHeader -> AddPar("InitDetectors",detIsInitialized);
+    fRunHeader -> AddPar("InitTasks",initializedTasks);
+    fRunHeader -> AddPar("Initialized",fInitialized);
+
+    fRunHeader -> SaveAs(fLogFileName1);
+    unlink(fLogFileName2.Data());
+    symlink(fLogFileName1.Data(), fLogFileName2.Data());
+
+    TString lastLogName = TString(LILAK_PATH) + "/data/lk_last_output.log";
+    unlink(lastLogName.Data());
+    symlink(fLogFileName1.Data(), lastLogName.Data());
+
+    if (fInitialized && fAllowLILAKRun)
+    {
+        lk_info << fNumEntries << " input entries" << endl;
+        lk_info << "Initialized!" << endl;
+
+        if (runAfterInit>=0 || exeAfterInit>=0)
+        {
+            if (runAfterInit>=0)
+            {
+                if (runAfterInit==0) Run();
+                else Run(runAfterInit);
+            }
+            else if (exeAfterInit>=0)
+            {
+                ExecuteEvent(exeAfterInit);
+            }
+            else {
+            }
+
+            if (drawAfterRun) Draw(drawOption);
+            return true;
+        }
+    }
+    else
+        lk_error << "Initialize failed!" << endl;
 
     return fInitialized;
 }
@@ -1175,6 +1330,8 @@ bool LKRun::RegisterObject(TString name, TObject *obj)
 
 TClonesArray* LKRun::RegisterBranchA(TString name, const char* className, Int_t size, bool persistent)
 {
+    fRunHeader -> AddPar("branch/register",Form("%s %s",className,name.Data()),"");
+    if (!fCollectBranchParAndPrintTo.IsNull()) fBranchPar -> AddPar("register",Form("%s %s",className,name.Data()),"");
     if (fBranchPtrMap[name] != nullptr) {
         lk_error << "The branch with name " << name << " already exist!" << endl;
         return (TClonesArray*) nullptr;
@@ -1264,18 +1421,29 @@ TClonesArray *LKRun::GetBranchA(Int_t idx)
     return (TClonesArray *) nullptr;
 }
 
+TClonesArray *LKRun::GetBranchA(TString name, const char* className, bool complainIfDoNotExist) {
+    fRunHeader -> AddPar("branch/get",Form("%s %s",className,name.Data()),"");
+    if (!fCollectBranchParAndPrintTo.IsNull()) fBranchPar -> AddPar("get",Form("%s %s",className,name.Data()),"");
+    return GetBranchA(name, complainIfDoNotExist);
+}
+
 TClonesArray *LKRun::GetBranchA(TString name, bool complainIfDoNotExist)
 {
     auto dataContainer = fBranchPtrMap[name];
     if (dataContainer==nullptr) {
-        if (complainIfDoNotExist)
-            lk_error << "Branch " << name << " does not exist!" << endl;
+        if (complainIfDoNotExist) { lk_error << "Branch " << name << " does not exist!" << endl; }
+        if (!fCollectBranchParAndPrintTo.IsNull()) { auto dummy = new TClonesArray(); dummy -> SetName("dummy"); return dummy; }
+        else { return (TClonesArray *) nullptr; }
     }
     //else if (dataContainer->InheritsFrom("TClonesArray")==false)
     //    lk_error << "Branch " << name << " is not TClonesArray object!" << endl;
-    else
-        return (TClonesArray *) dataContainer;
-    return (TClonesArray *) nullptr;
+    return (TClonesArray *) dataContainer;
+}
+
+TClonesArray *LKRun::KeepBranchA(TString name, const char* className) {
+    fRunHeader -> AddPar("branch/keep",Form("%s %s",className,name.Data()),"");
+    if (!fCollectBranchParAndPrintTo.IsNull()) fBranchPar -> AddPar("keep",Form("%s %s",className,name.Data()),"");
+    return KeepBranchA(name);
 }
 
 TClonesArray *LKRun::KeepBranchA(TString name) {
@@ -1290,6 +1458,10 @@ TClonesArray *LKRun::KeepBranchA(TString name) {
             //else
             //    fOutputTree -> Branch(name, dataContainer);
         }
+    }
+    if (dataContainer==nullptr) {
+        if (!fCollectBranchParAndPrintTo.IsNull()) { return (new TClonesArray); }
+        else { return (TClonesArray *) nullptr; }
     }
     return dataContainer;
 }
@@ -1339,8 +1511,9 @@ bool LKRun::WriteOutputFile()
         fOutputFile -> Close();
 
     TString linkName = TString(LILAK_PATH) + "/data/lk_last_output.root";
+    TString linkTarget = fOutputFileName;
     unlink(linkName.Data());
-    symlink(fOutputFileName.Data(), linkName.Data());
+    symlink(linkTarget.Data(), linkName.Data());
 
     return true;
 }
@@ -1616,7 +1789,7 @@ bool LKRun::StartOfRun(Long64_t numEvents)
         struct tm *now = localtime(&start_time);
         TString start_ymd = Form("%04d.%02d.%02d",now->tm_year+1900,now->tm_mon+1,now->tm_mday);
         TString start_hms = Form("%02d:%02d:%02d",now->tm_hour,now->tm_min,now->tm_sec);
-        fRunHeader -> AddPar("start_time(t)",Long64_t(start_time));
+        fRunHeader -> AddPar("start_time",Form("%lld [tm]", Long64_t(start_time)));
         //fRunHeader -> AddPar("start_time",Long64_t(start_time));
         //fRunHeader -> AddPar("start_ymd",start_ymd);
         //fRunHeader -> AddPar("start_hms",start_hms);
@@ -1646,26 +1819,52 @@ bool LKRun::EndOfRun()
     lk_info << "End of Run " << fStartEventID << " -> " << fEndEventID << " (" << fEndEventID - fStartEventID + 1 << ")" << endl;
     if (fSignalEndOfRun)
         lk_info << "Run stoped at event " << fIdxEntry << " (" << fIdxEntry - fStartEventID << ") because EndOfRun signal was sent" << endl;
-    Print("gen:out:in");
 
     {
-        Long64_t start_time = TString(fRunHeader -> GetParRaw("start_time(t)")).Atoll();
+        Long64_t start_time = TString(fRunHeader -> GetParRaw("start_time")).Atoll();
         time_t end_time = time(0);
         struct tm *now = localtime(&end_time);
         TString end_ymd = Form("%04d.%02d.%02d",now->tm_year+1900,now->tm_mon+1,now->tm_mday);
         TString end_hms = Form("%02d:%02d:%02d",now->tm_hour,now->tm_min,now->tm_sec);
-        fRunHeader -> AddPar("end_time(t)",Long64_t(end_time));
+        fRunHeader -> AddPar("end_time",Form("%lld [tm]", Long64_t(end_time)));
         //fRunHeader -> AddPar("end_ymd",end_ymd);
         //fRunHeader -> AddPar("end_hms",end_hms);
         //fRunHeader -> AddPar("end",end_ymd + " " + end_hms);
         //time_t run_time = end_time - start_time + 54000;
-        time_t run_time = end_time - start_time;
-        now = localtime(&run_time);
-        fRunHeader -> AddPar("run_time(t)",Long64_t(run_time));
+        {
+            double diff_sec = difftime(time_t(end_time),time_t(start_time));
+            fRunHeader -> AddPar("run_time",Form("%f [s]", diff_sec));
+        }
+        //{
+        //    time_t run_time = end_time - start_time;
+        //    now = localtime(&run_time);
+        //    fRunHeader -> AddPar("run_time",Form("%lld [tm]", Long64_t(run_time)));
+        //}
         //TString run_time_s = Form("%ddays %dh %dm %ds",now->tm_mday-2,now->tm_hour,now->tm_min,now->tm_sec);
         //fRunHeader -> AddPar("run_time_s",run_time_s);
+        {
+            time_t tt_start_time = start_time;
+            struct tm *now = localtime(&tt_start_time);
+            TString ymd = Form("%04d%02d%02d",now->tm_year+1900,now->tm_mon+1,now->tm_mday);
+            TString hms = Form("%02d%02d%02d",now->tm_hour,now->tm_min,now->tm_sec);
+            TString justName = fOutputFileName(fOutputFileName.Last('/')+1,fOutputFileName.Index(".root")-fOutputFileName.Last('/')-1);
+            fLogFileName1 = TString(LILAK_PATH) + "/data/log/" + "run_" + ymd + "_" + hms + ".log";
+            fLogFileName2 = TString(LILAK_PATH) + "/data/log/" + "run_" + justName + ".log";
+            fRunHeader -> AddPar("run_log1",fLogFileName1);
+            fRunHeader -> AddPar("run_log2",fLogFileName2);
+        }
+
         fRunHeader -> AddPar("num_events",fEndEventID - fStartEventID + 1);
+        fRunHeader -> SaveAs(fLogFileName1);
+        unlink(fLogFileName2.Data());
+        symlink(fLogFileName1.Data(), fLogFileName2.Data());
+
+        TString lastLogName = TString(LILAK_PATH) + "/data/lk_last_output.log";
+        unlink(lastLogName.Data());
+        symlink(fLogFileName1.Data(), lastLogName.Data());
     }
+
+    Print("gen:out:in");
 
     WriteOutputFile();
 
@@ -1740,8 +1939,47 @@ LKDetectorPlane *LKRun::GetDetectorPlane(Int_t iDetector, Int_t iPlane) {
     return GetDetector(iDetector) -> GetDetectorPlane(iPlane);
 }
 LKDetectorSystem *LKRun::GetDetectorSystem() const { return fDetectorSystem; }
-LKDetector *LKRun::FindDetector(const char *name) { return fDetectorSystem -> FindDetector(name); }
-LKDetectorPlane *LKRun::FindDetectorPlane(const char *name) { return fDetectorSystem -> FindDetectorPlane(name); }
+LKDetector *LKRun::FindDetector(const char *name)
+{
+    auto detector = fDetectorSystem -> FindDetector(name);
+    if (detector != nullptr)
+        return detector;
+
+    LKClassFactory factory(this);
+    factory.Add(name);
+    detector = fDetectorSystem -> FindDetector(name);
+    if (detector)
+    {
+        detector -> SetRun(this);
+        detector -> AddPar(fPar);
+        auto detIsInitialized = detector -> Init();
+        if (detIsInitialized==false) {
+            lk_error << "Error while initializing " << name << endl;
+        }
+    }
+    return detector;
+}
+
+LKDetectorPlane *LKRun::FindDetectorPlane(const char *name)
+{
+    auto plane = fDetectorSystem -> FindDetectorPlane(name);
+    if (plane != nullptr)
+        return plane;
+
+    LKClassFactory factory(this);
+    factory.Add(name);
+    plane = fDetectorSystem -> FindDetectorPlane(name);
+    if (plane)
+    {
+        plane -> SetRun(this);
+        plane -> AddPar(fPar);
+        auto detIsInitialized = plane -> Init();
+        if (detIsInitialized==false) {
+            lk_error << "Error while initializing " << name << endl;
+        }
+    }
+    return plane;
+}
 
 vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchTag, TString searchOption2)
 {
@@ -1824,10 +2062,14 @@ vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchTag, TStrin
         sort(matchingFiles.begin(),matchingFiles.end(),customComparator);
     }
 
-    for (auto file : matchingFiles)
-        lk_info << "Found " << file << endl;
+    vector<TString> matchingFilesFinal;
+    for (auto fileName : matchingFiles) {
+        fileName = MakeAbsolutePathName(fileName);
+        matchingFilesFinal.push_back(fileName);
+        lk_info << "Found " << fileName << endl;
+    }
 
-    return matchingFiles;
+    return matchingFilesFinal;
 }
 
 bool LKRun::AddDrawing(TObject* drawing, TString label, int i)

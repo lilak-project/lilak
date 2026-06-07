@@ -1,0 +1,9 @@
+
+LKDetector/UsePixelSpace      false  # /
+#LKDetector/binning_x          64,  -128, -128  # binning, range throuh x-axis
+#LKDetector/binning_y          512, 0,    -512  # binning, range throuh y-axis
+#LKDetector/binning_z          72,  0,     288  # binning, range throuh z-axis
+
+#elark/ForceMapping            
+elark/Mapping1                
+elark/Mapping2                

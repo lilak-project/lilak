@@ -1,0 +1,10 @@
+
+mte/FindTimeOffset            false
+mte/KobraAnaFile              data_kobra_ana/output00000611.dat
+mte/KobraDAQFile              data_kobra_daq/output00611.dat
+mte/MTEFile                   data_mte/lte_tag_131.dat
+mte/MTESummaryFile            data_mte/mte_summary.root  # empty to write to output file
+mte/TestKobraEntry            5
+mte/TimeOffsetFile            data_mte/mte_time_offset.txt
+mte/add_source                1 Kobra  # source_number source_name
+mte/key_source                0 Cobo  # key_source_number key_source_name

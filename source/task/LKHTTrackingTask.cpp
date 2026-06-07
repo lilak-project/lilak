@@ -113,7 +113,7 @@ bool LKHTTrackingTask::Init()
     for (auto hitBranchName : hitBranchNameArray) {
         lk_info << "hit branch: " << hitBranchName << endl;
         fHitArray[fCountHitBranches] = nullptr;
-        fHitArray[fCountHitBranches] = fRun -> GetBranchA(hitBranchName);
+        fHitArray[fCountHitBranches] = fRun -> GetBranchA(hitBranchName,"LKHit");
         ++fCountHitBranches;
     }
 

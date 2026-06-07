@@ -2,11 +2,13 @@
 
 import os
 import re
+import sys
 import argparse
+import subprocess
 
 class lilak_configuration:
     def __init__(self):
-        pass
+        self.build_succeeded = True
 
     def run_configuration(self):
         self.init_configuration()
@@ -18,6 +20,8 @@ class lilak_configuration:
         print(self.args)
         run_cmake = False
         self.configure_and_build(run_cmake)
+        if self.build_succeeded is False:
+            return
 
     def init_configuration(self):
         self.count_headers = [0,0]
@@ -63,7 +67,8 @@ class lilak_configuration:
         self.create_lilak_command_script()
         if self.args.test==False:
             self.build_lilak(run_cmake)
-        self.summary()
+        if self.build_succeeded:
+            self.summary()
 
     def find_with_expression(self, expression, options):
         pattern = re.escape(expression).replace(r'\*', '.*')
@@ -719,6 +724,13 @@ NPATOMX
                             relative_path = os.path.relpath(root, self.lilak_path)
         return lf_classes
 
+    def path_has_component(self, path_name, keyword_list):
+        lf_components = path_name.split(os.sep)
+        for keyword in keyword_list:
+            if keyword in lf_components:
+                return True
+        return False
+
     def g4dc_classfactory(self):
         change_in_class_factory = False
         for mode in [0,1]: # 0:geant4 1:nptool
@@ -826,8 +838,10 @@ class {factory_name}
         for project in self.lf_lilak_projects:
             lf_detector_scan_paths.append(f"{project}/detector")
             lf_task_scan_paths.append(f"{project}/task")
-            lf_nptool_task_scan_paths.append(f"{project}/task_nptool")
-            lf_mfm_scan_paths.append(f"{project}/mfm")
+            if self.df_build_options["BUILD_NPTOOL"]:
+                lf_nptool_task_scan_paths.append(f"{project}/task_nptool")
+            if self.df_build_options["BUILD_MFM_CONVERTER"]:
+                lf_mfm_scan_paths.append(f"{project}/mfm")
             lf_container_scan_paths.append(f"{project}/container")
             lf_tool_scan_paths.append(f"{project}/tool")
         lf_include_path_classfactory2 = self.lf_include_path_classfactory2.copy()
@@ -849,11 +863,10 @@ class {factory_name}
                 if i==1: include_path = self.lf_include_path_classfactory1
                 if i==2: include_path = lf_include_path_classfactory2
                 if i==3: include_path = self.lf_include_path_classfactory3
-                if any(keyword in path_name for keyword in include_path):
+                if self.path_has_component(path_name, include_path):
                     if not jl_source_main:
                         jl_source_main += f'    if      (name=="{class_name}") {{ e_info << "Adding {class_name}" << endl; fRun -> Add(new {class_name}); }} // {path_name}\n'
                     else:
-                        #if last_header!=class_name[:2]: jl_source_main += f'\n'
                         jl_source_main += f'    else if (name=="{class_name}") {{ e_info << "Adding {class_name}" << endl; fRun -> Add(new {class_name}); }} // {path_name}\n'
                     jl_source_print    += f'    e_cout << "{class_name}" << endl;\n'
                     jl_include_headers += f'#include "{class_name}.h"\n'
@@ -927,13 +940,15 @@ class LKClassFactory
                 lf_task_classes.append(class_name)
 
         lf_nptool_task_classes = []
-        lf_nptool_task_scan_classes = self.scan_directories(self.lilak_path, lf_nptool_task_scan_paths)
-        lf_nptool_task_scan_classes.sort()
-        for class_name, _path_name in lf_nptool_task_scan_classes:
-            if class_name not in lf_task_classes:
-                lf_task_classes.append(class_name)
-            if class_name not in lf_nptool_task_classes:
-                lf_nptool_task_classes.append(class_name)
+        lf_nptool_task_scan_classes = []
+        if self.df_build_options["BUILD_NPTOOL"]:
+            lf_nptool_task_scan_classes = self.scan_directories(self.lilak_path, lf_nptool_task_scan_paths)
+            lf_nptool_task_scan_classes.sort()
+            for class_name, _path_name in lf_nptool_task_scan_classes:
+                if class_name not in lf_task_classes:
+                    lf_task_classes.append(class_name)
+                if class_name not in lf_nptool_task_classes:
+                    lf_nptool_task_classes.append(class_name)
 
         lf_par_classes = []
         for class_name, path_name in lf_detector_scan_classes + lf_task_scan_classes + lf_nptool_task_scan_classes:
@@ -947,11 +962,12 @@ class LKClassFactory
         lf_par_classes.sort()
 
         lf_mfm_classes = []
-        lf_mfm_scan_classes = self.scan_directories(self.lilak_path, lf_mfm_scan_paths)
-        lf_mfm_scan_classes.sort()
-        for class_name, _path_name in lf_mfm_scan_classes:
-            if class_name not in lf_mfm_classes:
-                lf_mfm_classes.append(class_name)
+        if self.df_build_options["BUILD_MFM_CONVERTER"]:
+            lf_mfm_scan_classes = self.scan_directories(self.lilak_path, lf_mfm_scan_paths)
+            lf_mfm_scan_classes.sort()
+            for class_name, _path_name in lf_mfm_scan_classes:
+                if class_name not in lf_mfm_classes:
+                    lf_mfm_classes.append(class_name)
 
         lf_container_classes = []
         lf_container_scan_classes = self.scan_directories(self.lilak_path, lf_container_scan_paths)
@@ -1056,10 +1072,16 @@ class LKClassFactory
             run_cmake = True
         if run_cmake:
             print('cmake ..')
-            os.system('cmake ..')
+            cmake_result = subprocess.run(['cmake', '..'])
+            if cmake_result.returncode != 0:
+                os.chdir(f'{original_directory}')
+                self.build_succeeded = False
+                return False
         print(f'make -j{self.args.jobs}')
-        os.system(f'make -j{self.args.jobs}')
+        make_result = subprocess.run(['make', f'-j{self.args.jobs}'])
         os.chdir(f'{original_directory}')
+        self.build_succeeded = (make_result.returncode == 0)
+        return self.build_succeeded
 
     def create_lilak_command_script(self):
         lilak_command_sh_content = f"""#!/bin/bash
@@ -1302,12 +1324,12 @@ lilak() {{
         echo
         echo "LILAK (https://github.com/lilak-project)"
         echo
-        echo "Usage: lilak {{home|configure|build|build_new|new|update|example|doc|find|make_meta|make_run|par|g4sim|nptool|run|read|draw}} [input]"
+        echo "Usage: lilak {{home|configure|build|build_new|new|update|example|doc|find|make_meta|make_run|par|si_mapping|g4sim|nptool|run|collect_par|read|draw}} [input]"
         echo
         echo "Commands:"
         echo "  home               Navigate to the lilak home directory."
-        echo "  configure [input]  Without input: configuration test without make. With parameter file: print terminal configure report."
-        echo "  build [input]      Build LILAK with [input]; parallel jobs flag. ex) lilak build -j10"
+        echo "  configure [input]  Open the configure flow editor for parameter/root/mfm input or a blank state."
+        echo "  build [input]      Build LILAK with [input]; parallel jobs flag. ex) lilak build -j10, lilak build configure"
         echo "  build_new          Clean build-directory and rebuild the package (asks for confirmation)."
         echo "  new                Run script to create new project"
         echo "  update             Check the current branch and pull updates for lilak and project directories."
@@ -1317,9 +1339,11 @@ lilak() {{
         echo "  make_meta [input]  Generate meta parameter files for all classes or one class."
         echo "  make_run [input]   Create a run parameter file from input ROOT file using configure_LKRun.mac."
         echo "  par [input]        Open the parameter file editor in a local web browser."
+        echo "  si_mapping [input] Open the silicon detector mapping editor in a local web browser."
         echo "  g4sim [input]      Execute the default Geant4 simulatoin program with the provided [input]."
         echo "  nptool [input]     Execute the default nptool simulatoin program with the provided [input]."
         echo "  run [input]        Execute the ROOT script with the provided [input]."
+        echo "  collect_par [input] Execute parameter collection and rewrite the provided parameter file."
         echo "  read [input]       Create a ROOT macro that reads a LILAK output ROOT file."
         echo "  draw [input]       Draw using a parameter file, or generate draw examples from a ROOT file."
         echo
@@ -1336,15 +1360,11 @@ lilak() {{
             echo "Changed directory to: $(pwd)"
             ;;
         configure)
-            local original_dir=$(pwd)
             if [ -z "$2" ]; then
-                cd "$LILAK_PATH"
-                "$LILAK_PATH/lilak.sh" -t
-                export LD_LIBRARY_PATH="$LILAK_PATH/build:$LD_LIBRARY_PATH"
+                python3 "$LILAK_PATH/macros/lilak_configure_flow_editor.py"
             else
-                python3 "$LILAK_PATH/macros/lilak_parameter_editor.py" --configure-report "$2"
+                python3 "$LILAK_PATH/macros/lilak_configure_flow_editor.py" "$2"
             fi
-            cd "$original_dir"
             ;;
         config_test)
             local original_dir=$(pwd)
@@ -1355,19 +1375,32 @@ lilak() {{
             ;;
         build)
             local original_dir=$(pwd)
+            local build_status=0
             cd "$LILAK_PATH"
-            if [[ "$2" =~ ^[0-9]+$ ]]; then
+            if [ "$2" = "configure" ]; then
+                "$LILAK_PATH/lilak.sh" -t
+                build_status=$?
+            elif [[ "$2" =~ ^[0-9]+$ ]]; then
                 "$LILAK_PATH/lilak.sh" -j"$2"
+                build_status=$?
             elif [ -z "$2" ]; then
                 "$LILAK_PATH/lilak.sh"
+                build_status=$?
             else
                 "$LILAK_PATH/lilak.sh" -j"$2"
+                build_status=$?
             fi
-            lilak_run_make_meta_for_stale_classes
-            lilak_warn_if_make_meta_is_stale
-            lilak_print_read_draw_missing_classes
+            if [ "$build_status" -eq 0 ]; then
+                lilak_run_make_meta_for_stale_classes
+                lilak_warn_if_make_meta_is_stale
+                lilak_print_read_draw_missing_classes
+                echo
+                echo "== Set up LILAK environment"
+                echo "source $LILAK_PATH/lilak.sh"
+            fi
             export LD_LIBRARY_PATH="$LILAK_PATH/build:$LD_LIBRARY_PATH"
             cd "$original_dir"
+            return "$build_status"
             ;;
         make)
             local original_dir=$(pwd)
@@ -1385,19 +1418,28 @@ lilak() {{
             read confirm
             if [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]]; then
                 local original_dir=$(pwd)
+                local build_status=0
                 rm -rf "$LILAK_PATH/build"
                 mkdir -p "$LILAK_PATH/build"
                 cd "$LILAK_PATH"
                 if [ -z "$2" ]; then
                     "$LILAK_PATH/lilak.sh"
+                    build_status=$?
                 else
                     "$LILAK_PATH/lilak.sh" -j"$2"
+                    build_status=$?
                 fi
-                lilak_run_make_meta_for_stale_classes
-                lilak_warn_if_make_meta_is_stale
-                lilak_print_read_draw_missing_classes
+                if [ "$build_status" -eq 0 ]; then
+                    lilak_run_make_meta_for_stale_classes
+                    lilak_warn_if_make_meta_is_stale
+                    lilak_print_read_draw_missing_classes
+                    echo
+                    echo "== Set up LILAK environment"
+                    echo "source $LILAK_PATH/lilak.sh"
+                fi
                 export LD_LIBRARY_PATH="$LILAK_PATH/build:$LD_LIBRARY_PATH"
                 cd "$original_dir"
+                return "$build_status"
             else
                 echo "Clean build canceled."
             fi
@@ -1540,6 +1582,13 @@ lilak() {{
                 python3 "$LILAK_PATH/macros/lilak_parameter_editor.py" "$2"
             fi
             ;;
+        si_mapping)
+            if [ -z "$2" ]; then
+                python3 "$LILAK_PATH/macros/lilak_si_mapping_editor.py"
+            else
+                python3 "$LILAK_PATH/macros/lilak_si_mapping_editor.py" "$2"
+            fi
+            ;;
         g4sim)
             if [ -z "$2" ]; then
                 {self.lilak_path}/macros/geant4_simulation.exe
@@ -1559,6 +1608,64 @@ lilak() {{
                 root -l -q -e 'auto run = new LKRun(); run -> SetCollectPar(); run -> Init();'
             else
                 root -l '{self.lilak_path}/macros/run_lilak.C("'"$2"'")'
+            fi
+            ;;
+        collect_par)
+            if [ -z "$2" ]; then
+                echo "Error: Please provide parameter file."
+                return 1
+            else
+                local source_par="$2"
+                local temp_par
+                local temp_lilak
+                temp_par=$(mktemp "/tmp/lilak_collect_par.XXXXXX.mac")
+                temp_lilak=$(mktemp "/tmp/lilak_collect_lines.XXXXXX.txt")
+                cp "$source_par" "$temp_par"
+                grep '^[[:space:]]*lilak/' "$source_par" | grep -v '^[[:space:]]*lilak/collect_par' > "$temp_lilak" || true
+                printf '\n%s\n' "lilak/collect_par $source_par" >> "$temp_par"
+                root -l "$LILAK_PATH/macros/run_lilak.C(\\"$temp_par\\")"
+                local run_status=$?
+                if [ -f "$source_par" ]; then
+                    python3 - "$temp_lilak" "$source_par" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+line_path = Path(sys.argv[1])
+output_path = Path(sys.argv[2])
+
+active_lilak_lines = [line.strip() for line in line_path.read_text().splitlines() if line.strip()]
+
+output_lines = output_path.read_text().splitlines()
+rewritten_lines = []
+inside_lilak_block = False
+inserted_lilak_block = False
+
+for line in output_lines:
+    stripped = line.lstrip()
+    is_lilak_line = re.match(r"#?lilak/", stripped) is not None
+    if is_lilak_line:
+        if not inserted_lilak_block:
+            rewritten_lines.extend(active_lilak_lines)
+            inserted_lilak_block = True
+        inside_lilak_block = True
+        continue
+    if inside_lilak_block and stripped == "":
+        rewritten_lines.append(line)
+        inside_lilak_block = False
+        continue
+    rewritten_lines.append(line)
+
+if not inserted_lilak_block and active_lilak_lines:
+    rewritten_lines.append("")
+    rewritten_lines.extend(active_lilak_lines)
+
+output_path.write_text("\\n".join(rewritten_lines) + "\\n")
+PY
+                fi
+                rm -f "$temp_par"
+                rm -f "$temp_lilak"
+                return "$run_status"
             fi
             ;;
         read)
@@ -1663,7 +1770,7 @@ _lilak_completions() {{
     local curr_word prev_word
     curr_word="${{COMP_WORDS[COMP_CWORD]}}"
     prev_word="${{COMP_WORDS[COMP_CWORD-1]}}"
-    local commands="home configure build build_new new update example doc find make_meta make_run par g4sim nptool run read draw {" ".join(self.lf_lilak_projects)}"
+    local commands="home configure build build_new new update example doc find make_meta make_run par si_mapping g4sim nptool run collect_par read draw {" ".join(self.lf_lilak_projects)}"
     local subdir_projects="{" ".join(self.lf_lilak_projects)}"
 
     if [[ ${{COMP_CWORD}} == 1 ]]; then
@@ -1674,6 +1781,8 @@ _lilak_completions() {{
         COMPREPLY=( $(compgen -f "${{curr_word}}") )
     elif [[ $prev_word == "run" ]]; then
         COMPREPLY=( $(compgen -f "${{curr_word}}") )
+    elif [[ $prev_word == "collect_par" ]]; then
+        COMPREPLY=( $(compgen -f "${{curr_word}}") )
     elif [[ $prev_word == "read" ]]; then
         COMPREPLY=( $(compgen -f "${{curr_word}}") )
     elif [[ $prev_word == "draw" ]]; then
@@ -1683,6 +1792,8 @@ _lilak_completions() {{
     elif [[ $prev_word == "make_run" ]]; then
         COMPREPLY=( $(compgen -f "${{curr_word}}") )
     elif [[ $prev_word == "par" ]]; then
+        COMPREPLY=( $(compgen -f "${{curr_word}}") )
+    elif [[ $prev_word == "si_mapping" ]]; then
         COMPREPLY=( $(compgen -f "${{curr_word}}") )
     elif [[ ${{COMP_CWORD}} == 2 && " $subdir_projects " =~ " ${{COMP_WORDS[1]}} " ]]; then
         local project_path="$LILAK_PATH/${{COMP_WORDS[1]}}"
@@ -1714,19 +1825,10 @@ complete -F _lilak_completions lilak
         if self.df_build_options.get("BUILD_NPTOOL", False):
             lf_nptool_nplib = self.lf_nptool_nplib.copy()
         nplib_initializer = ", ".join(f'"{lib_name}"' for lib_name in lf_nptool_nplib)
-
-        new_contents = f"""{{
-    TString message = "libs: ";
-    TString libName = TString(gSystem->Getenv("LILAK_PATH"))+"/build/libLILAK";
-    int loadv = gSystem -> Load(libName);
-    if (loadv == 0 || loadv == 1) {{
-        message = message + "LILAK ";
-        gROOT -> ProcessLine("#include \\"LKCompiled.h\\"");
-    }}
-    else {{
-        cout << "Error while loading " << libName << endl;
-    }}
-
+        if len(lf_nptool_nplib) == 0:
+            nplib_loader_block = ""
+        else:
+            nplib_loader_block = f"""
     const char* nplibDirEnv = gSystem -> Getenv("NPLib_DIR");
     if (nplibDirEnv == nullptr) {{
         cout << "Warning: NPLib_DIR is not defined." << endl;
@@ -1740,6 +1842,20 @@ complete -F _lilak_completions lilak
             else                          cout << "Error while loading " << libName << endl;
         }}
     }}
+"""
+
+        new_contents = f"""{{
+    TString message = "libs: ";
+    TString libName = TString(gSystem->Getenv("LILAK_PATH"))+"/build/libLILAK";
+    int loadv = gSystem -> Load(libName);
+    if (loadv == 0 || loadv == 1) {{
+        message = message + "LILAK ";
+        gROOT -> ProcessLine("#include \\"LKCompiled.h\\"");
+    }}
+    else {{
+        cout << "Error while loading " << libName << endl;
+    }}
+{nplib_loader_block}
 
     cout << message << endl;
 
@@ -1846,3 +1962,5 @@ Rint.Logon: {self.lilak_path}/macros/rootlogon.C
 if __name__ == "__main__":
     conf = lilak_configuration()
     conf.run_configuration()
+    if conf.build_succeeded is False:
+        sys.exit(1)

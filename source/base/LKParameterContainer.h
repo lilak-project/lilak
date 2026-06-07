@@ -20,6 +20,7 @@
 #include "TVector3.h"
 #include "TCut.h"
 #include "TCutG.h"
+class TTree;
 
 #include "LKVector3.h"
 #include "LKLogger.h"
@@ -156,6 +157,8 @@ class LKParameterContainer : public TObjArray
 
         LKParameter* GetParameter(int idx) { return (LKParameter*) At(idx); }
         TString GetCommonGroup() const;
+        bool Draw(TTree *tree=nullptr);
+        bool Draw(TString fileName, TString treeName="");
 
 #ifdef LILAK_BUILD_JSONCPP
         Int_t  AddJsonTree(const Json::Value &value, TString treeName="");
