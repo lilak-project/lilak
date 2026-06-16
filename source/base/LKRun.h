@@ -297,6 +297,12 @@ class LKRun : public LKVirtualRun
 
     protected:
         void ProcessWriteExitLog();
+        void ConfigureElogHook();
+        bool LoadElogConfigFile(TString fileName="meta/elog_config.json");
+        TString ExtractElogJsonString(TString text, TString key) const;
+        bool SendElogRunHook(TString runType);
+        bool PostElogLog(TString payload);
+        TString EscapeElogJson(TString value) const;
 
     private:
         bool fRunNameIsSet = false;
@@ -419,6 +425,11 @@ class LKRun : public LKVirtualRun
 
         LKDataViewer* fDataViewer = nullptr;
         LKDrawingGroup* fTopDrawingGroup = nullptr;
+
+        bool fElogEnabled = false;
+        TString fElogURL = "";
+        TString fElogToken = "";
+        Int_t fElogTimeout = 5;
 
     private:
         static LKRun *fInstance;

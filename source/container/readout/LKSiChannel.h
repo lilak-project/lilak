@@ -35,6 +35,8 @@ class LKSiChannel : public GETChannel
         double GetTheta1() const { return fTheta1; }
         double GetTheta2() const { return fTheta2; }
         int GetDetID() const { return GetPadID(); }
+        int GetDetNum() const { return fDetNum; }
+        int GetDetectorNumber() const { return fDetNum; }
         int GetPairArrayIndex() const { return fPairArrayIndex; }
         LKSiChannel* GetPairChannel() const { return fPairChannel; }
         TVector3 GetPosition() const { return fPosition; }
@@ -52,6 +54,8 @@ class LKSiChannel : public GETChannel
         void SetTheta1(double theta) { fTheta1 = theta; }
         void SetTheta2(double theta) { fTheta2 = theta; }
         void SetDetID(int value) { SetPadID(value); }
+        void SetDetNum(int value) { fDetNum = value; }
+        void SetDetectorNumber(int value) { fDetNum = value; }
         void SetPairArrayIndex(int pair) { fPairArrayIndex = pair; }
         void SetPairChannel(LKSiChannel* pairChannel) { fPairChannel = pairChannel; }
         void SetPosition(TVector3 pos) { fPosition = pos; }
@@ -79,6 +83,7 @@ class LKSiChannel : public GETChannel
         bool fInverted = false;
 
         int fPairArrayIndex = -1;
+        int fDetNum = -1;
         LKSiChannel *fPairChannel; //!
         double fEnergy2 = -99.9;
 
@@ -91,7 +96,7 @@ class LKSiChannel : public GETChannel
 
         bool fIsStandaloneChannel = true;
 
-    ClassDef(LKSiChannel,2);
+    ClassDef(LKSiChannel,3);
 };
 
 #endif

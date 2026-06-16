@@ -56,3 +56,6 @@ meta/*
 !meta/*.in
 !meta/*.conf
 !meta/parameters
+meta/elog_config.json
+meta/elog_env.sh
+doxy.conf

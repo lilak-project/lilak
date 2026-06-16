@@ -139,6 +139,10 @@ class LKParameterContainer : public TObjArray
 
         bool IsEmpty() const; ///< Return true if empty
         int  FindAndRetrieveColumnValue(TString fileName, int searchColumn, TString searchValue, int getColumn, TString &getValue);
+        int  FindAndRetrieveColumnValue(TString fileName, int searchColumn, int searchValue, int getColumn, TString &getValue)
+        { return FindAndRetrieveColumnValue(fileName, searchColumn, TString(Form("%d",searchValue)), getColumn, getValue); }
+        int  FindAndRetrieveColumnValue(TString fileName, int searchColumn, double searchValue, int getColumn, TString &getValue)
+        { return FindAndRetrieveColumnValue(fileName, searchColumn, TString(Form("%f",searchValue)), getColumn, getValue); }
         void ReplaceEnvVariables(TString &val); ///< evaluate and replace all unraveled variables with ({par},+,-,...)
         void ReplaceVariables(TString &val); ///< evaluate and replace all unraveled variables with ({par},+,-,...)
 

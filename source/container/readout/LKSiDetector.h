@@ -27,6 +27,8 @@ class LKSiDetector : public LKContainer
         int GetDetType() const  { return fDetType; }
         int GetDetIndex() const  { return fDetIndex; }
         int GetDetID() const  { return fDetID; }
+        int GetDetNum() const  { return fDetNum; }
+        int GetDetectorNumber() const  { return fDetNum; }
         int GetLayer() const  { return fLayer; }
         int GetRow() const  { return fRow; }
         TVector3 GetPosition() const { return fPosition; }
@@ -57,6 +59,8 @@ class LKSiDetector : public LKContainer
         void SetDetType(int type) { fDetType = type; }
         void SetDetIndex(int detIndex) { fDetIndex = detIndex; }
         void SetDetID(int detID) { fDetID = detID; }
+        void SetDetNum(int detNum) { fDetNum = detNum; }
+        void SetDetectorNumber(int detNum) { fDetNum = detNum; }
         void SetPosition(TVector3 pos) { fPosition = pos; }
         void SetLayer(int layer) { fLayer = layer; }
         void SetRow(int row) { fRow = row; }
@@ -115,6 +119,7 @@ class LKSiDetector : public LKContainer
         int fDetType = -1; ///< Si detector type (user defined index corresponding to s1, s3, x6...)
         int fDetIndex = -1; ///< Si detector index starting from 0
         int fDetID = -1; ///< Si detector id (user defined index to physical si detector)
+        int fDetNum = -1; ///< physical detector number from mapping
         int fLayer = -1;
         int fRow = -1;
         TVector3 fPosition;
@@ -147,7 +152,7 @@ class LKSiDetector : public LKContainer
         TH2* fHistJunction = nullptr;
         TH2* fHistOhmic = nullptr;
 
-    ClassDef(LKSiDetector,1);
+    ClassDef(LKSiDetector,2);
 };
 
 #endif

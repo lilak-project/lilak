@@ -37,12 +37,18 @@ DEFAULT_DETECTOR_DB = {
     ]
 }
 
+DEFAULT_PLACEHOLDER_DB = {
+    "groups": [
+        {"name": "Ring-12 (dE)", "placeholder_type": "Ring", "capacity": 12, "radius_mm": 109.2, "z_mm": 150.0, "phi_offset_deg": -15.0, "half_opening_deg": 10.45483508},
+        {"name": "Ring-12 (E)", "placeholder_type": "Ring", "capacity": 12, "radius_mm": 129.2, "z_mm": 170.0, "phi_offset_deg": -15.0, "half_opening_deg": 10.45483508},
+        {"name": "Ring-16", "placeholder_type": "Ring", "capacity": 16, "radius_mm": 150.0, "z_mm": 200.0, "phi_offset_deg": 0.0, "half_opening_deg": 8.0},
+        {"name": "QQQ5 plane", "placeholder_type": "Circular", "capacity": 4, "radius_mm": 95.0, "z_mm": 120.0, "phi_offset_deg": 45.0, "half_opening_deg": 20.0},
+        {"name": "Free", "placeholder_type": "Ring", "capacity": 0, "radius_mm": 0.0, "z_mm": 0.0, "phi_offset_deg": 0.0, "half_opening_deg": 10.0},
+    ]
+}
+
 DEFAULT_GROUP_DB = {
     "groups": [
-        {"name": "Ring-12 (dE)", "capacity": 12, "radius_mm": 109.2, "z_mm": 150.0, "phi_offset_deg": -15.0, "half_opening_deg": 10.45483508},
-        {"name": "Ring-12 (E)", "capacity": 12, "radius_mm": 129.2, "z_mm": 170.0, "phi_offset_deg": -15.0, "half_opening_deg": 10.45483508},
-        {"name": "Ring-16", "capacity": 16, "radius_mm": 150.0, "z_mm": 200.0, "phi_offset_deg": 0.0, "half_opening_deg": 8.0},
-        {"name": "QQQ5 plane", "capacity": 4, "radius_mm": 95.0, "z_mm": 120.0, "phi_offset_deg": 45.0, "half_opening_deg": 20.0},
         {"name": "Free", "capacity": 0, "radius_mm": 0.0, "z_mm": 0.0, "phi_offset_deg": 0.0, "half_opening_deg": 10.0},
     ]
 }
@@ -140,6 +146,10 @@ def group_db_path() -> Path:
     return data_dir() / "group_db.par"
 
 
+def placeholder_db_path() -> Path:
+    return data_dir() / "placeholder_db.par"
+
+
 def mapping_store_dir() -> Path:
     return data_dir()
 
@@ -184,6 +194,7 @@ def should_insert_list_spacing(prefix: str) -> bool:
         "board_types",
         "detector_db/detectors",
         "group_db/groups",
+        "placeholder_db/groups",
         "rings/groups",
     }
 
@@ -252,7 +263,7 @@ def parse_parameter_bundle(content: str) -> dict:
     payload = {}
     pending_lines = list(content.splitlines())
     embedded_key_pattern = re.compile(r"^(.*?)\s+([A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+)\s+(.+)$")
-    embedded_key_roots = {"experiment", "detector_db", "group_db", "board_types", "rings", "state"}
+    embedded_key_roots = {"experiment", "detector_db", "group_db", "placeholder_db", "board_types", "rings", "state"}
     line_index = 0
     while line_index < len(pending_lines):
         raw = pending_lines[line_index]
@@ -342,6 +353,9 @@ def resolve_initial_input(file_name: str | None) -> Path | None:
         conf_files = sorted(item for item in path.iterdir() if item.is_file() and item.suffix.lower() == ".conf")
         if not conf_files:
             return None
+        preferred = path / "si_mapping.conf"
+        if preferred.exists():
+            return preferred
         preferred = path / f"{safe_experiment_name(path.name)}.conf"
         if preferred.exists():
             return preferred
@@ -381,11 +395,38 @@ def load_experiment_bundle_payload(source: Path):
         bundle_dir / "group_db.par",
         {"group_db"},
         "group_db",
-        lambda: load_parameter_file(group_db_path(), {"group_db"})["payload"].get("group_db", DEFAULT_GROUP_DB) if group_db_path().exists() else DEFAULT_GROUP_DB,
+        load_group_db_file,
         "group_db.par",
         missing_files,
     )
-    payload_data["rings_db"] = payload_data["group_db"]
+    placeholder_bundle_path = bundle_dir / "placeholder_db.par"
+    placeholder_missing_name = "placeholder_db.par"
+    if not placeholder_bundle_path.exists():
+        legacy_group_path = bundle_dir / "group_db.par"
+        if legacy_group_path.exists():
+            legacy_group = load_parameter_file(legacy_group_path, {"group_db"})["payload"].get("group_db", DEFAULT_PLACEHOLDER_DB)
+            if looks_like_placeholder_db(legacy_group):
+                payload_data["placeholder_db"] = normalize_placeholder_db(legacy_group)
+                placeholder_bundle_path = None
+        if placeholder_bundle_path is not None and (bundle_dir / "rings.par").exists():
+            placeholder_bundle_path = bundle_dir / "rings.par"
+            placeholder_missing_name = "rings.par"
+    if "placeholder_db" not in payload_data:
+        placeholder_source = placeholder_bundle_path or bundle_dir / "placeholder_db.par"
+        if placeholder_source.exists():
+            parsed_placeholder = load_parameter_file(placeholder_source, {"placeholder_db", "group_db", "rings"})
+            payload_data["placeholder_db"] = parsed_placeholder["payload"].get(
+                "placeholder_db",
+                parsed_placeholder["payload"].get("group_db", parsed_placeholder["payload"].get("rings", load_placeholder_db_file())),
+            )
+        else:
+            missing_files.append(placeholder_missing_name)
+            payload_data["placeholder_db"] = load_placeholder_db_file()
+    if not payload_data.get("placeholder_db") and payload_data.get("rings"):
+        payload_data["placeholder_db"] = payload_data["rings"]
+    payload_data["group_db"] = normalize_user_group_db(payload_data.get("group_db"))
+    payload_data["placeholder_db"] = normalize_placeholder_db(payload_data.get("placeholder_db"))
+    payload_data["rings_db"] = payload_data["placeholder_db"]
     board_configs = load_bundle_file_or_default(
         bundle_dir / "board_types.par",
         {"board_types"},
@@ -435,8 +476,7 @@ def list_directory(path_value: str):
 
 
 def next_output_path(experiment_name: str, suffix: str, output_dir: Path):
-    safe = "".join(ch if ch.isalnum() else "_" for ch in experiment_name).strip("_") or "mapping"
-    return output_dir / f"{safe}_{suffix}"
+    return output_dir / suffix
 
 
 def safe_experiment_name(name: str) -> str:
@@ -464,16 +504,16 @@ class ExportError(RuntimeError):
         self.group_ids = list(dict.fromkeys(group_ids or []))
 
 
-def save_experiment_bundle(experiment: dict, detector_db: dict, group_db: dict, output_dir: Path, board_configs=None):
+def save_experiment_bundle(experiment: dict, detector_db: dict, group_db: dict, placeholder_db: dict, output_dir: Path, board_configs=None):
     safe_name = safe_experiment_name(experiment.get("name", "mapping"))
     expected_dir_name = f"mapping_{safe_name}"
     export_dir = output_dir if output_dir.name == expected_dir_name else output_dir / expected_dir_name
     export_dir.mkdir(parents=True, exist_ok=True)
-    experiment_file = export_dir / f"{safe_name}.conf"
+    experiment_file = export_dir / "si_mapping.conf"
     save_parameter_file(
         experiment_file,
         "experiment",
-        {"experiment": experiment, "detector_db": detector_db, "group_db": group_db},
+        {"experiment": experiment, "detector_db": detector_db, "group_db": normalize_user_group_db(group_db), "placeholder_db": normalize_placeholder_db(placeholder_db)},
     )
     save_parameter_file(
         export_dir / "detector_db.par",
@@ -483,7 +523,12 @@ def save_experiment_bundle(experiment: dict, detector_db: dict, group_db: dict, 
     save_parameter_file(
         export_dir / "group_db.par",
         "group_db",
-        {"group_db": group_db},
+        {"group_db": normalize_user_group_db(group_db)},
+    )
+    save_parameter_file(
+        export_dir / "placeholder_db.par",
+        "placeholder_db",
+        {"placeholder_db": normalize_placeholder_db(placeholder_db)},
     )
     save_parameter_file(
         export_dir / "board_types.par",
@@ -495,6 +540,7 @@ def save_experiment_bundle(experiment: dict, detector_db: dict, group_db: dict, 
         "experiment_file": str(experiment_file),
         "detector_db_file": str(export_dir / "detector_db.par"),
         "group_db_file": str(export_dir / "group_db.par"),
+        "placeholder_db_file": str(export_dir / "placeholder_db.par"),
         "board_types_file": str(export_dir / "board_types.par"),
     }
 
@@ -656,7 +702,7 @@ def endpoint_chain(group, detector_node, experiment=None):
     }, None
 
 
-def export_experiment(state, detector_db, group_db, experiment_id, output_dir: Path, board_configs=None):
+def export_experiment(state, detector_db, group_db, placeholder_db, experiment_id, output_dir: Path, board_configs=None):
     experiments = state.get("experiments", [])
     experiment = next((item for item in experiments if item.get("id") == experiment_id), None)
     if experiment is None:
@@ -704,7 +750,7 @@ def export_experiment(state, detector_db, group_db, experiment_id, output_dir: P
         raise ExportError(f"{detector_node.get('label', 'Detector')}: {message}", node_ids=node_ids, group_ids=group_ids)
 
     detector_lookup = get_detector_lookup(detector_db)
-    ring_lookup = get_group_lookup(group_db)
+    ring_lookup = get_group_lookup(placeholder_db)
     detector_rows = [
         "detector mapping",
         "det_type\tdet_idx\tdet_number\tdet_thickness\tdet_width\tdet_height\tring_number\tring_type\tring_radius\tring_z\tdEE\tphi_number\tphi\tphi1\tphi2",
@@ -779,12 +825,13 @@ def export_experiment(state, detector_db, group_db, experiment_id, output_dir: P
                 if det_db_entry is None:
                     export_error_for(detector_node, f"detector number {det_number} is missing from the detector database.")
 
+            det_group = int(data.get("group_number", group_index))
             ring_type = GROUP_PRESET_ALIASES.get(data.get("ring_type", "Free"), data.get("ring_type", "Free"))
             ring_type_export = ring_type.replace(" ", "_")
             ring_number = int(data.get("ring_number", 0))
             phi_number = int(data.get("phi_number", 0))
             ring_entry = ring_lookup.get(ring_type)
-            ring_key = (group_index, ring_number, ring_type)
+            ring_key = (det_group, ring_number, ring_type)
             phi_occupancy.setdefault(ring_key, set())
             if phi_number in phi_occupancy[ring_key]:
                 export_error_for(detector_node, f"duplicated phi_number {phi_number} in ring {ring_type}/{ring_number}.")
@@ -819,7 +866,7 @@ def export_experiment(state, detector_db, group_db, experiment_id, output_dir: P
             board_rows.append(
                 "\t".join(
                     [
-                        str(group_index),
+                        str(det_group),
                         str(detector_index),
                         det_type,
                         str(det_number),
@@ -929,7 +976,7 @@ def export_experiment(state, detector_db, group_db, experiment_id, output_dir: P
     if detector_index == 0:
         raise ExportError("There is no detector to export.")
 
-    bundle_result = save_experiment_bundle(experiment, detector_db, group_db, output_dir)
+    bundle_result = save_experiment_bundle(experiment, detector_db, group_db, placeholder_db, output_dir, board_configs)
     export_dir = Path(bundle_result["export_dir"])
     detector_file = next_output_path(experiment.get("name", "mapping"), "detector_mapping.txt", export_dir)
     channel_file = next_output_path(experiment.get("name", "mapping"), "channel_mapping.txt", export_dir)
@@ -984,18 +1031,89 @@ def save_detector_db_file(payload: dict):
     save_parameter_file(detector_db_path(), "detector_db", {"detector_db": payload})
 
 
-def load_rings_db_file() -> dict:
-    path = rings_db_path()
+def normalize_user_group_db(payload: dict | None) -> dict:
+    groups = payload.get("groups", []) if isinstance(payload, dict) else []
+    free = next((entry for entry in groups if entry.get("name") == "Free"), None)
+    if free is None:
+        free = DEFAULT_GROUP_DB["groups"][0]
+    return {
+        "groups": [
+            {
+                "name": "Free",
+                "capacity": int(free.get("capacity", 0) or 0),
+                "radius_mm": float(free.get("radius_mm", 0.0) or 0.0),
+                "z_mm": float(free.get("z_mm", 0.0) or 0.0),
+                "phi_offset_deg": float(free.get("phi_offset_deg", 0.0) or 0.0),
+                "half_opening_deg": float(free.get("half_opening_deg", 10.0) or 10.0),
+            }
+        ]
+    }
+
+
+def normalize_placeholder_db(payload: dict | None) -> dict:
+    if isinstance(payload, dict) and isinstance(payload.get("groups"), list) and payload.get("groups"):
+        for entry in payload.get("groups", []):
+            if not entry.get("placeholder_type"):
+                entry["placeholder_type"] = "Circular" if entry.get("name") == "QQQ5 plane" else "Ring"
+        return payload
+    return DEFAULT_PLACEHOLDER_DB
+
+
+def looks_like_placeholder_db(payload: dict | None) -> bool:
+    groups = payload.get("groups", []) if isinstance(payload, dict) else []
+    return any(entry.get("name") != "Free" or int(entry.get("capacity", 0) or 0) > 0 for entry in groups)
+
+
+def load_group_db_file() -> dict:
+    path = group_db_path()
     if path.exists():
-        parsed = load_parameter_file(path, {"rings", "group_db"})
-        return parsed["payload"].get("rings", parsed["payload"].get("group_db", DEFAULT_GROUP_DB))
+        parsed = load_parameter_file(path, {"group_db"})
+        return normalize_user_group_db(parsed["payload"].get("group_db", DEFAULT_GROUP_DB))
+    save_parameter_file(path, "group_db", {"group_db": DEFAULT_GROUP_DB})
+    return DEFAULT_GROUP_DB
+
+
+def save_group_db_file(payload: dict):
+    save_parameter_file(group_db_path(), "group_db", {"group_db": normalize_user_group_db(payload)})
+
+
+def load_placeholder_db_file() -> dict:
+    path = placeholder_db_path()
+    if path.exists():
+        parsed = load_parameter_file(path, {"placeholder_db", "group_db", "rings"})
+        payload = parsed["payload"].get("placeholder_db", parsed["payload"].get("group_db", parsed["payload"].get("rings", DEFAULT_PLACEHOLDER_DB)))
+        return normalize_placeholder_db(payload)
+
+    # Backward compatibility: old geometry presets lived in group_db.par or rings.par.
+    if group_db_path().exists():
+        parsed = load_parameter_file(group_db_path(), {"group_db"})
+        legacy = parsed["payload"].get("group_db", DEFAULT_PLACEHOLDER_DB)
+        if looks_like_placeholder_db(legacy):
+            save_parameter_file(path, "placeholder_db", {"placeholder_db": legacy})
+            return normalize_placeholder_db(legacy)
+
+    if rings_db_path().exists():
+        parsed = load_parameter_file(rings_db_path(), {"rings", "group_db"})
+        legacy = parsed["payload"].get("rings", parsed["payload"].get("group_db", DEFAULT_PLACEHOLDER_DB))
+        save_parameter_file(path, "placeholder_db", {"placeholder_db": legacy})
+        return normalize_placeholder_db(legacy)
 
     legacy_path = legacy_rings_db_json_path()
     if legacy_path.exists():
-        return json.loads(legacy_path.read_text(encoding="utf-8"))
+        legacy = json.loads(legacy_path.read_text(encoding="utf-8"))
+        save_parameter_file(path, "placeholder_db", {"placeholder_db": legacy})
+        return normalize_placeholder_db(legacy)
 
-    save_parameter_file(path, "rings", {"rings": DEFAULT_GROUP_DB})
-    return DEFAULT_GROUP_DB
+    save_parameter_file(path, "placeholder_db", {"placeholder_db": DEFAULT_PLACEHOLDER_DB})
+    return DEFAULT_PLACEHOLDER_DB
+
+
+def save_placeholder_db_file(payload: dict):
+    save_parameter_file(placeholder_db_path(), "placeholder_db", {"placeholder_db": normalize_placeholder_db(payload)})
+
+
+def load_rings_db_file() -> dict:
+    return load_placeholder_db_file()
 
 
 def load_board_configs_file() -> dict:
@@ -1216,8 +1334,9 @@ class SiMappingHandler(BaseHTTPRequestHandler):
             initial_path = self.server.initial_path
             state = make_empty_state()
             detector_db = load_detector_db_file()
-            group_db = load_parameter_file(group_db_path(), {"group_db"})["payload"].get("group_db", DEFAULT_GROUP_DB) if group_db_path().exists() else DEFAULT_GROUP_DB
-            rings_db = load_rings_db_file()
+            group_db = load_group_db_file()
+            placeholder_db = load_placeholder_db_file()
+            rings_db = placeholder_db
             board_configs = load_board_configs_file()
             missing_bundle_files = []
             if initial_path is not None and initial_path.is_file():
@@ -1231,13 +1350,19 @@ class SiMappingHandler(BaseHTTPRequestHandler):
                             state = {"experiments": [experiment]}
                         detector_db = payload.get("detector_db", detector_db)
                         group_db = payload.get("group_db", group_db)
-                        rings_db = payload.get("rings_db", rings_db)
+                        placeholder_db = payload.get("placeholder_db", payload.get("rings_db", placeholder_db))
+                        rings_db = placeholder_db
                         board_configs = payload.get("board_configs", board_configs)
                         missing_bundle_files = payload.get("missing_bundle_files", [])
                     elif bundle_type == "layout":
                         state = parsed_bundle["payload"].get("state", make_empty_state())
                         detector_db = parsed_bundle["payload"].get("detector_db", detector_db)
-                        group_db = parsed_bundle["payload"].get("group_db", group_db)
+                        loaded_group_db = parsed_bundle["payload"].get("group_db", group_db)
+                        group_db = normalize_user_group_db(loaded_group_db)
+                        placeholder_db = parsed_bundle["payload"].get("placeholder_db", placeholder_db)
+                        if "placeholder_db" not in parsed_bundle["payload"] and looks_like_placeholder_db(loaded_group_db):
+                            placeholder_db = loaded_group_db
+                        rings_db = placeholder_db
                 except Exception:
                     state = load_state(initial_path)
             self._send_json(
@@ -1245,7 +1370,8 @@ class SiMappingHandler(BaseHTTPRequestHandler):
                     "state": state,
                     "state_path": str(initial_path) if initial_path else "",
                     "detector_db": detector_db,
-                    "group_db": group_db,
+                    "group_db": normalize_user_group_db(group_db),
+                    "placeholder_db": normalize_placeholder_db(placeholder_db),
                     "rings_db": rings_db,
                     "board_configs": board_configs,
                     "missing_bundle_files": missing_bundle_files,
@@ -1269,7 +1395,7 @@ class SiMappingHandler(BaseHTTPRequestHandler):
                 state = payload.get("state", {})
                 target = resolve_state_path(payload.get("path")) or (Path.cwd() / "si_mapping_layout.par")
                 state["updated_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
-                save_parameter_file(target, "layout", {"state": state, "detector_db": payload.get("detector_db", DEFAULT_DETECTOR_DB), "group_db": payload.get("group_db", DEFAULT_GROUP_DB)})
+                save_parameter_file(target, "layout", {"state": state, "detector_db": payload.get("detector_db", DEFAULT_DETECTOR_DB), "group_db": normalize_user_group_db(payload.get("group_db", DEFAULT_GROUP_DB)), "placeholder_db": normalize_placeholder_db(payload.get("placeholder_db", DEFAULT_PLACEHOLDER_DB))})
                 self._send_json({"path": str(target), "saved_at": state["updated_at"]})
                 return
 
@@ -1278,12 +1404,17 @@ class SiMappingHandler(BaseHTTPRequestHandler):
                 if source is None or not source.is_file():
                     raise RuntimeError("Layout file not found.")
                 parsed_bundle = load_parameter_file(source, {"layout"})
+                loaded_group_db = parsed_bundle["payload"].get("group_db", DEFAULT_GROUP_DB)
+                loaded_placeholder_db = parsed_bundle["payload"].get("placeholder_db")
+                if loaded_placeholder_db is None and looks_like_placeholder_db(loaded_group_db):
+                    loaded_placeholder_db = loaded_group_db
                 self._send_json(
                     {
                         "path": str(source),
                         "state": parsed_bundle["payload"].get("state", make_empty_state()),
                         "detector_db": parsed_bundle["payload"].get("detector_db", load_detector_db_file()),
-                        "group_db": parsed_bundle["payload"].get("group_db", DEFAULT_GROUP_DB),
+                        "group_db": normalize_user_group_db(loaded_group_db),
+                        "placeholder_db": normalize_placeholder_db(loaded_placeholder_db or DEFAULT_PLACEHOLDER_DB),
                     }
                 )
                 return
@@ -1302,6 +1433,7 @@ class SiMappingHandler(BaseHTTPRequestHandler):
                     payload.get("experiment", {}),
                     payload.get("detector_db", DEFAULT_DETECTOR_DB),
                     payload.get("group_db", DEFAULT_GROUP_DB),
+                    payload.get("placeholder_db", DEFAULT_PLACEHOLDER_DB),
                     output_dir,
                     payload.get("board_configs", DEFAULT_BOARD_CONFIGS),
                 )
@@ -1336,7 +1468,7 @@ class SiMappingHandler(BaseHTTPRequestHandler):
 
             if parsed.path == "/api/save_group_db":
                 target = resolve_state_path(payload.get("path")) or group_db_path()
-                save_parameter_file(target, "group_db", {"group_db": payload.get("group_db", DEFAULT_GROUP_DB)})
+                save_parameter_file(target, "group_db", {"group_db": normalize_user_group_db(payload.get("group_db", DEFAULT_GROUP_DB))})
                 self._send_json({"path": str(target), "saved_at": time.strftime("%Y-%m-%d %H:%M:%S")})
                 return
 
@@ -1345,7 +1477,22 @@ class SiMappingHandler(BaseHTTPRequestHandler):
                 if source is None or not source.is_file():
                     raise RuntimeError("Group DB file not found.")
                 parsed_bundle = load_parameter_file(source, {"group_db"})
-                self._send_json({"path": str(source), "group_db": parsed_bundle["payload"].get("group_db", DEFAULT_GROUP_DB)})
+                self._send_json({"path": str(source), "group_db": normalize_user_group_db(parsed_bundle["payload"].get("group_db", DEFAULT_GROUP_DB))})
+                return
+
+            if parsed.path == "/api/save_placeholder_db":
+                target = resolve_state_path(payload.get("path")) or placeholder_db_path()
+                save_parameter_file(target, "placeholder_db", {"placeholder_db": normalize_placeholder_db(payload.get("placeholder_db", DEFAULT_PLACEHOLDER_DB))})
+                self._send_json({"path": str(target), "saved_at": time.strftime("%Y-%m-%d %H:%M:%S")})
+                return
+
+            if parsed.path == "/api/load_placeholder_db":
+                source = resolve_state_path(payload.get("path")) or placeholder_db_path()
+                if source is None or not source.is_file():
+                    raise RuntimeError("Placeholder DB file not found.")
+                parsed_bundle = load_parameter_file(source, {"placeholder_db", "group_db", "rings"})
+                placeholder_db = parsed_bundle["payload"].get("placeholder_db", parsed_bundle["payload"].get("group_db", parsed_bundle["payload"].get("rings", DEFAULT_PLACEHOLDER_DB)))
+                self._send_json({"path": str(source), "placeholder_db": normalize_placeholder_db(placeholder_db)})
                 return
 
             if parsed.path == "/api/serialize_bundle":
@@ -1388,6 +1535,7 @@ class SiMappingHandler(BaseHTTPRequestHandler):
                     payload.get("state", {}),
                     payload.get("detector_db", DEFAULT_DETECTOR_DB),
                     payload.get("group_db", DEFAULT_GROUP_DB),
+                    payload.get("placeholder_db", DEFAULT_PLACEHOLDER_DB),
                     payload.get("experiment_id", ""),
                     output_dir,
                     payload.get("board_configs", DEFAULT_BOARD_CONFIGS),
@@ -1782,15 +1930,22 @@ HTML_PAGE = r"""<!doctype html>
       justify-content: space-between;
       gap: 8px;
     }
+    .summary-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .summary-edit,
     .summary-delete {
       border: 0;
       background: transparent;
-      color: #7f2030;
       cursor: pointer;
       font-size: 12px;
       line-height: 1;
       padding: 0;
     }
+    .summary-edit { color: #2f6f95; }
+    .summary-delete { color: #7f2030; }
     .message-log {
       font-family: var(--mono);
       font-size: 12px;
@@ -1832,6 +1987,13 @@ HTML_PAGE = r"""<!doctype html>
     }
     .wire-layer-front {
       z-index: 4;
+    }
+    .wire-inline {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
     }
     .canvas-nodes {
       position: relative;
@@ -1877,6 +2039,7 @@ HTML_PAGE = r"""<!doctype html>
     .node.new_group .node-header { background: #354f52; color: #fff; }
     .node.new_group .node-body { color: var(--muted); }
     .node.placeholder {
+      box-sizing: content-box;
       width: 360px;
       min-height: 360px;
       background: rgba(255,255,255,0.62);
@@ -1884,12 +2047,21 @@ HTML_PAGE = r"""<!doctype html>
       box-shadow: none;
       pointer-events: auto;
     }
-    .node.placeholder .node-header { background: #577590; }
+    .node.placeholder .node-header {
+      background: #577590;
+      height: 42px;
+      min-height: 42px;
+      padding-top: 0;
+      padding-bottom: 0;
+      box-sizing: border-box;
+    }
     .node.placeholder .node-body { padding: 0; }
     .node.detector.geom-compact {
       border-radius: 8px;
+      box-sizing: border-box;
     }
     .node.detector.geom-compact .node-header {
+      box-sizing: border-box;
       height: 100%;
       padding: 4px 6px;
       font-size: 11px;
@@ -2254,7 +2426,7 @@ HTML_PAGE = r"""<!doctype html>
       </div>
       <div class="toolbar">
         <button onclick="openDetectorDb()">Detector DB</button>
-        <button onclick="openGroupDb()">Group DB</button>
+        <button onclick="openGroupDb()">Placeholder DB</button>
         <button onclick="openBoardTypesDb()">Board Types</button>
         <button onclick="openCheckMapping()">Check Mapping</button>
         <button onclick="window.lilakWebFormat.toggleShortcutsModal()">Shortcuts</button>
@@ -2300,7 +2472,6 @@ HTML_PAGE = r"""<!doctype html>
           <div class="toolbar">
             <button onclick="arrangeCanvasItems()" id="arrangeBtn">Arrange</button>
             <button onclick="toggleBoardView()" id="boardViewBtn">Board View</button>
-            <button onclick="toggleGeomView()" id="geomViewBtn">Upst. View</button>
             <button onclick="toggleShowAllZaps()" id="showAllZapsBtn">Show all ZAPs</button>
             <button onclick="toggleShowAllCobos()" id="showAllCobosBtn">Show all Cobos</button>
             <button onclick="toggleShowAllDetectors()" id="showAllDetectorsBtn">Show all Detectors</button>
@@ -2352,19 +2523,19 @@ HTML_PAGE = r"""<!doctype html>
   <div class="modal" id="groupDbModal">
     <div class="modal-card">
       <div class="modal-head">
-        <h3>Group DB</h3>
+        <h3>Placeholder DB</h3>
         <div class="toolbar">
-          <button onclick="addGroupPreset()">Add Group Preset</button>
-          <button onclick="saveGroupDb()" class="primary">Save Group DB</button>
-          <button onclick="loadGroupDb()">Load Group DB</button>
+          <button onclick="addGroupPreset()">Add Placeholder Preset</button>
+          <button onclick="saveGroupDb()" class="primary">Save Placeholder DB</button>
+          <button onclick="loadGroupDb()">Load Placeholder DB</button>
           <button onclick="closeModal('groupDbModal')">Close</button>
         </div>
       </div>
-      <p class="help">Edit detector-group presets. The preset name is what detector boxes use as ring/group type. Save and load this DB as a separate parameter file.</p>
+      <p class="help">Edit placeholder geometry presets. User Groups use a separate group DB and currently default to Free.</p>
       <div style="overflow:auto;">
         <table class="table">
           <thead>
-            <tr><th>Name</th><th>Capacity</th><th>Radius (mm)</th><th>Z (mm)</th><th>Phi Offset</th><th>Half Opening</th><th></th></tr>
+            <tr><th>Name</th><th>Type</th><th>Capacity</th><th>Radius (mm)</th><th>Z (mm)</th><th>Phi Offset</th><th>Half Opening</th><th></th></tr>
           </thead>
           <tbody id="groupDbTable"></tbody>
         </table>
@@ -2462,7 +2633,7 @@ HTML_PAGE = r"""<!doctype html>
   <div class="modal" id="placeholderSelectModal">
     <div class="modal-card">
       <div class="modal-head">
-        <h3>Select placeholder</h3>
+        <h3 id="placeholderSelectTitle">Select placeholder</h3>
         <div class="toolbar">
           <button onclick="closeModal('placeholderSelectModal')">Close</button>
         </div>
@@ -2517,13 +2688,16 @@ HTML_PAGE = r"""<!doctype html>
           <tr><td>Ctrl/Cmd+L</td><td>Load experiment configuration.</td></tr>
           <tr><td>Ctrl/Cmd+A</td><td>Arrange visible canvas items.</td></tr>
           <tr><td>Ctrl/Cmd+G</td><td>Add a new group.</td></tr>
+          <tr><td>Ctrl/Cmd+=</td><td>Add a new user group.</td></tr>
+          <tr><td>Alt/Option+=</td><td>Add a new placeholder.</td></tr>
           <tr><td>Ctrl/Cmd+E</td><td>Export mapping for current experiment.</td></tr>
           <tr><td>Ctrl/Cmd+B</td><td>Toggle Board View.</td></tr>
           <tr><td>Ctrl/Cmd+H</td><td>Select Placeholder Homeless tab.</td></tr>
           <tr><td>Ctrl/Cmd+X</td><td>Select User Groups No group tab.</td></tr>
-          <tr><td>Upst. View</td><td>Use geometrical detector placement with placeholders.</td></tr>
           <tr><td>Ctrl/Cmd+0</td><td>Select User Groups All tab.</td></tr>
           <tr><td>Ctrl/Cmd+1..9</td><td>Select user group by tab index.</td></tr>
+          <tr><td>Alt/Option+0</td><td>Select Placeholder All tab.</td></tr>
+          <tr><td>Alt/Option+1..9</td><td>Select placeholder tab by index.</td></tr>
           <tr><td>Tab / Shift+Tab</td><td>Cycle selected canvas item.</td></tr>
           <tr><td>Backspace</td><td>Delete selected item.</td></tr>
           <tr><td>Esc</td><td>Close navigator, database, check, and shortcut popups.</td></tr>
@@ -2537,6 +2711,7 @@ HTML_PAGE = r"""<!doctype html>
       state: null,
       detectorDb: null,
       groupDb: null,
+      placeholderDb: null,
       statePath: "",
       selectedExperimentId: null,
       selectedGroupId: null,
@@ -2552,6 +2727,7 @@ HTML_PAGE = r"""<!doctype html>
       lastExperimentPath: "",
       lastGroupPath: "",
       lastGroupDbPath: "",
+      lastPlaceholderDbPath: "",
       lastExportDir: "",
       lastCheckMappingPath: "",
       boardConfigs: {},
@@ -2566,6 +2742,7 @@ HTML_PAGE = r"""<!doctype html>
       selectedPlaceholderId: null,
       pendingPlaceholderKind: "",
       pendingPlaceholderAttachSelection: false,
+      focusPlaceholderNameInput: false,
       focusGroupNameInput: false,
       managerPositions: {},
     };
@@ -2583,6 +2760,8 @@ HTML_PAGE = r"""<!doctype html>
     const DETECTOR_TYPES = ["X6", "BB10", "CSD", "QQQ5"];
     const GEOM_DL = 72;
     const PLACEHOLDER_HEADER_H = 42;
+    const PLACEHOLDER_SNAP_Y_OFFSET = PLACEHOLDER_HEADER_H / 2;
+    const PLACEHOLDER_BORDER_W = 2;
     const GROUP_PRESET_ALIASES = {
       "R12-I": "Ring-12 (dE)",
       "R12-O": "Ring-12 (E)",
@@ -2785,7 +2964,7 @@ HTML_PAGE = r"""<!doctype html>
       if (!experiment)
         return null;
       ensureExperimentCollections(experiment);
-      const selected = (experiment.loose_nodes || []).filter(node => node.kind === "detector" && !node.data?.placeholder_id && node.data?.new_group_selected);
+      const selected = (experiment.loose_nodes || []).filter(node => node.kind === "detector" && node.data?.new_group_selected);
       const managerPos = managerPosition();
       return {
         id: "__nogroup__",
@@ -2793,7 +2972,7 @@ HTML_PAGE = r"""<!doctype html>
         no_group: true,
         group_preset: "Free",
         nodes: [
-          ...experiment.loose_nodes.filter(node => node.kind !== "detector" || !node.data?.placeholder_id),
+          ...experiment.loose_nodes,
           {
             id: "__new_group__",
             kind: "new_group",
@@ -2841,6 +3020,25 @@ HTML_PAGE = r"""<!doctype html>
           from: { node_id: node.id, port: "OUT" },
           to: { node_id: "__new_group__", port: "IN" },
         })),
+      };
+    }
+
+    function allPlaceholderGroup() {
+      const experiment = currentExperiment();
+      if (!experiment)
+        return null;
+      ensureExperimentCollections(experiment);
+      const placeholderIds = new Set(experimentPlaceholders(experiment).map(node => node.id));
+      return {
+        id: "__placeholder_all__",
+        name: "All placeholders",
+        placeholder_all_view: true,
+        group_preset: "Free",
+        nodes: [
+          ...experimentPlaceholders(experiment),
+          ...experimentDetectorNodes(experiment).filter(node => placeholderIds.has(node.data?.placeholder_id)),
+        ],
+        connections: [],
       };
     }
 
@@ -2932,6 +3130,8 @@ HTML_PAGE = r"""<!doctype html>
         return noGroupGroup();
       if (stateStore.selectedGroupId === "__homeless__")
         return homelessGroup();
+      if (stateStore.selectedGroupId === "__placeholder_all__")
+        return allPlaceholderGroup();
       if (stateStore.selectedPlaceholderId)
         return placeholderViewGroup() || null;
       return experiment.groups.find(item => item.id === stateStore.selectedGroupId) || null;
@@ -2945,6 +3145,8 @@ HTML_PAGE = r"""<!doctype html>
         return noGroupGroup();
       if (stateStore.selectedGroupId === "__homeless__")
         return homelessGroup();
+      if (stateStore.selectedGroupId === "__placeholder_all__")
+        return allPlaceholderGroup();
       if (stateStore.selectedGroupId === "__nogroup__")
         return noGroupGroup();
       return experiment.groups.find(item => item.id === stateStore.selectedGroupId) || experiment.groups[0] || null;
@@ -2995,7 +3197,7 @@ HTML_PAGE = r"""<!doctype html>
 
     function nextZOrder(group) {
       const values = group.nodes.map(node => Number(node.z_order) || 1);
-      return (values.length === 0 ? 1 : Math.max(...values)) + 1;
+      return (values.length === 0 ? 10 : Math.max(...values)) + 10;
     }
 
     function connectedNodeIds(nodeId) {
@@ -3027,7 +3229,8 @@ HTML_PAGE = r"""<!doctype html>
           return (Number(a.z_order) || 1) - (Number(b.z_order) || 1);
         });
       ordered.forEach(node => {
-        node.z_order = z++;
+        node.z_order = z;
+        z += 10;
       });
     }
 
@@ -3101,6 +3304,14 @@ HTML_PAGE = r"""<!doctype html>
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ group_db: stateStore.groupDb }),
+      });
+    }
+
+    function autosavePlaceholderDbToCommon() {
+      return fetchJson("/api/save_placeholder_db", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ placeholder_db: stateStore.placeholderDb }),
       });
     }
 
@@ -3478,6 +3689,16 @@ HTML_PAGE = r"""<!doctype html>
       render();
     }
 
+    function selectAllPlaceholders() {
+      stateStore.boardViewMode = false;
+      stateStore.geomViewMode = true;
+      stateStore.selectedPlaceholderId = null;
+      stateStore.selectedGroupId = "__placeholder_all__";
+      stateStore.selectedNodeId = null;
+      arrangeGeometryByPhi(false);
+      render();
+    }
+
     function selectPlaceholderView(placeholderId) {
       const placeholder = experimentPlaceholders().find(node => node.id === placeholderId);
       if (!placeholder)
@@ -3533,6 +3754,10 @@ HTML_PAGE = r"""<!doctype html>
         const experiment = stateStore.state.experiments.find(item => item.id === id);
         if (!experiment) return;
         experiment.name = nextValue || "Experiment";
+      } else if (type === "placeholder") {
+        const placeholder = experimentPlaceholders().find(item => item.id === id);
+        if (!placeholder) return;
+        placeholder.label = nextValue || "Placeholder";
       } else {
         const group = currentExperiment()?.groups.find(item => item.id === id);
         if (!group) return;
@@ -3616,7 +3841,7 @@ HTML_PAGE = r"""<!doctype html>
 
     function groupPresetEntry(presetName) {
       const normalized = normalizeGroupPresetName(presetName);
-      return stateStore.groupDb.groups.find(item => item.name === normalized) || null;
+      return (stateStore.groupDb?.groups || []).find(item => item.name === normalized) || null;
     }
 
     function groupCapacity(group) {
@@ -3736,6 +3961,7 @@ HTML_PAGE = r"""<!doctype html>
           detector_type: subtype,
           det_number: 0,
           detector_loaded: false,
+          group_number: 0,
           ring_number: 1,
           ring_type: "Free",
           dee: "E",
@@ -3768,17 +3994,19 @@ HTML_PAGE = r"""<!doctype html>
         return;
       }
       ensureExperimentCollections(experiment);
-      const count = experimentPlaceholders(experiment).filter(node => node.kind === "placeholder" && node.data?.placeholder_type === kind).length;
+      const count = experimentPlaceholders(experiment).filter(node => node.kind === "placeholder").length;
+      const presetName = data?.preset_name || `Placeholder${count}`;
       const geometry = placeholderGeometryDefaults(kind, data);
       const node = {
         id: uid("placeholder"),
         kind: "placeholder",
-        label: `${kind} ${count}`,
+        label: `Placeholder${count}`,
         x: 260 + count * 24,
         y: 80 + count * 24,
         z_order: 0,
         data: {
           placeholder_type: kind,
+          preset_name: presetName,
           dl: GEOM_DL,
           ...geometry,
           ...data,
@@ -3790,6 +4018,7 @@ HTML_PAGE = r"""<!doctype html>
       stateStore.geomViewMode = true;
       stateStore.boardViewMode = false;
       stateStore.selectedGroupId = "__placeholder__";
+      stateStore.focusPlaceholderNameInput = true;
       render();
     }
 
@@ -3805,56 +4034,71 @@ HTML_PAGE = r"""<!doctype html>
       openPlaceholderCreateModal("Rectangular");
     }
 
+    function placeholderKindForPreset(entry) {
+      return entry?.placeholder_type || (entry?.name === "QQQ5 plane" ? "Circular" : "Ring");
+    }
+
     function openPlaceholderCreateModal(kind="Ring") {
       stateStore.pendingPlaceholderKind = kind || "Ring";
       const title = document.getElementById("placeholderCreateTitle");
       const fields = document.getElementById("placeholderCreateFields");
       if (title)
         title.textContent = "Create Placeholder";
+      const presets = (stateStore.placeholderDb?.groups || []).filter(entry => Number(entry.capacity || 0) > 0);
+      const presetHtml = presets.length > 0
+        ? `<div class="help" style="grid-column:1/-1;">From Placeholder DB</div>` + presets.map((entry, index) => `
+            <button class="navigator-entry" data-placeholder-preset-index="${index}" onclick="confirmPlaceholderPreset(${index})">
+              <strong>${escapeHtml(entry.name)}</strong>
+              <span>${escapeHtml(placeholderKindForPreset(entry))}, ${entry.capacity} slots</span>
+            </button>`).join("")
+        : `<div class="help">No placeholder preset exists in Placeholder DB.</div>`;
       fields.innerHTML = `
+        ${presetHtml}
+        <div class="help" style="grid-column:1/-1; margin-top:8px;">Manual Placeholder</div>
         <div class="placeholder-create-row">
           <label>Ring</label>
           <input id="placeholderRingSlotsInput" data-placeholder-kind="Ring" type="number" min="3" value="12">
-          <button onclick="confirmPlaceholderCreate('Ring')" class="primary">Create</button>
+          <button data-placeholder-manual-button="Ring" onclick="confirmPlaceholderCreate('Ring')" class="primary">Create</button>
         </div>
         <div class="placeholder-create-row">
           <label>Circular</label>
           <input id="placeholderCircularSlotsInput" data-placeholder-kind="Circular" type="number" min="3" value="12">
-          <button onclick="confirmPlaceholderCreate('Circular')" class="primary">Create</button>
+          <button data-placeholder-manual-button="Circular" onclick="confirmPlaceholderCreate('Circular')" class="primary">Create</button>
         </div>
         <div class="placeholder-create-row rectangular">
           <label>Rectangular</label>
           <input id="placeholderRectangularNxInput" data-placeholder-kind="Rectangular" type="number" min="1" value="4">
           <input id="placeholderRectangularNyInput" data-placeholder-kind="Rectangular" type="number" min="1" value="3">
-          <button onclick="confirmPlaceholderCreate('Rectangular')" class="primary">Create</button>
+          <button data-placeholder-manual-button="Rectangular" onclick="confirmPlaceholderCreate('Rectangular')" class="primary">Create</button>
         </div>`;
       document.getElementById("placeholderCreateModal").classList.add("open");
       queueMicrotask(() => {
-        const inputs = Array.from(fields.querySelectorAll("input"));
-        inputs.forEach(input => {
-          input.onkeydown = event => {
+        const focusables = Array.from(fields.querySelectorAll("[data-placeholder-preset-index], input, [data-placeholder-manual-button]"));
+        focusables.forEach(element => {
+          element.onkeydown = event => {
             if (event.key === "Enter") {
               event.preventDefault();
               event.stopPropagation();
-              confirmPlaceholderCreate(input.dataset.placeholderKind || stateStore.pendingPlaceholderKind || "Ring");
+              if (element.dataset.placeholderPresetIndex !== undefined)
+                confirmPlaceholderPreset(toInt(element.dataset.placeholderPresetIndex, 0));
+              else if (element.dataset.placeholderManualButton)
+                confirmPlaceholderCreate(element.dataset.placeholderManualButton);
+              else
+                confirmPlaceholderCreate(element.dataset.placeholderKind || stateStore.pendingPlaceholderKind || "Ring");
             } else if (event.key === "Tab") {
               event.preventDefault();
               event.stopPropagation();
-              const index = inputs.indexOf(input);
+              const index = focusables.indexOf(element);
               const nextIndex = event.shiftKey
-                ? (index - 1 + inputs.length) % inputs.length
-                : (index + 1) % inputs.length;
-              inputs[nextIndex]?.focus();
-              inputs[nextIndex]?.select();
+                ? (index - 1 + focusables.length) % focusables.length
+                : (index + 1) % focusables.length;
+              focusables[nextIndex]?.focus();
+              if (focusables[nextIndex]?.select)
+                focusables[nextIndex].select();
             }
           };
         });
-        const focusId = stateStore.pendingPlaceholderKind === "Circular"
-          ? "placeholderCircularSlotsInput"
-          : stateStore.pendingPlaceholderKind === "Rectangular"
-            ? "placeholderRectangularNxInput"
-            : "placeholderRingSlotsInput";
-        (document.getElementById(focusId) || fields.querySelector("input"))?.focus();
+        focusables[0]?.focus();
       });
     }
 
@@ -3887,6 +4131,30 @@ HTML_PAGE = r"""<!doctype html>
       }
       closePlaceholderCreateModal();
       addPlaceholder(kind, { slots: n });
+      if (attachSelection)
+        attachSelectedHomelessDetectorsToLatestPlaceholder();
+    }
+
+    function confirmPlaceholderPreset(index) {
+      const presets = (stateStore.placeholderDb?.groups || []).filter(entry => Number(entry.capacity || 0) > 0);
+      const entry = presets[index];
+      if (!entry) {
+        showBanner("Placeholder preset does not exist.", "error");
+        return;
+      }
+      const kind = placeholderKindForPreset(entry);
+      const attachSelection = !!stateStore.pendingPlaceholderAttachSelection;
+      stateStore.pendingPlaceholderAttachSelection = false;
+      closePlaceholderCreateModal();
+      addPlaceholder(kind, {
+        preset_name: entry.name,
+        slots: Math.max(1, toInt(entry.capacity, 1)),
+        ring_type: entry.name,
+        radius_mm: toFloat(entry.radius_mm, 0),
+        z_mm: toFloat(entry.z_mm, 0),
+        phi_offset_deg: toFloat(entry.phi_offset_deg, 0),
+        half_opening_deg: toFloat(entry.half_opening_deg, 10),
+      });
       if (attachSelection)
         attachSelectedHomelessDetectorsToLatestPlaceholder();
     }
@@ -4028,6 +4296,7 @@ HTML_PAGE = r"""<!doctype html>
         z_order: nextZOrder(group),
         data: {
           ...defaultNodeData(kind, subtype),
+          group_number: kind === "detector" ? Math.max(0, currentExperiment()?.groups?.findIndex(item => item.id === group.id) ?? 0) : undefined,
           ring_type: kind === "detector" ? normalizeGroupPresetName(group.group_preset || "Free") : undefined,
           det_index: kind === "detector" ? index : undefined,
           phi_number: kind === "detector" ? detectorCount : undefined,
@@ -4120,7 +4389,7 @@ HTML_PAGE = r"""<!doctype html>
       if (!experiment)
         return [];
       ensureExperimentCollections(experiment);
-      return (experiment.loose_nodes || []).filter(node => node.kind === "detector" && !node.data?.placeholder_id && node.data?.new_group_selected);
+      return (experiment.loose_nodes || []).filter(node => node.kind === "detector" && node.data?.new_group_selected);
     }
 
     function toggleNoGroupDetectorSelection(nodeId) {
@@ -4130,8 +4399,6 @@ HTML_PAGE = r"""<!doctype html>
       ensureExperimentCollections(experiment);
       const node = (experiment.loose_nodes || []).find(item => item.id === nodeId && item.kind === "detector");
       if (!node)
-        return;
-      if (node.data?.placeholder_id)
         return;
       if (!node.data)
         node.data = {};
@@ -4232,6 +4499,82 @@ HTML_PAGE = r"""<!doctype html>
       render();
     }
 
+    function attachSelectedNoGroupDetectorsToGroup(group) {
+      const experiment = currentExperiment();
+      if (!experiment || !group)
+        return;
+      ensureExperimentCollections(experiment);
+      const selected = selectedNoGroupDetectors();
+      if (selected.length === 0)
+        return;
+      const selectedIds = new Set(selected.map(node => node.id));
+      experiment.loose_nodes = (experiment.loose_nodes || []).filter(node => !selectedIds.has(node.id));
+      selected.forEach(node => {
+        if (!node.data)
+          node.data = {};
+        node.data.new_group_selected = false;
+        node.data.group_number = Math.max(0, experiment.groups.findIndex(item => item.id === group.id));
+        group.nodes.push(node);
+      });
+      syncDetectorPhiByIndex(group);
+    }
+
+    function createGroupFromNoGroupSelection() {
+      const experiment = currentExperiment();
+      if (!experiment)
+        return;
+      ensureExperimentCollections(experiment);
+      const selected = selectedNoGroupDetectors();
+      if (selected.length === 0) {
+        showBanner("No detectors are connected to Group manager.", "error");
+        return;
+      }
+      const group = { id: uid("group"), name: `Group ${experiment.groups.length + 1}`, nodes: [], connections: [], group_preset: "Free" };
+      experiment.groups.push(group);
+      attachSelectedNoGroupDetectorsToGroup(group);
+      stateStore.focusGroupNameInput = true;
+      selectGroup(group.id);
+      showBanner(`Created ${group.name}`);
+    }
+
+    function openGroupSelectModal() {
+      const experiment = currentExperiment();
+      if (!experiment)
+        return;
+      const selected = selectedNoGroupDetectors();
+      if (selected.length === 0) {
+        showBanner("No detectors are connected to Group manager.", "error");
+        return;
+      }
+      const title = document.getElementById("placeholderSelectTitle");
+      if (title)
+        title.textContent = "Select group";
+      const list = document.getElementById("placeholderSelectList");
+      list.innerHTML = (experiment.groups || []).map(group => `
+        <div class="navigator-entry" data-group-id="${escapeHtml(group.id)}">
+          <span class="name">${escapeHtml(group.name)}</span>
+          <span>${(group.nodes || []).filter(node => node.kind === "detector").length} det</span>
+        </div>
+      `).join("") || '<div class="help">No groups yet</div>';
+      list.querySelectorAll(".navigator-entry").forEach(entry => {
+        entry.addEventListener("click", () => moveSelectedNoGroupDetectorsToGroup(entry.dataset.groupId));
+      });
+      document.getElementById("placeholderSelectModal").classList.add("open");
+    }
+
+    function moveSelectedNoGroupDetectorsToGroup(groupId) {
+      const experiment = currentExperiment();
+      if (!experiment)
+        return;
+      const group = (experiment.groups || []).find(item => item.id === groupId);
+      if (!group)
+        return;
+      attachSelectedNoGroupDetectorsToGroup(group);
+      closeModal("placeholderSelectModal");
+      selectGroup(group.id);
+      showBanner(`Moved detectors to ${group.name}`);
+    }
+
     function openPlaceholderSelectModal() {
       const experiment = currentExperiment();
       if (!experiment)
@@ -4241,6 +4584,9 @@ HTML_PAGE = r"""<!doctype html>
         showBanner("No detectors are connected to Placeholder manager.", "error");
         return;
       }
+      const title = document.getElementById("placeholderSelectTitle");
+      if (title)
+        title.textContent = "Select placeholder";
       const list = document.getElementById("placeholderSelectList");
       list.innerHTML = experimentPlaceholders(experiment).map(placeholder => `
         <div class="navigator-entry" data-placeholder-id="${escapeHtml(placeholder.id)}">
@@ -5002,10 +5348,14 @@ HTML_PAGE = r"""<!doctype html>
       experimentTabs.appendChild(addExperimentButton);
       const loadExperimentButton = document.createElement("button");
       loadExperimentButton.className = "tab";
-      loadExperimentButton.textContent = "↓";
+      loadExperimentButton.textContent = "Load";
       loadExperimentButton.title = "Load experiment";
       loadExperimentButton.onclick = () => loadExperiment();
       experimentTabs.appendChild(loadExperimentButton);
+      const experimentSeparator = document.createElement("span");
+      experimentSeparator.className = "tab-separator-mark";
+      experimentSeparator.textContent = ">";
+      experimentTabs.appendChild(experimentSeparator);
       stateStore.state.experiments.forEach(experiment => {
         const button = makeEditableTab(
           experiment.name,
@@ -5080,6 +5430,11 @@ HTML_PAGE = r"""<!doctype html>
       const placeholderTabs = document.getElementById("placeholderTabs");
       if (placeholderTabs)
         placeholderTabs.innerHTML = "";
+      const placeholderAllTab = document.createElement("button");
+      placeholderAllTab.className = `tab ${stateStore.selectedGroupId === "__placeholder_all__" && !stateStore.selectedPlaceholderId && !stateStore.boardViewMode ? "active" : ""}`;
+      placeholderAllTab.textContent = "All";
+      placeholderAllTab.onclick = () => selectAllPlaceholders();
+      placeholderTabs?.appendChild(placeholderAllTab);
       const homelessTab = document.createElement("button");
       homelessTab.className = `tab ${stateStore.selectedGroupId === "__homeless__" && !stateStore.selectedPlaceholderId && !stateStore.boardViewMode ? "active" : ""}`;
       homelessTab.textContent = "Homeless";
@@ -5092,11 +5447,14 @@ HTML_PAGE = r"""<!doctype html>
       experimentPlaceholders(experiment).forEach(node => {
         const wrapper = document.createElement("div");
         wrapper.className = "tab-wrap";
-        const button = document.createElement("button");
-        button.className = `tab ${stateStore.selectedPlaceholderId === node.id ? "active" : ""}`;
-        button.textContent = node.label;
-        button.title = "Placeholder view";
-        button.onclick = () => selectPlaceholderView(node.id);
+        const button = makeEditableTab(
+          node.label,
+          stateStore.selectedPlaceholderId === node.id,
+          () => selectPlaceholderView(node.id),
+          value => commitTabRename("placeholder", node.id, value),
+          node.id,
+          "placeholder"
+        );
         const close = document.createElement("button");
         close.className = "tab-close";
         close.textContent = "x";
@@ -5156,7 +5514,7 @@ HTML_PAGE = r"""<!doctype html>
       if (!experiment) return;
       if (group)
         ensureGroupPreset(group);
-      const groupOptions = stateStore.groupDb.groups
+      const groupOptions = (stateStore.groupDb?.groups || [])
         .map(entry => `<option value="${escapeHtml(entry.name)}" ${group?.group_preset === entry.name ? "selected" : ""}>${escapeHtml(entry.name)} (${entry.capacity})</option>`)
         .join("");
       const capacity = group ? groupCapacity(group) : 0;
@@ -5202,7 +5560,10 @@ HTML_PAGE = r"""<!doctype html>
           item.innerHTML = `
             <div class="summary-item-row">
               <strong>${escapeHtml(node.label)}</strong>
-              <button class="summary-delete" title="Delete" onclick="event.stopPropagation(); deleteNodeById('${node.id}')">x</button>
+              <span class="summary-actions">
+                <button class="summary-edit" title="Edit" onclick="event.stopPropagation(); activateNode('${node.id}'); openNodeEditModal('${node.id}')">edit</button>
+                <button class="summary-delete" title="Delete" onclick="event.stopPropagation(); deleteNodeById('${node.id}')">x</button>
+              </span>
             </div>
             <div class="help">${infoLines.length > 0 ? infoLines.map(line => escapeHtml(line)).join("<br>") : "no connection"}</div>`;
           item.onclick = () => activateNode(node.id);
@@ -5222,7 +5583,21 @@ HTML_PAGE = r"""<!doctype html>
       const nodesByKind = kind => group.nodes.filter(node => node.kind === kind).length;
       const card = document.createElement("div");
       card.className = "group-card";
-      card.innerHTML = `
+      if (group.placeholder_view) {
+        const placeholder = experimentPlaceholders(experiment).find(item => item.id === stateStore.selectedPlaceholderId);
+        const slots = placeholder ? placeholderSlotPositions(placeholder).length : 0;
+        card.innerHTML = `
+        <strong>Placeholder</strong>
+        <div style="margin-top:8px;">
+          <input id="summaryPlaceholderNameInput" value="${escapeHtml(placeholder?.label || group.name)}" oninput="updatePlaceholderName(this.value)" onblur="render(false)" onkeydown="if(event.key==='Enter'){event.stopPropagation(); this.blur();}">
+        </div>
+        <div class="help" style="margin-top:8px;">
+          Type ${escapeHtml(placeholder?.data?.placeholder_type || "Ring")}<br>
+          Slots ${slots}<br>
+          Detectors ${nodesByKind("detector")}
+        </div>`;
+      } else {
+        card.innerHTML = `
         <strong>Group</strong>
         <div style="margin-top:8px;">
           <input id="summaryGroupNameInput" value="${escapeHtml(group.name)}" oninput="updateGroupName(this.value)" onblur="render(false)" onkeydown="if(event.key==='Enter'){event.stopPropagation(); this.blur();}">
@@ -5242,6 +5617,7 @@ HTML_PAGE = r"""<!doctype html>
           COBO ${nodesByKind("cobo")}<br>
           Connections ${group.connections.length}
         </div>`;
+      }
       summary.appendChild(card);
       if (stateStore.focusGroupNameInput) {
         queueMicrotask(() => {
@@ -5251,6 +5627,16 @@ HTML_PAGE = r"""<!doctype html>
             input.select();
           }
           stateStore.focusGroupNameInput = false;
+        });
+      }
+      if (stateStore.focusPlaceholderNameInput) {
+        queueMicrotask(() => {
+          const input = document.getElementById("summaryPlaceholderNameInput");
+          if (input) {
+            input.focus();
+            input.select();
+          }
+          stateStore.focusPlaceholderNameInput = false;
         });
       }
 
@@ -5263,23 +5649,15 @@ HTML_PAGE = r"""<!doctype html>
         const item = document.createElement("div");
         item.className = `summary-item ${node.id === stateStore.selectedNodeId ? "active" : ""}`;
         const infoLines = nodeConnectionInfo(node);
-        const detectorSummary = node.kind === "detector"
-          ? `<div style="display:grid; grid-template-columns: auto 1fr; gap:4px 6px; align-items:center; margin-top:6px;">
-               <span class="help">det#</span>
-               <input type="number" min="1" max="100" value="${node.data.det_number ?? 1}" onclick="event.stopPropagation()" oninput="updateSummaryDetectorNumber('${node.id}',this.value)" onblur="render(false)" onkeydown="if(event.key==='Enter'){event.stopPropagation(); this.blur();}">
-               <span class="help">phi#</span>
-               <input type="number" min="0" max="${Math.max(0, capacity - 1)}" value="${node.data.phi_number ?? 0}" onclick="event.stopPropagation()" oninput="updateSummaryDetectorPhi('${node.id}',this.value)" onblur="render(false)" onkeydown="if(event.key==='Enter'){event.stopPropagation(); this.blur();}">
-               <span class="help">phi</span>
-               <span class="help">${formatPhiDegrees(node)}</span>
-             </div>`
-          : "";
         item.innerHTML = `
           <div class="summary-item-row">
             <strong>${escapeHtml(node.label)}</strong>
-            <button class="summary-delete" title="Delete" onclick="event.stopPropagation(); deleteNodeById('${node.id}')">x</button>
+            <span class="summary-actions">
+              <button class="summary-edit" title="Edit" onclick="event.stopPropagation(); activateNode('${node.id}'); openNodeEditModal('${node.id}')">edit</button>
+              <button class="summary-delete" title="Delete" onclick="event.stopPropagation(); deleteNodeById('${node.id}')">x</button>
+            </span>
           </div>
-          <div class="help">${infoLines.length > 0 ? infoLines.map(line => escapeHtml(line)).join("<br>") : "no connection"}</div>
-          ${detectorSummary}`;
+          <div class="help">${infoLines.length > 0 ? infoLines.map(line => escapeHtml(line)).join("<br>") : "no connection"}</div>`;
         item.onclick = () => activateNode(node.id);
         summaryList.appendChild(item);
       });
@@ -5314,7 +5692,7 @@ HTML_PAGE = r"""<!doctype html>
     function renderNodeEditForm(inspector, node) {
       if (!inspector || !node) return;
 
-      const ringOptions = stateStore.groupDb.groups.map(ring => `<option value="${ring.name}" ${node.data.ring_type === ring.name ? "selected" : ""}>${ring.name}</option>`).join("");
+      const ringOptions = (stateStore.placeholderDb?.groups || []).map(ring => `<option value="${ring.name}" ${node.data.ring_type === ring.name ? "selected" : ""}>${ring.name}</option>`).join("");
       const detectorOptions = DETECTOR_TYPES.map(type => `<option value="${type}" ${node.data.detector_type === type ? "selected" : ""}>${type}</option>`).join("");
 
       let inner = `<div class="form-grid">`;
@@ -5335,18 +5713,24 @@ HTML_PAGE = r"""<!doctype html>
           <div class="form-grid two">
             <div class="field">
               <label>Group Number</label>
-              <input type="number" min="0" value="${node.data.ring_number ?? 1}" oninput="updateNodeDataLive('${node.id}','ring_number',toInt(this.value,0))" onblur="render(false)" onkeydown="if(event.key==='Enter'){event.stopPropagation(); this.blur();}">
+              <input type="number" min="0" value="${node.data.group_number ?? 0}" oninput="updateNodeDataLive('${node.id}','group_number',toInt(this.value,0))" onblur="render(false)" onkeydown="if(event.key==='Enter'){event.stopPropagation(); this.blur();}">
             </div>
             <div class="field">
-              <label>Group Type</label>
-              <select onchange="updateNodeData('${node.id}','ring_type',this.value)">${ringOptions}</select>
+              <label>Placeholder Number</label>
+              <input type="number" min="0" value="${node.data.ring_number ?? 1}" oninput="updateNodeDataLive('${node.id}','ring_number',toInt(this.value,0))" onblur="render(false)" onkeydown="if(event.key==='Enter'){event.stopPropagation(); this.blur();}">
             </div>
           </div>
           <div class="form-grid two">
             <div class="field">
+              <label>Group Type</label>
+              <select onchange="updateNodeData('${node.id}','ring_type',this.value)">${ringOptions}</select>
+            </div>
+            <div class="field">
               <label>Phi Number</label>
               <input type="number" min="0" value="${node.data.phi_number ?? 0}" oninput="updateNodeDataLive('${node.id}','phi_number',toInt(this.value,0))" onblur="render(false)" onkeydown="if(event.key==='Enter'){event.stopPropagation(); this.blur();}">
             </div>
+          </div>
+          <div class="form-grid two">
             <div class="field">
               <label>dE/E</label>
               <select onchange="updateNodeData('${node.id}','dee',this.value)">
@@ -5354,6 +5738,7 @@ HTML_PAGE = r"""<!doctype html>
                 <option value="E" ${node.data.dee !== "dE" ? "selected" : ""}>E</option>
               </select>
             </div>
+            <div class="field"></div>
           </div>
           <div class="form-grid two">
             <div class="field">
@@ -5441,6 +5826,12 @@ HTML_PAGE = r"""<!doctype html>
       const group = currentGroup();
       if (!group) return;
       group.name = (value || "").trim() || "Group";
+    }
+
+    function updatePlaceholderName(value) {
+      const placeholder = experimentPlaceholders().find(item => item.id === stateStore.selectedPlaceholderId);
+      if (!placeholder) return;
+      placeholder.label = (value || "").trim() || "Placeholder";
     }
 
     function updateCurrentGroupPreset(value) {
@@ -5717,9 +6108,14 @@ HTML_PAGE = r"""<!doctype html>
     }
 
     function applyArrangeZOrder(nodes) {
-      let z = 1;
+      let z = 10;
       nodes.forEach(node => {
-        node.z_order = node.kind === "placeholder" ? 0 : z++;
+        if (node.kind === "placeholder") {
+          node.z_order = 0;
+          return;
+        }
+        node.z_order = z;
+        z += 10;
       });
     }
 
@@ -5793,6 +6189,10 @@ HTML_PAGE = r"""<!doctype html>
           index,
           x: mx + outwardX * dl / 2,
           y: my + outwardY * dl / 2,
+          cellX: mx + outwardX * dl / 2 - dl / 2,
+          cellY: my + outwardY * dl / 2 - dl / 2,
+          cellW: dl,
+          cellH: dl,
           sideX1: a.x,
           sideY1: a.y,
           sideX2: b.x,
@@ -5843,8 +6243,10 @@ HTML_PAGE = r"""<!doctype html>
         return false;
       const slot = slots[((slotIndex % slots.length) + slots.length) % slots.length];
       const dl = Number(placeholder.data?.dl || GEOM_DL);
-      detector.x = placeholder.x + slot.x - dl / 2;
-      detector.y = placeholder.y + PLACEHOLDER_HEADER_H + slot.y - dl / 2;
+      const slotX = Number.isFinite(slot.cellX) ? slot.cellX : slot.x - dl / 2;
+      const slotY = Number.isFinite(slot.cellY) ? slot.cellY : slot.y - dl / 2;
+      detector.x = placeholder.x + PLACEHOLDER_BORDER_W + slotX;
+      detector.y = placeholder.y + PLACEHOLDER_BORDER_W + PLACEHOLDER_SNAP_Y_OFFSET + slotY;
       detector.data.phi_number = slot.index;
       detector.data.phi_center_deg = detectorPhiDegrees(slot.index, Math.max(1, slots.length));
       detector.data.placeholder_id = placeholder.id;
@@ -5997,19 +6399,7 @@ HTML_PAGE = r"""<!doctype html>
           ${escapeHtml(node.data.detector_type || "X6")}<br>
           ring ${escapeHtml(node.data.ring_type || "Free")} #${node.data.ring_number || 0}
           <div style="margin-top:6px; color: var(--muted); font-size:12px;">${infoText}</div>
-          <div style="margin-top:6px; color: var(--muted); font-size:12px;">phi ${phiDegrees.toFixed(1)} deg</div>
-          <div class="node-input-row">
-            <span>det#</span>
-            <div class="node-inline-tools">
-            <input id="detectorDbInput_${node.id}" type="number" min="0" max="100" value="${node.data.det_number ?? 0}" onclick="event.stopPropagation()" oninput="updateDetectorNumberFromValue('${node.id}',this.value)" onblur="render(false)" onkeydown="if(event.key==='Enter'){event.stopPropagation(); this.blur();}">
-            </div>
-          </div>
-          <div class="node-input-row">
-            <span>phi#</span>
-            <div class="node-inline-tools single">
-            <input id="detectorPhiInput_${node.id}" type="number" min="0" max="${Math.max(0, capacity - 1)}" value="${node.data.phi_number ?? 0}" onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter'){event.stopPropagation(); updateDetectorPhi('${node.id}');}">
-            </div>
-          </div>`;
+          <div style="margin-top:6px; color: var(--muted); font-size:12px;">phi ${phiDegrees.toFixed(1)} deg</div>`;
       } else if (node.kind === "merging") {
         body.innerHTML = `board#${node.data.board_number ?? 0}`;
       } else if (node.kind === "zap") {
@@ -6023,8 +6413,8 @@ HTML_PAGE = r"""<!doctype html>
           selected ${node.data?.selected_count || 0}
           <div style="display:grid; gap:8px; margin-top:10px;">
             <button onclick="event.stopPropagation(); ${isHomeless ? "connectAllHomelessDetectors()" : "connectAllNoGroupDetectors()"}">Connect All</button>
-            <button onclick="event.stopPropagation(); ${isHomeless ? "openPlaceholderSelectModal()" : "openPlaceholderSelectModal()"}">${isHomeless ? "Select placeholder" : "Select group"}</button>
-            <button onclick="event.stopPropagation(); ${isHomeless ? "createPlaceholderFromHomelessSelection()" : "createPlaceholderFromHomelessSelection()"}">${isHomeless ? "Create placeholder" : "Create group"}</button>
+            <button onclick="event.stopPropagation(); ${isHomeless ? "openPlaceholderSelectModal()" : "openGroupSelectModal()"}">${isHomeless ? "Select placeholder" : "Select group"}</button>
+            <button onclick="event.stopPropagation(); ${isHomeless ? "createPlaceholderFromHomelessSelection()" : "createGroupFromNoGroupSelection()"}">${isHomeless ? "Create placeholder" : "Create group"}</button>
           </div>`;
       } else {
         body.innerHTML = `board#${node.data.board_number ?? 0}`;
@@ -6155,27 +6545,101 @@ HTML_PAGE = r"""<!doctype html>
       return `M ${a.x} ${a.y} C ${a.x + dx} ${a.y}, ${b.x - dx} ${b.y}, ${b.x} ${b.y}`;
     }
 
+    function firstUpstreamDetectorForConnection(connection, connections, visited=new Set()) {
+      const experiment = currentExperiment();
+      if (!experiment || !connection)
+        return null;
+      const source = nodeByIdFromExperiment(experiment, connection.from.node_id);
+      if (!source)
+        return null;
+      if (source.kind === "detector")
+        return source;
+      if (visited.has(source.id))
+        return null;
+      visited.add(source.id);
+      const upstream = connections
+        .filter(item => item.to.node_id === source.id)
+        .sort((a, b) => String(a.to.port || "").localeCompare(String(b.to.port || "")));
+      for (const item of upstream) {
+        const detector = firstUpstreamDetectorForConnection(item, connections, visited);
+        if (detector)
+          return detector;
+      }
+      return null;
+    }
+
+    function sortedConnectionsForDrawing(group) {
+      const connections = [...canvasConnections(group)];
+      const experiment = currentExperiment();
+      const nodeOrder = new Map(currentVisibleNodes().map((node, index) => [node.id, index]));
+      return connections.sort((a, b) => {
+        const detA = firstUpstreamDetectorForConnection(a, connections);
+        const detB = firstUpstreamDetectorForConnection(b, connections);
+        const detIndexA = detA ? detectorSortIndex(detA) : Number.MAX_SAFE_INTEGER;
+        const detIndexB = detB ? detectorSortIndex(detB) : Number.MAX_SAFE_INTEGER;
+        if (detIndexA !== detIndexB)
+          return detIndexA - detIndexB;
+        const yA = detA ? (detA.y || 0) : (nodeByIdFromExperiment(experiment, a.from.node_id)?.y || 0);
+        const yB = detB ? (detB.y || 0) : (nodeByIdFromExperiment(experiment, b.from.node_id)?.y || 0);
+        if (yA !== yB)
+          return yA - yB;
+        const fromOrderA = nodeOrder.get(a.from.node_id) ?? Number.MAX_SAFE_INTEGER;
+        const fromOrderB = nodeOrder.get(b.from.node_id) ?? Number.MAX_SAFE_INTEGER;
+        if (fromOrderA !== fromOrderB)
+          return fromOrderA - fromOrderB;
+        return String(a.id || "").localeCompare(String(b.id || ""));
+      });
+    }
+
+    function appendWirePath(layer, connection, start, end) {
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", wirePath(start, end));
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", "#19647e");
+      path.setAttribute("stroke-width", "3");
+      layer.appendChild(path);
+    }
+
+    function selectedWireZIndex(connection) {
+      const experiment = currentExperiment();
+      const fromNode = nodeByIdFromExperiment(experiment, connection.from.node_id);
+      const toNode = nodeByIdFromExperiment(experiment, connection.to.node_id);
+      const fromZ = Number(fromNode?.z_order || 10);
+      const toZ = Number(toNode?.z_order || 10);
+      return Math.min(fromZ, toZ) + 5;
+    }
+
+    function appendInlineWire(connection, start, end) {
+      const nodeLayer = document.getElementById("nodeLayer");
+      if (!nodeLayer)
+        return false;
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.classList.add("wire-inline");
+      svg.style.zIndex = `${selectedWireZIndex(connection)}`;
+      appendWirePath(svg, connection, start, end);
+      nodeLayer.appendChild(svg);
+      return true;
+    }
+
     function renderWires() {
       const layerBack = document.getElementById("wireLayerBack");
       const layerFront = document.getElementById("wireLayerFront");
       layerBack.innerHTML = "";
       layerFront.innerHTML = "";
+      document.querySelectorAll("#nodeLayer .wire-inline").forEach(item => item.remove());
       const group = currentGroup();
       if (!group) return;
 
-      canvasConnections(group).forEach(connection => {
+      sortedConnectionsForDrawing(group).forEach(connection => {
         const start = portCenter(connection.from.node_id, connection.from.port);
         const end = portCenter(connection.to.node_id, connection.to.port);
         if (!start || !end) return;
-        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        path.setAttribute("d", wirePath(start, end));
-        path.setAttribute("fill", "none");
-        path.setAttribute("stroke", "#19647e");
-        path.setAttribute("stroke-width", "3");
-        if (isConnectionSelected(connection))
-          layerFront.appendChild(path);
-        else
-          layerBack.appendChild(path);
+        if (isConnectionSelected(connection)) {
+          if (!appendInlineWire(connection, start, end))
+            appendWirePath(layerFront, connection, start, end);
+        } else {
+          appendWirePath(layerBack, connection, start, end);
+        }
       });
 
       if (stateStore.dragConnection) {
@@ -6340,8 +6804,8 @@ HTML_PAGE = r"""<!doctype html>
       let best = null;
       for (const placeholder of placeholders) {
         for (const slot of placeholderSlotPositions(placeholder)) {
-          const x = placeholder.x + slot.x;
-          const y = placeholder.y + PLACEHOLDER_HEADER_H + slot.y;
+          const x = placeholder.x + PLACEHOLDER_BORDER_W + (Number.isFinite(slot.cellX) ? slot.cellX : slot.x - GEOM_DL / 2) + GEOM_DL / 2;
+          const y = placeholder.y + PLACEHOLDER_BORDER_W + PLACEHOLDER_SNAP_Y_OFFSET + (Number.isFinite(slot.cellY) ? slot.cellY : slot.y - GEOM_DL / 2) + GEOM_DL / 2;
           const d2 = (detectorCenter.x - x) ** 2 + (detectorCenter.y - y) ** 2;
           if (!best || d2 < best.d2)
             best = { placeholder, slot, x, y, d2 };
@@ -6399,6 +6863,13 @@ HTML_PAGE = r"""<!doctype html>
       const target = event.target;
       const tagName = (target?.tagName || "").toUpperCase();
       const isEditing = tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT" || target?.isContentEditable;
+      const shortcutDigit = () => {
+        const keyDigit = Number.parseInt(event.key, 10);
+        if (Number.isFinite(keyDigit))
+          return keyDigit;
+        const codeMatch = String(event.code || "").match(/^Digit([0-9])$/);
+        return codeMatch ? Number.parseInt(codeMatch[1], 10) : NaN;
+      };
       if (event.key === "?" && !isEditing) {
         event.preventDefault();
         toggleShortcutsModal();
@@ -6495,6 +6966,11 @@ HTML_PAGE = r"""<!doctype html>
           addGroup();
           return;
         }
+        if (event.key === "=" || event.key === "+") {
+          event.preventDefault();
+          addGroup();
+          return;
+        }
         if (lowered === "e") {
           event.preventDefault();
           if (stateStore.selectedExperimentId)
@@ -6516,7 +6992,7 @@ HTML_PAGE = r"""<!doctype html>
           selectNoGroup();
           return;
         }
-        const digit = Number.parseInt(event.key, 10);
+        const digit = shortcutDigit();
         if (Number.isFinite(digit) && digit === 0) {
           event.preventDefault();
           selectAllGroups();
@@ -6528,6 +7004,27 @@ HTML_PAGE = r"""<!doctype html>
           if (targetGroup) {
             event.preventDefault();
             selectGroup(targetGroup.id);
+            return;
+          }
+        }
+      }
+      if (event.altKey && !event.metaKey && !event.ctrlKey && !event.shiftKey && !isEditing) {
+        if (event.key === "=" || event.key === "+") {
+          event.preventDefault();
+          openPlaceholderCreateModal();
+          return;
+        }
+        const digit = shortcutDigit();
+        if (Number.isFinite(digit) && digit === 0) {
+          event.preventDefault();
+          selectAllPlaceholders();
+          return;
+        }
+        if (Number.isFinite(digit) && digit >= 1 && digit <= 9) {
+          const placeholder = experimentPlaceholders()[digit - 1];
+          if (placeholder) {
+            event.preventDefault();
+            selectPlaceholderView(placeholder.id);
             return;
           }
         }
@@ -6568,6 +7065,22 @@ HTML_PAGE = r"""<!doctype html>
 
     function closeModal(id) {
       document.getElementById(id).classList.remove("open");
+    }
+
+    function installModalBackdropClose() {
+      document.querySelectorAll(".modal").forEach(modal => {
+        modal.addEventListener("mousedown", event => {
+          if (event.target !== modal)
+            return;
+          event.preventDefault();
+          if (modal.id === "placeholderCreateModal")
+            closePlaceholderCreateModal();
+          else if (modal.id === "navigatorModal")
+            closeNavigator("__cancel__");
+          else
+            closeModal(modal.id);
+        });
+      });
     }
 
     function toggleShortcutsModal() {
@@ -6637,10 +7150,17 @@ HTML_PAGE = r"""<!doctype html>
     function renderGroupDbTable() {
       const tbody = document.getElementById("groupDbTable");
       tbody.innerHTML = "";
-      stateStore.groupDb.groups.forEach((entry, index) => {
+      (stateStore.placeholderDb?.groups || []).forEach((entry, index) => {
         const row = document.createElement("tr");
         row.innerHTML = `
           <td><input value="${escapeHtml(entry.name)}" oninput="updateGroupDb(${index},'name',this.value)"></td>
+          <td>
+            <select onchange="updateGroupDb(${index},'placeholder_type',this.value)">
+              <option value="Ring" ${placeholderKindForPreset(entry) === "Ring" ? "selected" : ""}>Ring</option>
+              <option value="Circular" ${placeholderKindForPreset(entry) === "Circular" ? "selected" : ""}>Circular</option>
+              <option value="Rectangular" ${placeholderKindForPreset(entry) === "Rectangular" ? "selected" : ""}>Rectangular</option>
+            </select>
+          </td>
           <td><input value="${entry.capacity}" oninput="updateGroupDb(${index},'capacity',toInt(this.value,0))"></td>
           <td><input value="${entry.radius_mm}" oninput="updateGroupDb(${index},'radius_mm',toFloat(this.value,0))"></td>
           <td><input value="${entry.z_mm}" oninput="updateGroupDb(${index},'z_mm',toFloat(this.value,0))"></td>
@@ -6697,8 +7217,8 @@ HTML_PAGE = r"""<!doctype html>
     }
 
     function updateGroupDb(index, field, value) {
-      stateStore.groupDb.groups[index][field] = value;
-      debounceAutosave("group_db", autosaveGroupDbToCommon);
+      stateStore.placeholderDb.groups[index][field] = value;
+      debounceAutosave("placeholder_db", autosavePlaceholderDbToCommon);
     }
 
     function updateBoardConfig(index, field, value) {
@@ -6718,15 +7238,15 @@ HTML_PAGE = r"""<!doctype html>
     }
 
     function addGroupPreset() {
-      stateStore.groupDb.groups.push({ name: "NEW", capacity: 0, radius_mm: 0, z_mm: 0, phi_offset_deg: 0, half_opening_deg: 10 });
+      stateStore.placeholderDb.groups.push({ name: "NEW", placeholder_type: "Ring", capacity: 0, radius_mm: 0, z_mm: 0, phi_offset_deg: 0, half_opening_deg: 10 });
       renderGroupDbTable();
-      debounceAutosave("group_db", autosaveGroupDbToCommon);
+      debounceAutosave("placeholder_db", autosavePlaceholderDbToCommon);
     }
 
     function deleteGroupPreset(index) {
-      stateStore.groupDb.groups.splice(index, 1);
+      stateStore.placeholderDb.groups.splice(index, 1);
       renderGroupDbTable();
-      debounceAutosave("group_db", autosaveGroupDbToCommon);
+      debounceAutosave("placeholder_db", autosavePlaceholderDbToCommon);
     }
 
     async function saveLayout() {
@@ -6736,7 +7256,7 @@ HTML_PAGE = r"""<!doctype html>
         const payload = await fetchJson("/api/save_state", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ state: stateStore.state, detector_db: stateStore.detectorDb, group_db: stateStore.groupDb, path }),
+          body: JSON.stringify({ state: stateStore.state, detector_db: stateStore.detectorDb, group_db: stateStore.groupDb, placeholder_db: stateStore.placeholderDb, path }),
         });
         stateStore.statePath = payload.path;
         showBanner(`Saved layout to ${payload.path}`);
@@ -6759,6 +7279,7 @@ HTML_PAGE = r"""<!doctype html>
         stateStore.state = payload.state;
         stateStore.detectorDb = payload.detector_db;
         stateStore.groupDb = payload.group_db;
+        stateStore.placeholderDb = payload.placeholder_db || stateStore.placeholderDb;
         stateStore.statePath = loaded.name;
         stateStore.selectedExperimentId = stateStore.state.experiments[0]?.id || null;
         stateStore.selectedGroupId = stateStore.state.experiments[0]?.groups[0]?.id || null;
@@ -6791,6 +7312,7 @@ HTML_PAGE = r"""<!doctype html>
             experiment,
             detector_db: stateStore.detectorDb,
             group_db: stateStore.groupDb,
+            placeholder_db: stateStore.placeholderDb,
             board_configs: stateStore.boardConfigs,
             output_dir: exportDir,
           }),
@@ -6805,6 +7327,7 @@ HTML_PAGE = r"""<!doctype html>
               state: stateStore.state,
               detector_db: stateStore.detectorDb,
               group_db: stateStore.groupDb,
+              placeholder_db: stateStore.placeholderDb,
               board_configs: stateStore.boardConfigs,
               experiment_id: experimentId,
               output_dir: exportDir,
@@ -6819,7 +7342,7 @@ HTML_PAGE = r"""<!doctype html>
         } catch (error) {
           applyExportError(error.payload || {});
           logStatus(error.message);
-          showBanner(`Saved experiment configuration\n${result.experiment_file}\n${result.detector_db_file}\n${result.group_db_file}\n${result.board_types_file}\n\nMapping export failed\n${error.message}`, "error");
+          showBanner(`Saved experiment configuration\n${result.experiment_file}\n${result.detector_db_file}\n${result.group_db_file}\n${result.placeholder_db_file}\n${result.board_types_file}\n\nMapping export failed\n${error.message}`, "error");
         }
       } catch (error) {
         showBanner(error.message, "error");
@@ -6853,6 +7376,7 @@ HTML_PAGE = r"""<!doctype html>
             state: stateStore.state,
             detector_db: stateStore.detectorDb,
             group_db: stateStore.groupDb,
+            placeholder_db: stateStore.placeholderDb,
             board_configs: stateStore.boardConfigs,
             experiment_id: experimentId,
             output_dir: exportDir,
@@ -6905,6 +7429,7 @@ HTML_PAGE = r"""<!doctype html>
         stateStore.state.experiments.push(experiment);
         if (payload.detector_db) stateStore.detectorDb = payload.detector_db;
         if (payload.group_db) stateStore.groupDb = payload.group_db;
+        if (payload.placeholder_db) stateStore.placeholderDb = payload.placeholder_db;
         if (payload.board_configs) stateStore.boardConfigs = payload.board_configs;
         selectExperiment(experiment.id);
         if (payload.missing_bundle_files && payload.missing_bundle_files.length > 0)
@@ -6924,6 +7449,7 @@ HTML_PAGE = r"""<!doctype html>
           group,
           detector_db: stateStore.detectorDb,
           group_db: stateStore.groupDb,
+          placeholder_db: stateStore.placeholderDb,
         };
         const result = await saveBundleWithPicker(
           "group",
@@ -6967,6 +7493,7 @@ HTML_PAGE = r"""<!doctype html>
         experiment.groups.push(group);
         if (payload.detector_db) stateStore.detectorDb = payload.detector_db;
         if (payload.group_db) stateStore.groupDb = payload.group_db;
+        if (payload.placeholder_db) stateStore.placeholderDb = payload.placeholder_db;
         selectGroup(group.id);
         showBanner(`Loaded group from ${loaded.name}`);
       } catch (error) {
@@ -6992,17 +7519,17 @@ HTML_PAGE = r"""<!doctype html>
     async function saveGroupDb() {
       try {
         const result = await saveBundleWithPicker(
-          "group_db",
-          { group_db: stateStore.groupDb },
-          "si_group_db.conf",
-          "/api/save_group_db",
-          stateStore.lastGroupDbPath || stateStore.commonMappingDir || stateStore.cwd || ""
+          "placeholder_db",
+          { placeholder_db: stateStore.placeholderDb },
+          "placeholder_db.conf",
+          "/api/save_placeholder_db",
+          stateStore.lastPlaceholderDbPath || stateStore.commonMappingDir || stateStore.cwd || ""
         );
         if (!result) return;
-        stateStore.lastGroupDbPath = result.path || stateStore.lastGroupDbPath;
+        stateStore.lastPlaceholderDbPath = result.path || stateStore.lastPlaceholderDbPath;
         closeModal("groupDbModal");
         render(false);
-        showBanner(`Saved group DB to ${result.path}`);
+        showBanner(`Saved placeholder DB to ${result.path}`);
       } catch (error) {
         showBanner(error.message, "error");
       }
@@ -7049,20 +7576,22 @@ HTML_PAGE = r"""<!doctype html>
     async function loadGroupDb() {
       try {
         const loaded = await pickOpenBundle(
-          ["group_db"],
-          [{ description: "LILAK group DB", accept: { "text/plain": [".conf", ".par", ".mac"] } }],
-          "Load group DB from file",
-          "si_group_db.conf",
-          "/api/load_group_db",
-          stateStore.lastGroupDbPath || stateStore.commonMappingDir || stateStore.cwd || ""
+          ["placeholder_db", "group_db", "rings"],
+          [{ description: "LILAK placeholder DB", accept: { "text/plain": [".conf", ".par", ".mac"] } }],
+          "Load placeholder DB from file",
+          "placeholder_db.conf",
+          "/api/load_placeholder_db",
+          stateStore.lastPlaceholderDbPath || stateStore.commonMappingDir || stateStore.cwd || ""
         );
         if (!loaded) return;
-        stateStore.lastGroupDbPath = loaded.name || stateStore.lastGroupDbPath;
-        const result = loaded.parsed?.payload ? { path: loaded.name, group_db: loaded.parsed.payload.group_db } : loaded.parsed || loaded.payload;
-        stateStore.groupDb = result.group_db;
+        stateStore.lastPlaceholderDbPath = loaded.name || stateStore.lastPlaceholderDbPath;
+        const result = loaded.parsed?.payload
+          ? { path: loaded.name, placeholder_db: loaded.parsed.payload.placeholder_db || loaded.parsed.payload.group_db || loaded.parsed.payload.rings }
+          : loaded.parsed || loaded.payload;
+        stateStore.placeholderDb = result.placeholder_db;
         renderGroupDbTable();
         render(false);
-        showBanner(`Loaded group DB from ${loaded.name || result.path}`);
+        showBanner(`Loaded placeholder DB from ${loaded.name || result.path}`);
       } catch (error) {
         showBanner(error.message, "error");
       }
@@ -7080,7 +7609,6 @@ HTML_PAGE = r"""<!doctype html>
       const showAllCobosBtn = document.getElementById("showAllCobosBtn");
       const showAllDetectorsBtn = document.getElementById("showAllDetectorsBtn");
       const boardViewBtn = document.getElementById("boardViewBtn");
-      const geomViewBtn = document.getElementById("geomViewBtn");
       const canvasTitle = document.getElementById("canvasTitle");
       if (canvasTitle)
         canvasTitle.textContent = stateStore.geomViewMode ? "Board Canvas (View From Upstream)" : "Board Canvas";
@@ -7100,10 +7628,6 @@ HTML_PAGE = r"""<!doctype html>
         boardViewBtn.textContent = "Board View";
         boardViewBtn.classList.toggle("active-toggle", stateStore.boardViewMode);
       }
-      if (geomViewBtn) {
-        geomViewBtn.textContent = "Upst. View";
-        geomViewBtn.classList.toggle("active-toggle", stateStore.geomViewMode);
-      }
       if (heavy) renderCanvas();
       else {
         renderInspector();
@@ -7116,7 +7640,8 @@ HTML_PAGE = r"""<!doctype html>
       const payload = await fetchJson("/api/bootstrap");
       stateStore.state = payload.state;
       stateStore.detectorDb = payload.detector_db;
-      stateStore.groupDb = payload.group_db;
+      stateStore.groupDb = payload.group_db || { groups: [{ name: "Free", capacity: 0, radius_mm: 0, z_mm: 0, phi_offset_deg: 0, half_opening_deg: 10 }] };
+      stateStore.placeholderDb = payload.placeholder_db || payload.rings_db || { groups: [] };
       stateStore.boardConfigs = payload.board_configs || { board_types: [] };
       stateStore.statePath = payload.state_path;
       stateStore.cwd = payload.cwd || "";
@@ -7158,6 +7683,7 @@ HTML_PAGE = r"""<!doctype html>
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
     window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("DOMContentLoaded", installModalBackdropClose);
     window.addEventListener("DOMContentLoaded", bootstrap);
   </script>
 </body>
@@ -7169,10 +7695,9 @@ HTML_PAGE = rebuild_legacy_page(HTML_PAGE, "LILAK Silicon Mapping Editor")
 
 def main():
     load_detector_db_file()
-    load_rings_db_file()
+    load_placeholder_db_file()
+    save_group_db_file(load_group_db_file())
     load_board_configs_file()
-    if not group_db_path().exists():
-        save_parameter_file(group_db_path(), "group_db", {"group_db": DEFAULT_GROUP_DB})
 
     parser = argparse.ArgumentParser(description="Open the LILAK silicon mapping editor.")
     parser.add_argument("file", nargs="?", help="Optional saved si-mapping layout file")

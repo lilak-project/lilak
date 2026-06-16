@@ -15,6 +15,7 @@ void LKSiChannel::Clear(Option_t *option)
     fStrip = -1;
     fDirection = -1;
     fInverted = false;
+    fDetNum = -1;
     fPairArrayIndex = -1;
     fPairChannel = nullptr; //!
     fPhi1 = -99.9;
@@ -33,6 +34,7 @@ void LKSiChannel::Copy(TObject &object) const
     ((LKSiChannel&)object).SetStrip(fStrip);
     ((LKSiChannel&)object).SetDirection(fDirection);
     ((LKSiChannel&)object).SetInverted(fInverted);
+    ((LKSiChannel&)object).SetDetNum(fDetNum);
     ((LKSiChannel&)object).SetPhi1(fPhi1);
     ((LKSiChannel&)object).SetPhi2(fPhi2);
     ((LKSiChannel&)object).SetTheta1(fTheta1);
@@ -46,6 +48,7 @@ TObject* LKSiChannel::Clone(const char *newname) const
     obj -> SetSide(fSide);
     obj -> SetStrip(fStrip);
     obj -> SetInverted(fInverted);
+    obj -> SetDetNum(fDetNum);
     obj -> SetPhi1(fPhi1);
     obj -> SetPhi2(fPhi2);
     obj -> SetTheta1(fTheta1);
@@ -57,24 +60,24 @@ TObject* LKSiChannel::Clone(const char *newname) const
 
 const char* LKSiChannel::GetName() const
 {
-    return Form("Ch%d_%d_Det%d_%d_%s_%d_%s", fChannelID,fLocalID,fDetType,fPadID,(fSide==0?"Junction":"Ohmic"),fStrip,(fSide==0?(fDirection==0?"L":"R"):(fDirection==0?"U":"D")));
+    return Form("Ch%d_%d_Det%d_%d_Num%d_%s_%d_%s", fChannelID,fLocalID,fDetType,fPadID,fDetNum,(fSide==0?"Junction":"Ohmic"),fStrip,(fSide==0?(fDirection==0?"L":"R"):(fDirection==0?"U":"D")));
 }
 
 const char* LKSiChannel::GetTitle() const
 {
-    return Form("Channel%d(%d) : Det%d(%d) %s(%d)%s CAAC(%d,%d,%d,%d)", fChannelID,fLocalID,fDetType,fPadID,(fSide==0?"Junction":"Ohmic"),fStrip,(fSide==0?(fDirection==0?"L":"R"):(fDirection==0?"U":"D")),fCobo,fAsad,fAget,fChan);
+    return Form("Channel%d(%d) : Det%d(%d) Num%d %s(%d)%s CAAC(%d,%d,%d,%d)", fChannelID,fLocalID,fDetType,fPadID,fDetNum,(fSide==0?"Junction":"Ohmic"),fStrip,(fSide==0?(fDirection==0?"L":"R"):(fDirection==0?"U":"D")),fCobo,fAsad,fAget,fChan);
 }
 
 void LKSiChannel::Print(Option_t *option) const
 {
     if (TString(option).Contains("get")) {
-        e_info << "- CAAC = " << fCobo << " " << fAsad << " " << fAget << " " << fChan << " | DSSD = " << fPadID << " " << ((fSide==0)?"Junc.":"Ohmic") << " " << fStrip << " " << fDirection << " | E = " << fEnergy << endl;
+        e_info << "- CAAC = " << fCobo << " " << fAsad << " " << fAget << " " << fChan << " | DSSD = idx " << fPadID << " num " << fDetNum << " " << ((fSide==0)?"Junc.":"Ohmic") << " " << fStrip << " " << fDirection << " | E = " << fEnergy << endl;
         return;
     }
     if (TString(option).Index("!title")<0)
         e_info << "[LKSiChannel]" << std::endl;
     GETChannel::Print("!title");
-    e_info << "- Det(" << fPadID << ") " << "gCh|lCh=(" << fChannelID << "|" << fLocalID << ") " << ((fSide==0)?"Junction":"Ohmic") << "(" << fStrip << "/" << fDirection << ")" << endl;
+    e_info << "- Det(" << fPadID << ") Num(" << fDetNum << ") " << "gCh|lCh=(" << fChannelID << "|" << fLocalID << ") " << ((fSide==0)?"Junction":"Ohmic") << "(" << fStrip << "/" << fDirection << ")" << endl;
     e_info << "- Phi=(" << fPhi1 << "," << fPhi2 << "), Theta=(" << fTheta1 << "," << fTheta2 << ")" << endl;
 }
 

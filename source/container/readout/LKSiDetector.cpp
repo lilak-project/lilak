@@ -26,7 +26,7 @@ const char* LKSiDetector::GetName() const
     //{
         TString detTypeName = fDetTypeName;
         detTypeName.ReplaceAll(" ","");
-        return Form("%s_%d(%d)",detTypeName.Data(),fDetID,fDetIndex);
+        return Form("%s_%d(%d)",detTypeName.Data(),fDetNum,fDetIndex);
     //}
 }
 
@@ -35,7 +35,7 @@ const char* LKSiDetector::GetTitle() const
     if (fNumSides==1) {
         TString ttlJ = "";
         if (fNumJunctionUD==2) ttlJ = " (U/D)";
-        return Form("%s Idx(%d) ID(%d), single side detector with %d strips%s" + ttlJ,GetTitleType().Data(),fDetIndex,fDetID,fNumJunctionStrips,ttlJ.Data());
+        return Form("%s Idx(%d) Num(%d), single side detector with %d strips%s" + ttlJ,GetTitleType().Data(),fDetIndex,fDetNum,fNumJunctionStrips,ttlJ.Data());
     }
     //else if (fNumSides==2)
     //{
@@ -43,7 +43,7 @@ const char* LKSiDetector::GetTitle() const
         TString ttlO = "";
         if (fNumJunctionUD==2) ttlJ = " (U/D)";
         if (fNumOhmicLR==2) ttlO = " (L/R)";
-        return Form("%s Idx(%d) ID(%d), junction %d strips%s, ohmic %d strips%s" + ttlJ,GetTitleType().Data(),fDetIndex,fDetID,fNumJunctionStrips,ttlJ.Data(),fNumOhmicStrips,ttlO.Data());
+        return Form("%s Idx(%d) Num(%d), junction %d strips%s, ohmic %d strips%s" + ttlJ,GetTitleType().Data(),fDetIndex,fDetNum,fNumJunctionStrips,ttlJ.Data(),fNumOhmicStrips,ttlO.Data());
     //}
 }
 
@@ -52,14 +52,14 @@ void LKSiDetector::Print(Option_t *option) const
     if (fNumSides==1) {
         TString ttlJLR = "";
         if (fNumJunctionUD==2) ttlJLR = " ,U/D";
-        e_info << GetTitleType() << " Idx(" << fDetIndex << ") ID(" << fDetID << "), single side detector with " << fNumJunctionStrips << " strips" << ttlJLR << endl;
+        e_info << GetTitleType() << " Idx(" << fDetIndex << ") Num(" << fDetNum << "), single side detector with " << fNumJunctionStrips << " strips" << ttlJLR << endl;
     }
     else if (fNumSides==2) {
         TString ttlJLR = "";
         TString ttlOLR = "";
         if (fNumJunctionUD==2) ttlJLR = " ,U/D";
         if (fNumOhmicLR==2) ttlOLR = " ,L/R";
-        e_info << GetTitleType() << " Idx(" << fDetIndex << ") ID(" << fDetID << "), junction (" << fNumJunctionStrips << " strips" << ttlJLR << "), ohmic (" << fNumOhmicStrips << " strips" << ttlOLR << ")" << endl;
+        e_info << GetTitleType() << " Idx(" << fDetIndex << ") Num(" << fDetNum << "), junction (" << fNumJunctionStrips << " strips" << ttlJLR << "), ohmic (" << fNumOhmicStrips << " strips" << ttlOLR << ")" << endl;
     }
     if (TString(option).Contains("get_channels")) {
         auto numChannels = fRegisteredChannelArray.GetEntries();
@@ -81,6 +81,7 @@ TObject* LKSiDetector::Clone(const char *newname) const
     //LKSiDetector *obj = (LKSiDetector*) LKContainer::Clone(newname);
     LKSiDetector *obj = new LKSiDetector();
     obj -> SetSiType(fDetTypeName, fDetType, fDetIndex, fDetID, fNumSides, fNumJunctionStrips, fNumOhmicStrips, (fNumJunctionUD==2?1:0), (fNumOhmicLR==2?1:0));
+    obj -> SetDetNum(fDetNum);
     //obj -> SetSiPosition(fPosition, fLayer, fRow, fPhi, fTheta);
     obj -> SetSiPosition(fPosition, fLayer, fRow, fPhi1, fPhi2, fTheta1, fTheta2);
     return obj;
@@ -94,6 +95,7 @@ void LKSiDetector::SetSiType(TString detTypeName, int detType, int detIndex, int
         fDetType = detType;
         fDetIndex = detIndex;
         fDetID = detID;
+        fDetNum = detID;
         fNumSides = numSides;
         fNumJunctionStrips = numJunctionStrips;
         fNumOhmicStrips = numOhmicStrips;
@@ -243,7 +245,7 @@ void LKSiDetector::AddChannel(GETChannel* channel, int side, int strip, int lr)
 
 void LKSiDetector::SetChannel(LKSiChannel* channel)
 {
-    if (channel -> GetDetID() == fDetID)
+    if (channel -> GetDetID() == fDetIndex || channel -> GetDetNum() == fDetNum)
     {
         int idx = fChannelArray.GetEntries();
         fChannelArray.Add(channel);
@@ -261,7 +263,7 @@ void LKSiDetector::SetChannel(LKSiChannel* channel)
 
 void LKSiDetector::AddChannel(LKSiChannel* channel)
 {
-    if (channel -> GetDetID() == fDetID)
+    if (channel -> GetDetID() == fDetIndex || channel -> GetDetNum() == fDetNum)
     {
         int side = channel -> GetSide();
         int strip = channel -> GetStrip();

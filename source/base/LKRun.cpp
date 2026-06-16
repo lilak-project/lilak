@@ -4,6 +4,14 @@
 #include <sstream>
 #include <map>
 #include <vector>
+#include <cerrno>
+#include <cstdlib>
+#include <cstring>
+#include <fcntl.h>
+#include <netdb.h>
+#include <sys/select.h>
+#include <sys/socket.h>
+#include <sys/time.h>
 
 #include "TEnv.h"
 #include "TStyle.h"
@@ -744,6 +752,10 @@ bool LKRun::Init()
     fPar -> Require("LKRun/EventCountForMessage", 20000,    "",                                   "t", countParOrder++);
     fPar -> Require("LKRun/UpdateOutputFile",     false,    "update root file with option update","t/", countParOrder++);
     fPar -> Require("LKRun/FileName",             "",       "file name will be fixed to this name if it is not null string","t/", countParOrder++);
+    fPar -> Require("LKRun/ElogEnable",           false,    "enable lilak_elog push from LKRun::Init() and LKRun::EndOfRun()", "t/", countParOrder++);
+    fPar -> Require("LKRun/ElogURL",              "",       "lilak_elog origin URL fallback if ELOG_URL env and meta/elog_config.json are not set", "t/", countParOrder++);
+    fPar -> Require("LKRun/ElogToken",            "",       "lilak_elog API token fallback if ELOG_TOKEN env and meta/elog_config.json are not set", "t/", countParOrder++);
+    fPar -> Require("LKRun/ElogTimeout",          5,        "HTTP connection/read timeout in seconds for lilak_elog push", "t/", countParOrder++);
 
     if (!fRunNameIsSet) {
         fPar -> UpdatePar(fRunName,  "LKRun/Name");
@@ -1195,6 +1207,7 @@ bool LKRun::Init()
     fCurrentEventID = 0;
 
     fPar -> UpdatePar(fAutoTerminate,"LKRun/AutoTerminate false # automatically terminate root after end of run");
+    ConfigureElogHook();
     fPar -> Sort();
 
     if (fPar -> CheckPar("LKRun/EventCountForMessage"))
@@ -1242,6 +1255,9 @@ bool LKRun::Init()
     unlink(lastLogName.Data());
     symlink(fLogFileName1.Data(), lastLogName.Data());
 
+    if (fInitialized)
+        SendElogRunHook("I");
+
     if (fInitialized && fAllowLILAKRun)
     {
         lk_info << fNumEntries << " input entries" << endl;
@@ -1276,6 +1292,333 @@ void LKRun::InitAndCollectParameters(TString fileName)
     fPar -> SetCollectParameters(true);
     Init();
     fPar -> PrintCollection(fileName);
+}
+
+void LKRun::ConfigureElogHook()
+{
+    fPar -> UpdatePar(fElogEnabled,       "LKRun/ElogEnable");
+    fPar -> UpdatePar(fElogURL,           "LKRun/ElogURL");
+    fPar -> UpdatePar(fElogToken,         "LKRun/ElogToken");
+    fPar -> UpdatePar(fElogTimeout,       "LKRun/ElogTimeout");
+
+    if (fElogTimeout <= 0)
+        fElogTimeout = 5;
+
+    if (!fElogEnabled)
+        return;
+
+    const char *elogURLFromEnv = getenv("ELOG_URL");
+    if (elogURLFromEnv != nullptr && TString(elogURLFromEnv).IsNull() == false)
+        fElogURL = elogURLFromEnv;
+
+    const char *elogTokenFromEnv = getenv("ELOG_TOKEN");
+    if (elogTokenFromEnv != nullptr && TString(elogTokenFromEnv).IsNull() == false)
+        fElogToken = elogTokenFromEnv;
+
+    TString loadedConfigFile = "";
+    if (fElogURL.IsNull() || fElogToken.IsNull()) {
+        bool configLoaded = false;
+        const char *elogConfigFromEnv = getenv("ELOG_CONFIG_FILE");
+        if (elogConfigFromEnv != nullptr && TString(elogConfigFromEnv).IsNull() == false) {
+            configLoaded = LoadElogConfigFile(elogConfigFromEnv);
+            if (configLoaded)
+                loadedConfigFile = elogConfigFromEnv;
+        }
+        if (!configLoaded) {
+            configLoaded = LoadElogConfigFile("meta/elog_config.json");
+            if (configLoaded)
+                loadedConfigFile = "meta/elog_config.json";
+        }
+        if (!configLoaded) {
+            TString lilakConfigFile = TString(LILAK_PATH) + "/meta/elog_config.json";
+            configLoaded = LoadElogConfigFile(lilakConfigFile);
+            if (configLoaded)
+                loadedConfigFile = lilakConfigFile;
+        }
+        if (!configLoaded) {
+            configLoaded = LoadElogConfigFile("elog_config.json");
+            if (configLoaded)
+                loadedConfigFile = "elog_config.json";
+        }
+        if (configLoaded)
+            lk_info << "Loaded lilak_elog credentials from " << loadedConfigFile << endl;
+    }
+
+    if (fElogURL.IsNull()) {
+        lk_warning << "LKRun/ElogEnable is true, but ELOG_URL is not set and meta/elog_config.json was not found. Disable elog hook." << endl;
+        fElogEnabled = false;
+        return;
+    }
+
+    if (fElogToken.IsNull()) {
+        lk_warning << "LKRun/ElogEnable is true, but ELOG_TOKEN is not set and meta/elog_config.json was not found. Disable elog hook." << endl;
+        fElogEnabled = false;
+    }
+    else {
+        lk_info << "lilak_elog push hook enabled" << endl;
+    }
+}
+
+bool LKRun::LoadElogConfigFile(TString fileName)
+{
+    if (!LKRun::CheckFileExistence(fileName))
+        return false;
+
+    ifstream file(fileName.Data());
+    if (!file.good())
+        return false;
+
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    TString text = buffer.str();
+
+    if (fElogURL.IsNull())
+        fElogURL = ExtractElogJsonString(text, "elog_url");
+    if (fElogToken.IsNull())
+        fElogToken = ExtractElogJsonString(text, "elog_token");
+
+    return (!fElogURL.IsNull() && !fElogToken.IsNull());
+}
+
+TString LKRun::ExtractElogJsonString(TString text, TString key) const
+{
+    TString pattern = "\"" + key + "\"";
+    int keyIndex = text.Index(pattern);
+    if (keyIndex < 0)
+        return "";
+
+    int colonIndex = text.Index(":", keyIndex + pattern.Length());
+    if (colonIndex < 0)
+        return "";
+
+    int quoteIndex = text.Index("\"", colonIndex + 1);
+    if (quoteIndex < 0)
+        return "";
+
+    TString value;
+    bool escaped = false;
+    for (int i = quoteIndex + 1; i < text.Length(); ++i) {
+        char ch = text[i];
+        if (escaped) {
+            if      (ch == 'n') value += '\n';
+            else if (ch == 'r') value += '\r';
+            else if (ch == 't') value += '\t';
+            else                value += ch;
+            escaped = false;
+        }
+        else if (ch == '\\')
+            escaped = true;
+        else if (ch == '"')
+            break;
+        else
+            value += ch;
+    }
+
+    return value;
+}
+
+TString LKRun::EscapeElogJson(TString value) const
+{
+    TString escaped;
+    for (int i = 0; i < value.Length(); ++i) {
+        unsigned char ch = value[i];
+        if      (ch == '"')  escaped += "\\\"";
+        else if (ch == '\\') escaped += "\\\\";
+        else if (ch == '\b') escaped += "\\b";
+        else if (ch == '\f') escaped += "\\f";
+        else if (ch == '\n') escaped += "\\n";
+        else if (ch == '\r') escaped += "\\r";
+        else if (ch == '\t') escaped += "\\t";
+        else if (ch < 0x20)  escaped += Form("\\u%04x", ch);
+        else                 escaped += char(ch);
+    }
+    return escaped;
+}
+
+bool LKRun::SendElogRunHook(TString runType)
+{
+    if (!fElogEnabled)
+        return false;
+
+    bool isInit = (runType == "I");
+    Int_t logType = isInit ? 11 : 13;
+
+    TString action = isInit ? "initialized" : "ended";
+    TString title = Form("Run %d %s", fRunID, action.Data());
+    TString body = Form("LILAK run `%s` %s.\n\nOutput file: `%s`",
+            MakeFullRunName().Data(), action.Data(), fOutputFileName.Data());
+
+    if (!isInit && fRunHeader != nullptr && fRunHeader -> CheckPar("run_time")) {
+        body += Form("\nRun time: %s", fRunHeader -> GetParRaw("run_time").Data());
+    }
+    if (!isInit) {
+        auto numRunEntries = fEndEventID - fStartEventID + 1;
+        body += Form("\nNumber of entries: %lld", numRunEntries);
+    }
+
+    TString payload;
+    payload += "{";
+    payload += Form("\"title\":\"%s\",", EscapeElogJson(title).Data());
+    payload += Form("\"body\":\"%s\",", EscapeElogJson(body).Data());
+    payload += Form("\"log_type\":%d,", logType);
+    payload += Form("\"run_number\":%d,", fRunID);
+    payload += "\"is_auto\":true,";
+    payload += "\"format_fields\":{}";
+    payload += "}";
+
+    lk_info << "Pushing lilak_elog run log_type=" << logType << " for run " << fRunID << endl;
+    return PostElogLog(payload);
+}
+
+bool LKRun::PostElogLog(TString payload)
+{
+    TString url = fElogURL;
+    while (url.EndsWith("/"))
+        url = url(0, url.Length() - 1);
+    if (!url.EndsWith("/api/logs"))
+        url += "/api/logs";
+
+    if (!url.BeginsWith("http://")) {
+        lk_warning << "Only http:// lilak_elog URLs are supported: " << url << endl;
+        return false;
+    }
+
+    TString rest = url(7, url.Length() - 7);
+    TString hostPort = rest;
+    TString path = "/";
+    int slash = rest.Index("/");
+    if (slash >= 0) {
+        hostPort = rest(0, slash);
+        path = rest(slash, rest.Length() - slash);
+    }
+
+    TString host = hostPort;
+    TString port = "80";
+    int colon = hostPort.Last(':');
+    if (colon > 0) {
+        host = hostPort(0, colon);
+        port = hostPort(colon + 1, hostPort.Length() - colon - 1);
+    }
+
+    struct addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+
+    struct addrinfo *result = nullptr;
+    int gai = getaddrinfo(host.Data(), port.Data(), &hints, &result);
+    if (gai != 0) {
+        lk_warning << "Failed to resolve lilak_elog host " << host << ": " << gai_strerror(gai) << endl;
+        return false;
+    }
+
+    int sock = -1;
+    for (auto rp = result; rp != nullptr; rp = rp->ai_next) {
+        sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+        if (sock < 0)
+            continue;
+
+        int flags = fcntl(sock, F_GETFL, 0);
+        fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+
+        int connected = connect(sock, rp->ai_addr, rp->ai_addrlen);
+        if (connected < 0 && errno == EINPROGRESS) {
+            fd_set wfds;
+            FD_ZERO(&wfds);
+            FD_SET(sock, &wfds);
+            struct timeval tv;
+            tv.tv_sec = fElogTimeout;
+            tv.tv_usec = 0;
+            connected = select(sock + 1, nullptr, &wfds, nullptr, &tv);
+            if (connected > 0) {
+                int error = 0;
+                socklen_t len = sizeof(error);
+                getsockopt(sock, SOL_SOCKET, SO_ERROR, &error, &len);
+                if (error != 0) {
+                    errno = error;
+                    connected = -1;
+                }
+                else {
+                    connected = 0;
+                }
+            }
+            else {
+                connected = -1;
+            }
+        }
+
+        fcntl(sock, F_SETFL, flags);
+        if (connected == 0)
+            break;
+
+        close(sock);
+        sock = -1;
+    }
+    freeaddrinfo(result);
+
+    if (sock < 0) {
+        lk_warning << "Failed to connect to lilak_elog at " << fElogURL << endl;
+        return false;
+    }
+
+    struct timeval tv;
+    tv.tv_sec = fElogTimeout;
+    tv.tv_usec = 0;
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+
+    TString request;
+    request += Form("POST %s HTTP/1.1\r\n", path.Data());
+    request += Form("Host: %s\r\n", hostPort.Data());
+    request += Form("Authorization: Bearer %s\r\n", fElogToken.Data());
+    request += "Content-Type: application/json\r\n";
+    request += Form("Content-Length: %d\r\n", payload.Length());
+    request += "Connection: close\r\n\r\n";
+    request += payload;
+
+    const char *data = request.Data();
+    int remaining = request.Length();
+    while (remaining > 0) {
+        ssize_t sent = send(sock, data, remaining, 0);
+        if (sent <= 0) {
+            lk_warning << "Failed to send lilak_elog payload" << endl;
+            close(sock);
+            return false;
+        }
+        data += sent;
+        remaining -= sent;
+    }
+
+    TString response;
+    char buffer[1024];
+    ssize_t received = 0;
+    while ((received = recv(sock, buffer, sizeof(buffer) - 1, 0)) > 0) {
+        buffer[received] = 0;
+        response += buffer;
+    }
+    close(sock);
+
+    TString status = response;
+    int lineEnd = status.Index("\r\n");
+    if (lineEnd >= 0)
+        status = status(0, lineEnd);
+
+    TString body = "";
+    int bodyIndex = response.Index("\r\n\r\n");
+    if (bodyIndex >= 0)
+        body = response(bodyIndex + 4, response.Length() - bodyIndex - 4);
+
+    if (!response.BeginsWith("HTTP/1.1 2") && !response.BeginsWith("HTTP/1.0 2")) {
+        lk_warning << "lilak_elog push failed: " << status << endl;
+        if (!body.IsNull())
+            lk_warning << "lilak_elog response: " << body << endl;
+        return false;
+    }
+
+    lk_info << "Pushed run log to lilak_elog: " << status << endl;
+    if (!body.IsNull())
+        lk_info << "lilak_elog response: " << body << endl;
+    return true;
 }
 
 /*
@@ -1652,6 +1995,7 @@ bool LKRun::ExecuteEvent(Long64_t eventID)
     }
     else if (eventID==-3) {
         fCurrentEventID = fCurrentEventID + 1;
+        fEndEventID = fCurrentEventID;
         if (fNumEntries<0)
             numEntriesMatter = false;
     }
@@ -1872,6 +2216,7 @@ bool LKRun::EndOfRun()
     fCleanExit = true;
 
     ProcessWriteExitLog();
+    SendElogRunHook("E");
 
     if (fDrawAfterRun) {
         SetAutoTermination(false);

@@ -15,6 +15,10 @@ LKRun/InputFile               to/input/file  # input file. Cannot be used with L
 LKRun/EventCountForMessage    20000
 #LKRun/UpdateOutputFile        0  # update root file with option update
 #LKRun/FileName                  # file name will be fixed to this name if it is not null string
+#LKRun/ElogEnable              0  # enable lilak_elog push from LKRun::Init() and LKRun::EndOfRun()
+#LKRun/ElogURL                   # lilak_elog origin URL fallback if ELOG_URL env and meta/elog_config.json are not set
+#LKRun/ElogToken                 # lilak_elog API token fallback if ELOG_TOKEN env and meta/elog_config.json are not set
+#LKRun/ElogTimeout             5  # HTTP connection/read timeout in seconds for lilak_elog push
 
 #lilak/add                     LKTask  # add task or detector class
 #lilak/print                   all  # print after init gen:par:out:in:det:task
