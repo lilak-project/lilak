@@ -179,6 +179,7 @@ Int_t LKDrawingGroup::Write(const char *name, Int_t option, Int_t bsize) const
     bool write_only_fit = LKMisc::CheckOption(name0,"FITPARAMETERS");
     int countDrawings = LKMisc::FindOptionInt(name0,"draw_count",0);
     int countDrawingsLocal = 0;
+    bool hasWriteTraversalOption = flat || write_only_fit || name0.Contains("draw_count");
 
     if (flat) // flat
     {
@@ -203,6 +204,15 @@ Int_t LKDrawingGroup::Write(const char *name, Int_t option, Int_t bsize) const
                 countDrawingsLocal += numDrawings;
             }
         }
+    }
+    else if (!hasWriteTraversalOption && (option&TObject::kSingleKey))
+    {
+        TString name1 = name0;
+        if (name1.IsNull()) name1 = fName;
+        if (name1.IsNull()) name1 = "group";
+        TCollection::Write(name1, option, bsize);
+        if (fPar!=nullptr) fPar -> Write();
+        countDrawingsLocal = GetNumAllDrawings();
     }
     else if (GetGroupDepth()>=3 || GetNumAllDrawingObjects()>1280)
     {
@@ -957,7 +967,7 @@ void LKDrawingGroup::AddDrawing(TObjArray* array)
 void LKDrawingGroup::AddGraph(TGraph* graph, TString drawOption, TString title)
 {
     if (CheckIsDrawingGroup(true)) {
-        auto drawing = new LKDrawing();
+        auto drawing = new LKDrawing(TString("graph_")+graph->GetName());
         drawing -> Add(graph,drawOption,title);
         Add(drawing);
     }
@@ -966,7 +976,7 @@ void LKDrawingGroup::AddGraph(TGraph* graph, TString drawOption, TString title)
 void LKDrawingGroup::AddHist(TH1 *hist, TString drawOption, TString title)
 {
     if (CheckIsDrawingGroup(true)) {
-        auto drawing = new LKDrawing();
+        auto drawing = new LKDrawing(TString("draw_")+hist->GetName());
         drawing -> Add(hist,drawOption,title);
         Add(drawing);
     }

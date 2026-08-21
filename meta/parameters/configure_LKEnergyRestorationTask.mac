@@ -1,0 +1,11 @@
+
+LKEnergyRestorationTask/applyToPairChannel
+LKEnergyRestorationTask/buildSiHit
+LKEnergyRestorationTask/c2ReferenceEnergy
+LKEnergyRestorationTask/energyCalibrationFile
+
+persistency/SiHit             true
+
+si_array/EnergyCalibrationFile
+
+stark/EnergyCalibrationFile
