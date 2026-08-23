@@ -3,6 +3,7 @@ using namespace std;
 #include "LKPainter.h"
 #include "LKEvePlane.h"
 #include "GETChannel.h"
+#include "LKPad.h"
 #include "TStyle.h"
 #include "TSystem.h"
 #include "TApplication.h"
@@ -31,12 +32,12 @@ LKEvePlane::LKEvePlane(const char *name, const char *title)
 
 LKChannelAnalyzer* LKEvePlane::GetChannelAnalyzer(int id)
 {
-    fPar -> Require(fName+"/EveThreshold",300, "# threshold for default peak finding method", "t/");
+    fPar -> Require(fName+"/EveThreshold",300, "# (ADC above pedestal) threshold used for waveform peak finding and shaped side/top view filling", "t/");
     if (fChannelAnalyzer==nullptr)
     {
         fChannelAnalyzer = new LKChannelAnalyzer();
         double threshold = 300;
-        fPar -> UpdatePar(threshold,fName+"/EveThreshold  300  # threshold for default peak finding method");
+        fPar -> UpdatePar(threshold,fName+"/EveThreshold  300  # (ADC above pedestal) threshold used for waveform peak finding and shaped side/top view filling.");
         fChannelAnalyzer -> SetThreshold(threshold);
         //fChannelAnalyzer -> Print();
     }
@@ -59,13 +60,13 @@ bool LKEvePlane::Init()
     GetChannelAnalyzer();
 
     fPar -> Require(fName+"/FigurePath",".","path to save figues","t/");
-    fPar -> Require(fName+"/fillOption","hit","fill option to fill detector histogram","t/");
+    fPar -> Require(fName+"/fillOption","hit","fill option: hit uses Hit branch; preview marks pads with data; raw sums RawData waveform; shaped/out sums LKPad BufferShaped; caac/cobo/asad/aget/chan/section/layer/row/padid/nhits show pad metadata","t/");
     fPar -> Require(fName+"/skipToEnergy","500","energy to reference when, button(skip to event containing channel with pulse height>energy) is clicked","t/");
     fPar -> Require(fName+"/jumpEventSize","2000","jump event value amount when jump event button is clicked","t/");
     fPar -> Require(fName+"/EventCountForMessage","2000","event count for message at event accumulation","t/");
 
     fPar -> UpdatePar(fSavePath,fName+"/FigurePath .");
-    fPar -> UpdatePar(fFillOptionSelected, fName+"/fillOption hit");
+    fPar -> UpdatePar(fFillOptionSelected, fName+"/fillOption hit # Options: hit, preview, raw, shaped, out, caac, cobo, asad, aget, chan, section, layer, row, padid, nhits.");
     fPar -> UpdatePar(fSkipToEnergy , fName+"/skipToEnergy  500");
     fPar -> UpdatePar(fJumpEventSize, fName+"/jumpEventSize 2000");
     fPar -> UpdatePar(fECMForAccumulation, fName+"/EventCountForMessage 2000");
@@ -241,6 +242,11 @@ void LKEvePlane::UpdateChannelBuffer()
     if (fRawDataArray!=nullptr&&fSelRawDataID>=0)
     {
         auto channel = (GETChannel*) fRawDataArray -> At(fSelRawDataID);
+        TString selectedFillOption = fFillOptionSelected;
+        selectedFillOption.ToLower();
+        const auto useShapedBuffer =
+            (selectedFillOption.Index("shaped")==0 || selectedFillOption.Index("out")==0) &&
+            channel -> InheritsFrom(LKPad::Class());
         //channel -> Print();
         //channel -> GetBuffer().Print();
 
@@ -252,7 +258,14 @@ void LKEvePlane::UpdateChannelBuffer()
             fHistChannelBuffer -> Draw();
 
             auto graph = (TGraph*) fChannelGraphArray -> ConstructedAt(fCountChannelGraph);
-            channel -> FillGraph(graph);
+            if (useShapedBuffer) {
+                graph -> Set(0);
+                auto buffer = ((LKPad*) channel) -> GetArrayShaped();
+                for (auto tb=0; tb<512; ++tb)
+                    graph -> SetPoint(tb,tb,buffer[tb]);
+            }
+            else
+                channel -> FillGraph(graph);
             fCountChannelGraph++;
             //fHistControlEvent2 -> SetBinContent(fBinCtrlAcmltCh, fCountChannelGraph);
 
@@ -293,7 +306,14 @@ void LKEvePlane::UpdateChannelBuffer()
             {
                 auto channel = (GETChannel*) fRawDataArray -> At(iRawData);
                 auto graph = (TGraph*) fChannelGraphArray -> ConstructedAt(fCountChannelGraph);
-                channel -> FillGraph(graph);
+                if (useShapedBuffer && channel -> InheritsFrom(LKPad::Class())) {
+                    graph -> Set(0);
+                    auto buffer = ((LKPad*) channel) -> GetArrayShaped();
+                    for (auto tb=0; tb<512; ++tb)
+                        graph -> SetPoint(tb,tb,buffer[tb]);
+                }
+                else
+                    channel -> FillGraph(graph);
                 fCountChannelGraph++;
 
                 graph -> Draw("plc samel");
@@ -320,7 +340,10 @@ void LKEvePlane::UpdateChannelBuffer()
         }
         else
         {
-            channel -> FillHist(fHistChannelBuffer);
+            if (useShapedBuffer)
+                ((LKPad*) channel) -> SetHist(fHistChannelBuffer, "out");
+            else
+                channel -> FillHist(fHistChannelBuffer);
             if      (fEnergyMax==0) fHistChannelBuffer -> SetMaximum(-1111);
             else if (fEnergyMax==1) fHistChannelBuffer -> SetMaximum(4200);
 
@@ -343,7 +366,8 @@ void LKEvePlane::UpdateChannelBuffer()
 
             if (fFitChannel)
             {
-                fChannelAnalyzer -> Analyze(channel->GetWaveformY());
+                auto buffer = (useShapedBuffer ? ((LKPad*) channel) -> GetArrayShaped() : channel -> GetWaveformY());
+                fChannelAnalyzer -> Analyze(buffer);
                 auto numHits = fChannelAnalyzer -> GetNumHits();
                 fPadChannelBuffer -> cd();
                 auto graphPedestal = fChannelAnalyzer -> GetPedestalGraph();
@@ -363,6 +387,9 @@ void LKEvePlane::UpdateChannelBuffer()
                 //fHistControlEvent2 -> SetBinContent(fBinCtrlFitChan, 1);
                 //fFitChannel = false;
             }
+
+            if (useShapedBuffer && channel -> InheritsFrom(LKPad::Class()))
+                ((LKPad*) channel) -> DrawHits();
         }
     }
     else {
@@ -463,11 +490,11 @@ TCanvas *LKEvePlane::GetCanvas(Option_t *option)
         fPadChannelBuffer -> SetMargin(0.12,0.05,0.20,0.10);
         fPadChannelBuffer -> SetNumber(3);
         fPadChannelBuffer -> Draw();
-        fPadControlEvent1 = new TPad("LKEvePlanePad_control","",0.5,y1,1,y2);
+        fPadControlEvent1 = new TPad("LKEvePlanePad_control1","",0.5,y1,1,y2);
         fPadControlEvent1 -> SetMargin(0.02,0.02,0.30,0.02);
         fPadControlEvent1 -> SetNumber(4);
         fPadControlEvent1 -> Draw();
-        fPadControlEvent2 = new TPad("LKEvePlanePad_control","",0.5,y3,1,y4);
+        fPadControlEvent2 = new TPad("LKEvePlanePad_control2","",0.5,y3,1,y4);
         fPadControlEvent2 -> SetMargin(0.02,0.02,0.30,0.02);
         fPadControlEvent2 -> SetNumber(5);
         fPadControlEvent2 -> Draw();
@@ -489,7 +516,7 @@ TH2* LKEvePlane::GetHistEventDisplay1(Option_t *option)
 {
     if (fHistEventDisplay1==nullptr)
     {
-        fHistEventDisplay1 = new TH2D("LKEvePlane_EventDisplay1",";z;x",100,0,100,100,0,100);
+        fHistEventDisplay1 = new TH2D(Form("%s_EventDisplay1_%p", fName.Data(), this),";z;x",100,0,100,100,0,100);
         fHistEventDisplay1 -> GetYaxis() -> SetNdivisions(512);
         fHistEventDisplay1 -> GetXaxis() -> SetNdivisions(512);
         fHistEventDisplay1 -> SetStats(0);
@@ -503,7 +530,7 @@ TH2* LKEvePlane::GetHistEventDisplay2(Option_t *option)
 {
     if (fHistEventDisplay2==nullptr)
     {
-        fHistEventDisplay2 = new TH2D("LKEvePlane_EventDisplay1",";z;x",100,0,100,100,0,100);
+        fHistEventDisplay2 = new TH2D(Form("%s_EventDisplay2_%p", fName.Data(), this),";z;x",100,0,100,100,0,100);
         fHistEventDisplay2 -> GetYaxis() -> SetNdivisions(512);
         fHistEventDisplay2 -> GetXaxis() -> SetNdivisions(512);
         fHistEventDisplay2 -> SetStats(0);
@@ -596,10 +623,10 @@ TH2D* LKEvePlane::GetHistControlEvent2()
 TH2* LKEvePlane::GetHist(Option_t *option)
 {
     GetHistEventDisplay1();
-    //GetHistEventDisplay2();
-    //GetHistChannelBuffer();
-    //GetHistControlEvent1();
-    //GetHistControlEvent2();
+    GetHistEventDisplay2();
+    GetHistChannelBuffer();
+    GetHistControlEvent1();
+    GetHistControlEvent2();
     return (TH2*) fHistEventDisplay1;
 }
 
@@ -620,9 +647,11 @@ bool LKEvePlane::SetDataFromBranch()
 {
     if (!fBranchIsSet && fRun!=nullptr)
     {
-        fRawDataArray = fRun -> GetBranchA("RawData");
-        fHitArray = fRun -> GetBranchA("Hit");
-        fTrackArray = fRun -> GetBranchA("Track");
+        fRawDataArray = fRun -> GetBranchA("RawData", false);
+        if (fRawDataArray==nullptr)
+            fRawDataArray = fRun -> GetBranchA("PadData", false);
+        fHitArray = fRun -> GetBranchA("Hit", false);
+        fTrackArray = fRun -> GetBranchA("Track", false);
         fBranchIsSet = true;
     }
 
@@ -647,6 +676,8 @@ bool LKEvePlane::SetDataFromBranch()
         auto aget = channel -> GetAget();
         auto chan = channel -> GetChan();
         auto pad = FindPad(cobo,asad,aget,chan);
+        if (pad == nullptr && channel -> GetPadID() >= 0)
+            pad = GetPadFast(channel -> GetPadID());
         if (pad==nullptr)
         {
             if (chan!=11&&chan!=22&&chan!=45&&chan!=56)
@@ -660,6 +691,8 @@ bool LKEvePlane::SetDataFromBranch()
 
         if (channel->GetEnergy()>selEnergy) {
             auto padID = FindPadID(cobo, asad, aget, chan);
+            if (padID < 0)
+                padID = channel -> GetPadID();
             fSelPadID = padID;
             fSelRawDataID = iRawData;
             selEnergy = channel->GetEnergy();
@@ -821,7 +854,8 @@ void LKEvePlane::FillDataToHistEventDisplay1(Option_t *option)
         if (fRawDataArray!=nullptr)
         {
             title = "Preview Data";
-            TIter nextRawData(fRawDataArray);
+            fEnergyMax = 0;
+            TIter nextRawData(fChannelArray);
             while ((pad = (LKPad*) nextRawData()))
             {
                 auto idx = pad -> GetDataIndex();
@@ -838,11 +872,13 @@ void LKEvePlane::FillDataToHistEventDisplay1(Option_t *option)
         else
             lk_error << "Raw-data array is null" << endl;
     }
-    else if (optionString.Index("raw")==0)
+    else if (optionString.Index("raw")==0 || optionString.Index("shaped")==0 || optionString.Index("out")==0)
     {
         if (fRawDataArray!=nullptr)
         {
-            title = "Raw Data";
+            const auto useShaped = (optionString.Index("shaped")==0 || optionString.Index("out")==0);
+            title = (useShaped ? "Shaped Data" : "Raw Data");
+            fEnergyMax = 0;
             TIter nextRawData(fChannelArray);
             while ((pad = (LKPad*) nextRawData()))
             {
@@ -853,8 +889,23 @@ void LKEvePlane::FillDataToHistEventDisplay1(Option_t *option)
                 auto i = pad -> GetI();
                 auto j = pad -> GetJ();
                 auto buffer = channel -> GetWaveformY();
+                if (useShaped && channel -> InheritsFrom(LKPad::Class()))
+                    buffer = ((LKPad*) channel) -> GetArrayShaped();
+
                 double energy = 0.;
-                for (auto tb=0; tb<512; ++tb) energy += buffer[tb];
+                if (useShaped) {
+                    fChannelAnalyzer -> Analyze(buffer);
+                    auto pedestal = fChannelAnalyzer -> GetPedestal();
+                    auto threshold = fChannelAnalyzer -> GetThreshold();
+                    for (auto tb=0; tb<512; ++tb) {
+                        auto value = buffer[tb] - pedestal;
+                        if (value>threshold)
+                            energy += value;
+                    }
+                }
+                else {
+                    for (auto tb=0; tb<512; ++tb) energy += buffer[tb];
+                }
                 fHistEventDisplay1 -> Fill(i,j,energy);
             }
         }

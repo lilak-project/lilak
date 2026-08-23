@@ -3,7 +3,10 @@ using namespace std;
 
 #include "LKMicromegas.h"
 #include "GETChannel.h"
+#include "LKPad.h"
 #include "TStyle.h"
+
+#include <cmath>
 
 ClassImp(LKMicromegas)
 
@@ -36,13 +39,35 @@ bool LKMicromegas::Init()
 
     fPar -> UpdatePar(fDZPad,fName+"/padsize_z  4");
     fPar -> UpdatePar(fDXPad,fName+"/padsize_x  4");
-    fPar -> UpdateBinning(fDetName+"/binning_x  64,  -128, -128  # binning, range throuh x-axis", fNX, fX1, fX2);
+    fPar -> UpdateBinning(fDetName+"/binning_x  64,  -128, 128  # binning, range throuh x-axis", fNX, fX1, fX2);
     fPar -> UpdateBinning(fDetName+"/binning_y  512, 0,    -512  # binning, range throuh y-axis", fNY, fY2, fY1);
     fPar -> UpdateBinning(fDetName+"/binning_z  72,  0,     288  # binning, range throuh z-axis", fNZ, fZ1, fZ2);
 
+    if (fNX <= 0 || fX1 == fX2 || std::abs(fX2 - fX1) < 0.5*fNX*fDXPad) {
+        lk_warning << fDetName << "/binning_x is invalid. Using default 64, -128, 128." << endl;
+        fNX = 64;
+        fX1 = -128;
+        fX2 = 128;
+    }
+    if (fNY <= 0 || fY1 == fY2) {
+        lk_warning << fDetName << "/binning_y is invalid. Using default 512, -512, 0." << endl;
+        fNY = 512;
+        fY1 = -512;
+        fY2 = 0;
+    }
+    if (fNZ <= 0 || fZ1 == fZ2 || std::abs(fZ2 - fZ1) < 0.5*fNZ*fDZPad) {
+        lk_warning << fDetName << "/binning_z is invalid. Using default 72, 0, 288." << endl;
+        fNZ = 72;
+        fZ1 = 0;
+        fZ2 = 288;
+    }
+    lk_info << "binning x=(" << fNX << ", " << fX1 << ", " << fX2 << "), "
+            << "y=(" << fNY << ", " << fY1 << ", " << fY2 << "), "
+            << "z=(" << fNZ << ", " << fZ1 << ", " << fZ2 << ")" << endl;
+
     fPar -> UpdatePar(fMappingFileName,fDetName+"/Mapping {lilak_common}/micromegas_mapping_caac_zx.txt # cobo asad aget chan iz ix");
     fPar -> UpdatePar(fUsePixelSpace,fDetName+"/UsePixelSpace false");
-    fPar -> UpdatePar(fThreshold,fDetName+"/EveThreshold 300");
+    fPar -> UpdatePar(fThreshold,fDetName+"/EveThreshold 300 # (ADC above pedestal) threshold applied to shaped/raw waveform bins in side view and shaped top-view integral.");
 
     fPar -> UpdatePar(fNumCobo,fDetName+"/MaxCobo 6   # maximum number of cobos");
 
@@ -154,14 +179,41 @@ TVector3 LKMicromegas::GetPositionError(int padID)
 
 TH2* LKMicromegas::GetHistEventDisplay1(Option_t *option)
 {
-    if (fHistEventDisplay1==nullptr)
+    auto recreateHist = (fHistEventDisplay1 == nullptr);
+    if (!recreateHist) {
+        auto xAxis = fHistEventDisplay1 -> GetXaxis();
+        auto yAxis = fHistEventDisplay1 -> GetYaxis();
+        if (fUsePixelSpace)
+            recreateHist = (xAxis->GetNbins() != fNZ || yAxis->GetNbins() != fNX ||
+                            xAxis->GetXmin() != 0 || xAxis->GetXmax() != fNZ ||
+                            yAxis->GetXmin() != 0 || yAxis->GetXmax() != fNX);
+        else
+            recreateHist = (xAxis->GetNbins() != fNZ || yAxis->GetNbins() != fNX ||
+                            xAxis->GetXmin() != fZ1 || xAxis->GetXmax() != fZ2 ||
+                            yAxis->GetXmin() != fX1 || yAxis->GetXmax() != fX2);
+    }
+
+    if (recreateHist)
     {
+        if (fHistEventDisplay1 != nullptr) {
+            lk_warning << "Recreating top hist with ATMicromegas z/x binning." << endl;
+            delete fHistEventDisplay1;
+            fHistEventDisplay1 = nullptr;
+        }
+        if (fMapBin1ToPadID != nullptr) {
+            delete[] fMapBin1ToPadID;
+            fMapBin1ToPadID = nullptr;
+        }
+        auto histName = Form("%s_Top_%p", fName.Data(), this);
         if (fUsePixelSpace) {
-            fHistEventDisplay1 = new TH2D("LKMicromegas_Top",fName+" Micromeagas;z;x",fNZ,0,fNZ,fNX,0,fNX);
+            fHistEventDisplay1 = new TH2D(histName,fName+" Micromeagas;z;x",fNZ,0,fNZ,fNX,0,fNX);
         }
         else {
-            fHistEventDisplay1 = new TH2D("LKMicromegas_Top",fName+" Micromeagas;z;x",fNZ,fZ1,fZ2,fNX,fX1,fX2);
+            fHistEventDisplay1 = new TH2D(histName,fName+" Micromeagas;z;x",fNZ,fZ1,fZ2,fNX,fX1,fX2);
         }
+        lk_info << "top hist z-axis = (" << fHistEventDisplay1 -> GetXaxis() -> GetNbins()
+                << ", " << fHistEventDisplay1 -> GetXaxis() -> GetXmin()
+                << ", " << fHistEventDisplay1 -> GetXaxis() -> GetXmax() << ")" << endl;
         fHistEventDisplay1 -> GetYaxis() -> SetNdivisions(512);
         fHistEventDisplay1 -> GetXaxis() -> SetNdivisions(512);
         fHistEventDisplay1 -> SetStats(0);
@@ -187,12 +239,26 @@ TH2* LKMicromegas::GetHistEventDisplay1(Option_t *option)
 
 TH2* LKMicromegas::GetHistEventDisplay2(Option_t *option)
 {
-    if (fHistEventDisplay2==nullptr)
+    auto recreateHist = (fHistEventDisplay2 == nullptr);
+    if (!recreateHist) {
+        auto xAxis = fHistEventDisplay2 -> GetXaxis();
+        if (fUsePixelSpace)
+            recreateHist = (xAxis->GetNbins() != fNZ || xAxis->GetXmin() != 0 || xAxis->GetXmax() != fNZ);
+        else
+            recreateHist = (xAxis->GetNbins() != fNZ || xAxis->GetXmin() != fZ1 || xAxis->GetXmax() != fZ2);
+    }
+
+    if (recreateHist)
     {
+        if (fHistEventDisplay2 != nullptr) {
+            lk_warning << "Recreating side hist with ATMicromegas z/y binning." << endl;
+            delete fHistEventDisplay2;
+            fHistEventDisplay2 = nullptr;
+        }
         fNY = 128;
         if (fUsePixelSpace) {
             //fHistEventDisplay2 = new TH2D(fName+"_Side",fName+" Side;z;512-tb",fNZ,0,fNZ,fNY,0,fNY);
-            fHistEventDisplay2 = new TH2D(fName+"_Side",fName+" Side;z;512-tb",fNZ,0,fNZ,fNY,0,512);
+            fHistEventDisplay2 = new TH2D(Form("%s_Side_%p", fName.Data(), this),fName+" Side;z;512-tb",fNZ,0,fNZ,fNY,0,512);
             //fHistEventDisplay2 = new TH2D(fName+"_Side",fName+" Side;z;tb",fNZ,0,fNZ,fNY,0,512);
         }
         else {
@@ -202,8 +268,11 @@ TH2* LKMicromegas::GetHistEventDisplay2(Option_t *option)
             DriftElectronBack(0, 0  , pos2, d2);
             double y1 = pos1.Y();
             double y2 = pos2.Y();
-            fHistEventDisplay2 = new TH2D(fName+"_Side",fName+" Side;z;y",fNZ,fZ1,fZ2,fNY,y1,y2);
+            fHistEventDisplay2 = new TH2D(Form("%s_Side_%p", fName.Data(), this),fName+" Side;z;y",fNZ,fZ1,fZ2,fNY,y1,y2);
         }
+        lk_info << "side hist z-axis = (" << fHistEventDisplay2 -> GetXaxis() -> GetNbins()
+                << ", " << fHistEventDisplay2 -> GetXaxis() -> GetXmin()
+                << ", " << fHistEventDisplay2 -> GetXaxis() -> GetXmax() << ")" << endl;
         fHistEventDisplay2 -> GetYaxis() -> SetNdivisions(512);
         fHistEventDisplay2 -> GetXaxis() -> SetNdivisions(512);
         fHistEventDisplay2 -> SetStats(0);
@@ -341,7 +410,8 @@ void LKMicromegas::FillDataToHistEventDisplay2(Option_t *option)
     }
     else if (fRawDataArray!=nullptr)
     {
-        title = "Raw Data";
+        const auto useShaped = (optionString.Index("shaped")==0 || optionString.Index("out")==0);
+        title = (useShaped ? "Shaped Data" : "Raw Data");
         TIter nextPad(fChannelArray);
         LKPad *pad = nullptr;
         while ((pad = (LKPad*) nextPad()))
@@ -354,6 +424,8 @@ void LKMicromegas::FillDataToHistEventDisplay2(Option_t *option)
 
             auto channel = (GETChannel*) fRawDataArray -> At(idx);
             auto buffer = channel -> GetWaveformY();
+            if (useShaped && channel -> InheritsFrom(LKPad::Class()))
+                buffer = ((LKPad*) channel) -> GetArrayShaped();
             auto pedestal = channel -> GetPedestal();
             auto energy = channel -> GetEnergy();
             auto time = channel -> GetTime();
@@ -411,6 +483,10 @@ void LKMicromegas::UpdateChannelBuffer()
     if (fHistChannelBuffer==nullptr) 
         return;
 
+    TString selectedFillOption = fFillOptionSelected;
+    selectedFillOption.ToLower();
+    const auto useShapedBuffer = (selectedFillOption.Index("shaped")==0 || selectedFillOption.Index("out")==0);
+
     if (fSelIZ>=0)
     {
         if (fUsePixelSpace)
@@ -451,7 +527,14 @@ void LKMicromegas::UpdateChannelBuffer()
             auto channel = (GETChannel*) fRawDataArray -> At(idx);
             auto graph = (TGraph*) fChannelGraphArray -> ConstructedAt(fCountChannelGraph);
             fCountChannelGraph++;
-            channel -> FillGraph(graph);
+            if (useShapedBuffer && channel -> InheritsFrom(LKPad::Class())) {
+                graph -> Set(0);
+                auto buffer = ((LKPad*) channel) -> GetArrayShaped();
+                for (auto tb=0; tb<512; ++tb)
+                    graph -> SetPoint(tb,tb,buffer[tb]);
+            }
+            else
+                channel -> FillGraph(graph);
             graph -> Draw("plc samel");
             double x0, y0;
             auto n = graph -> GetN();

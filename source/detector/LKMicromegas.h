@@ -58,9 +58,9 @@ class LKMicromegas : public LKEvePlane
         int fNumAget = 4;
         int fNumChan = 68;
 
-        int ****fMapCAACToPadID; ///< [cobo][asad][aget][chan] to pad-id mapping
-        int *fMapBin1ToPadID; ///< histogram bin to pad-id mapping
-        int *fMapBin2ToIZ; ///< histogram bin to pad-id mapping
+        int ****fMapCAACToPadID = nullptr; ///< [cobo][asad][aget][chan] to pad-id mapping
+        int *fMapBin1ToPadID = nullptr; ///< histogram bin to pad-id mapping
+        int *fMapBin2ToIZ = nullptr; ///< histogram bin to pad-id mapping
 
         int fCurrentView = 1;
         double fThreshold = 300;
