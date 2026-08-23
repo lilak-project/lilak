@@ -41,6 +41,17 @@ class LKPad : public GETChannel
         LKBufferI GetBufferShaped() { return fBufferShaped; }
 
         /////////////////////////////////////////////////////////////////////////////////////////////////
+        void AddSimHit(int tb, double charge, int trackID=-1);
+        void ClearSimHits();
+        int GetNumSimHits() const { return fSimHitTbArray.size(); }
+        int GetSimHitTb(int idx) const { return fSimHitTbArray[idx]; }
+        double GetSimHitCharge(int idx) const { return fSimHitChargeArray[idx]; }
+        int GetSimHitTrackID(int idx) const { return fSimHitTrackIDArray[idx]; }
+        const vector<int>& GetSimHitTbArray() const { return fSimHitTbArray; }
+        const vector<double>& GetSimHitChargeArray() const { return fSimHitChargeArray; }
+        const vector<int>& GetSimHitTrackIDArray() const { return fSimHitTrackIDArray; }
+
+        /////////////////////////////////////////////////////////////////////////////////////////////////
         void SetPlaneID(int id) { fPlaneID = id; }
         void SetPosition(LKVector3 pos) { fPosition = pos; }
         void SetPosition(double i, double j) { fPosition.SetI(i); fPosition.SetJ(j); }
@@ -97,6 +108,9 @@ class LKPad : public GETChannel
 
     private:
         LKBufferI fBufferShaped;
+        vector<int> fSimHitTbArray;
+        vector<double> fSimHitChargeArray;
+        vector<int> fSimHitTrackIDArray;
 
         int      fPlaneID = 0;
         int      fSection = -1;
@@ -115,7 +129,7 @@ class LKPad : public GETChannel
         TH1D*   fHist = nullptr; //!
         vector<LKPad *> fNeighborPadArray; //!
 
-    ClassDef(LKPad, 2)
+    ClassDef(LKPad, 3)
 };
 
 #endif

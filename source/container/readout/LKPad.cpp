@@ -16,6 +16,7 @@ void LKPad::Clear(Option_t *option)
     GETChannel::Clear(option);
 
     fBufferShaped.Clear();
+    ClearSimHits();
 
     fPlaneID = 0;
     fSection = -1;
@@ -29,7 +30,7 @@ void LKPad::Clear(Option_t *option)
     fSortValue = -1; //!
     fActive = false; //!
     fGrabed = false; //!
-    vector<LKPad *> fNeighborPadArray; //!
+    fNeighborPadArray.clear();
 }
 
 void LKPad::Print(Option_t *option) const
@@ -42,6 +43,7 @@ void LKPad::Print(Option_t *option) const
     e_info << "- Pos.: " << fPosition.I() << " " << fPosition.J() << endl;
     e_info << "- A/G : " << fActive << " / " << fGrabed << endl;
     e_info << "- #Nb : " << fNeighborPadArray.size() << endl;
+    e_info << "- #SimHit : " << GetNumSimHits() << endl;
 }
 
 void LKPad::Draw(Option_t *option)
@@ -67,7 +69,7 @@ void LKPad::SetHist(TH1D *hist, Option_t *option)
     optionString.ToLower();
 
     TString name = Form("ID%d_CAAC%d_%d_%d_%2d",fChannelID,fCobo,fAsad,fAget,fChan);
-    TString ttle = Form("ID=%d, CAAC=(%d, %d, %d, %2d)",fChannelID,fCobo,fAsad,fAget,fChan);
+    TString ttle = Form("ID=%d, CAAC=(%d, %d, %d, %2d), SimHit=%d",fChannelID,fCobo,fAsad,fAget,fChan,GetNumSimHits());
 
     if      (optionString.Index("out")>=0) { fBufferShaped.FillHist(hist); }
     else if (optionString.Index("in" )>=0) { fBufferRawSig.FillHist(hist); }
@@ -79,19 +81,47 @@ void LKPad::SetHist(TH1D *hist, Option_t *option)
 
 void LKPad::DrawHits()
 {
-    /*
-    int numHits = fHitArray.size();
-    if (numHits==0) {
-        e_warning << "No hit exist in pad." << endl;
-    }
-    else {
-        for (auto hit : fHitArray) {
-            auto pulse = hit -> GetPulseFunction();
-            pulse -> SetNpx(500);
-            pulse -> Draw("samel");
+    auto numHits = GetNumSimHits();
+    if (numHits==0)
+        return;
+
+    auto baseline = (GetPedestal() >= 0 ? GetPedestal() : 0);
+    for (auto iHit=0; iHit<numHits; ++iHit)
+    {
+        auto tb = GetSimHitTb(iHit);
+        auto charge = GetSimHitCharge(iHit);
+        auto y1 = baseline;
+        auto y2 = baseline + charge;
+
+        auto line = new TLine(tb, y1, tb, y2);
+        line -> SetLineColor(kRed+1);
+        line -> SetLineWidth(2);
+        line -> SetLineStyle(2);
+        line -> Draw("same");
+
+        if (charge > 0)
+        {
+            auto text = new TText(tb + 1, y2, Form("%.0f", charge));
+            text -> SetTextColor(kRed+1);
+            text -> SetTextSize(0.025);
+            text -> SetTextAngle(70);
+            text -> Draw("same");
         }
     }
-    */
+}
+
+void LKPad::AddSimHit(int tb, double charge, int trackID)
+{
+    fSimHitTbArray.push_back(tb);
+    fSimHitChargeArray.push_back(charge);
+    fSimHitTrackIDArray.push_back(trackID);
+}
+
+void LKPad::ClearSimHits()
+{
+    fSimHitTbArray.clear();
+    fSimHitChargeArray.clear();
+    fSimHitTrackIDArray.clear();
 }
 
 int LKPad::Compare(const TObject *obj) const
@@ -160,6 +190,9 @@ void LKPad::CopyPadData(LKPad* padRef)
 
     SetBufferRawSig(padRef->GetBufferRawSig());
     SetBufferShaped(padRef->GetBufferShaped());
+    fSimHitTbArray = padRef -> GetSimHitTbArray();
+    fSimHitChargeArray = padRef -> GetSimHitChargeArray();
+    fSimHitTrackIDArray = padRef -> GetSimHitTrackIDArray();
 
     fTime = padRef -> GetTime();
     fEnergy = padRef -> GetEnergy();
