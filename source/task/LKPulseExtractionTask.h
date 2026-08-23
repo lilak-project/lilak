@@ -6,7 +6,7 @@
 #include "LKParameterContainer.h"
 #include "LKRun.h"
 #include "LKTask.h"
-#include "LKPulseAnalyzer.h"
+#include "LKPulseExtractor.h"
 #include "GETChannel.h"
 
 #define fNumTypes 18
@@ -23,12 +23,12 @@ class LKPulseExtractionTask : public LKTask
 
         int GetType(int cobo, int asad, int aget, int chan);
 
-        LKPulseAnalyzer *GetPulseAnalyzer() { return fPulseAnalyzer; }
+        LKPulseExtractor *GetPulseExtractor() { return fPulseExtractor; }
 
     private:
         TClonesArray* fChannelArray = nullptr;
 
-        LKPulseAnalyzer *fPulseAnalyzer = nullptr;
+        LKPulseExtractor *fPulseExtractor = nullptr;
 
         TString fAnalysisName = "PulseExtraction";
         int fThreshold = 500;
@@ -42,6 +42,9 @@ class LKPulseExtractionTask : public LKTask
         int fPulseWidthCut2 = 40;
         int fFixPedestal = -10000;
         bool fChannelIsInverted = false;
+        bool fWritePulseFunctionParametersOnly = false;
+        bool fFixPulseFunctionAlpha = false;
+        bool fFixPulseFunctionTau = false;
 
 
     ClassDef(LKPulseExtractionTask,1);

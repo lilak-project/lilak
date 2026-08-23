@@ -15,6 +15,9 @@ bool LKPulseExtractionTask::Init()
     fPar -> UpdatePar(fThreshold         ,"LKPulseExtractionTask/threshold");
     fPar -> UpdatePar(fFixPedestal       ,"LKPulseExtractionTask/fixPedestal");
     fPar -> UpdatePar(fChannelIsInverted ,"LKPulseExtractionTask/channelIsInverted");
+    fPar -> UpdatePar(fWritePulseFunctionParametersOnly ,"LKPulseExtractionTask/writePulseFunctionParametersOnly false # If true, fit extracted reference pulse with LKPulse function and save only function parameters.");
+    fPar -> UpdatePar(fFixPulseFunctionAlpha ,"LKPulseExtractionTask/fixPulseFunctionAlpha false # Fix LKPulse function alpha when writePulseFunctionParametersOnly is true.");
+    fPar -> UpdatePar(fFixPulseFunctionTau ,"LKPulseExtractionTask/fixPulseFunctionTau false # Fix LKPulse function tau when writePulseFunctionParametersOnly is true.");
     if (fPar -> CheckPar("LKPulseExtractionTask/tbRange 0 512")) {
         fTbRange1 = fPar -> GetParInt("LKPulseExtractionTask/tbRange",0);
         fTbRange2 = fPar -> GetParInt("LKPulseExtractionTask/tbRange",1);
@@ -32,14 +35,17 @@ bool LKPulseExtractionTask::Init()
         fPulseWidthCut2 = fPar -> GetParInt("LKPulseExtractionTask/tbWidthCut",1);
     }
 
-    fPulseAnalyzer = new LKPulseAnalyzer(fAnalysisName,fRun->GetDataPath());
-    fPulseAnalyzer -> SetThreshold(fThreshold);
-    fPulseAnalyzer -> SetTbRange(fTbRange1,fTbRange2);
-    fPulseAnalyzer -> SetPulseTbCuts(fTbRangeCut1,fTbRangeCut2);
-    fPulseAnalyzer -> SetPulseWidthCuts(fPulseWidthCut1,fPulseWidthCut2);
-    fPulseAnalyzer -> SetPulseHeightCuts(fPulseHeightCut1,fPulseHeightCut2);
-    fPulseAnalyzer -> SetInvertChannel(fChannelIsInverted);
-    fPulseAnalyzer -> SetFixPedestal(fFixPedestal);
+    fPulseExtractor = new LKPulseExtractor(fAnalysisName,fRun->GetDataPath());
+    fPulseExtractor -> SetThreshold(fThreshold);
+    fPulseExtractor -> SetTbRange(fTbRange1,fTbRange2);
+    fPulseExtractor -> SetPulseTbCuts(fTbRangeCut1,fTbRangeCut2);
+    fPulseExtractor -> SetPulseWidthCuts(fPulseWidthCut1,fPulseWidthCut2);
+    fPulseExtractor -> SetPulseHeightCuts(fPulseHeightCut1,fPulseHeightCut2);
+    fPulseExtractor -> SetInvertChannel(fChannelIsInverted);
+    fPulseExtractor -> SetFixPedestal(fFixPedestal);
+    fPulseExtractor -> SetWritePulseFunctionParametersOnly(fWritePulseFunctionParametersOnly);
+    fPulseExtractor -> FixPulseFunctionAlpha(fFixPulseFunctionAlpha);
+    fPulseExtractor -> FixPulseFunctionTau(fFixPulseFunctionTau);
 
     return true;
 }
@@ -58,26 +64,40 @@ void LKPulseExtractionTask::Exec(Option_t *option)
         auto chan = channel -> GetChan();
         auto data = channel -> GetWaveformY();
 
-        fPulseAnalyzer -> AddChannel(data, eventID, cobo, asad, aget, chan);
+        fPulseExtractor -> AddChannel(data, eventID, cobo, asad, aget, chan);
     }
 
-    lk_info << "Channels: +" << numChannels << " >> " << fPulseAnalyzer->GetNumGoodChannels() << endl;
+    lk_info << "Channels: +" << numChannels << " >> " << fPulseExtractor->GetNumGoodChannels() << endl;
 }
 
 bool LKPulseExtractionTask::EndOfRun()
 {
     auto runHeader = fRun -> GetRunHeader();
 
-    auto file1 = fPulseAnalyzer -> WriteReferencePulse(fPulseWidthCut1,fPulseWidthCut2);
-    file1 -> cd();
-    runHeader -> Write(runHeader->GetName(),TObject::kSingleKey);
+    if (fWritePulseFunctionParametersOnly)
+    {
+        fPulseExtractor -> WritePulseParameterFile(fPulseWidthCut1,fPulseWidthCut2);
+    }
+    else
+    {
+        auto file1 = fPulseExtractor -> WriteReferencePulse(fPulseWidthCut1,fPulseWidthCut2);
+        if (file1!=nullptr) {
+            file1 -> cd();
+            runHeader -> Write(runHeader->GetName(),TObject::kSingleKey);
+        }
+    }
 
     bool writeSummaryTree = true;
     if (fPar -> CheckPar("LKPulseExtractionTask/writeSummaryTree"))
         writeSummaryTree = fPar -> GetParBool("LKPulseExtractionTask/writeSummaryTree");
-    auto file2 = fPulseAnalyzer -> WriteTree();
-    file2 -> cd();
-    runHeader -> Write(runHeader->GetName(),TObject::kSingleKey);
+    if (writeSummaryTree)
+    {
+        auto file2 = fPulseExtractor -> WriteTree();
+        if (file2!=nullptr) {
+            file2 -> cd();
+            runHeader -> Write(runHeader->GetName(),TObject::kSingleKey);
+        }
+    }
 
     return true;
 }
