@@ -1324,7 +1324,7 @@ lilak() {{
         echo
         echo "LILAK (https://github.com/lilak-project)"
         echo
-        echo "Usage: lilak {{home|configure|build|build_new|new|update|example|doc|find|make_meta|make_run|par|si_mapping|g4sim|nptool|run|collect_par|read|draw}} [input]"
+        echo "Usage: lilak [command|macro] [input]"
         echo
         echo "Commands:"
         echo "  home               Navigate to the lilak home directory."
@@ -1342,7 +1342,7 @@ lilak() {{
         echo "  si_mapping [input] Open the silicon detector mapping editor in a local web browser."
         echo "  g4sim [input]      Execute the default Geant4 simulatoin program with the provided [input]."
         echo "  nptool [input]     Execute the default nptool simulatoin program with the provided [input]."
-        echo "  run [input]        Execute the ROOT script with the provided [input]."
+        echo "  [macro]            Execute a LILAK parameter macro. ex) lilak config.mac"
         echo "  collect_par [input] Execute parameter collection and rewrite the provided parameter file."
         echo "  read [input]       Create a ROOT macro that reads a LILAK output ROOT file."
         echo "  draw [input]       Draw using a parameter file, or generate draw examples from a ROOT file."
@@ -1756,25 +1756,56 @@ EOF
                     cd "$target_project_dir"
                     echo "Changed directory to: $(pwd)"
                 fi
+            elif [ -f "$1" ]; then
+                root -l "$LILAK_PATH/macros/run_lilak.C(\"$1\")"
             else
-                echo "Unknown command or project: $1"
+                echo "Unknown command, project, or macro file: $1"
                 lilak
             fi
             ;;
     esac
 }}
 
+# Return success when the current directory contains a run-prefixed path.
+_lilak_has_run_files() {{
+    if [[ -n "${{ZSH_VERSION:-}}" ]]; then
+        setopt localoptions NULL_GLOB
+    fi
+    local run_file
+    for run_file in ./run*; do
+        if [[ -e "${{run_file}}" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}}
+
 # Define the lilak command completion function
 _lilak_completions() {{
     COMPREPLY=()
     local curr_word prev_word
+    local add_trailing_space=1
     curr_word="${{COMP_WORDS[COMP_CWORD]}}"
     prev_word="${{COMP_WORDS[COMP_CWORD-1]}}"
     local commands="home configure build build_new new update example doc find make_meta make_run par si_mapping g4sim nptool run collect_par read draw {" ".join(self.lf_lilak_projects)}"
     local subdir_projects="{" ".join(self.lf_lilak_projects)}"
 
     if [[ ${{COMP_CWORD}} == 1 ]]; then
-        COMPREPLY=( $(compgen -W "${{commands}}" -- "${{curr_word}}") )
+        # Keep the legacy run command ahead of files and the read command for r/ru.
+        if [[ -n "${{curr_word}}" && "run" == "${{curr_word}}"* ]]; then
+            if _lilak_has_run_files; then
+                add_trailing_space=0
+            fi
+            COMPREPLY=("run")
+        else
+            local command_matches
+            command_matches=( $(compgen -W "${{commands}}" -- "${{curr_word}}") )
+            if (( ${{#command_matches[@]}} )); then
+                COMPREPLY=("${{command_matches[@]}}")
+            else
+                COMPREPLY=( $(compgen -f -- "${{curr_word}}") )
+            fi
+        fi
     elif [[ $prev_word == "g4sim" ]]; then
         COMPREPLY=( $(compgen -f "${{curr_word}}") )
     elif [[ $prev_word == "nptool" ]]; then
@@ -1803,11 +1834,34 @@ _lilak_completions() {{
         fi
     fi
 
+    if [[ -z "${{ZSH_VERSION:-}}" ]] && (( add_trailing_space && ${{#COMPREPLY[@]}} == 1 )); then
+        COMPREPLY=("${{COMPREPLY[@]}} ")
+    fi
+
     return 0
 }}
 
-# Enable command completion for lilak
-complete -F _lilak_completions lilak
+# zsh's bashcompinit cannot change the suffix from inside a completion function.
+if [[ -n "${{ZSH_VERSION:-}}" ]]; then
+    _lilak_zsh_completions() {{
+        emulate -L zsh
+        setopt KSH_ARRAYS SH_WORD_SPLIT
+        local -a COMP_WORDS COMPREPLY
+        local COMP_CWORD
+        COMP_WORDS=("${{words[@]}}")
+        COMP_CWORD=$((CURRENT - 1))
+        _lilak_completions
+
+        if [[ $COMP_CWORD == 1 && -n "${{COMP_WORDS[COMP_CWORD]}}" && "run" == "${{COMP_WORDS[COMP_CWORD]}}"* ]] && _lilak_has_run_files; then
+            compadd -S '' -- "${{COMPREPLY[@]}}"
+        else
+            compadd -- "${{COMPREPLY[@]}}"
+        fi
+    }}
+    compdef _lilak_zsh_completions lilak
+else
+    complete -o nospace -F _lilak_completions lilak
+fi
 
 # Optional: Add a message to confirm the script is sourced correctly
 #echo "LILAK is set. Use 'lilak {{home|configure|build|build_new|new|update|example|doc|find|make_meta|make_run|par|g4sim|nptool|run}}'"
