@@ -1,0 +1,40 @@
+
+#ATMicromegas/EveThreshold     300  # # threshold for default peak finding method
+#ATMicromegas/EventCountForMessage       2000  # event count for message at event accumulation
+#ATMicromegas/FigurePath       .  # path to save figues
+#ATMicromegas/fillOption       hit  # fill option to fill detector histogram
+#ATMicromegas/jumpEventSize    2000  # jump event value amount when jump event button is clicked
+ATMicromegas/padsize_x        4
+ATMicromegas/padsize_z        4
+#ATMicromegas/skipToEnergy     500  # energy to reference when, button(skip to event containing channel with pulse height>energy) is clicked
+
+ATNPToolDriftElectronTask/ADCPerElectron          1.
+ATNPToolDriftElectronTask/AnodeY        350.  # mm
+ATNPToolDriftElectronTask/DiffusionLong 0.  # mm/sqrt(mm)
+ATNPToolDriftElectronTask/DiffusionTrans          0.  # mm/sqrt(mm)
+ATNPToolDriftElectronTask/DriftVelocity 0.05  # mm/ns
+ATNPToolDriftElectronTask/EdepToEV      1.e6  # eV per LKMCStep edep unit
+ATNPToolDriftElectronTask/ElectronsPerSample      1
+ATNPToolDriftElectronTask/Gain          1.
+ATNPToolDriftElectronTask/GainSigma     0.
+ATNPToolDriftElectronTask/InputBranchName         atomx_eloss_points
+ATNPToolDriftElectronTask/MaxTb         512
+ATNPToolDriftElectronTask/OutputBranchName        RawData
+ATNPToolDriftElectronTask/PrintEventSummary       true
+ATNPToolDriftElectronTask/RequireMappedPad        false  # If true, only fill pads with valid cobo/asad/aget/channel mapping. If false, keep all geometry pads and preserve padID for event display.
+ATNPToolDriftElectronTask/SkipNegativeDrift       true
+ATNPToolDriftElectronTask/TbTime        1.  # ns/tb
+ATNPToolDriftElectronTask/TimeOffset    0.  # ns
+ATNPToolDriftElectronTask/UseGainFluctuation      false
+ATNPToolDriftElectronTask/WIonization   41.  # eV/electron
+
+LKDetector/EveThreshold       300
+LKDetector/Mapping            /Users/jungwoo/Research/lilak/common/micromegas_mapping_caac_zx.txt  # cobo asad aget chan iz ix
+LKDetector/MaxCobo            6  # maximum number of cobos
+LKDetector/UsePixelSpace      false
+LKDetector/binning_x          64,  -128, -128  # binning, range throuh x-axis
+LKDetector/binning_y          512, 0,    -512  # binning, range throuh y-axis
+LKDetector/binning_z          72,  0,     288  # binning, range throuh z-axis
+LKDetector/tb_to_length       1  # mm
+
+persistency/RawData           true

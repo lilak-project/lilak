@@ -1,0 +1,10 @@
+
+LKBraggPeakTriggerTask/baselineLoss     
+LKBraggPeakTriggerTask/numEvents        
+LKBraggPeakTriggerTask/numPoints        
+LKBraggPeakTriggerTask/peakDepth        
+LKBraggPeakTriggerTask/peakLoss         
+LKBraggPeakTriggerTask/peakWidth        
+LKBraggPeakTriggerTask/range  
+
+persistency/BraggPeak         true

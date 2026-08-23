@@ -2,8 +2,11 @@
 LKPulseExtractionTask/analysisName      
 LKPulseExtractionTask/channelIsInverted 
 LKPulseExtractionTask/fixPedestal       
+LKPulseExtractionTask/fixPulseFunctionAlpha       false  # Fix LKPulse function alpha when writePulseFunctionParametersOnly is true.
+LKPulseExtractionTask/fixPulseFunctionTau         false  # Fix LKPulse function tau when writePulseFunctionParametersOnly is true.
 LKPulseExtractionTask/tbHeightCut       100,4000
 LKPulseExtractionTask/tbRange 0 512
 LKPulseExtractionTask/tbRangeCut        1, 511
 LKPulseExtractionTask/tbWidthCut        20 40
 LKPulseExtractionTask/threshold         
+LKPulseExtractionTask/writePulseFunctionParametersOnly      false  # If true, fit extracted reference pulse with LKPulse function and save only function parameters.

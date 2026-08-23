@@ -1,0 +1,25 @@
+
+ATNPFlatDriftElectronTask/ADCPerElectron          1.  # (ADC/electron) ADC conversion factor applied after electron sampling.
+ATNPFlatDriftElectronTask/BranchNamesXYZ          "ATOMX_x", "ATOMX_y", "ATOMX_z"  # Input vector<double> branch names for point x, y, z coordinates, in that order.
+ATNPFlatDriftElectronTask/DiffusionTransLong      0., 0.  # (mm/sqrt(mm), mm/sqrt(mm)) Transverse and longitudinal diffusion coefficients. sigmaT/L = coefficient * sqrt(driftLength).
+ATNPFlatDriftElectronTask/DriftAnodeYVelocity     350., 0.05  # (mm, mm/ns) Anode-plane y position and electron drift velocity. Used only in drift mode.
+ATNPFlatDriftElectronTask/DriftLengthPerTb        1.  # (mm/tb) Drift distance represented by one time bucket when UseDriftVelocityForTbTime is true.
+ATNPFlatDriftElectronTask/DriftMode     direct  # Processing mode. direct fills each point once without drift or diffusion; drift applies drift time and diffusion; drift_nodiffusion applies drift time without diffusion.
+ATNPFlatDriftElectronTask/EdepBranchName          ATOMX_energyloss  # Input vector<double> branch holding deposited energy per point.
+ATNPFlatDriftElectronTask/ElectronSamplingMaxTb   1, 512  # (electrons/sample, tb-count) Maximum electrons represented by one drift sample and number of available time buckets.
+ATNPFlatDriftElectronTask/GainValueSigma          1., 0.  # Gain mean and Gaussian sigma. Mean scales ADC charge; sigma is used only when UseGainFluctuation is true.
+ATNPFlatDriftElectronTask/InputFileName data_nptool/ATOMX_12C.flat.root  # Input flat ROOT file containing the NPTool ATOMX simulation tree.
+ATNPFlatDriftElectronTask/IonizationWEdepToEV     41., 1000000.  # (eV/electron, eV/input-unit) Ionization W value and conversion factor from input deposited-energy unit to eV. Use 1.e6 for MeV input.
+ATNPFlatDriftElectronTask/OffsetXYZ     0., 0., 144.  # (mm) Additive offset applied to input x, y, z. Default z offset maps z-centered flat data to the 0..288 mm pad range.
+ATNPFlatDriftElectronTask/OutputBranchName        PadData  # Output TClonesArray branch name for LKPad objects.
+ATNPFlatDriftElectronTask/PointTime     0.  # (ns) Point time used when TimeBranchName is empty.
+ATNPFlatDriftElectronTask/PrintEventSummary       true  # If true, print per-event counts for points, electrons, samples, filled charge, and skipped charge.
+ATNPFlatDriftElectronTask/RequireMappedPad        false  # If true, only fill pads with valid cobo/asad/aget/channel mapping. If false, keep all geometry pads and preserve padID for event display.
+ATNPFlatDriftElectronTask/ScaleXYZ      1., 1., 1.  # Multiplicative scale applied to input x, y, z before geometry and drift calculations.
+ATNPFlatDriftElectronTask/SkipNegativeDrift       true  # If true, skip points with y beyond AnodeY instead of using absolute drift length.
+ATNPFlatDriftElectronTask/TimeBranchName            # Optional input vector<double> branch holding point time. Leave empty to use PointTime.
+ATNPFlatDriftElectronTask/TimeOffsetTbTime        0., 20.  # (ns, ns/tb) Time offset and duration of one time bucket. TbTime is overwritten when UseDriftVelocityForTbTime is true.
+ATNPFlatDriftElectronTask/TrackIDBranchName       ATOMX_trackid  # Input vector<int> branch holding the GEANT4 track id for each energy-loss point.
+ATNPFlatDriftElectronTask/TreeName      SimulatedTree  # Name of the flat input TTree.
+ATNPFlatDriftElectronTask/UseDriftVelocityForTbTime         false  # If true, calculate TbTime from DriftLengthPerTb / DriftVelocity during Init.
+ATNPFlatDriftElectronTask/UseGainFluctuation      false  # If true, sample gain from a Gaussian with mean and sigma from GainValueSigma.

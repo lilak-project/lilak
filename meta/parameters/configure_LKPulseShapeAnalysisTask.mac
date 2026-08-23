@@ -1,2 +1,7 @@
 
+LKPulseShapeAnalysisTask/fixPulseFunctionAlpha    false  # Fix LKPulse function alpha during pulse fitting.
+LKPulseShapeAnalysisTask/fixPulseFunctionTau      false  # Fix LKPulse function tau during pulse fitting.
+LKPulseShapeAnalysisTask/pulseParameterFile         # LKPulse parameter file. Leave empty to use $LILAK_PATH/common/pulseReference.mac.
+LKPulseShapeAnalysisTask/useRootPulseFit          true  # Use TH1::Fit with LKPulse TF1; fallback to manual chi2 if it fails.
+
 persistency/Hit               true

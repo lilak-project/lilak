@@ -4,9 +4,9 @@ LKDetector/UsePixelSpace      false  # /
 #LKDetector/binning_y          512, 0,    -512  # binning, range throuh y-axis
 #LKDetector/binning_z          72,  0,     288  # binning, range throuh z-axis
 
-#LKEvePlane/EveThreshold       300  # # threshold for default peak finding method
+#LKEvePlane/EveThreshold       300  # # (ADC above pedestal) threshold used for waveform peak finding and shaped side/top view filling
 #LKEvePlane/EventCountForMessage         2000  # event count for message at event accumulation
 #LKEvePlane/FigurePath         .  # path to save figues
-#LKEvePlane/fillOption         hit  # fill option to fill detector histogram
+#LKEvePlane/fillOption         hit  # fill option: hit uses Hit branch; preview marks pads with data; raw sums RawData waveform; shaped/out sums LKPad BufferShaped; caac/cobo/asad/aget/chan/section/layer/row/padid/nhits show pad metadata
 #LKEvePlane/jumpEventSize      2000  # jump event value amount when jump event button is clicked
 #LKEvePlane/skipToEnergy       500  # energy to reference when, button(skip to event containing channel with pulse height>energy) is clicked

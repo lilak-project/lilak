@@ -1,5 +1,5 @@
 
-LKDetector/EveThreshold       300
+LKDetector/EveThreshold       300  # (ADC above pedestal) threshold applied to shaped/raw waveform bins in side view and shaped top-view integral.
 LKDetector/Mapping            /Users/jungwoo/Research/lilak/common/micromegas_mapping_caac_zx.txt  # cobo asad aget chan iz ix
 LKDetector/MaxCobo            6  # maximum number of cobos
 LKDetector/UsePixelSpace      false  # /
@@ -8,10 +8,10 @@ LKDetector/UsePixelSpace      false  # /
 #LKDetector/binning_z          72,  0,     288  # binning, range throuh z-axis
 LKDetector/tb_to_length       1  # mm
 
-#LKMicromegas/EveThreshold     300  # # threshold for default peak finding method
+#LKMicromegas/EveThreshold     300  # # (ADC above pedestal) threshold used for waveform peak finding and shaped side/top view filling
 #LKMicromegas/EventCountForMessage       2000  # event count for message at event accumulation
 #LKMicromegas/FigurePath       .  # path to save figues
-#LKMicromegas/fillOption       hit  # fill option to fill detector histogram
+#LKMicromegas/fillOption       hit  # fill option: hit uses Hit branch; preview marks pads with data; raw sums RawData waveform; shaped/out sums LKPad BufferShaped; caac/cobo/asad/aget/chan/section/layer/row/padid/nhits show pad metadata
 #LKMicromegas/jumpEventSize    2000  # jump event value amount when jump event button is clicked
 LKMicromegas/padsize_x        4
 LKMicromegas/padsize_z        4

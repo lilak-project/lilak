@@ -1,0 +1,47 @@
+
+#ATMicromegas/EveThreshold     300  # # (ADC above pedestal) threshold used for waveform peak finding and shaped side/top view filling
+#ATMicromegas/EventCountForMessage       2000  # event count for message at event accumulation
+#ATMicromegas/FigurePath       .  # path to save figues
+#ATMicromegas/fillOption       hit  # fill option: hit uses Hit branch; preview marks pads with data; raw sums RawData waveform; shaped/out sums LKPad BufferShaped; caac/cobo/asad/aget/chan/section/layer/row/padid/nhits show pad metadata
+#ATMicromegas/jumpEventSize    2000  # jump event value amount when jump event button is clicked
+ATMicromegas/padsize_x        4
+ATMicromegas/padsize_z        4
+#ATMicromegas/skipToEnergy     500  # energy to reference when, button(skip to event containing channel with pulse height>energy) is clicked
+
+ATPadResponseTask/BackGroundLevel       -1  # (ADC) Pedestal mean[, sigma[, min[, max]]]. Negative mean keeps the pulse-reference baseline.
+ATPadResponseTask/CutBelow0   true  # If true, clip shaped buffer values below zero after adding each pulse.
+ATPadResponseTask/DetectorPlaneName     ATMicromegas  # Detector plane name used to look up pad geometry and transverse neighbor pads.
+ATPadResponseTask/EnableChargeSharing   true  # If true, copy each raw-bin charge to neighboring pads perpendicular to the beam axis before shaping.
+ATPadResponseTask/EnableNoise true  # If true, add pedestal/noise with LKChannelSimulator before summing pulse signals.
+ATPadResponseTask/EnablePulseSimulation true  # If true, convert non-zero shared raw bins to LKChannelSimulator pulses in BufferShaped; if false, copy shared bins directly.
+ATPadResponseTask/InputBranchName       PadData  # Name of the LKPad TClonesArray branch to read, keep, modify, and write back.
+ATPadResponseTask/NumSmoothing          2  # Number of smoothing iterations applied to pedestal/noise buffers.
+ATPadResponseTask/PedestalFluctuationLength       4  # (tb) Typical time length of one pedestal fluctuation segment in fluctuating-pedestal mode.
+ATPadResponseTask/PedestalFluctuationLengthError  0.  # Relative sigma used when sampling PedestalFluctuationLength; 0 keeps a fixed length.
+ATPadResponseTask/PedestalFluctuationLevel        -1  # (ADC) Absolute pedestal fluctuation sigma. Negative value keeps the pulse-reference value.
+ATPadResponseTask/PrintEventSummary     true  # If true, print per-event counts of input pads and pads with shaped response.
+ATPadResponseTask/PulseErrorScale       0.05  # Relative pulse-shape fluctuation sigma used by LKChannelSimulator while adding hits.
+ATPadResponseTask/PulseFileName           # Optional LKPulse reference ROOT file. Leave empty to use common/pulseReference.root.
+ATPadResponseTask/PulseFunctionAlpha    3.4317  # Shape exponent of the fitted gamma-like pulse.
+ATPadResponseTask/PulseFunctionBaseline 0.000247812  # Normalized baseline offset from pulse-reference fit; subtracted during simulation.
+ATPadResponseTask/PulseFunctionPeak     1.00117  # Normalized peak height of the fitted gamma-like pulse.
+ATPadResponseTask/PulseFunctionT0       -3.35106  # (tb) Function start time relative to hit time.
+ATPadResponseTask/PulseFunctionTau      4.54546  # (tb) Decay time scale of the fitted gamma-like pulse.
+ATPadResponseTask/PulseFunctionTbMax    81.  # (tb) Upper valid range relative to hit time.
+ATPadResponseTask/PulseFunctionTbMin    -20  # (tb) Lower valid range relative to hit time.
+ATPadResponseTask/SharingFraction       0.30  # Fraction of the source raw-bin amplitude sent to each next transverse neighbor; depth d receives value*fraction^d.
+ATPadResponseTask/SharingMaxDepth       2  # Maximum transverse pad distance used for charge sharing on each side of the source pad.
+ATPadResponseTask/SmoothingLength       4  # (tb) Half-width of the pedestal/noise smoothing window around each time bucket.
+ATPadResponseTask/TbMax       512  # Number of time buckets to process and write to LKPad BufferShaped. Valid range is 1..512.
+ATPadResponseTask/UseFluctuatingPedestal          true  # If true, use slowly varying pedestal noise; if false, use independent smoothed Gaussian pedestal noise.
+ATPadResponseTask/UsePulseFunction      true  # If true, use fitted pulse function; if false, use LKPulse graph from PulseFileName.
+ATPadResponseTask/YMax        4096  # (ADC) Maximum shaped buffer value; LKChannelSimulator clips pulse sums above this value.
+
+LKDetector/EveThreshold       300  # (ADC above pedestal) threshold applied to shaped/raw waveform bins in side view and shaped top-view integral.
+LKDetector/Mapping            /Users/jungwoo/Research/lilak/common/micromegas_mapping_caac_zx.txt  # cobo asad aget chan iz ix
+LKDetector/MaxCobo            6  # maximum number of cobos
+LKDetector/UsePixelSpace      false
+LKDetector/binning_x          64,  -128, 128  # binning, range throuh x-axis
+LKDetector/binning_y          512, 0,    -512  # binning, range throuh y-axis
+LKDetector/binning_z          72,  0,     288  # binning, range throuh z-axis
+LKDetector/tb_to_length       1  # mm
