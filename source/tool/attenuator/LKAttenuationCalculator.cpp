@@ -48,6 +48,13 @@ void LKAttenuationCalculator::SetNameTitleAuto()
     SetNameTitle(name,title);
 }
 
+const char* LKAttenuationCalculator::BeamTypeString(int beam_type)
+{
+    if (beam_type==kUniformBeamProfile) return "Uniform";
+    if (beam_type==kGauss2DBeamProfile) return "Gaussian";
+    return "Unknown";
+}
+
 void LKAttenuationCalculator::SetCalculationParameters(double calculationRange, double efficiencyRange1, double efficiencyRange2, double beamRadiusToSigma, int numEvaluationStepsInX, int numEvaluationStepsInY)
 {
     fCalculationRange      = calculationRange;
@@ -78,6 +85,28 @@ LKDrawingGroup* LKAttenuationCalculator::Run(bool add_sketch, bool add_1d, bool 
     auto area_c = TMath::Pi()*fActiveSize*fActiveSize/4;
     nx = nx;
     ny = ny;
+
+    e_cout << endl;
+    e_info << "Starting LKAttenuationCalculator::Run()" << endl;
+    e_cout << "== Parameters" << endl;
+    e_cout << Form("   Desired attenuation A0 : %dx10^{%d} (%s)",fFactor,fExponent,LKMisc::RemoveTrailing0(fAttenuation,true).Data()) << endl;
+    e_cout << "   Hole diameter          : " << fHoleDiameter << " mm" << endl;
+    e_cout << "   Hole diameter (calc)   : " << fHoleDiameterCalc << " mm" << endl;
+    e_cout << "   Beam profile           : " << BeamTypeString(fBeamType) << endl;
+    e_cout << "   Beam radius            : " << fBeamRadius << " mm" << endl;
+    if (fBeamType==kGauss2DBeamProfile)
+        e_cout << "   Beam sigma             : " << fBeamRadiusToSigma*fBeamRadius << " mm" << endl;
+    e_cout << "== Geometry" << endl;
+    e_cout << "   Grid pattern           : " << fGridPattern << endl;
+    e_cout << "   Attenuator size        : " << fAttenuatorSize << " mm" << endl;
+    e_cout << "   Active size            : " << fActiveSize << " mm" << endl;
+    e_cout << "   Hole offset in spacing : " << fHoleXOffsetInR << ", " << fHoleYOffsetInR << endl;
+    e_cout << "   Expected grid steps    : " << nx << " x " << ny << endl;
+    e_cout << "   Hole spacing           : " << x_dist << " mm, " << y_dist << " mm" << endl;
+    e_cout << "== Calculation" << endl;
+    e_cout << "   Calculation range      : " << fCalculationRange << endl;
+    e_cout << "   Efficiency range       : " << fEfficiencyRange1 << " - " << fEfficiencyRange2 << endl;
+    e_cout << "   Evaluation steps       : " << fNumEvaluationStepsInX << " x " << fNumEvaluationStepsInY << endl;
 
     vector<TVector3> holePositions;
     auto draw_attenuator_sketch = drawings -> CreateDrawing(Form("draw_%s_sketch",fName.Data()),add_sketch);
@@ -196,6 +225,12 @@ LKDrawingGroup* LKAttenuationCalculator::Run(bool add_sketch, bool add_1d, bool 
     histSampleCount2 -> SetStats(0);
     histSampleCount2 -> GetZaxis() -> SetMaxDigits(6);
     histSampleCount2 -> GetZaxis() -> SetDecimals(1);
+
+    e_info << "Starting beam-center scan" << endl;
+    e_cout << "   Scan area              : " << Form("x=(%f,%f), y=(%f,%f)",xs1,xs2,ys1,ys2) << endl;
+    e_cout << "   Scan points            : " << fNumEvaluationStepsInX*fNumEvaluationStepsInY << endl;
+    e_cout << "   Number of holes        : " << num_holes << endl;
+
     for (auto iy=0; iy<fNumEvaluationStepsInY; ++iy)
     {
         double y1 = ys1 + iy*(ys2-ys1)/fNumEvaluationStepsInY;
@@ -240,6 +275,10 @@ LKDrawingGroup* LKAttenuationCalculator::Run(bool add_sketch, bool add_1d, bool 
             count++;
         }
     }
+
+    e_info << "Finished beam-center scan" << endl;
+    e_info << "Preparing drawings" << endl;
+
     graph_sim_center_range -> SetLineColor(kCyan+1);
     draw_attenuator_sketch -> Add(graph_sim_center_range,"samel");
     graph_sim_center -> SetMarkerStyle(20);
@@ -328,6 +367,7 @@ LKDrawingGroup* LKAttenuationCalculator::Run(bool add_sketch, bool add_1d, bool 
     int countDrawings = int(add_sketch) + int(add_1d) + int(add_2d);
     drawings -> SetCanvasSize(countDrawings*500,500);
     drawings -> SetCanvasDivision(countDrawings,1);
+    e_info << "Finished LKAttenuationCalculator::Run()" << endl;
     return drawings;
 }
 
