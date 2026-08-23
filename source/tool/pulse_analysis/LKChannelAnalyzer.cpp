@@ -3,6 +3,7 @@
 #include "TLine.h"
 #include "TLegend.h"
 #include "LKMisc.h"
+#include "LKParameterContainer.h"
 
 ClassImp(LKChannelAnalyzer);
 
@@ -32,6 +33,80 @@ void LKChannelAnalyzer::SetPulse(const char* fileName)
     if (fDataIsInverted)
         fPulse -> SetInverted();
 
+    ConfigureFromPulse();
+}
+
+void LKChannelAnalyzer::SetPulse(LKParameterContainer* par, TString groupName)
+{
+    fPulse = new LKPulse(par, groupName);
+    if (fPulse->IsGood()==false) {
+        e_error << "Pulse is not initialized correctly. Using default mode kSigAtMaximumMode" << endl;
+        return;
+    }
+
+    fAnalyzerMode = kPulseFittingMode;
+
+    if (fDataIsInverted)
+        fPulse -> SetInverted();
+
+    ConfigureFromPulse();
+}
+
+void LKChannelAnalyzer::SetUsePulseFunction(bool value)
+{
+    if (fPulse==nullptr)
+        fPulse = new LKPulse();
+
+    fPulse -> SetUsePulseFunction(value);
+    fAnalyzerMode = kPulseFittingMode;
+    ConfigureFromPulse();
+}
+
+void LKChannelAnalyzer::SetPulseFunctionParameters(double baseline, double peak, double t0, double alpha, double tau)
+{
+    if (fPulse==nullptr)
+        fPulse = new LKPulse();
+
+    fPulse -> SetPulseFunctionParameters(baseline, peak, t0, alpha, tau);
+    fPulse -> SetUsePulseFunction(true);
+    fAnalyzerMode = kPulseFittingMode;
+    ConfigureFromPulse();
+}
+
+void LKChannelAnalyzer::SetPulseFunctionRange(double tbMin, double tbMax)
+{
+    if (fPulse==nullptr)
+        fPulse = new LKPulse();
+
+    fPulse -> SetPulseFunctionRange(tbMin, tbMax);
+    fPulse -> SetUsePulseFunction(true);
+    fAnalyzerMode = kPulseFittingMode;
+    ConfigureFromPulse();
+}
+
+void LKChannelAnalyzer::FixPulseFunctionAlpha(bool value)
+{
+    if (fPulse==nullptr)
+        fPulse = new LKPulse();
+    fPulse -> FixPulseFunctionAlpha(value);
+}
+
+void LKChannelAnalyzer::FixPulseFunctionTau(bool value)
+{
+    if (fPulse==nullptr)
+        fPulse = new LKPulse();
+    fPulse -> FixPulseFunctionTau(value);
+}
+
+TF1* LKChannelAnalyzer::GetPulseFunction(TString name, bool subtractBaseline)
+{
+    if (fPulse==nullptr)
+        fPulse = new LKPulse();
+    return fPulse -> GetPulseFunction(name, subtractBaseline);
+}
+
+void LKChannelAnalyzer::ConfigureFromPulse()
+{
     auto numPulsePoints = fPulse -> GetNDF();
     fDataIsInverted = fPulse -> GetInverted();
     fFWHM           = fPulse -> GetFWHM();
@@ -832,6 +907,53 @@ bool LKChannelAnalyzer::FitPulse(double *buffer, int tbStartOfPulse, int tbPeak,
         //if (ndf > fNDFFit)
         //  ndf = fNDFFit;
         isSaturated = true;
+    }
+
+    if (fUseRootPulseFit && !isSaturated && fPulse!=nullptr && fPulse->UsesPulseFunction())
+    {
+        int fitTb1 = tbStartOfPulse + fPulseRefTbMin;
+        int fitTb2 = tbStartOfPulse + fPulseRefTbMax;
+        if (fitTb1<0)
+            fitTb1 = 0;
+        if (fitTb2>fTbMax)
+            fitTb2 = fTbMax;
+
+        if (fitTb2-fitTb1>5)
+        {
+            auto histFit = new TH1D(Form("histFitPulse_%p",this),";tb;ADC above pedestal",fTbMax,0,fTbMax);
+            for (auto tb=fitTb1; tb<fitTb2; ++tb)
+                histFit -> SetBinContent(tb+1,buffer[tb]);
+
+            auto funcFit = fPulse -> GetPulseFunction(Form("funcFitPulse_%p",this), false);
+            funcFit -> SetRange(fitTb1,fitTb2);
+            funcFit -> SetParameter(0,0);
+            funcFit -> FixParameter(0,0);
+            funcFit -> SetParameter(1,valuePeak);
+            funcFit -> SetParLimits(1,0,fDynamicRange*2);
+            funcFit -> SetParameter(2,tbStartOfPulse);
+            funcFit -> SetParLimits(2,tbStartOfPulse+fPulseRefTbMin,tbStartOfPulse+fWidthLeading);
+
+            auto fitStatus = histFit -> Fit(funcFit,"RQN0");
+            if (fitStatus==0)
+            {
+                auto ndfFit = funcFit -> GetNDF();
+                auto amplitudeFit = funcFit -> GetParameter(1);
+                auto tbHitFit = funcFit -> GetParameter(2);
+                if (ndfFit>0 && amplitudeFit>0 && !std::isnan(tbHitFit))
+                {
+                    tbHit = tbHitFit;
+                    amplitude = amplitudeFit;
+                    chi2Fitted = funcFit -> GetChisquare()/ndfFit;
+                    ndf = ndfFit;
+                    delete histFit;
+                    delete funcFit;
+                    return true;
+                }
+            }
+
+            delete histFit;
+            delete funcFit;
+        }
     }
 
     LKTbIterationParameters par;

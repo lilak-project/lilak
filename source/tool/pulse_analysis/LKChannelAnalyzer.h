@@ -19,6 +19,7 @@ using namespace std;
 #include "TClonesArray.h"
 #include "TMultiGraph.h"
 #include "TH2D.h"
+#include "TF1.h"
 
 #include "LKLogger.h"
 #include "LKPulse.h"
@@ -26,6 +27,8 @@ using namespace std;
 #include "LKPadInteractive.h"
 #include "LKPadInteractiveManager.h"
 #include "LKDrawing.h"
+
+class LKParameterContainer;
 
 //#define NUMBER_OF_PEDESTAL_TEST_REGIONS 6
 //#define NUMBER_OF_PEDESTAL_TEST_REGIONS 7
@@ -94,8 +97,8 @@ class LKTbIterationParameters
  * Analyze() method is combination of FindPeak(), FitPulse(), TestPulse(), FitAmplitude()
  * which are, in principle, can be used independently as well. Read method descriptions for detail.
  *
- * LKChannelAnalyzer should be initialized with pulse data file created from LKPulseAnalyzer.
- * See LKPulseAnalyzer for pulse data file.
+ * LKChannelAnalyzer should be initialized with pulse data file created from LKPulseExtractor.
+ * See LKPulseExtractor for pulse data file.
  * Some parameters are set from pulse data file. Look for keyword "Automatically set".
  * Some parameters must be set by user. Look for keyword "Must be set".
  *
@@ -124,7 +127,7 @@ class LKTbIterationParameters
  * @code{.cpp}
  *  {
  *      auto ana = LKChannelAnalyzer()
- *      ana -> SetPulse("pulse_data_created_from_LKPulseAnalyzer.root");
+ *      ana -> SetPulse("pulse_data_created_from_LKPulseExtractor.root");
  *      ana -> SetTbMax(512);
  *      ana -> SetTbStart(0);
  *      ana -> SetDynamicRange(4096);
@@ -161,12 +164,19 @@ class LKChannelAnalyzer : public LKPadInteractive
         void Draw(Option_t *option="");
         LKDrawing* GetDrawing();
 
-        /// Set pulse function and related parameter from pulse data file created from LKPulseAnalyzer
+        /// Set pulse function and related parameter from pulse data file created from LKPulseExtractor
         void SetSigAtMaximum() { fAnalyzerMode = kSigAtMaximumMode; }
         void SetSigAtThreshold() { fAnalyzerMode = kSigAtThresholdMode; }
         void SetPulse(const char* fileName);
+        void SetPulse(LKParameterContainer* par, TString groupName="LKPulse");
         LKPulse* GetPulse() const  { return fPulse; }
         TString GetPulseFileName() const { return fPulseFileName; }
+        void SetUsePulseFunction(bool value=true);
+        void SetPulseFunctionParameters(double baseline, double peak, double t0, double alpha, double tau);
+        void SetPulseFunctionRange(double tbMin, double tbMax);
+        void FixPulseFunctionAlpha(bool value=true);
+        void FixPulseFunctionTau(bool value=true);
+        TF1* GetPulseFunction(TString name="pulse_function", bool subtractBaseline=true);
 
         double Eval  (double tb, double tb0=0, double amplitude=1) { return fPulse -> Eval  (tb, tb0, amplitude); }
         double Error (double tb, double tb0=0, double amplitude=1) { return fPulse -> Error (tb, tb0, amplitude); }
@@ -259,6 +269,7 @@ class LKChannelAnalyzer : public LKPadInteractive
         void SetScaleTbStep(double scaleTbStep) { fScaleTbStep = scaleTbStep; }
         void SetTbStepCut(double value) { fTbStepCut = value; }
         void SetDataIsInverted(bool value=true) { fDataIsInverted = value; }
+        void SetUseRootPulseFit(bool value=true) { fUseRootPulseFit = value; }
 
         double* GetBuffer() { return fBuffer; }
 
@@ -335,6 +346,7 @@ class LKChannelAnalyzer : public LKPadInteractive
         int          fIterMax = 15; ///< [Pulse-fitting] Maximum iteration cut. Must be set with SetIterMax()
         double       fTbStepCut = 0.01; ///< [Pulse-fitting] Break from loop if fit-TB-step < fTbStepCut. Related to fitting speed and resolution. Can be set with SetTbStepCut().
         double       fScaleTbStep = 0.5; ///< [Pulse-fitting] (~0.2) Scale factor for choosing fit-TB-step for next TB candidate. Related to fitting speed and iteration #. Must be set with SetScaleTbStep()
+        bool         fUseRootPulseFit = false; ///< [Pulse-fitting] Use TH1::Fit with LKPulse TF1 before falling back to manual chi2 iteration.
 
         double       fFWHM; ///< [Pulse] Full Width Half Maximum of reference pulse. Automatically set from pulse.
         double       fFloorRatio; ///< [Pulse] Ratio regard to the full pulse height where pulse width was measured. Automatically set from pulse.
@@ -377,7 +389,9 @@ class LKChannelAnalyzer : public LKPadInteractive
         TH1D* fHistBufferIntegral = nullptr;
         vector<int> fIntegralTbArray;
 
-    ClassDef(LKChannelAnalyzer,1);
+        void ConfigureFromPulse();
+
+    ClassDef(LKChannelAnalyzer,2);
 };
 
 #endif

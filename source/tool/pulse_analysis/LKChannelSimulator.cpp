@@ -1,8 +1,7 @@
 #include "LKChannelSimulator.h"
-#include "LKChannelSimulator.h"
 #include "TRandom.h"
-#include "LKCompiled.h"
 #include "LKLogger.h"
+#include "LKParameterContainer.h"
 #include <iostream>
 using namespace std;
 
@@ -10,10 +9,7 @@ ClassImp(LKChannelSimulator);
 
 LKChannelSimulator::LKChannelSimulator()
 {
-    fPulse = new LKPulse(TString(LILAK_PATH)+"/common/pulseReference.root");
-
-    fBackGroundLevel = fPulse -> GetBackGroundLevel();
-    fPedestalFluctuationLevel = fPulse -> GetFluctuationLevel();
+    fPulse = new LKPulse();
     fFloorRatio = fPulse -> GetFloorRatio();
 }
 
@@ -24,10 +20,11 @@ void LKChannelSimulator::Print(Option_t *option) const
     e_cout << "      y-Max:             " << fYMax << endl;
     e_cout << "      tb-Max:            " << fTbMax << endl;
     e_info << "General Background (BG)" << endl;
-    e_cout << "      BG uevel:          " << fBackGroundLevel << endl;
+    e_cout << "      BG level:          " << fBackGroundLevel << endl;
+    e_cout << "      BG sigma:          " << fBackGroundLevelSigma << endl;
+    e_cout << "      BG range:          " << fBackGroundLevelMin << " - " << fBackGroundLevelMax << endl;
     e_info << "Pedestal Fluctuation (PF)" << endl;
     e_cout << "      PF level:          " << fPedestalFluctuationLevel << endl;
-    e_cout << "      PF scale:          " << fPedestalFluctuationScale << endl;
     e_cout << "      PF length:         " << fPedestalFluctuationLength << endl;
     e_cout << "      PF length-error:   " << fPedestalFluctuationLengthError << endl;
     e_info << "Smoothing" << endl;
@@ -41,18 +38,107 @@ void LKChannelSimulator::Print(Option_t *option) const
 
 void LKChannelSimulator::SetPulse(const char* fileName)
 {
-    fPulse = new LKPulse(fileName);
+    SetPulse(new LKPulse(fileName));
+}
 
-    fBackGroundLevel = fPulse -> GetBackGroundLevel();
+void LKChannelSimulator::SetPulse(LKParameterContainer* par, TString groupName)
+{
+    SetPulse(new LKPulse(par, groupName));
+}
+
+void LKChannelSimulator::SetPulse(LKPulse* pulse)
+{
+    if (pulse==nullptr)
+        return;
+
+    fPulse = pulse;
+
+    SetBackGroundLevel(fPulse -> GetBackGroundLevel());
     fPedestalFluctuationLevel = fPulse -> GetFluctuationLevel();
     fFloorRatio = fPulse -> GetFloorRatio();
 }
 
+void LKChannelSimulator::SetBackGroundLevel(double mean, double sigma, double min, double max)
+{
+    fBackGroundLevel = mean;
+    fBackGroundLevelSigma = sigma;
+    fBackGroundLevelMin = min;
+    fBackGroundLevelMax = max;
+}
+
+void LKChannelSimulator::SetUsePulseFunction(bool value)
+{
+    if (fPulse==nullptr)
+        fPulse = new LKPulse();
+    fPulse -> SetUsePulseFunction(value);
+    fFloorRatio = fPulse -> GetFloorRatio();
+}
+
+void LKChannelSimulator::SetPulseFunctionParameters(double baseline, double peak, double t0, double alpha, double tau)
+{
+    if (fPulse==nullptr)
+        fPulse = new LKPulse();
+    fPulse -> SetPulseFunctionParameters(baseline, peak, t0, alpha, tau);
+    fPulse -> SetUsePulseFunction(true);
+    fFloorRatio = fPulse -> GetFloorRatio();
+}
+
+void LKChannelSimulator::SetPulseFunctionRange(double tbMin, double tbMax)
+{
+    if (fPulse==nullptr)
+        fPulse = new LKPulse();
+    fPulse -> SetPulseFunctionRange(tbMin, tbMax);
+    fPulse -> SetUsePulseFunction(true);
+    fFloorRatio = fPulse -> GetFloorRatio();
+}
+
+void LKChannelSimulator::UpdatePulseFunctionParameters(LKParameterContainer* par, TString groupName)
+{
+    if (par==nullptr)
+        return;
+
+    if (fPulse==nullptr)
+        fPulse = new LKPulse();
+
+    fPulse -> UpdatePulseFunctionParameters(par, "LKPulse");
+
+    bool usePulseFunction = fPulse -> UsesPulseFunction();
+    double baseline = fPulse -> GetPulseFunctionBaseline();
+    double peak = fPulse -> GetPulseFunctionPeak();
+    double t0 = fPulse -> GetPulseFunctionT0();
+    double alpha = fPulse -> GetPulseFunctionAlpha();
+    double tau = fPulse -> GetPulseFunctionTau();
+    double tbMin = fPulse -> GetPulseFunctionTbMin();
+    double tbMax = fPulse -> GetPulseFunctionTbMax();
+
+    par -> UpdatePar(usePulseFunction, groupName+"/UsePulseFunction true # If true, AddHit uses LKPulse analytic pulse function; if false, use LKPulse reference graph.");
+    par -> UpdatePar(baseline, groupName+"/PulseFunctionBaseline 0.000247812 # Normalized baseline offset from pulse-reference fit; subtracted during simulation.");
+    par -> UpdatePar(peak, groupName+"/PulseFunctionPeak 1.00117 # Normalized peak height of the fitted gamma-like pulse.");
+    par -> UpdatePar(t0, groupName+"/PulseFunctionT0 -3.35106 # (tb) Function start time relative to hit time.");
+    par -> UpdatePar(alpha, groupName+"/PulseFunctionAlpha 3.4317 # Shape exponent of the fitted gamma-like pulse.");
+    par -> UpdatePar(tau, groupName+"/PulseFunctionTau 4.54546 # (tb) Decay time scale of the fitted gamma-like pulse.");
+    par -> UpdatePar(tbMin, groupName+"/PulseFunctionTbMin -20. # (tb) Lower valid range relative to hit time.");
+    par -> UpdatePar(tbMax, groupName+"/PulseFunctionTbMax 81. # (tb) Upper valid range relative to hit time.");
+
+    fPulse -> SetUsePulseFunction(usePulseFunction);
+    fPulse -> SetPulseFunctionParameters(baseline, peak, t0, alpha, tau);
+    fPulse -> SetPulseFunctionRange(tbMin, tbMax);
+    fFloorRatio = fPulse -> GetFloorRatio();
+}
+
+TF1* LKChannelSimulator::GetPulseFunction(TString name, bool subtractBaseline)
+{
+    if (fPulse==nullptr)
+        fPulse = new LKPulse();
+    return fPulse -> GetPulseFunction(name, subtractBaseline);
+}
+
 void LKChannelSimulator::AddPedestal()
 {
-    double pedestalFluctuationLevel = fPedestalFluctuationScale * fPedestalFluctuationLevel;
+    double backGroundLevel = SampleBackGroundLevel();
+    double pedestalFluctuationLevel = fPedestalFluctuationLevel;
     for (auto tb=0; tb<fTbMax; ++tb)
-        fBuffer[tb] = gRandom -> Gaus(0, pedestalFluctuationLevel);
+        fBuffer[tb] = gRandom -> Gaus(backGroundLevel, pedestalFluctuationLevel);
 
     Smoothing(fTbMax,fSmoothingLength,fNumSmoothing);
 }
@@ -60,9 +146,10 @@ void LKChannelSimulator::AddPedestal()
 void LKChannelSimulator::AddFluctuatingPedestal()
 {
     int pmFluctuation = 1;
-    double pedestalFluctuationLevel = fPedestalFluctuationScale * fPedestalFluctuationLevel;
+    double backGroundLevel = SampleBackGroundLevel();
+    double pedestalFluctuationLevel = fPedestalFluctuationLevel;
     int valuePointer = gRandom -> Gaus(0, pedestalFluctuationLevel);
-    valuePointer = fBackGroundLevel + pmFluctuation*(valuePointer);
+    valuePointer = backGroundLevel + pmFluctuation*(valuePointer);
     pmFluctuation = -pmFluctuation;
 
     int tbPointer = 0;
@@ -75,7 +162,7 @@ void LKChannelSimulator::AddFluctuatingPedestal()
         if (tbFlucLength==0) tbFlucLength = 1;
 
         int valueTarget = gRandom -> Gaus(0, pedestalFluctuationLevel);
-        valueTarget = fBackGroundLevel + pmFluctuation*(valueTarget);
+        valueTarget = backGroundLevel + pmFluctuation*(valueTarget);
         pmFluctuation = -pmFluctuation;
 
         int dValueTotal = valueTarget - valuePointer;
@@ -123,6 +210,26 @@ void LKChannelSimulator::AddHit(double tb0, double amplitude)
             if (fBuffer[tb] < 0)
                 fBuffer[tb] = 0;
         }
+}
+
+double LKChannelSimulator::SampleBackGroundLevel()
+{
+    if (fBackGroundLevelSigma<0)
+        return fBackGroundLevel;
+
+    bool useRange = (fBackGroundLevelMin < fBackGroundLevelMax);
+    for (auto iTry=0; iTry<10000; ++iTry)
+    {
+        double value = gRandom -> Gaus(fBackGroundLevel, fBackGroundLevelSigma);
+        if (!useRange || (value>=fBackGroundLevelMin && value<=fBackGroundLevelMax))
+            return value;
+    }
+
+    if (fBackGroundLevel < fBackGroundLevelMin)
+        return fBackGroundLevelMin;
+    if (fBackGroundLevel > fBackGroundLevelMax)
+        return fBackGroundLevelMax;
+    return fBackGroundLevel;
 }
 
 void LKChannelSimulator::Smoothing(int n, int smoothingLevel, int numSmoothing)

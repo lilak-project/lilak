@@ -41,6 +41,10 @@ class LKPulseShapeAnalysisTask : public LKTask
         bool fUsingDetectorPlane = false;
         LKDetectorPlane* fDetectorPlane = nullptr;
         LKChannelAnalyzer* fChannelAnalyzer = nullptr;
+        TString fPulseParameterFile = "";
+        bool fFixPulseFunctionAlpha = false;
+        bool fFixPulseFunctionTau = false;
+        bool fUseRootPulseFit = true;
 
     ClassDef(LKPulseShapeAnalysisTask,1);
 };

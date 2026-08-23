@@ -5,6 +5,9 @@
 #include "LKLogger.h"
 #include "LKPulse.h"
 #include "TH1.h"
+#include "TF1.h"
+
+class LKParameterContainer;
 
 /**
  * @brief Simulate and fill buffer with given pulse data and user input parameters
@@ -24,7 +27,7 @@
  *      sim -> SetNumSmoothing(2);
  *      sim -> SetSmoothingLength(2);
  *      sim -> SetPedestalFluctuationLength(3);
- *      sim -> SetPedestalFluctuationScale(0.2);
+ *      sim -> SetPedestalFluctuationLevel(20);
  *      sim -> SetPulseErrorScale(0.05);
  *      sim -> SetBackGroundLevel(100);
  *
@@ -55,21 +58,29 @@ class LKChannelSimulator : public TObject
         void Print(Option_t *option="") const;
 
         void Init() { if (fBuffer==nullptr) fBuffer = new int[fTbMax]; }
-        void Reset() { Init(); memset(fBuffer, 0, fTbMax); }
+        void Reset() { Init(); memset(fBuffer, 0, sizeof(int)*fTbMax); }
 
         void SetPulse(const char* fileName);
+        void SetPulse(LKParameterContainer* par, TString groupName="LKPulse");
+        void SetPulse(LKPulse* pulse);
+        LKPulse* GetPulse() const { return fPulse; }
+        void SetUsePulseFunction(bool value);
+        void SetPulseFunctionParameters(double baseline, double peak, double t0, double alpha, double tau);
+        void SetPulseFunctionRange(double tbMin, double tbMax);
+        void UpdatePulseFunctionParameters(LKParameterContainer* par, TString groupName="LKChannelSimulator");
+        TF1* GetPulseFunction(TString name="pulse_function", bool subtractBaseline=true);
 
         void SetYMax(int yMax) { fYMax = yMax; }
         void SetTbMax(int yMax) { fTbMax = yMax; }
         void SetNumSmoothing(int num) { fNumSmoothing = num; }
         void SetSmoothingLength(int length) { fSmoothingLength = length; }
-        void SetPedestalFluctuationScale(double scale) { fPedestalFluctuationScale = scale; }
+        void SetPedestalFluctuationLevel(double level) { fPedestalFluctuationLevel = level; }
         void SetPedestalFluctuationLength(int length, double error=0.1) { fPedestalFluctuationLength = length; fPedestalFluctuationLengthError = error; }
-        void SetBackGroundLevel(double value) { fBackGroundLevel = value; }
+        void SetBackGroundLevel(double mean, double sigma=-1, double min=0, double max=0);
         void SetPulseErrorScale(double scale) { fPulseErrorScale = scale; }
         void SetCutBelow0(bool value) { fCutBelow0 = value; }
 
-        double GetPedestalFluctuationLevel() { return (fPedestalFluctuationScale * fPedestalFluctuationLevel); }
+        double GetPedestalFluctuationLevel() { return fPedestalFluctuationLevel; }
 
         void AddPedestal();
         void AddFluctuatingPedestal();
@@ -81,6 +92,7 @@ class LKChannelSimulator : public TObject
 
     protected:
         void Smoothing(int n, int smoothLevel, int numSmoothing);
+        double SampleBackGroundLevel();
 
     private:
         LKPulse*     fPulse = nullptr;
@@ -90,9 +102,11 @@ class LKChannelSimulator : public TObject
         int          fNumSmoothing = 2; ///< Number of iteration for Smoothing. Can be set with SetNumSmoothing().
         int          fSmoothingLength = 4; ///< Number of bins to be used for smoothing one bin. Can be set with SetSmoothingLength().
         double       fFloorRatio = 0.05;
-        double       fBackGroundLevel = 400; ///< Pedestal. Will be set from pulse data file. Can be set with SetBackGroundLevel().
-        double       fPedestalFluctuationLevel = 1; ///< Background pedestal will fluctuate around this value. Will be set from pulse data file.
-        double       fPedestalFluctuationScale = 1; ///< scale=0 will draw flat background distribution where scale=1 will draw background with standard error. Can be set with SetPedestalFluctuationScale().
+        double       fBackGroundLevel = 400; ///< (ADC) Fixed pedestal or mean pedestal if fBackGroundLevelSigma is non-negative.
+        double       fBackGroundLevelSigma = -1; ///< (ADC) If non-negative, sample pedestal from Gaussian(mean,sigma).
+        double       fBackGroundLevelMin = 0; ///< (ADC) Lower accepted sampled pedestal, used only when min<max.
+        double       fBackGroundLevelMax = 0; ///< (ADC) Upper accepted sampled pedestal, used only when min<max.
+        double       fPedestalFluctuationLevel = 1; ///< (ADC) Absolute pedestal fluctuation sigma. Will be set from pulse data file.
         int          fPedestalFluctuationLength = 4; ///< Used for SetFluctuatingPedestal(). The width of bakcground fluctuatation will be around this value. Can be set with SetPedestalFluctuationLength().
         double       fPedestalFluctuationLengthError = 0;
         double       fPulseErrorScale = 0.05; ///<
@@ -100,7 +114,7 @@ class LKChannelSimulator : public TObject
 
         int*         fBuffer = nullptr;
 
-    ClassDef(LKChannelSimulator,1);
+    ClassDef(LKChannelSimulator,2);
 };
 
 #endif
