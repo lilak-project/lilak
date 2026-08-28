@@ -36,15 +36,17 @@ ClassImp(LKRun)
 
 namespace
 {
-int WriteDrawingCanvases(LKDrawingGroup* group, TDirectory* canvasDirectory)
+int WriteDrawingCanvases(LKDrawingGroup* group, TDirectory* hitPatternDirectory,
+                         TDirectory* otherDirectory, int& numHitPatternCanvases)
 {
-    if (group == nullptr || canvasDirectory == nullptr)
+    if (group == nullptr || hitPatternDirectory == nullptr || otherDirectory == nullptr)
         return 0;
 
     if (group->IsGroupGroup()) {
         int count = 0;
         for (auto iGroup=0; iGroup<group->GetNumGroups(); ++iGroup)
-            count += WriteDrawingCanvases(group->GetGroup(iGroup), canvasDirectory);
+            count += WriteDrawingCanvases(group->GetGroup(iGroup),hitPatternDirectory,
+                                           otherDirectory,numHitPatternCanvases);
         return count;
     }
 
@@ -54,6 +56,10 @@ int WriteDrawingCanvases(LKDrawingGroup* group, TDirectory* canvasDirectory)
 
     TString keyName = group->GetFullName();
     keyName.ReplaceAll(":", "_");
+    const bool isHitPattern = TString(group->GetName()) == "hit_pattern";
+    auto canvasDirectory = isHitPattern ? hitPatternDirectory : otherDirectory;
+    if (isHitPattern)
+        ++numHitPatternCanvases;
     canvasDirectory->cd();
     canvas->Write(keyName, TObject::kOverwrite);
     return 1;
@@ -1885,12 +1891,18 @@ bool LKRun::WriteOutputFile()
     if (fTopDrawingGroup!=nullptr)
         fTopDrawingGroup -> Write();
     if (fSaveX && fTopDrawingGroup!=nullptr) {
-        auto canvasDirectory = fOutputFile->GetDirectory("canvas");
-        if (canvasDirectory == nullptr)
-            canvasDirectory = fOutputFile->mkdir("canvas");
-        const auto numCanvases = WriteDrawingCanvases(fTopDrawingGroup, canvasDirectory);
+        auto hitPatternDirectory = fOutputFile->GetDirectory("canvas_hitpattern");
+        if (hitPatternDirectory == nullptr)
+            hitPatternDirectory = fOutputFile->mkdir("canvas_hitpattern");
+        auto otherDirectory = fOutputFile->GetDirectory("canvas_others");
+        if (otherDirectory == nullptr)
+            otherDirectory = fOutputFile->mkdir("canvas_others");
+        int numHitPatternCanvases = 0;
+        const auto numCanvases = WriteDrawingCanvases(fTopDrawingGroup,hitPatternDirectory,
+                                                       otherDirectory,numHitPatternCanvases);
         fOutputFile->cd();
-        lk_info << "Saved " << numCanvases << " canvases in canvas/" << endl;
+        lk_info << "Saved " << numHitPatternCanvases << " canvases in canvas_hitpattern/ and "
+                << numCanvases-numHitPatternCanvases << " canvases in canvas_others/" << endl;
     }
     if (fAutoTerminate)
         fOutputFile -> Close();

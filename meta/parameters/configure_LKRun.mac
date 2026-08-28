@@ -27,3 +27,4 @@ LKRun/EventCountForMessage    20000
 #lilak/run                     0  # run [no] after init. Execute all events if [no] is 0
 #lilak/draw                    0  # execute Draw()
 #lilak/execute                 0  # execute event [no] after init
+#lilak/savex                   false  # draw in batch mode and save canvases in output ROOT file
