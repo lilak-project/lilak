@@ -1904,8 +1904,12 @@ fi
 
         new_contents = f"""{{
     TString message = "libs: ";
-    TString libName = TString(gSystem->Getenv("LILAK_PATH"))+"/build/libLILAK";
-    int loadv = gSystem -> Load(libName);
+    TString libName;
+    int loadv = -1;
+{nplib_loader_block}
+
+    libName = TString(gSystem->Getenv("LILAK_PATH"))+"/build/libLILAK";
+    loadv = gSystem -> Load(libName);
     if (loadv == 0 || loadv == 1) {{
         message = message + "LILAK ";
         gROOT -> ProcessLine("#include \\"LKCompiled.h\\"");
@@ -1913,7 +1917,6 @@ fi
     else {{
         cout << "Error while loading " << libName << endl;
     }}
-{nplib_loader_block}
 
     cout << message << endl;
 
