@@ -1,0 +1,114 @@
+# silicon mapping parameter file
+si_mapping/type "board_types"
+board_types/0/key "X6"
+board_types/0/detector_label "X6"
+board_types/0/merging_label "X6 Merging"
+board_types/0/zap_label "X6/QQQ5 ZAP/AsAd"
+board_types/0/junction_strip_count 16
+board_types/0/ohmic_strip_count 4
+board_types/0/merging_slots/0/id "A"
+board_types/0/merging_slots/0/label "A"
+board_types/0/merging_slots/1/id "B"
+board_types/0/merging_slots/1/label "B"
+board_types/0/merging_slots/2/id "C"
+board_types/0/merging_slots/2/label "C"
+board_types/0/merging_slots/3/id "D"
+board_types/0/merging_slots/3/label "D"
+board_types/0/zap_pins/0/id "PIN1"
+board_types/0/zap_pins/0/label "Pin 1 > AGET#3, AGET#0 (0-15)"
+board_types/0/zap_pins/0/junction_aget 3
+board_types/0/zap_pins/0/junction_first_channel 0
+board_types/0/zap_pins/0/ohmic_aget 0
+board_types/0/zap_pins/0/ohmic_first_channel 0
+board_types/0/zap_pins/1/id "PIN2"
+board_types/0/zap_pins/1/label "Pin 2 > AGET#2, AGET#0 (16-31)"
+board_types/0/zap_pins/1/junction_aget 2
+board_types/0/zap_pins/1/junction_first_channel 0
+board_types/0/zap_pins/1/ohmic_aget 0
+board_types/0/zap_pins/1/ohmic_first_channel 16
+board_types/0/zap_pins/2/id "PIN3"
+board_types/0/zap_pins/2/label "Pin 3 > AGET#1, AGET#0 (32-47)"
+board_types/0/zap_pins/2/junction_aget 1
+board_types/0/zap_pins/2/junction_first_channel 0
+board_types/0/zap_pins/2/ohmic_aget 0
+board_types/0/zap_pins/2/ohmic_first_channel 32
+
+board_types/1/key "BB10"
+board_types/1/detector_label "BB10"
+board_types/1/merging_label "BB10 Merging"
+board_types/1/zap_label "BB10 ZAP/AsAd"
+board_types/1/junction_strip_count 8
+board_types/1/ohmic_strip_count 1
+board_types/1/merging_slots/0/id "A"
+board_types/1/merging_slots/0/label "A"
+board_types/1/merging_slots/1/id "B"
+board_types/1/merging_slots/1/label "B"
+board_types/1/merging_slots/2/id "C"
+board_types/1/merging_slots/2/label "C"
+board_types/1/merging_slots/3/id "D"
+board_types/1/merging_slots/3/label "D"
+board_types/1/zap_pins/0/id "PIN1_1"
+board_types/1/zap_pins/0/label "Pin 1-1 > AGET#3 (0-31), AGET#0 (0-3)"
+board_types/1/zap_pins/0/junction_aget 3
+board_types/1/zap_pins/0/junction_first_channel 0
+board_types/1/zap_pins/0/ohmic_aget 0
+board_types/1/zap_pins/0/ohmic_first_channel 0
+board_types/1/zap_pins/1/id "PIN1_2"
+board_types/1/zap_pins/1/label "Pin 1-2 > AGET#3 (32-63), AGET#0 (4-7)"
+board_types/1/zap_pins/1/junction_aget 3
+board_types/1/zap_pins/1/junction_first_channel 32
+board_types/1/zap_pins/1/ohmic_aget 0
+board_types/1/zap_pins/1/ohmic_first_channel 4
+board_types/1/zap_pins/2/id "PIN2_1"
+board_types/1/zap_pins/2/label "Pin 2-1 > AGET#2 (0-31), AGET#0 (8-11)"
+board_types/1/zap_pins/2/junction_aget 2
+board_types/1/zap_pins/2/junction_first_channel 0
+board_types/1/zap_pins/2/ohmic_aget 0
+board_types/1/zap_pins/2/ohmic_first_channel 8
+board_types/1/zap_pins/3/id "PIN2_2"
+board_types/1/zap_pins/3/label "Pin 2-2 > AGET#2 (32-63), AGET#0 (12-15)"
+board_types/1/zap_pins/3/junction_aget 2
+board_types/1/zap_pins/3/junction_first_channel 32
+board_types/1/zap_pins/3/ohmic_aget 0
+board_types/1/zap_pins/3/ohmic_first_channel 12
+board_types/1/zap_pins/4/id "PIN3_1"
+board_types/1/zap_pins/4/label "Pin 3-1 > AGET#1 (0-31), AGET#0 (16-19)"
+board_types/1/zap_pins/4/junction_aget 1
+board_types/1/zap_pins/4/junction_first_channel 0
+board_types/1/zap_pins/4/ohmic_aget 0
+board_types/1/zap_pins/4/ohmic_first_channel 16
+board_types/1/zap_pins/5/id "PIN3_2"
+board_types/1/zap_pins/5/label "Pin 3-2 > AGET#1 (32-63), AGET#0 (20-23)"
+board_types/1/zap_pins/5/junction_aget 1
+board_types/1/zap_pins/5/junction_first_channel 32
+board_types/1/zap_pins/5/ohmic_aget 0
+board_types/1/zap_pins/5/ohmic_first_channel 20
+
+board_types/2/key "QQQ5"
+board_types/2/detector_label "QQQ5"
+board_types/2/merging_label "QQQ5 Merging"
+board_types/2/zap_label "X6/QQQ5 ZAP/AsAd"
+board_types/2/junction_strip_count 32
+board_types/2/ohmic_strip_count 4
+board_types/2/merging_slots/0/id "A"
+board_types/2/merging_slots/0/label "A"
+board_types/2/merging_slots/1/id "B"
+board_types/2/merging_slots/1/label "B"
+board_types/2/zap_pins/0/id "PIN1"
+board_types/2/zap_pins/0/label "Pin 1 > AGET#3 (0-63), AGET#0 (0-7)"
+board_types/2/zap_pins/0/junction_aget 3
+board_types/2/zap_pins/0/junction_first_channel 0
+board_types/2/zap_pins/0/ohmic_aget 0
+board_types/2/zap_pins/0/ohmic_first_channel 0
+board_types/2/zap_pins/1/id "PIN2"
+board_types/2/zap_pins/1/label "Pin 2 > AGET#2 (0-63), AGET#0 (16-23)"
+board_types/2/zap_pins/1/junction_aget 2
+board_types/2/zap_pins/1/junction_first_channel 0
+board_types/2/zap_pins/1/ohmic_aget 0
+board_types/2/zap_pins/1/ohmic_first_channel 16
+board_types/2/zap_pins/2/id "PIN3"
+board_types/2/zap_pins/2/label "Pin 3 > AGET#1 (0-63), AGET#0 (33-40)"
+board_types/2/zap_pins/2/junction_aget 1
+board_types/2/zap_pins/2/junction_first_channel 0
+board_types/2/zap_pins/2/ohmic_aget 0
+board_types/2/zap_pins/2/ohmic_first_channel 33

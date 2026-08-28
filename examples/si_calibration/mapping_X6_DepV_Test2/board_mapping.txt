@@ -1,0 +1,8 @@
+det_group	det_idx	det_type	det_number	ring_number	ring_type	ring_radius	ring_z	det_r	det_z	phi_number	mg	slot	zap	pin	asad	cobo
+1	0	X6	60	1	Free	0.0	0.0	0	0	10	0	A	0	PIN2	0	0
+1	1	X6	52	1	Free	0.0	0.0	0	0	9	0	B	0	PIN2	0	0
+1	2	X6	11	1	Free	0.0	0.0	0	0	6	0	C	0	PIN2	0	0
+1	3	X6	47	1	Free	0.0	0.0	0	0	5	0	D	0	PIN2	0	0
+1	4	X6	44	1	Free	0.0	0.0	0	0	2	1	C	1	PIN2	0	1
+1	5	X6	45	1	Free	0.0	0.0	0	0	1	1	B	1	PIN2	0	1
+1	6	X6	46	1	Free	0.0	0.0	0	0	14	1	A	1	PIN2	0	1

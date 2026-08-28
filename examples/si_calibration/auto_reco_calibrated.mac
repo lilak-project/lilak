@@ -1,0 +1,34 @@
+#lilak/print  all  # print after init gen:par:out:in:det:task
+#lilak/collect_par  print  # file name to write collected parameters. 'print' to print out on screen
+#lilak/auto_exit  0  # set(1)/unset(0) auto termination
+lilak/run  0  # run [no] after init. Execute all events if [no] is 0
+#lilak/draw  0  # execute Draw()
+#lilak/execute  0  # execute event [no] after init
+lilak/add  LKGETConversionTask  # add task or detector class
+lilak/add  LKSetSiChannelTask  # add task or detector class
+lilak/add  LKEnergyRestorationTask
+
+LKEnergyRestorationTask/energyCalibrationFile data_calibration/run_e{CALRUN}/pre_li7_e{CALRUN}.energy_calibration.dat
+LKEnergyRestorationTask/c2ReferenceEnergy  5.486
+LKEnergyRestorationTask/buildSiHit  true
+
+LKRun/Name  pre_li7  # name of the run
+LKRun/RunID  e{RUN}  # run number
+LKRun/Tag  reco_calibrated  # tag
+LKRun/OutputPath  /Users/jungwoo/data/stark/reco  # path to the output. Default path {lilak_data} is lilak/data/
+LKRun/InputPath  /Users/jungwoo/data/stark/raw  # LKRun will search files from input paths when LKRun/SearchRun
+LKRun/SearchRun  mfm  # search input files with LKRun/RunID. opt=mfm: search mfm files, opt=[tag]: search run_runNo.*.[tag].root
+LKRun/AutoTerminate  true  # automatically terminate root after end of run
+#LKRun/EntriesLimit  e{ENTRIES}
+LKRun/EventCountForMessage  20000
+
+si_array/MappingPath e{MAPPING}
+
+persistency/FrameHeader  false  # save branch to output file
+persistency/PFData  false  # save branch to output file
+persistency/RawData  true  # save branch to output file
+persistency/SiChannel  true  # save branch to output file
+persistency/SiHit  true  # save branch to output file
+
+LKRun/ElogEnable             true
+LKRun/ElogTimeout            5

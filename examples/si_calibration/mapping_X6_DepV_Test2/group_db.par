@@ -1,0 +1,8 @@
+# silicon mapping parameter file
+si_mapping/type "group_db"
+group_db/groups/0/name "Free"
+group_db/groups/0/capacity 0
+group_db/groups/0/radius_mm 0.0
+group_db/groups/0/z_mm 0.0
+group_db/groups/0/phi_offset_deg 0.0
+group_db/groups/0/half_opening_deg 10.0

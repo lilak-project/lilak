@@ -1,0 +1,36 @@
+# Usage examples:
+#   RUN=151 STAGE=0 MAPPING=mapping_X6_DepV_Test1 lilak run si_calibration.mac  # raw histograms
+#   RUN=151 STAGE=1 MAPPING=mapping_X6_DepV_Test1 lilak run si_calibration.mac  # single channel C0
+#   RUN=151 STAGE=2 MAPPING=mapping_X6_DepV_Test1 lilak run si_calibration.mac  # paired channel C1
+#   RUN=151 STAGE=3 MAPPING=mapping_X6_DepV_Test1 lilak run si_calibration.mac  # paired channel C2
+#   RUN=151 STAGE=4 MAPPING=mapping_X6_DepV_Test1 lilak run si_calibration.mac  # C2-corrected histograms
+#   RUN=151 STAGE=5 MAPPING=mapping_X6_DepV_Test1 lilak run si_calibration.mac  # paired channel C3
+#   RUN=151 STAGE=6 MAPPING=mapping_X6_DepV_Test1 lilak run si_calibration.mac  # final calibration
+
+lilak/run  0
+lilak/add  LKSiliconArray
+lilak/add  SKSiCalibrationTask
+
+LKRun/Name       pre_li7
+LKRun/RunID      e{RUN}
+LKRun/Tag        si_calibration_stage_e{STAGE}
+LKRun/InputPath  /Users/jungwoo/data/stark/reco
+LKRun/SearchRun  reco
+LKRun/OutputPath .
+LKRun/AutoTerminate true
+LKRun/EventCountForMessage 20000
+
+SKSiCalibrationTask/stage              e{STAGE}
+SKSiCalibrationTask/listFile           list.txt
+#SKSiCalibrationTask/sourceEnergies    3.182,5.486
+SKSiCalibrationTask/outputPath         data_calibration/run_e{RUN}
+SKSiCalibrationTask/outputPrefix       pre_li7_e{RUN}
+SKSiCalibrationTask/expectedResolution 0.01
+SKSiCalibrationTask/gateDisplayRangeScale 3
+SKSiCalibrationTask/entriesCut         100
+SKSiCalibrationTask/c2ReferenceEnergy  5.486
+
+si_array/MappingPath e{MAPPING}
+
+persistency/EventHeader false
+persistency/SiChannel   false

@@ -1,0 +1,41 @@
+# silicon mapping parameter file
+si_mapping/type "placeholder_db"
+placeholder_db/groups/0/name "Ring-12 (dE)"
+placeholder_db/groups/0/placeholder_type "Ring"
+placeholder_db/groups/0/capacity 12
+placeholder_db/groups/0/radius_mm 109.2
+placeholder_db/groups/0/z_mm 150
+placeholder_db/groups/0/phi_offset_deg -15
+placeholder_db/groups/0/half_opening_deg 10.45483508
+
+placeholder_db/groups/1/name "Ring-12 (E)"
+placeholder_db/groups/1/placeholder_type "Ring"
+placeholder_db/groups/1/capacity 12
+placeholder_db/groups/1/radius_mm 129.2
+placeholder_db/groups/1/z_mm 170
+placeholder_db/groups/1/phi_offset_deg -15
+placeholder_db/groups/1/half_opening_deg 10.45483508
+
+placeholder_db/groups/2/name "Ring-16"
+placeholder_db/groups/2/placeholder_type "Ring"
+placeholder_db/groups/2/capacity 16
+placeholder_db/groups/2/radius_mm 150
+placeholder_db/groups/2/z_mm 200
+placeholder_db/groups/2/phi_offset_deg 0
+placeholder_db/groups/2/half_opening_deg 8
+
+placeholder_db/groups/3/name "QQQ5 plane"
+placeholder_db/groups/3/placeholder_type "Circular"
+placeholder_db/groups/3/capacity 4
+placeholder_db/groups/3/radius_mm 95
+placeholder_db/groups/3/z_mm 120
+placeholder_db/groups/3/phi_offset_deg 45
+placeholder_db/groups/3/half_opening_deg 20
+
+placeholder_db/groups/4/name "Free"
+placeholder_db/groups/4/placeholder_type "Ring"
+placeholder_db/groups/4/capacity 0
+placeholder_db/groups/4/radius_mm 0
+placeholder_db/groups/4/z_mm 0
+placeholder_db/groups/4/phi_offset_deg 0
+placeholder_db/groups/4/half_opening_deg 10
