@@ -1,5 +1,7 @@
+#include <cmath>
 #include "LKLogger.h"
 #include "LKBufferD.h"
+using namespace std;
 
 ClassImp(LKBufferD);
 
@@ -148,4 +150,14 @@ void LKBufferD::GetGroupMeanStdDev(int numGroups, int tb2, double* pdstalGroup, 
         tbGlobal++;
     }
     pdstalGroup[numGroupsM1] = pdstalGroup[numGroupsM1] / numTbsInGroupLast;
+}
+
+double LKBufferD::Integral(double pedestal, bool invert)
+{
+    double sum = 0.;
+    for (int tb=0; tb<512; tb++) {
+        const double value = invert ? 4096 - fArray[tb] : fArray[tb];
+        sum += value - pedestal;
+    }
+    return sum;
 }
