@@ -1342,7 +1342,6 @@ lilak() {{
         echo "  si_mapping [input] Open the silicon detector mapping editor in a local web browser."
         echo "  g4sim [input]      Execute the default Geant4 simulatoin program with the provided [input]."
         echo "  nptool [input]     Execute the default nptool simulatoin program with the provided [input]."
-        echo "  [macro]            Execute a LILAK parameter macro. ex) lilak config.mac"
         echo "  collect_par [input] Execute parameter collection and rewrite the provided parameter file."
         echo "  read [input]       Create a ROOT macro that reads a LILAK output ROOT file."
         echo "  draw [input]       Draw using a parameter file, or generate draw examples from a ROOT file."
@@ -1627,8 +1626,18 @@ lilak() {{
                 return 1
             else
                 local source_par="$2"
+                local backup_par="${{source_par}}.old"
                 local temp_par
                 local temp_lilak
+                if [ ! -f "$source_par" ]; then
+                    echo "Error: Parameter file not found: $source_par"
+                    return 1
+                fi
+                if ! cp -p -- "$source_par" "$backup_par"; then
+                    echo "Error: Failed to create backup: $backup_par"
+                    return 1
+                fi
+                echo "Backup: $backup_par"
                 temp_par=$(mktemp "/tmp/lilak_collect_par.XXXXXX.mac")
                 temp_lilak=$(mktemp "/tmp/lilak_collect_lines.XXXXXX.txt")
                 cp "$source_par" "$temp_par"
@@ -1767,28 +1776,12 @@ EOF
                     cd "$target_project_dir"
                     echo "Changed directory to: $(pwd)"
                 fi
-            elif [ -f "$1" ]; then
-                root -l "$LILAK_PATH/macros/run_lilak.C(\"$1\")"
             else
-                echo "Unknown command, project, or macro file: $1"
+                echo "Unknown command or project: $1"
                 lilak
             fi
             ;;
     esac
-}}
-
-# Return success when the current directory contains a run-prefixed path.
-_lilak_has_run_files() {{
-    if [[ -n "${{ZSH_VERSION:-}}" ]]; then
-        setopt localoptions NULL_GLOB
-    fi
-    local run_file
-    for run_file in ./run*; do
-        if [[ -e "${{run_file}}" ]]; then
-            return 0
-        fi
-    done
-    return 1
 }}
 
 # Define the lilak command completion function
@@ -1802,20 +1795,11 @@ _lilak_completions() {{
     local subdir_projects="{" ".join(self.lf_lilak_projects)}"
 
     if [[ ${{COMP_CWORD}} == 1 ]]; then
-        # Keep the legacy run command ahead of files and the read command for r/ru.
+        # Complete r/ru as the run command, independent of run-prefixed files.
         if [[ -n "${{curr_word}}" && "run" == "${{curr_word}}"* ]]; then
-            if _lilak_has_run_files; then
-                add_trailing_space=0
-            fi
             COMPREPLY=("run")
         else
-            local command_matches
-            command_matches=( $(compgen -W "${{commands}}" -- "${{curr_word}}") )
-            if (( ${{#command_matches[@]}} )); then
-                COMPREPLY=("${{command_matches[@]}}")
-            else
-                COMPREPLY=( $(compgen -f -- "${{curr_word}}") )
-            fi
+            COMPREPLY=( $(compgen -W "${{commands}}" -- "${{curr_word}}") )
         fi
     elif [[ $prev_word == "g4sim" ]]; then
         COMPREPLY=( $(compgen -f "${{curr_word}}") )
@@ -1863,11 +1847,7 @@ if [[ -n "${{ZSH_VERSION:-}}" ]]; then
         COMP_CWORD=$((CURRENT - 1))
         _lilak_completions
 
-        if [[ $COMP_CWORD == 1 && -n "${{COMP_WORDS[COMP_CWORD]}}" && "run" == "${{COMP_WORDS[COMP_CWORD]}}"* ]] && _lilak_has_run_files; then
-            compadd -S '' -- "${{COMPREPLY[@]}}"
-        else
-            compadd -- "${{COMPREPLY[@]}}"
-        fi
+        compadd -- "${{COMPREPLY[@]}}"
     }}
     compdef _lilak_zsh_completions lilak
 else
