@@ -1339,6 +1339,7 @@ lilak() {{
         echo "  make_meta [input]  Generate meta parameter files for all classes or one class."
         echo "  make_run [input]   Create a run parameter file from input ROOT file using configure_LKRun.mac."
         echo "  log                Open the LKRun log viewer in a local web browser."
+        echo "  js [options]       Run JSROOT; use -K to stop, -I HOST:PORT, -S shell, -P python, -R ROOT, -D directory."
         echo "  par [input]        Open the parameter file editor in a local web browser."
         echo "  si_mapping [input] Open the silicon detector mapping editor in a local web browser."
         echo "  g4sim [input]      Execute the default Geant4 simulatoin program with the provided [input]."
@@ -1578,6 +1579,10 @@ lilak() {{
         log)
             python3 "$LILAK_PATH/macros/lilak_log_viewer.py"
             ;;
+        js)
+            shift
+            python3 "$LILAK_PATH/macros/lilak_js_launcher.py" "$@"
+            ;;
         par)
             if [ -z "$2" ]; then
                 python3 "$LILAK_PATH/macros/lilak_parameter_editor.py"
@@ -1795,7 +1800,7 @@ _lilak_completions() {{
     local add_trailing_space=1
     curr_word="${{COMP_WORDS[COMP_CWORD]}}"
     prev_word="${{COMP_WORDS[COMP_CWORD-1]}}"
-    local commands="home configure build build_new new update example doc find make_meta make_run log par si_mapping g4sim nptool run collect_par read draw {" ".join(self.lf_lilak_projects)}"
+    local commands="home configure build build_new new update example doc find make_meta make_run log js par si_mapping g4sim nptool run collect_par read draw {" ".join(self.lf_lilak_projects)}"
     local subdir_projects="{" ".join(self.lf_lilak_projects)}"
 
     if [[ ${{COMP_CWORD}} == 1 ]]; then
@@ -1825,6 +1830,10 @@ _lilak_completions() {{
         COMPREPLY=( $(compgen -f "${{curr_word}}") )
     elif [[ $prev_word == "si_mapping" ]]; then
         COMPREPLY=( $(compgen -f "${{curr_word}}") )
+    elif [[ ${{COMP_WORDS[1]}} == "js" && "$prev_word" =~ ^-(S|P|R|D)$ ]]; then
+        COMPREPLY=( $(compgen -f "${{curr_word}}") )
+    elif [[ ${{COMP_WORDS[1]}} == "js" ]]; then
+        COMPREPLY=( $(compgen -W "-K -I -S -P -R -D -h" -- "${{curr_word}}") )
     elif [[ ${{COMP_CWORD}} == 2 && " $subdir_projects " =~ " ${{COMP_WORDS[1]}} " ]]; then
         local project_path="$LILAK_PATH/${{COMP_WORDS[1]}}"
         if [ -d "$project_path" ]; then
