@@ -1338,6 +1338,7 @@ lilak() {{
         echo "  find [input]       Find and navigate to the directory containing [input]."
         echo "  make_meta [input]  Generate meta parameter files for all classes or one class."
         echo "  make_run [input]   Create a run parameter file from input ROOT file using configure_LKRun.mac."
+        echo "  log                Open the LKRun log viewer in a local web browser."
         echo "  par [input]        Open the parameter file editor in a local web browser."
         echo "  si_mapping [input] Open the silicon detector mapping editor in a local web browser."
         echo "  g4sim [input]      Execute the default Geant4 simulatoin program with the provided [input]."
@@ -1574,6 +1575,9 @@ lilak() {{
             fi
             python3 "$LILAK_PATH/macros/lilak_parameter_editor.py" --make-run "$2" ${{3:+--output "$3"}}
             ;;
+        log)
+            python3 "$LILAK_PATH/macros/lilak_log_viewer.py"
+            ;;
         par)
             if [ -z "$2" ]; then
                 python3 "$LILAK_PATH/macros/lilak_parameter_editor.py"
@@ -1791,7 +1795,7 @@ _lilak_completions() {{
     local add_trailing_space=1
     curr_word="${{COMP_WORDS[COMP_CWORD]}}"
     prev_word="${{COMP_WORDS[COMP_CWORD-1]}}"
-    local commands="home configure build build_new new update example doc find make_meta make_run par si_mapping g4sim nptool run collect_par read draw {" ".join(self.lf_lilak_projects)}"
+    local commands="home configure build build_new new update example doc find make_meta make_run log par si_mapping g4sim nptool run collect_par read draw {" ".join(self.lf_lilak_projects)}"
     local subdir_projects="{" ".join(self.lf_lilak_projects)}"
 
     if [[ ${{COMP_CWORD}} == 1 ]]; then
@@ -1855,7 +1859,7 @@ else
 fi
 
 # Optional: Add a message to confirm the script is sourced correctly
-#echo "LILAK is set. Use 'lilak {{home|configure|build|build_new|new|update|example|doc|find|make_meta|make_run|par|g4sim|nptool|run}}'"
+#echo "LILAK is set. Use 'lilak {{home|configure|build|build_new|new|update|example|doc|find|make_meta|make_run|log|par|g4sim|nptool|run}}'"
 """
         fn_lilak_command_sh = os.path.join(self.lilak_path, "macros/command_lilak.sh")
         with open(fn_lilak_command_sh, "w") as lilak_command_sh_file:
