@@ -20,8 +20,8 @@ class LKComW1Hit : public LKComHit
         /// Reset this hit to invalid/default values.
         virtual void Clear(Option_t *option="");
 
-        short fX;  ///< Ohmic/X strip number, or -1 if absent.
-        short fY;  ///< Junction/Y strip number, or -1 if absent.
+        short fX;  ///< Junction/X strip number, or -1 if absent.
+        short fY;  ///< Ohmic/Y strip number (1=top), or -1 if absent.
 
     ClassDef(LKComW1Hit,1);
 };

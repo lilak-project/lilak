@@ -1,0 +1,41 @@
+lilak/run  0
+lilak/add  LKCompassRecoTask
+lilak/savex true  # save canvases under canvas_hitpattern/ and canvas_others/
+
+#default_run 273
+#default_run 287
+#default_run 289
+#default_run 291
+default_run 293
+common_run e{RUN}
+@-common_run/common_run  {default_run}
+
+
+LKRun/Name          compass
+LKRun/RunID         {common_run}
+LKRun/Tag           reco
+LKRun/OutputPath    data
+LKRun/AutoTerminate true
+LKRun/EventCountForMessage  20000
+
+#LKCompassRecoTask/InputFileName data/dummry_run0025.root
+LKCompassRecoTask/InputFileName DataR_run_{common_run}.root
+LKCompassRecoTask/InputTreeName Data_R
+LKCompassRecoTask/TimeWindow    4 us
+#LKCompassRecoTask/TimeWindow    100000
+#LKCompassRecoTask/EnergyThreshold 1000
+#LKCompassRecoTask/EnergyThreshold 0
+LKCompassRecoTask/EnergyThreshold 1000
+LKCompassRecoTask/SortInput     true
+LKCompassRecoTask/W1MainSide    junction
+LKCompassRecoTask/W1Map         1,0,0,16, 2,0,32,48
+LKCompassRecoTask/W1YOrigin     1,top, 2,bottom
+#LKCompassRecoTask/ComMap        3,2,0, 4,2,1, 5,2,2, 6,2,3
+
+# LKCompassRecoTask/W1ECal      1,0,1,0, 2,0,1,0
+# LKCompassRecoTask/ComECal     3,0,1,0, 4,0,1,0, 5,0,1,0, 6,0,1,0
+
+persistency/ComW1Channel true
+persistency/ComChannel   true
+persistency/ComW1Hit     true
+persistency/ComHit       true

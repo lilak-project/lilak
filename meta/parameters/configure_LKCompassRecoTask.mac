@@ -1,0 +1,14 @@
+
+LKCompassRecoTask/ComECal       # detID,c0,c1,c2 repeated
+LKCompassRecoTask/ComMap        # detID,board,channel repeated
+LKCompassRecoTask/EnergyThreshold
+LKCompassRecoTask/FirstEntry
+LKCompassRecoTask/InputFileName           # CoMPASS ROOT input file
+LKCompassRecoTask/InputTreeName
+LKCompassRecoTask/LastEntry
+LKCompassRecoTask/SortInput
+LKCompassRecoTask/TimeWindow
+LKCompassRecoTask/W1ECal        # detID,c0,c1,c2 repeated
+LKCompassRecoTask/W1MainSide
+LKCompassRecoTask/W1Map         # detID,board,junctionStart,ohmicStart repeated
+LKCompassRecoTask/W1YOrigin     # detID,top|bottom repeated; default top
