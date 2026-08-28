@@ -1,6 +1,7 @@
 #include "TGClient.h"
 #include "TGWindow.h"
 #include "TVirtualX.h"
+#include "TROOT.h"
 #include "LKPainter.h"
 #include <iostream>
 using namespace std;
@@ -23,9 +24,9 @@ LKPainter::LKPainter(bool useConfiguration)
 
 bool LKPainter::Init(bool useConfiguration)
 {
-    if (useConfiguration==false) {
-        e_warning << "Skip LKPainter configuration" << endl;
-        e_warning << "Using default window size 1300 x 900" << endl;
+    if (useConfiguration==false || gROOT->IsBatch()) {
+        e_info << "Using default canvas area 1300 x 900"
+               << (gROOT->IsBatch() ? " in batch mode" : "") << endl;
         return true;
     }
 

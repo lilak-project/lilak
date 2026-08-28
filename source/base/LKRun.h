@@ -414,6 +414,7 @@ class LKRun : public LKVirtualRun
         TObjArray* fUserDrawingArray = nullptr;
 
         bool fDrawAfterRun = false;
+        bool fSaveX = false;
         TString fDrawOption;
 
         bool fIsLILAKRun = false;

@@ -514,10 +514,12 @@ bool LKDrawingGroup::ConfigureCanvas()
 
     if (fCvs==nullptr)
     {
+        TString canvasName = "c" + GetFullName();
+        canvasName.ReplaceAll(":", "_");
         if (!fFixCvsSize)
-            fCvs = LKPainter::GetPainter() -> CanvasResize(Form("c%s",fName.Data()), fDXCvs, fDYCvs, resize_factor);
+            fCvs = LKPainter::GetPainter() -> CanvasResize(canvasName, fDXCvs, fDYCvs, resize_factor);
         else
-            fCvs = new TCanvas(Form("c%s",fName.Data()),Form("c%s",fName.Data()), fDXCvs, fDYCvs);
+            fCvs = new TCanvas(canvasName,canvasName, fDXCvs, fDYCvs);
     }
     //else if (!(fCvs->GetWw()==fDXCvs && fCvs->GetWh()==fDYCvs))
     //{

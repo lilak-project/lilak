@@ -1607,7 +1607,18 @@ lilak() {{
             if [ -z "$2" ]; then
                 root -l -q -e 'auto run = new LKRun(); run -> SetCollectPar(); run -> Init();'
             else
-                root -l '{self.lilak_path}/macros/run_lilak.C("'"$2"'")'
+                local lilak_root_options=(-l)
+                if [ -f "$2" ] && awk '
+                    /^[[:space:]]*#/ {{ next }}
+                    $1 == "lilak/savex" {{
+                        value = tolower($2)
+                        enabled = (value == "true" || value == "1" || value == "yes" || value == "on")
+                    }}
+                    END {{ exit(enabled ? 0 : 1) }}
+                ' "$2"; then
+                    lilak_root_options+=(-b)
+                fi
+                root "${{lilak_root_options[@]}}" '{self.lilak_path}/macros/run_lilak.C("'"$2"'")'
             fi
             ;;
         collect_par)

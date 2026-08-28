@@ -21,6 +21,8 @@
 #include "TObjString.h"
 #include "TApplication.h"
 #include "TEntryList.h"
+#include "TDirectory.h"
+#include "TROOT.h"
 
 #include "TSystemDirectory.h"
 #include "TSystemFile.h"
@@ -31,6 +33,32 @@
 #include "LKMisc.h"
 
 ClassImp(LKRun)
+
+namespace
+{
+int WriteDrawingCanvases(LKDrawingGroup* group, TDirectory* canvasDirectory)
+{
+    if (group == nullptr || canvasDirectory == nullptr)
+        return 0;
+
+    if (group->IsGroupGroup()) {
+        int count = 0;
+        for (auto iGroup=0; iGroup<group->GetNumGroups(); ++iGroup)
+            count += WriteDrawingCanvases(group->GetGroup(iGroup), canvasDirectory);
+        return count;
+    }
+
+    auto canvas = group->GetCanvas();
+    if (canvas == nullptr)
+        return 0;
+
+    TString keyName = group->GetFullName();
+    keyName.ReplaceAll(":", "_");
+    canvasDirectory->cd();
+    canvas->Write(keyName, TObject::kOverwrite);
+    return 1;
+}
+}
 
 LKRun* LKRun::fInstance = nullptr;
 
@@ -663,6 +691,11 @@ bool LKRun::Init()
             exeAfterInit = lilakPar -> GetParLong("execute");
         if (lilakPar->CheckPar("auto_exit"))
             fAutoTerminate = lilakPar -> GetParBool("auto_exit");
+        if (lilakPar->CheckPar("savex")) {
+            fSaveX = lilakPar -> GetParBool("savex");
+            if (fSaveX)
+                gROOT->SetBatch(kTRUE);
+        }
         if (lilakPar->CheckPar("print")) {
             printAfterInit = lilakPar -> GetParString("print");
             if (printAfterInit.IsNull())
@@ -690,6 +723,7 @@ bool LKRun::Init()
     fPar -> Require("lilak/run",          "0",              "run [no] after init. Execute all events if [no] is 0", "t/", countParOrder++);
     fPar -> Require("lilak/draw",         "0",              "execute Draw()", "t/", countParOrder++);
     fPar -> Require("lilak/execute",      "0",              "execute event [no] after init", "t/", countParOrder++);
+    fPar -> Require("lilak/savex",        "false",          "draw in batch mode and save canvases in output ROOT file", "t/", countParOrder++);
 
     if (!fCollectParAndPrintTo.IsNull())
     {
@@ -1850,6 +1884,14 @@ bool LKRun::WriteOutputFile()
         fUserDrawingArray -> Write("drawings",TObject::kSingleKey);
     if (fTopDrawingGroup!=nullptr)
         fTopDrawingGroup -> Write();
+    if (fSaveX && fTopDrawingGroup!=nullptr) {
+        auto canvasDirectory = fOutputFile->GetDirectory("canvas");
+        if (canvasDirectory == nullptr)
+            canvasDirectory = fOutputFile->mkdir("canvas");
+        const auto numCanvases = WriteDrawingCanvases(fTopDrawingGroup, canvasDirectory);
+        fOutputFile->cd();
+        lk_info << "Saved " << numCanvases << " canvases in canvas/" << endl;
+    }
     if (fAutoTerminate)
         fOutputFile -> Close();
 
@@ -2210,6 +2252,11 @@ bool LKRun::EndOfRun()
 
     Print("gen:out:in");
 
+    if (fSaveX && fTopDrawingGroup!=nullptr && fTopDrawingGroup->GetEntries()>0) {
+        lk_info << "Drawing all groups in batch mode for lilak/savex" << endl;
+        Draw();
+    }
+
     WriteOutputFile();
 
     fRunHasStarted = false;
@@ -2218,7 +2265,7 @@ bool LKRun::EndOfRun()
     ProcessWriteExitLog();
     SendElogRunHook("E");
 
-    if (fDrawAfterRun) {
+    if (fDrawAfterRun && !fSaveX) {
         SetAutoTermination(false);
         Draw(fDrawOption);
     }
@@ -2485,7 +2532,7 @@ void LKRun::PrintDrawings()
 LKDrawingGroup* LKRun::GetTopDrawingGroup()
 {
     if (fTopDrawingGroup==nullptr)
-        fTopDrawingGroup = new LKDrawingGroup(MakeFullRunName(true));
+        fTopDrawingGroup = new LKDrawingGroup("top");
 
     return fTopDrawingGroup;
 }
@@ -2493,15 +2540,20 @@ LKDrawingGroup* LKRun::GetTopDrawingGroup()
 void LKRun::Draw(Option_t* option)
 {
     fDrawOption = option;
-    if (fTopDrawingGroup->GetEntries()==0) {
+    auto topDrawingGroup = GetTopDrawingGroup();
+    if (topDrawingGroup->GetEntries()==0) {
         lk_warning << "Not using drawings..." << endl;
+        return;
+    }
+    if (gROOT->IsBatch()) {
+        topDrawingGroup->Draw(option);
         return;
     }
     if (fDataViewer!=nullptr && fDataViewer->IsActive()) {
         lk_warning << "Viewer already running" << endl;
         return;
     }
-    fDataViewer = fTopDrawingGroup -> CreateViewer();
+    fDataViewer = topDrawingGroup -> CreateViewer();
     fDataViewer -> SetRun(this);
-    fTopDrawingGroup -> Draw(TString(fDrawOption));
+    topDrawingGroup -> Draw(TString(fDrawOption));
 }
