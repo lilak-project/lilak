@@ -683,6 +683,9 @@ bool LKRun::Init()
             if (verbose>0) lk_debug << parameter->GetString() << endl;
             classFactory.Add(parameter->GetString());
         }
+        if (lilakPar->CheckPar("online")) {
+            onlineAfterInit = lilakPar -> GetParLong("online");
+        }
         if (lilakPar->CheckPar("run")) {
             runAfterInit = lilakPar -> GetParLong("run");
             //runAfterInit = lilakPar -> GetParLong("run",0);
@@ -1303,9 +1306,14 @@ bool LKRun::Init()
         lk_info << fNumEntries << " input entries" << endl;
         lk_info << "Initialized!" << endl;
 
-        if (runAfterInit>=0 || exeAfterInit>=0)
+        if (onlineAfterInit>=0 || runAfterInit>=0 || exeAfterInit>=0)
         {
-            if (runAfterInit>=0)
+            if (onlineAfterInit>=0)
+            {
+                if (onlineAfterInit==0) RunOnline();
+                else RunOnline(onlineAfterInit);
+            }
+            else if (runAfterInit>=0)
             {
                 if (runAfterInit==0) Run();
                 else Run(runAfterInit);
