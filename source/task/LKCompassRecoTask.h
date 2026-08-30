@@ -87,6 +87,10 @@ class LKCompassRecoTask : public LKTask
         };
 
         struct ECalPar {
+            ECalPar() = default;
+            ECalPar(double c0Value, double c1Value, double c2Value)
+                : c0(c0Value), c1(c1Value), c2(c2Value) {}
+
             double c0 = 0;
             double c1 = 1;
             double c2 = 0;
