@@ -51,7 +51,7 @@ class LKBufferI : public TObject
         TH1D *fHist = nullptr; //!
         TGraph *fGraph = nullptr; //!
 
-    ClassDef(LKBufferI,1);
+    ClassDef(LKBufferI,2);
 };
 
 #endif

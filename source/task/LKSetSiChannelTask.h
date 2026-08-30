@@ -21,6 +21,7 @@ class LKSetSiChannelTask : public LKTask
         void Exec(Option_t*);
 
     private:
+        bool fPulserAnalysis = false;
         LKSiliconArray* fSiliconArray = nullptr;
         LKChannelAnalyzer* fChannelAnalyzer = nullptr;
         LKChannelAnalyzer* fChannelAnalyzer2 = nullptr;
@@ -33,7 +34,7 @@ class LKSetSiChannelTask : public LKTask
         TF1* fSlopeFit = nullptr;
         TH1D* fHistBuffer = nullptr;
 
-    ClassDef(LKSetSiChannelTask, 1)
+    ClassDef(LKSetSiChannelTask, 2)
 };
 
 #endif

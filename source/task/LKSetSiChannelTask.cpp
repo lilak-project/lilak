@@ -18,6 +18,9 @@ LKSetSiChannelTask::LKSetSiChannelTask()
 
 bool LKSetSiChannelTask::Init()
 {
+    fPar -> UpdatePar(fPulserAnalysis,
+            "LKSetSiChannelTask/pulser_analysis false # Force inverted pulse polarity and skip saturation processing.");
+
     fSiliconArray = (LKSiliconArray*) fRun -> FindDetectorPlane("LKSiliconArray");
     if (fSiliconArray == nullptr) {
         lk_error << "LKSiliconArray detector plane is not found. Add STARK or LKSiliconArray before LKSetSiChannelTask." << endl;
@@ -67,9 +70,7 @@ void LKSetSiChannelTask::Exec(Option_t*)
             continue;
         }
 
-        bool isInverted = true;
-        if (siChannel1->GetSide()==0) isInverted = true;
-        else isInverted = false;
+        bool isInverted = fPulserAnalysis || siChannel1->GetSide()==0;
 
         fChannelAnalyzer -> SetDataIsInverted(isInverted);
         fChannelAnalyzer2 -> SetDataIsInverted(isInverted);
@@ -85,7 +86,7 @@ void LKSetSiChannelTask::Exec(Option_t*)
             double energy0 = energy;
 
             bool isSaturated = false;
-            if (isInverted)
+            if (!fPulserAnalysis && isInverted)
             {
                 for (auto t=0; t<512; ++t) {
                     if (data[t]==0) {
@@ -94,7 +95,7 @@ void LKSetSiChannelTask::Exec(Option_t*)
                     }
                 }
             }
-            else {
+            else if (!fPulserAnalysis) {
                 for (auto t=0; t<512; ++t) {
                     if (data[t]==4095) {
                         isSaturated = true;

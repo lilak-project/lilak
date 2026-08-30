@@ -1,3 +1,4 @@
+#include <cmath>
 #include "LKLogger.h"
 #include "LKBufferI.h"
 using namespace std;
@@ -49,9 +50,8 @@ TH1D* LKBufferI::GetHist(TString name)
 
 void LKBufferI::FillHist(TH1* hist)
 {
-    for (int i=0; i<512; ++i) {
+    for (int i=0; i<512; ++i)
         hist -> SetBinContent(i+1,fArray[i]);
-    }
 }
 
 TGraph* LKBufferI::GetGraph()
