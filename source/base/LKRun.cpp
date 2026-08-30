@@ -655,6 +655,7 @@ bool LKRun::Init()
 
     TString printAfterInit = "";
     Long64_t runAfterInit = -1;
+    Long64_t onlineAfterInit = -1;
     Long64_t exeAfterInit = -1;
     bool drawAfterRun = false;
     TString drawOption = "";
