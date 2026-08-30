@@ -20,6 +20,7 @@ class LKGETRawConverter : public TObject
     void SetPar(LKParameterContainer* par);
     void SetChannelArray(TClonesArray* array) { fChannelArray = array; }
     void SetEventHeaderArray(TClonesArray* array) { fEventHeaderArray = array; }
+    bool SetZeroSuppressionMode(TString mode);
 
     bool Init();
     void ProcessFrame(const LKGETRawFrame& frame);
@@ -41,6 +42,7 @@ class LKGETRawConverter : public TObject
         UInt_t coboIdx = 0;
         UInt_t asadIdx = 0;
         std::vector<std::vector<std::vector<UInt_t>>> waveform;
+        std::vector<std::vector<std::vector<Bool_t>>> samplePresent;
     };
 
     void InitWaveforms();
@@ -48,6 +50,7 @@ class LKGETRawConverter : public TObject
     void Event(const LKGETRawFrame& frame);
     void UnpackFrame(const LKGETRawFrame& frame);
     void WriteChannels();
+    void InterpolateMissingSamples(std::vector<UInt_t>& waveform, const std::vector<Bool_t>& samplePresent) const;
     void DecodeCoBoTopologyFrame(const LKGETRawFrame& frame);
     void DecodeMuTanTFrame(const LKGETRawFrame& frame);
 
@@ -69,6 +72,7 @@ class LKGETRawConverter : public TObject
     const Int_t fMaxTimeBuckets = 512;
     Bool_t fSet2PMode = false;
     Bool_t fSetScaler = false;
+    Bool_t fInterpolateZeroSuppressedSamples = false;
     Int_t fMaxCobo = 4;
     Int_t fMaxAsad = 4;
     Int_t fMaxAget = 4;
@@ -96,7 +100,7 @@ class LKGETRawConverter : public TObject
 
     Long64_t fCountEvents = 0;
 
-    ClassDef(LKGETRawConverter, 1);
+    ClassDef(LKGETRawConverter, 2);
 };
 
 #endif

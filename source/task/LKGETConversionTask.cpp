@@ -37,6 +37,11 @@ bool LKGETConversionTask::Init()
 
     fConverter = new LKGETRawConverter();
     fConverter->SetPar(fPar);
+    TString zeroSuppressionMode = "auto";
+    fPar->UpdatePar(zeroSuppressionMode,
+            "LKGETConversionTask/zero_suppression_mode auto # auto | none | linear_interpolation");
+    if (!fConverter->SetZeroSuppressionMode(zeroSuppressionMode))
+        return false;
     fConverter->SetChannelArray(fChannelArray);
     fConverter->SetEventHeaderArray(fEventHeaderArray);
     if (!fConverter->Init()) {

@@ -4,6 +4,8 @@
 #include "LKEventHeader.h"
 #include "LKLogger.h"
 
+#include <cmath>
+
 ClassImp(LKGETRawConverter);
 
 LKGETRawConverter::LKGETRawConverter()
@@ -43,6 +45,32 @@ uint32_t LKGETRawConverter::ReadType1Word(const uint8_t* data)
 uint16_t LKGETRawConverter::ReadType2Word(const uint8_t* data)
 {
     return (uint16_t(data[0]) << 8) | uint16_t(data[1]);
+}
+
+bool LKGETRawConverter::SetZeroSuppressionMode(TString mode)
+{
+    mode.ToLower();
+    mode.ReplaceAll("-", "_");
+
+    if (mode == "auto") {
+        fInterpolateZeroSuppressedSamples =
+            fPar != nullptr &&
+            fPar->CheckPar("LKSetSiChannelTask/pulser_analysis") &&
+            fPar->GetParBool("LKSetSiChannelTask/pulser_analysis");
+        return true;
+    }
+    if (mode == "none" || mode == "off") {
+        fInterpolateZeroSuppressedSamples = false;
+        return true;
+    }
+    if (mode == "linear" || mode == "linear_interpolation") {
+        fInterpolateZeroSuppressedSamples = true;
+        return true;
+    }
+
+    lk_error << "Unknown zero suppression mode '" << mode
+             << "'. Use auto, none, or linear_interpolation." << endl;
+    return false;
 }
 
 void LKGETRawConverter::SetPar(LKParameterContainer* par)
@@ -109,6 +137,7 @@ void LKGETRawConverter::InitWaveforms()
     delete fWaveforms;
     fWaveforms = new WaveForms();
     fWaveforms->waveform.resize(fMaxAsad * fMaxAget);
+    fWaveforms->samplePresent.resize(fMaxAsad * fMaxAget);
     fWaveforms->hasSignal.resize(fMaxAsad * fMaxAget);
     fWaveforms->hasHit.resize(fMaxAsad * fMaxAget);
     fWaveforms->hasFPN.resize(fMaxAsad * fMaxAget);
@@ -117,9 +146,12 @@ void LKGETRawConverter::InitWaveforms()
         for (Int_t iAget = 0; iAget < fMaxAget; ++iAget) {
             auto idx = iAsad * fMaxAget + iAget;
             fWaveforms->waveform[idx].resize(fMaxChannels);
+            fWaveforms->samplePresent[idx].resize(fMaxChannels);
             fWaveforms->hasSignal[idx].resize(fMaxChannels);
-            for (Int_t iChan = 0; iChan < fMaxChannels; ++iChan)
+            for (Int_t iChan = 0; iChan < fMaxChannels; ++iChan) {
                 fWaveforms->waveform[idx][iChan].resize(fMaxTimeBuckets);
+                fWaveforms->samplePresent[idx][iChan].resize(fMaxTimeBuckets, false);
+            }
         }
     }
 }
@@ -135,6 +167,8 @@ void LKGETRawConverter::ResetWaveforms()
                         fWaveforms->hasSignal[idx][iChan] = false;
                         std::fill(fWaveforms->waveform[idx][iChan].begin(),
                                   fWaveforms->waveform[idx][iChan].end(), 0);
+                        std::fill(fWaveforms->samplePresent[idx][iChan].begin(),
+                                  fWaveforms->samplePresent[idx][iChan].end(), false);
                     }
                 }
             }
@@ -265,6 +299,7 @@ void LKGETRawConverter::UnpackFrame(const LKGETRawFrame& frame)
             fWaveforms->hasSignal[asadIdx * fMaxAget + agetIdx][chanIdx] = true;
             fWaveforms->hasHit[asadIdx * fMaxAget + agetIdx] = true;
             fWaveforms->waveform[asadIdx * fMaxAget + agetIdx][chanIdx][buckIdx] = sampleValue;
+            fWaveforms->samplePresent[asadIdx * fMaxAget + agetIdx][chanIdx][buckIdx] = true;
         }
     }
     else if (frame.frameType == 2u) {
@@ -294,6 +329,7 @@ void LKGETRawConverter::UnpackFrame(const LKGETRawFrame& frame)
             fWaveforms->hasSignal[asadIdx * fMaxAget + agetIdx][chanIdx_[agetIdx]] = true;
             fWaveforms->hasHit[asadIdx * fMaxAget + agetIdx] = true;
             fWaveforms->waveform[asadIdx * fMaxAget + agetIdx][chanIdx_[agetIdx]][buckIdx_[agetIdx]] = sampleValue;
+            fWaveforms->samplePresent[asadIdx * fMaxAget + agetIdx][chanIdx_[agetIdx]][buckIdx_[agetIdx]] = true;
         }
 
         for (size_t itemId = 1; itemId < numSamples; ++itemId) {
@@ -308,6 +344,7 @@ void LKGETRawConverter::UnpackFrame(const LKGETRawFrame& frame)
             fWaveforms->hasSignal[asadIdx * fMaxAget + agetIdx][chanIdx_[agetIdx]] = true;
             fWaveforms->hasHit[asadIdx * fMaxAget + agetIdx] = true;
             fWaveforms->waveform[asadIdx * fMaxAget + agetIdx][chanIdx_[agetIdx]][buckIdx_[agetIdx]] = sampleValue;
+            fWaveforms->samplePresent[asadIdx * fMaxAget + agetIdx][chanIdx_[agetIdx]][buckIdx_[agetIdx]] = true;
             chanIdx_[agetIdx]++;
         }
     }
@@ -357,6 +394,25 @@ void LKGETRawConverter::DecodeMuTanTFrame(const LKGETRawFrame& frame)
     }
 }
 
+void LKGETRawConverter::InterpolateMissingSamples(
+        std::vector<UInt_t>& waveform,
+        const std::vector<Bool_t>& samplePresent) const
+{
+    Int_t left = -1;
+    for (Int_t right = 0; right < fMaxTimeBuckets; ++right) {
+        if (!samplePresent[right])
+            continue;
+
+        if (left >= 0 && right - left > 1) {
+            const double valueLeft = waveform[left];
+            const double slope = (double(waveform[right]) - valueLeft) / (right - left);
+            for (Int_t tb = left + 1; tb < right; ++tb)
+                waveform[tb] = UInt_t(std::lround(valueLeft + slope * (tb - left)));
+        }
+        left = right;
+    }
+}
+
 void LKGETRawConverter::WriteChannels()
 {
     UInt_t coboIdx = fWaveforms->coboIdx;
@@ -374,13 +430,17 @@ void LKGETRawConverter::WriteChannels()
                 if (!fWaveforms->hasSignal[asad * fMaxAget + aget][chan])
                     continue;
 
+                auto& waveform = fWaveforms->waveform[asad * fMaxAget + aget][chan];
+                if (fInterpolateZeroSuppressedSamples)
+                    InterpolateMissingSamples(waveform, fWaveforms->samplePresent[asad * fMaxAget + aget][chan]);
+
                 auto channel = (GETChannel*) fChannelArray->ConstructedAt(fCountChannels);
                 channel->SetChannelID(fCountChannels);
                 channel->SetCobo(coboIdx);
                 channel->SetAsad(asad);
                 channel->SetAget(aget);
                 channel->SetChan(chan);
-                channel->SetWaveformY(fWaveforms->waveform[asad * fMaxAget + aget][chan]);
+                channel->SetWaveformY(waveform);
 
                 double time = 0.;
                 double energy = 0.;
