@@ -1342,6 +1342,7 @@ lilak() {{
         echo "  js [options]       Run JSROOT; use -K to stop, -I HOST:PORT, -S shell, -P python, -R ROOT, -D directory."
         echo "  par [input]        Open the parameter file editor in a local web browser."
         echo "  si_mapping [input] Open the silicon detector mapping editor in a local web browser."
+        echo "  get_viewer [options] [input...] Open and manage the network GET raw-frame viewer."
         echo "  g4sim [input]      Execute the default Geant4 simulatoin program with the provided [input]."
         echo "  nptool [input]     Execute the default nptool simulatoin program with the provided [input]."
         echo "  collect_par [input] Execute parameter collection and rewrite the provided parameter file."
@@ -1597,6 +1598,10 @@ lilak() {{
                 python3 "$LILAK_PATH/macros/lilak_si_mapping_editor.py" "$2"
             fi
             ;;
+        get_viewer)
+            shift
+            python3 "$LILAK_PATH/macros/lilak_get_viewer_launcher.py" "$@"
+            ;;
         g4sim)
             if [ -z "$2" ]; then
                 {self.lilak_path}/macros/geant4_simulation.exe
@@ -1800,7 +1805,7 @@ _lilak_completions() {{
     local add_trailing_space=1
     curr_word="${{COMP_WORDS[COMP_CWORD]}}"
     prev_word="${{COMP_WORDS[COMP_CWORD-1]}}"
-    local commands="home configure build build_new new update example doc find make_meta make_run log js par si_mapping g4sim nptool run collect_par read draw {" ".join(self.lf_lilak_projects)}"
+    local commands="home configure build build_new new update example doc find make_meta make_run log js par si_mapping get_viewer g4sim nptool run collect_par read draw {" ".join(self.lf_lilak_projects)}"
     local subdir_projects="{" ".join(self.lf_lilak_projects)}"
 
     if [[ ${{COMP_CWORD}} == 1 ]]; then
@@ -1829,6 +1834,12 @@ _lilak_completions() {{
     elif [[ $prev_word == "par" ]]; then
         COMPREPLY=( $(compgen -f "${{curr_word}}") )
     elif [[ $prev_word == "si_mapping" ]]; then
+        COMPREPLY=( $(compgen -f "${{curr_word}}") )
+    elif [[ ${{COMP_WORDS[1]}} == "get_viewer" && "$prev_word" == "-I" ]]; then
+        COMPREPLY=()
+    elif [[ ${{COMP_WORDS[1]}} == "get_viewer" && "$curr_word" == -* ]]; then
+        COMPREPLY=( $(compgen -W "-K -L -F -I --no-browser -h" -- "${{curr_word}}") )
+    elif [[ ${{COMP_WORDS[1]}} == "get_viewer" ]]; then
         COMPREPLY=( $(compgen -f "${{curr_word}}") )
     elif [[ ${{COMP_WORDS[1]}} == "js" && "$prev_word" =~ ^-(S|P|R|D)$ ]]; then
         COMPREPLY=( $(compgen -f "${{curr_word}}") )
