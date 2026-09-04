@@ -123,6 +123,21 @@ void LKCompassRecoTask::AddCom(short detID, short board, short channel)
     fComMapArray.push_back({detID, board, channel});
 }
 
+bool LKCompassRecoTask::SetW1XOrigin(short detID, TString origin)
+{
+    origin.ToLower();
+    if (origin == "left")
+        fW1XStartsFromLeftMap[detID] = true;
+    else if (origin == "right")
+        fW1XStartsFromLeftMap[detID] = false;
+    else {
+        lk_error << "Unknown W1 X origin for detector " << detID << ": " << origin
+                 << ". Use left or right." << endl;
+        return false;
+    }
+    return true;
+}
+
 bool LKCompassRecoTask::SetW1YOrigin(short detID, TString origin)
 {
     origin.ToLower();
@@ -242,6 +257,7 @@ bool LKCompassRecoTask::ConfigureParameters()
     fPar->Require("LKCompassRecoTask/EnergyThreshold", "0", "minimum raw Energy to collect", "t");
     fPar->Require("LKCompassRecoTask/SortInput", "true", "sort raw entries by Timestamp before reconstruction", "t");
     fPar->Require("LKCompassRecoTask/W1Map", "", "detID,board,junctionStart,ohmicStart repeated", "t");
+    fPar->Require("LKCompassRecoTask/W1XOrigin", "", "detID,left|right repeated; default left", "t");
     fPar->Require("LKCompassRecoTask/W1YOrigin", "", "detID,top|bottom repeated; default top", "t");
     fPar->Require("LKCompassRecoTask/ComMap", "", "detID,board,channel repeated", "t");
     fPar->Require("LKCompassRecoTask/W1ECal", "", "detID,c0,c1,c2 repeated", "t");
@@ -342,6 +358,31 @@ bool LKCompassRecoTask::ConfigureMappings()
         }
         for (size_t i=0; i+2<values.size(); i+=3)
             AddCom(values[i], values[i+1], values[i+2]);
+    }
+
+    if (fPar->CheckPar("LKCompassRecoTask/W1XOrigin")) {
+        auto values = fPar->GetParVString("LKCompassRecoTask/W1XOrigin");
+        if (!values.empty() && values.size() % 2 != 0) {
+            lk_error << "LKCompassRecoTask/W1XOrigin needs detID,left|right pairs." << endl;
+            return false;
+        }
+        for (size_t i=0; i+1<values.size(); i+=2) {
+            if (!values[i].IsDec()) {
+                lk_error << "Invalid detector ID in LKCompassRecoTask/W1XOrigin: "
+                         << values[i] << endl;
+                return false;
+            }
+            const short detID = short(values[i].Atoi());
+            const auto found = std::find_if(fW1MapArray.begin(),fW1MapArray.end(),
+                [detID](const W1Map& map) { return map.detID == detID; });
+            if (found == fW1MapArray.end()) {
+                lk_error << "W1 detector " << detID
+                         << " in LKCompassRecoTask/W1XOrigin is not configured in W1Map." << endl;
+                return false;
+            }
+            if (!SetW1XOrigin(detID,values[i+1]))
+                return false;
+        }
     }
 
     if (fPar->CheckPar("LKCompassRecoTask/W1YOrigin")) {
@@ -900,6 +941,13 @@ int LKCompassRecoTask::GetW1DisplayY(short detID, int strip) const
     return startsFromTop ? 17-strip : strip;
 }
 
+int LKCompassRecoTask::GetW1DisplayX(short detID, int strip) const
+{
+    auto it = fW1XStartsFromLeftMap.find(detID);
+    const bool startsFromLeft = it == fW1XStartsFromLeftMap.end() || it->second;
+    return startsFromLeft ? strip : 17-strip;
+}
+
 LKCompassRecoTask::ECalPar LKCompassRecoTask::GetW1ECalPar(short detID) const
 {
     auto it = fW1ECalParMap.find(detID);
@@ -983,7 +1031,7 @@ void LKCompassRecoTask::BuildW1Hits()
         if (hist != nullptr) {
             hist->channelMult->Fill(multiplicity);
             if (x > 0 && y > 0)
-                hist->hitPattern->Fill(x,GetW1DisplayY(w1.detID,y));
+                hist->hitPattern->Fill(GetW1DisplayX(w1.detID,x),GetW1DisplayY(w1.detID,y));
             if (energy > 0) {
                 hist->hitEnergy->Fill(energy);
                 hist->hitECal->Fill(ecal);

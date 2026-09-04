@@ -29,6 +29,7 @@ LKCompassRecoTask/EnergyThreshold 1000
 LKCompassRecoTask/SortInput     true
 LKCompassRecoTask/W1MainSide    junction
 LKCompassRecoTask/W1Map         1,0,0,16, 2,0,32,48
+LKCompassRecoTask/W1XOrigin     1,left, 2,right
 LKCompassRecoTask/W1YOrigin     1,top, 2,bottom
 #LKCompassRecoTask/ComMap        3,2,0, 4,2,1, 5,2,2, 6,2,3
 

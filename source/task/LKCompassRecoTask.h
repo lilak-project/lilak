@@ -30,6 +30,7 @@ class LKDrawingGroup;
  * - LKCompassRecoTask/FirstEntry, LastEntry: optional inclusive raw-entry range
  * - LKCompassRecoTask/SortInput: sort raw entries by Timestamp before events
  * - LKCompassRecoTask/W1Map: repeated detID,board,junctionStart,ohmicStart values
+ * - LKCompassRecoTask/W1XOrigin: repeated detID,left|right values (default: left)
  * - LKCompassRecoTask/W1YOrigin: repeated detID,top|bottom values (default: top)
  * - LKCompassRecoTask/ComMap: repeated detID,board,channel values
  * - LKCompassRecoTask/W1ECal: repeated detID,c0,c1,c2 values
@@ -63,6 +64,7 @@ class LKCompassRecoTask : public LKTask
 
         void AddW1(short detID, short board, short junctionChannelStart, short ohmicChannelStart);
         void AddCom(short detID, short board, short channel);
+        bool SetW1XOrigin(short detID, TString origin);
         bool SetW1YOrigin(short detID, TString origin);
         void SetECalParametersW1(short detID, double c0, double c1, double c2=0);
         void SetECalParametersCom(short detID, double c0, double c1, double c2=0);
@@ -145,6 +147,7 @@ class LKCompassRecoTask : public LKTask
         void BuildComHits();
         bool FindW1(UShort_t board, UShort_t channel, const W1Map*& map, bool& side, int& strip) const;
         bool FindCom(UShort_t board, UShort_t channel, const ComMap*& map) const;
+        int GetW1DisplayX(short detID, int strip) const;
         int GetW1DisplayY(short detID, int strip) const;
         double CalibrateW1(short detID, UShort_t energy) const;
         double CalibrateCom(short detID, UShort_t energy) const;
@@ -186,6 +189,7 @@ class LKCompassRecoTask : public LKTask
         std::vector<ComMap> fComMapArray; //!
         std::map<short,ECalPar> fW1ECalParMap; //!
         std::map<short,ECalPar> fComECalParMap; //!
+        std::map<short,bool> fW1XStartsFromLeftMap; //!
         std::map<short,bool> fW1YStartsFromTopMap; //!
         std::vector<W1Hist> fW1HistArray; //!
         std::vector<ComHist> fComHistArray; //!
