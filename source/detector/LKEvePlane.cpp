@@ -663,6 +663,12 @@ bool LKEvePlane::SetDataFromBranch()
     if (fRawDataArray==nullptr)
         return false;
 
+    // Planes that keep their channels in their own container (LKSiliconArray for example) leave
+    // the pad array of LKDetectorPlane empty. There is nothing to fill for them here.
+    const auto numPads = (fChannelArray==nullptr) ? 0 : fChannelArray -> GetEntriesFast();
+    if (numPads==0)
+        return true;
+
     fSelPadID = 0;
     fSelRawDataID = 0;
     double selEnergy = 0;
@@ -676,8 +682,9 @@ bool LKEvePlane::SetDataFromBranch()
         auto aget = channel -> GetAget();
         auto chan = channel -> GetChan();
         auto pad = FindPad(cobo,asad,aget,chan);
-        if (pad == nullptr && channel -> GetPadID() >= 0)
-            pad = GetPadFast(channel -> GetPadID());
+        const auto padIDFromData = channel -> GetPadID();
+        if (pad == nullptr && padIDFromData >= 0 && padIDFromData < numPads)
+            pad = GetPadFast(padIDFromData);
         if (pad==nullptr)
         {
             if (chan!=11&&chan!=22&&chan!=45&&chan!=56)
@@ -709,12 +716,11 @@ int LKEvePlane::FindPadID(int cobo, int asad, int aget, int chan)
 
 LKPad* LKEvePlane::FindPad(int cobo, int asad, int aget, int chan)
 {
-    LKPad *pad = nullptr;
+    if (fChannelArray==nullptr)
+        return (LKPad*) nullptr;
     auto padID = FindPadID(cobo, asad, aget, chan);
-    if (padID>=0) {
-        pad = (LKPad*) fChannelArray -> At(padID);
-        return pad;
-    }
+    if (padID>=0 && padID<fChannelArray->GetEntriesFast())
+        return (LKPad*) fChannelArray -> At(padID);
     return (LKPad*) nullptr;
 }
 
