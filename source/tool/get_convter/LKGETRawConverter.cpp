@@ -207,6 +207,17 @@ void LKGETRawConverter::Event(const LKGETRawFrame& frame)
     fChannelArray->Clear("C");
     fCountChannels = 0;
 
+    // Fill the event header before checking waveform payloads.  Zero-suppressed
+    // events can have itemCount == 0 in every child frame, but their event id
+    // and timestamp are still valid and must not inherit the previous event's
+    // header values.
+    auto eventHeader = (LKEventHeader*) fEventHeaderArray->ConstructedAt(0);
+    eventHeader->SetEventNumber(Int_t(frame.eventIdx));
+    ULong64_t eventTime = ULong64_t(frame.eventTime);
+    if (frame.isLayered && !frame.children.empty())
+        eventTime = ULong64_t(frame.children.front().eventTime);
+    eventHeader->SetEventTime(eventTime);
+
     if (frame.isLayered) {
         for (size_t iFrame = 0; iFrame < frame.children.size(); ++iFrame) {
             const auto& subFrame = frame.children[iFrame];
@@ -231,7 +242,7 @@ void LKGETRawConverter::UnpackFrame(const LKGETRawFrame& frame)
     Int_t prevWEventIdx = fCurrEventIdx;
     UInt_t coboIdx = frame.coboIdx;
     UInt_t asadIdx = frame.asadIdx;
-    fEventTime = UInt_t(frame.eventTime);
+    fEventTime = ULong64_t(frame.eventTime);
     fCurrEventIdx = Int_t(frame.eventIdx);
 
     if (fIsFirstEvent) {
@@ -416,10 +427,6 @@ void LKGETRawConverter::InterpolateMissingSamples(
 void LKGETRawConverter::WriteChannels()
 {
     UInt_t coboIdx = fWaveforms->coboIdx;
-
-    auto eventHeader = (LKEventHeader*) fEventHeaderArray->ConstructedAt(0);
-    eventHeader->SetEventNumber(Int_t(fCurrEventIdx));
-    eventHeader->SetEventTime(fEventTime);
 
     for (UInt_t asad = 0; asad < (UInt_t) fMaxAsad; ++asad) {
         for (UInt_t aget = 0; aget < (UInt_t) fMaxAget; ++aget) {

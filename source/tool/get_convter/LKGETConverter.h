@@ -80,7 +80,7 @@ class LKGETConverter : public TObject
 
     Bool_t fIsFirstEvent = true;
     Int_t fFirstEventIdx = -1;
-    UInt_t fEventTime = 0;
+    ULong64_t fEventTime = 0;
     Int_t fCurrEventIdx = -1;
     Int_t fPrevEventIdx = 0;
     Int_t fCountPrint = 0;

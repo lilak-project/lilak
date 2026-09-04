@@ -215,7 +215,7 @@ void LKGETConverter::UnpackFrame(mfm::Frame& frame)
     Int_t prevWEventIdx = fCurrEventIdx;
     UInt_t coboIdx = frame.headerField("coboIdx").value<UInt_t>();
     UInt_t asadIdx = frame.headerField("asadIdx").value<UInt_t>();
-    fEventTime = frame.headerField("eventTime").value<UInt_t>();
+    fEventTime = frame.headerField("eventTime").value<ULong64_t>();
     fCurrEventIdx = (Int_t) frame.headerField("eventIdx").value<UInt_t>();
 
     if (fIsFirstEvent) {
