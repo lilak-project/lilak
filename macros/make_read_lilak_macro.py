@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
 import re
 import subprocess
 import sys
@@ -327,11 +329,12 @@ def make_draw_examples(branches: list[dict[str, str]], member_map: dict[str, lis
         canvas_name = safe_name(f"cvs_{branch['name']}", "cvs")
         index_name = safe_name(f"i_draw_{branch['name']}", "i_draw")
         count_name = safe_name(f"n_draw_{branch['name']}", "n_draw")
+        branch_name = branch["name"]
         lines.append(f'    if ({active_var}) {{')
         lines.append(f'        // {branch["name"]} : {branch["element_class"]}')
         lines.append(f'        // reference: https://lilak-project.github.io/lilak_doxygen/class{branch["element_class"]}.html')
         member_values = " ,".join(
-            f'"{":".join(f"{branch["name"]}.{part}" for part in member.split(":"))}"'
+            f'"{":".join(f"{branch_name}.{part}" for part in member.split(":"))}"'
             for member in members
         )
         lines.append(f'        std::vector<TString> {array_name} = {{{member_values}}};')
