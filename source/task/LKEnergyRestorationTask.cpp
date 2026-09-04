@@ -167,16 +167,21 @@ bool LKEnergyRestorationTask::ApplyPaired(LKSiChannel *channel)
     if (!HasC1(key) || !HasC2(key) || !HasC3(key))
         return false;
 
-    auto energyR = channel -> GetEnergy();
-    auto energyL = channel -> GetEnergy2();
-    energyL = ApplyLinear(fC1Parameters.at(LRKey(det, side, strip, 0)), energyL);
-    energyR = ApplyLinear(fC1Parameters.at(LRKey(det, side, strip, 1)), energyR);
+    // Direction 0 is the X6 high/up end and direction 1 is the low/down end.
+    // Keep RelativeZ increasing geometrically from low (-1) to high (+1).
+    auto energyHigh = channel -> GetEnergy();
+    auto energyLow = channel -> GetEnergy2();
+    energyLow = ApplyLinear(fC1Parameters.at(LRKey(det, side, strip, 0)), energyLow);
+    energyHigh = ApplyLinear(fC1Parameters.at(LRKey(det, side, strip, 1)), energyHigh);
 
-    auto energySum = energyL + energyR;
+    if (energyLow <= 0 || energyHigh <= 0)
+        return false;
+
+    auto energySum = energyLow + energyHigh;
     if (energySum <= 0)
         return false;
 
-    auto position = (energyR - energyL) / energySum;
+    auto position = (energyHigh - energyLow) / energySum;
     auto c2 = fC2Parameters.at(key);
     auto scale = c2[0] + c2[1] * position + c2[2] * position * position;
     if (scale == 0)
@@ -188,10 +193,10 @@ bool LKEnergyRestorationTask::ApplyPaired(LKSiChannel *channel)
         return false;
 
     auto factor = correctedSum / energySum;
-    energyL *= factor;
-    energyR *= factor;
-    channel -> SetEnergy1(energyR);
-    channel -> SetEnergy2(energyL);
+    energyLow *= factor;
+    energyHigh *= factor;
+    channel -> SetEnergy1(energyHigh);
+    channel -> SetEnergy2(energyLow);
     AddSiHit(channel, correctedSum, position);
 
     if (!fApplyToPairChannel)
@@ -205,8 +210,8 @@ bool LKEnergyRestorationTask::ApplyPaired(LKSiChannel *channel)
     if (pairChannel == nullptr)
         return true;
 
-    pairChannel -> SetEnergy1(energyL);
-    pairChannel -> SetEnergy2(energyR);
+    pairChannel -> SetEnergy1(energyLow);
+    pairChannel -> SetEnergy2(energyHigh);
     return true;
 }
 
