@@ -741,7 +741,12 @@ class ViewerHandler(BaseHTTPRequestHandler):
             payload = self.read_json()
             selection = normalize_selection(payload.get("selection"))
             if parsed.path == "/api/open":
-                self.send_json(STATE.open_path(str(payload["path"]), selection=selection))
+                # Unmerged CoBo data is one file per source, so the browser
+                # sends every selected path and the state merges them by event
+                # id. A lone "path" is still accepted.
+                requested = payload.get("paths") or [payload["path"]]
+                paths = [str(item) for item in requested]
+                self.send_json(STATE.open_paths(paths, selection=selection))
                 return
             if parsed.path == "/api/navigate":
                 self.send_json(STATE.navigate(str(payload.get("action", "current")), selection=selection))
@@ -923,8 +928,9 @@ INDEX_HTML = r"""<!doctype html>
         <div class="browser-columns"><span>Name</span><span>Size</span></div>
         <div id="browserRows" class="browser-rows"></div>
         <div class="browser-footer">
-          <span id="browserSelection">Select a file</span>
-          <button id="browserOpen" type="button" disabled>Open selected file</button>
+          <span id="browserSelection">Select one or more files</span>
+          <button id="browserSelectAll" type="button" class="secondary" disabled>Select All</button>
+          <button id="browserOpen" type="button" disabled>Open selected</button>
         </div>
       </section>
     </div>
@@ -952,6 +958,29 @@ INDEX_HTML = r"""<!doctype html>
           </div>
         </section>
 
+        <section class="tree-panel">
+          <div class="section-title">Cobo / AsAd / AGET</div>
+          <div id="groupTree" class="group-tree"></div>
+        </section>
+      </aside>
+
+      <section class="plot-panel">
+        <div class="plot-toolbar">
+          <div>
+            <strong id="plotTitle">Waveforms</strong>
+            <span id="plotSubtitle"></span>
+            <span class="plot-hint">wheel zooms, drag pans, double click resets; over a tick strip only that axis moves</span>
+          </div>
+          <div class="plot-actions">
+            <button id="autoScale" type="button">Autoscale</button>
+            <button id="showAll" type="button">Show Event</button>
+          </div>
+        </div>
+        <canvas id="waveCanvas"></canvas>
+        <div id="statusLine" class="status-line">Ready</div>
+      </section>
+
+      <aside class="detail-panel">
         <section class="control-band">
           <div class="section-title">Selection</div>
           <div class="selection-grid">
@@ -995,42 +1024,22 @@ INDEX_HTML = r"""<!doctype html>
           <button id="scanButton" class="wide-button" type="button">Scan Signal</button>
         </section>
 
-        <section class="tree-panel">
-          <div class="section-title">Cobo / AsAd / AGET</div>
-          <div id="groupTree" class="group-tree"></div>
+        <section class="channel-panel">
+          <div class="section-title">Channels</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>CAA</th>
+                  <th>Ch</th>
+                  <th>Amp</th>
+                  <th>TB</th>
+                </tr>
+              </thead>
+              <tbody id="channelRows"></tbody>
+            </table>
+          </div>
         </section>
-      </aside>
-
-      <section class="plot-panel">
-        <div class="plot-toolbar">
-          <div>
-            <strong id="plotTitle">Waveforms</strong>
-            <span id="plotSubtitle"></span>
-          </div>
-          <div class="plot-actions">
-            <button id="autoScale" type="button">Autoscale</button>
-            <button id="showAll" type="button">Show Event</button>
-          </div>
-        </div>
-        <canvas id="waveCanvas"></canvas>
-        <div id="statusLine" class="status-line">Ready</div>
-      </section>
-
-      <aside class="detail-panel">
-        <div class="section-title">Channels</div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>CAA</th>
-                <th>Ch</th>
-                <th>Amp</th>
-                <th>TB</th>
-              </tr>
-            </thead>
-            <tbody id="channelRows"></tbody>
-          </table>
-        </div>
       </aside>
     </main>
 
@@ -1312,7 +1321,7 @@ h1 {
 .workspace {
   height: calc(100vh - 68px);
   display: grid;
-  grid-template-columns: 300px minmax(420px, 1fr) 310px;
+  grid-template-columns: 300px minmax(360px, 1fr) 340px;
   grid-template-rows: 100%;
   overflow: hidden;
 }
@@ -1320,7 +1329,7 @@ h1 {
 .side-panel,
 .detail-panel {
   min-width: 0;
-  overflow: hidden;
+  overflow-y: auto;
   border-right: 1px solid var(--line);
   background: #f8fafc;
   display: flex;
@@ -1334,12 +1343,20 @@ h1 {
 
 .control-band,
 .tree-panel,
-.detail-panel {
+.channel-panel {
   padding: 14px;
 }
 
 .control-band {
   border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+
+.channel-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 220px;
 }
 
 .section-title {
@@ -1582,9 +1599,24 @@ h1 {
   color: var(--green);
 }
 
+.plot-hint {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .table-wrap {
   overflow: auto;
   flex: 1 1 auto;
+}
+
+#waveCanvas {
+  touch-action: none;
+  cursor: crosshair;
+}
+
+#waveCanvas.panning {
+  cursor: grabbing;
 }
 
 table {
@@ -1618,6 +1650,11 @@ tbody tr.selected {
   background: var(--select);
 }
 
+tbody tr:hover {
+  background: #eef4fb;
+  cursor: pointer;
+}
+
 @media (max-width: 1100px) {
   body {
     overflow: auto;
@@ -1634,7 +1671,7 @@ tbody tr.selected {
     height: auto;
     min-height: calc(100vh - 86px);
     grid-template-columns: 1fr;
-    grid-template-rows: auto 560px 360px;
+    grid-template-rows: auto 560px auto;
   }
 
   .side-panel,
@@ -1646,6 +1683,10 @@ tbody tr.selected {
 
   .tree-panel {
     max-height: 340px;
+  }
+
+  .channel-panel {
+    max-height: 360px;
   }
 }
 """
@@ -1665,6 +1706,7 @@ APP_JS = r"""const els = {
   browserRows: document.getElementById("browserRows"),
   browserSelection: document.getElementById("browserSelection"),
   browserOpen: document.getElementById("browserOpen"),
+  browserSelectAll: document.getElementById("browserSelectAll"),
   eventIndex: document.getElementById("eventIndex"),
   eventMeta: document.getElementById("eventMeta"),
   jumpInput: document.getElementById("jumpInput"),
@@ -1709,9 +1751,14 @@ const COLORS = [
 let currentPayload = null;
 let busyCount = 0;
 let browserParent = null;
-let browserSelectedPath = null;
+let browserSelectedPaths = [];
 let autoNextTimer = null;
 let scanSelectionSnapshot = null;
+let hoveredChannelKey = null;
+// null means the axes follow the data; a view object holds a zoomed range that
+// survives event navigation until Autoscale or a double click resets it.
+let plotView = null;
+let plotGeometry = null;
 
 function setBusy(isBusy) {
   busyCount += isBusy ? 1 : -1;
@@ -1797,13 +1844,14 @@ async function postJson(url, payload) {
   });
 }
 
-async function openPath(path) {
+async function openPaths(paths) {
+  if (!paths.length) return;
   setBusy(true);
   try {
-    setStatus("Opening file...");
-    const payload = await postJson("/api/open", { path, selection: readSelection() });
+    setStatus(paths.length > 1 ? `Opening ${paths.length} files...` : "Opening file...");
+    const payload = await postJson("/api/open", { paths, selection: readSelection() });
     renderPayload(payload);
-    setStatus("File loaded", "good");
+    setStatus(paths.length > 1 ? `Merged ${paths.length} sources` : "File loaded", "good");
   } catch (error) {
     setStatus(error.message, "error");
   } finally {
@@ -1823,20 +1871,26 @@ function formatFileSize(size) {
   return `${value >= 10 || unit === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unit]}`;
 }
 
-function selectBrowserFile(path, row) {
-  browserSelectedPath = path;
-  els.browserRows.querySelectorAll(".browser-entry").forEach((entry) => {
-    entry.classList.toggle("selected", entry === row);
-  });
-  els.browserSelection.textContent = path;
-  els.browserOpen.disabled = false;
+function refreshBrowserSelection() {
+  const count = browserSelectedPaths.length;
+  els.browserOpen.disabled = count === 0;
+  if (count === 0) els.browserSelection.textContent = "Select one or more files";
+  else if (count === 1) els.browserSelection.textContent = browserSelectedPaths[0];
+  else els.browserSelection.textContent = `${count} files will be merged by event id`;
+}
+
+function toggleBrowserFile(path, row) {
+  const at = browserSelectedPaths.indexOf(path);
+  if (at >= 0) browserSelectedPaths.splice(at, 1);
+  else browserSelectedPaths.push(path);
+  row.classList.toggle("selected", at < 0);
+  refreshBrowserSelection();
 }
 
 async function browseDirectory(path) {
   els.browserRows.textContent = "Loading...";
-  els.browserOpen.disabled = true;
-  browserSelectedPath = null;
-  els.browserSelection.textContent = "Select a file";
+  browserSelectedPaths = [];
+  refreshBrowserSelection();
   try {
     const payload = await requestJson(`/api/files?path=${encodeURIComponent(path || ".")}`);
     browserParent = payload.parent;
@@ -1847,6 +1901,7 @@ async function browseDirectory(path) {
       const row = document.createElement("button");
       row.type = "button";
       row.className = "browser-entry";
+      if (!entry.isDirectory) row.dataset.path = entry.path;
 
       const name = document.createElement("span");
       name.className = "browser-name";
@@ -1859,15 +1914,16 @@ async function browseDirectory(path) {
       if (entry.isDirectory) {
         row.addEventListener("click", () => browseDirectory(entry.path));
       } else {
-        row.addEventListener("click", () => selectBrowserFile(entry.path, row));
+        row.addEventListener("click", () => toggleBrowserFile(entry.path, row));
         row.addEventListener("dblclick", () => {
           els.fileBrowser.hidden = true;
-          openPath(entry.path);
+          openPaths([entry.path]);
         });
       }
       els.browserRows.appendChild(row);
     });
     if (!payload.entries.length) els.browserRows.textContent = "This directory is empty.";
+    els.browserSelectAll.disabled = !payload.entries.some((entry) => !entry.isDirectory);
   } catch (error) {
     els.browserRows.textContent = error.message;
   }
@@ -1965,6 +2021,7 @@ async function scanSignal() {
 
 function renderPayload(payload) {
   currentPayload = payload;
+  hoveredChannelKey = null;
   const status = payload.status;
   const event = payload.event;
   const sourceSuffix = status.sourceCount > 1 ? ` (+${status.sourceCount - 1} sources)` : "";
@@ -2051,6 +2108,16 @@ function renderTree(groups) {
   });
 }
 
+function channelKey(channel) {
+  return `${channel.cobo}/${channel.asad}/${channel.aget}/${channel.channel}`;
+}
+
+function setHoveredChannel(key) {
+  if (hoveredChannelKey === key) return;
+  hoveredChannelKey = key;
+  if (currentPayload) drawWaveforms(currentPayload.event.channels);
+}
+
 function renderTable(channels) {
   els.channelRows.replaceChildren();
   channels.forEach((channel) => {
@@ -2075,6 +2142,9 @@ function renderTable(channels) {
       });
       navigate("current");
     });
+    const key = channelKey(channel);
+    tr.addEventListener("mouseenter", () => setHoveredChannel(key));
+    tr.addEventListener("mouseleave", () => setHoveredChannel(null));
     els.channelRows.appendChild(tr);
   });
 }
@@ -2090,6 +2160,25 @@ function resizeCanvas() {
   const ctx = canvas.getContext("2d");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   return { ctx, width, height };
+}
+
+function niceStep(range, target) {
+  const raw = Math.max(range, 1) / Math.max(target, 1);
+  const power = Math.pow(10, Math.floor(Math.log10(raw)));
+  const normalized = raw / power;
+  const multiple = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+  return Math.max(1, multiple * power);
+}
+
+function strokeWaveform(ctx, waveform, xFor, yFor) {
+  ctx.beginPath();
+  waveform.forEach((value, tb) => {
+    const x = xFor(tb);
+    const y = yFor(value);
+    if (tb === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
 }
 
 function drawWaveforms(channels) {
@@ -2111,32 +2200,46 @@ function drawWaveforms(channels) {
     ctx.font = "14px sans-serif";
     ctx.textAlign = "center";
     ctx.fillText("No channels in selection", width / 2, height / 2);
+    plotGeometry = null;
     return;
   }
 
-  let yMin = Infinity;
-  let yMax = -Infinity;
+  let autoMin = Infinity;
+  let autoMax = -Infinity;
+  let lastTb = 0;
   channels.forEach((channel) => {
+    if (channel.waveform.length - 1 > lastTb) lastTb = channel.waveform.length - 1;
     channel.waveform.forEach((value) => {
-      if (value < yMin) yMin = value;
-      if (value > yMax) yMax = value;
+      if (value < autoMin) autoMin = value;
+      if (value > autoMax) autoMax = value;
     });
   });
-  if (!Number.isFinite(yMin) || !Number.isFinite(yMax)) {
-    yMin = 0;
-    yMax = 4096;
+  if (!Number.isFinite(autoMin) || !Number.isFinite(autoMax)) {
+    autoMin = 0;
+    autoMax = 4096;
   }
-  if (yMax === yMin) {
-    yMin -= 1;
-    yMax += 1;
+  if (autoMax === autoMin) {
+    autoMin -= 1;
+    autoMax += 1;
   }
-  const pad = Math.max(12, (yMax - yMin) * 0.08);
-  yMin = Math.max(0, Math.floor(yMin - pad));
-  yMax = Math.min(4096, Math.ceil(yMax + pad));
-  if (yMax <= yMin) yMax = yMin + 1;
+  const pad = Math.max(12, (autoMax - autoMin) * 0.08);
+  autoMin = Math.max(0, Math.floor(autoMin - pad));
+  autoMax = Math.min(4096, Math.ceil(autoMax + pad));
+  if (autoMax <= autoMin) autoMax = autoMin + 1;
+  if (lastTb <= 0) lastTb = 511;
 
-  const xFor = (tb) => margin.left + (tb / 511) * plotW;
+  const tbMin = plotView ? plotView.tbMin : 0;
+  const tbMax = plotView ? plotView.tbMax : lastTb;
+  const yMin = plotView ? plotView.yMin : autoMin;
+  const yMax = plotView ? plotView.yMax : autoMax;
+
+  const xFor = (tb) => margin.left + ((tb - tbMin) / (tbMax - tbMin)) * plotW;
   const yFor = (value) => margin.top + (1 - (value - yMin) / (yMax - yMin)) * plotH;
+
+  plotGeometry = {
+    margin, plotW, plotH, tbMin, tbMax, yMin, yMax, lastTb,
+    autoMin, autoMax,
+  };
 
   ctx.font = "12px sans-serif";
   ctx.textAlign = "right";
@@ -2155,31 +2258,43 @@ function drawWaveforms(channels) {
 
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
-  for (let tb = 0; tb <= 512; tb += 64) {
-    const x = xFor(Math.min(tb, 511));
-    ctx.strokeStyle = tb === 0 || tb === 512 ? "#cfd6df" : "#eef1f4";
+  const tbStep = niceStep(tbMax - tbMin, 8);
+  for (let tb = Math.ceil(tbMin / tbStep) * tbStep; tb <= tbMax; tb += tbStep) {
+    const x = xFor(tb);
+    ctx.strokeStyle = "#eef1f4";
     ctx.beginPath();
     ctx.moveTo(x, margin.top);
     ctx.lineTo(x, margin.top + plotH);
     ctx.stroke();
     ctx.fillStyle = "#657280";
-    ctx.fillText(String(tb), x, margin.top + plotH + 8);
+    ctx.fillText(String(Math.round(tb)), x, margin.top + plotH + 8);
   }
 
+  // Zoomed traces run past the frame, so keep them inside the axes.
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(margin.left, margin.top, plotW, plotH);
+  ctx.clip();
+  const baseAlpha = channels.length > 40 ? 0.34 : channels.length > 12 ? 0.58 : 0.92;
+  const baseWidth = channels.length > 20 ? 1 : 1.4;
+  let hovered = null;
   channels.forEach((channel, index) => {
-    const color = COLORS[index % COLORS.length];
-    ctx.strokeStyle = color;
-    ctx.globalAlpha = channels.length > 40 ? 0.34 : channels.length > 12 ? 0.58 : 0.92;
-    ctx.lineWidth = channels.length > 20 ? 1 : 1.4;
-    ctx.beginPath();
-    channel.waveform.forEach((value, tb) => {
-      const x = xFor(tb);
-      const y = yFor(value);
-      if (tb === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
+    if (channelKey(channel) === hoveredChannelKey) {
+      hovered = { channel, index };
+      return;
+    }
+    ctx.strokeStyle = COLORS[index % COLORS.length];
+    ctx.globalAlpha = hoveredChannelKey ? Math.min(baseAlpha, 0.18) : baseAlpha;
+    ctx.lineWidth = baseWidth;
+    strokeWaveform(ctx, channel.waveform, xFor, yFor);
   });
+  if (hovered) {
+    ctx.strokeStyle = COLORS[hovered.index % COLORS.length];
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = Math.max(2.2, baseWidth + 1.2);
+    strokeWaveform(ctx, hovered.channel.waveform, xFor, yFor);
+  }
+  ctx.restore();
   ctx.globalAlpha = 1;
 
   const legend = channels.slice(0, 8);
@@ -2199,7 +2314,7 @@ function drawWaveforms(channels) {
 els.openForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const path = els.pathInput.value.trim();
-  if (path) openPath(path);
+  if (path) openPaths([path]);
 });
 
 els.browseButton.addEventListener("click", () => {
@@ -2218,10 +2333,18 @@ els.browserUp.addEventListener("click", () => {
   if (browserParent) browseDirectory(browserParent);
 });
 els.browserOpen.addEventListener("click", () => {
-  if (!browserSelectedPath) return;
-  const path = browserSelectedPath;
+  if (!browserSelectedPaths.length) return;
+  const paths = browserSelectedPaths.slice();
   closeFileBrowser();
-  openPath(path);
+  openPaths(paths);
+});
+els.browserSelectAll.addEventListener("click", () => {
+  browserSelectedPaths = [];
+  els.browserRows.querySelectorAll(".browser-entry[data-path]").forEach((row) => {
+    browserSelectedPaths.push(row.dataset.path);
+    row.classList.add("selected");
+  });
+  refreshBrowserSelection();
 });
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !els.fileBrowser.hidden) closeFileBrowser();
@@ -2280,9 +2403,131 @@ els.showAll.addEventListener("click", () => {
   writeSelection({ cobo: null, asad: null, aget: null, channel: null });
   navigate("current");
 });
-els.autoScale.addEventListener("click", () => {
+
+// ---- plot zoom and pan -------------------------------------------------
+// The wheel zooms about the cursor and a drag pans. Over the tick strips only
+// that axis responds, so a run can be stretched in time without touching the
+// amplitude scale.
+function canvasPoint(event) {
+  const rect = els.waveCanvas.getBoundingClientRect();
+  return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+}
+
+function plotRegion(point) {
+  if (!plotGeometry) return null;
+  const { margin, plotW, plotH } = plotGeometry;
+  const insideX = point.x >= margin.left && point.x <= margin.left + plotW;
+  const insideY = point.y >= margin.top && point.y <= margin.top + plotH;
+  if (insideX && insideY) return "plot";
+  if (insideX && point.y > margin.top + plotH) return "x";
+  if (insideY && point.x < margin.left) return "y";
+  return null;
+}
+
+function currentView() {
+  const g = plotGeometry;
+  return plotView || { tbMin: 0, tbMax: g.lastTb, yMin: g.autoMin, yMax: g.autoMax };
+}
+
+function applyView(view) {
+  const g = plotGeometry;
+  const minSpanTb = 4;
+  const minSpanY = 4;
+  let { tbMin, tbMax, yMin, yMax } = view;
+  if (tbMax - tbMin < minSpanTb) {
+    const middle = (tbMin + tbMax) / 2;
+    tbMin = middle - minSpanTb / 2;
+    tbMax = middle + minSpanTb / 2;
+  }
+  if (yMax - yMin < minSpanY) {
+    const middle = (yMin + yMax) / 2;
+    yMin = middle - minSpanY / 2;
+    yMax = middle + minSpanY / 2;
+  }
+  tbMin = Math.max(0, tbMin);
+  tbMax = Math.min(g.lastTb, tbMax);
+  if (tbMax - tbMin < minSpanTb) tbMax = Math.min(g.lastTb, tbMin + minSpanTb);
+  plotView = { tbMin, tbMax, yMin, yMax };
   if (currentPayload) drawWaveforms(currentPayload.event.channels);
+}
+
+function resetView() {
+  plotView = null;
+  if (currentPayload) drawWaveforms(currentPayload.event.channels);
+}
+
+els.waveCanvas.addEventListener("wheel", (event) => {
+  const point = canvasPoint(event);
+  const region = plotRegion(point);
+  if (!region) return;
+  event.preventDefault();
+  const g = plotGeometry;
+  const view = currentView();
+  const factor = event.deltaY > 0 ? 1.2 : 1 / 1.2;
+  const next = { ...view };
+  if (region === "plot" || region === "x") {
+    const fraction = (point.x - g.margin.left) / g.plotW;
+    const anchor = view.tbMin + fraction * (view.tbMax - view.tbMin);
+    next.tbMin = anchor - (anchor - view.tbMin) * factor;
+    next.tbMax = anchor + (view.tbMax - anchor) * factor;
+  }
+  if (region === "plot" || region === "y") {
+    const fraction = (point.y - g.margin.top) / g.plotH;
+    const anchor = view.yMax - fraction * (view.yMax - view.yMin);
+    next.yMin = anchor - (anchor - view.yMin) * factor;
+    next.yMax = anchor + (view.yMax - anchor) * factor;
+  }
+  applyView(next);
+}, { passive: false });
+
+let panState = null;
+
+els.waveCanvas.addEventListener("pointerdown", (event) => {
+  const point = canvasPoint(event);
+  const region = plotRegion(point);
+  if (!region) return;
+  event.preventDefault();
+  els.waveCanvas.setPointerCapture(event.pointerId);
+  panState = { region, point, view: currentView() };
+  els.waveCanvas.classList.add("panning");
 });
+
+els.waveCanvas.addEventListener("pointermove", (event) => {
+  if (!panState || !plotGeometry) return;
+  const g = plotGeometry;
+  const point = canvasPoint(event);
+  const view = panState.view;
+  const next = { ...view };
+  if (panState.region === "plot" || panState.region === "x") {
+    const shift = ((point.x - panState.point.x) / g.plotW) * (view.tbMax - view.tbMin);
+    next.tbMin = view.tbMin - shift;
+    next.tbMax = view.tbMax - shift;
+  }
+  if (panState.region === "plot" || panState.region === "y") {
+    const shift = ((point.y - panState.point.y) / g.plotH) * (view.yMax - view.yMin);
+    next.yMin = view.yMin + shift;
+    next.yMax = view.yMax + shift;
+  }
+  applyView(next);
+});
+
+function endPan(event) {
+  if (!panState) return;
+  panState = null;
+  els.waveCanvas.classList.remove("panning");
+  if (els.waveCanvas.hasPointerCapture(event.pointerId)) {
+    els.waveCanvas.releasePointerCapture(event.pointerId);
+  }
+}
+
+els.waveCanvas.addEventListener("pointerup", endPan);
+els.waveCanvas.addEventListener("pointercancel", endPan);
+els.waveCanvas.addEventListener("dblclick", (event) => {
+  event.preventDefault();
+  resetView();
+});
+
+els.autoScale.addEventListener("click", resetView);
 els.scanButton.addEventListener("click", scanSignal);
 
 window.addEventListener("resize", () => {
