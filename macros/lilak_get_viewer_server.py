@@ -24,6 +24,10 @@ class ParseError(Exception):
     pass
 
 
+class TruncatedFrameError(ParseError):
+    """The file ends before the frame it announces. Indexing stops here."""
+
+
 def read_be16(data: bytes, offset: int = 0) -> int:
     return (data[offset] << 8) | data[offset + 1]
 
@@ -46,6 +50,58 @@ def read_be48(data: bytes, offset: int = 0) -> int:
     for index in range(6):
         value = (value << 8) | data[offset + index]
     return value
+
+
+def read_le16(data: bytes, offset: int = 0) -> int:
+    return (data[offset + 1] << 8) | data[offset]
+
+
+def read_le24(data: bytes, offset: int = 0) -> int:
+    return (data[offset + 2] << 16) | (data[offset + 1] << 8) | data[offset]
+
+
+def read_le32(data: bytes, offset: int = 0) -> int:
+    return (
+        (data[offset + 3] << 24)
+        | (data[offset + 2] << 16)
+        | (data[offset + 1] << 8)
+        | data[offset]
+    )
+
+
+BLOB_FRAME_TYPES = (0x0007, 0x0008, 0xFF11)
+LAYERED_FRAME_TYPES = (0xFF01, 0xFF02)
+BIG_ENDIAN_FRAME_TYPES = (0x0001, 0x0002, 0x0007, 0x0008, 0xFF01, 0xFF02)
+LITTLE_ENDIAN_FRAME_TYPES = BIG_ENDIAN_FRAME_TYPES + (0xFF11,)
+
+
+def resolve_frame_type(data: bytes, offset: int = 0) -> int:
+    """MFM writes some frame types little endian; mirror LKGETFrameParser."""
+    type_be = read_be16(data, offset)
+    if type_be in BIG_ENDIAN_FRAME_TYPES:
+        return type_be
+    type_le = read_le16(data, offset)
+    if type_le in LITTLE_ENDIAN_FRAME_TYPES:
+        return type_le
+    return type_be
+
+
+def frame_size_of(data: bytes, offset: int, block_size: int, frame_type: int) -> int:
+    # 0xFF11 is the MFM file header blob, whose size field is little endian.
+    if frame_type == 0xFF11:
+        return read_le24(data, offset) * block_size
+    return read_be24(data, offset) * block_size
+
+
+def layered_is_little_endian(data: bytes, frame_type: int, block_size: int, size: int) -> bool:
+    header_be = read_be16(data, 8) * block_size
+    header_le = read_le16(data, 8) * block_size
+    use_le = frame_type == 0xFF11
+    if use_le and not 20 <= header_le <= size:
+        use_le = False
+    if not use_le and not 20 <= header_be <= size and 20 <= header_le <= size:
+        use_le = True
+    return use_le
 
 
 @dataclass
@@ -89,14 +145,17 @@ class FrameParser:
 
         p2_block = header[0] & 0x0F
         block_size = 1 if p2_block == 0 else 1 << p2_block
-        frame_size = read_be24(header, 1) * block_size
+        frame_type = resolve_frame_type(header, 5)
+        frame_size = frame_size_of(header, 1, block_size, frame_type)
         if frame_size < 8:
             raise ParseError(f"invalid frame size {frame_size} at byte {offset}")
         file_size = os.fstat(handle.fileno()).st_size
         if offset + frame_size > file_size:
-            raise ParseError(f"short frame body at byte {offset}")
+            raise TruncatedFrameError(
+                f"frame at byte {offset} needs {frame_size} bytes but only "
+                f"{file_size - offset} remain"
+            )
 
-        frame_type = read_be16(header, 5)
         frame = RawFrame(
             meta_type=header[0],
             data_source=header[4],
@@ -104,13 +163,16 @@ class FrameParser:
             revision=header[7],
             block_size=block_size,
             frame_size_bytes=frame_size,
-            is_blob=frame_type in (0x7, 0x8),
-            is_layered=frame_type in (65281, 65282),
+            is_blob=frame_type in BLOB_FRAME_TYPES,
+            is_layered=frame_type in LAYERED_FRAME_TYPES,
             file_offset=offset,
             file_end=offset + frame_size,
         )
         if frame.is_layered and len(header) >= 20:
-            frame.event_idx = read_be32(header, 16)
+            if layered_is_little_endian(header, frame_type, block_size, frame_size):
+                frame.event_idx = read_le32(header, 16)
+            else:
+                frame.event_idx = read_be32(header, 16)
         elif frame_type in (1, 2) and len(header) >= 26:
             frame.event_idx = read_be32(header, 22)
             frame.cobo_idx = header[26] if len(header) > 26 else 0
@@ -128,13 +190,13 @@ class FrameParser:
 
         p2_block = header[0] & 0x0F
         block_size = 1 if p2_block == 0 else 1 << p2_block
-        frame_size = read_be24(header, 1) * block_size
+        frame_size = frame_size_of(header, 1, block_size, resolve_frame_type(header, 5))
         if frame_size < 8:
             raise ParseError(f"invalid frame size {frame_size} at byte {offset}")
 
         rest = handle.read(frame_size - 8)
         if len(rest) != frame_size - 8:
-            raise ParseError(f"short frame body at byte {offset}")
+            raise TruncatedFrameError(f"frame at byte {offset} is cut off at end of file")
 
         frame = self.parse_frame_bytes(header + rest, offset)
         frame.file_end = handle.tell()
@@ -146,17 +208,18 @@ class FrameParser:
 
         p2_block = data[0] & 0x0F
         block_size = 1 if p2_block == 0 else 1 << p2_block
-        frame_size = read_be24(data, 1) * block_size
+        frame_type = resolve_frame_type(data, 5)
+        frame_size = frame_size_of(data, 1, block_size, frame_type)
 
         frame = RawFrame(
             meta_type=data[0],
             data_source=data[4],
-            frame_type=read_be16(data, 5),
+            frame_type=frame_type,
             revision=data[7],
             block_size=block_size,
             frame_size_bytes=frame_size if frame_size == len(data) else len(data),
-            is_blob=read_be16(data, 5) in (0x7, 0x8),
-            is_layered=read_be16(data, 5) in (65281, 65282),
+            is_blob=frame_type in BLOB_FRAME_TYPES,
+            is_layered=frame_type in LAYERED_FRAME_TYPES,
             file_offset=file_offset,
             file_end=file_offset + len(data),
             data=data,
@@ -165,10 +228,16 @@ class FrameParser:
         if frame.is_layered:
             if len(data) < 20:
                 raise ParseError(f"layered frame too short at byte {file_offset}")
-            frame.header_size_bytes = read_be16(data, 8) * block_size
-            frame.item_size_bytes = read_be16(data, 10)
-            frame.item_count = read_be32(data, 12)
-            frame.event_idx = read_be32(data, 16)
+            if layered_is_little_endian(data, frame_type, block_size, len(data)):
+                frame.header_size_bytes = read_le16(data, 8) * block_size
+                frame.item_size_bytes = read_le16(data, 10)
+                frame.item_count = read_le32(data, 12)
+                frame.event_idx = read_le32(data, 16)
+            else:
+                frame.header_size_bytes = read_be16(data, 8) * block_size
+                frame.item_size_bytes = read_be16(data, 10)
+                frame.item_count = read_be32(data, 12)
+                frame.event_idx = read_be32(data, 16)
 
             offset = frame.header_size_bytes
             for _ in range(frame.item_count):
@@ -364,6 +433,7 @@ class ViewerState:
         self.handle = None
         self.source_handles = []
         self.merged_event_refs: Optional[List[Tuple[int, List[Tuple[int, int]]]]] = None
+        self.truncated_sources: List[dict] = []
         self.file_size = 0
         self.event_offsets: List[int] = []
         self.event_ends: List[int] = []
@@ -418,10 +488,21 @@ class ViewerState:
             # group all type 1/2 frames by event id, then expose sorted events.
             grouped: Dict[int, List[Tuple[int, int]]] = {}
             self.source_handles = [open(path, "rb") for path in expanded_paths]
+            self.truncated_sources = []
             for source_index, handle in enumerate(self.source_handles):
+                print(f"indexing source {source_index + 1}/{len(expanded_paths)}: "
+                      f"{expanded_paths[source_index]}", flush=True)
                 while True:
                     offset = handle.tell()
-                    frame = self.parser.index_next_frame(handle)
+                    try:
+                        frame = self.parser.index_next_frame(handle)
+                    except TruncatedFrameError as error:
+                        # A run cut off mid frame is routine; keep what is whole.
+                        self.truncated_sources.append(
+                            {"path": expanded_paths[source_index], "detail": str(error)}
+                        )
+                        print(f"  incomplete final frame: {error}", flush=True)
+                        break
                     if frame is None:
                         break
                     if frame.frame_type in (1, 2):
@@ -430,6 +511,8 @@ class ViewerState:
                         grouped.setdefault(frame.event_idx, []).append((source_index, offset))
             self.merged_event_refs = sorted(grouped.items())
             self.eof = True
+            print(f"indexed {len(self.merged_event_refs)} events "
+                  f"from {len(expanded_paths)} source(s)", flush=True)
             if not self.merged_event_refs:
                 raise ParseError("no GET data frames found in input files")
             return self.load_event(0, selection=selection)
@@ -445,6 +528,7 @@ class ViewerState:
                 "path": self.path,
                 "paths": self.paths,
                 "sourceCount": len(self.paths),
+                "truncatedSources": list(self.truncated_sources),
                 "fileSize": self.file_size,
                 "currentEvent": self.current_event,
                 "indexedEvents": indexed_events,
@@ -958,6 +1042,34 @@ INDEX_HTML = r"""<!doctype html>
           </div>
         </section>
 
+        <section class="control-band">
+          <div class="section-title">Signal Scan</div>
+          <div class="scan-row">
+            <label class="field-label"><span>Scan scope</span>
+              <select id="scanScope" title="Search within the selected channel, AGET, AsAd, or CoBo">
+                <option value="channel">Channel</option>
+                <option value="aget">AGET</option>
+                <option value="asad">AsAd</option>
+                <option value="cobo">Cobo</option>
+                <option value="selection">Selection</option>
+              </select>
+            </label>
+            <label class="field-label"><span>Min amplitude</span>
+              <input id="thresholdInput" type="number" min="0" value="50" title="Minimum absolute deviation from the pedestal">
+            </label>
+          </div>
+          <div class="scan-row">
+            <label class="field-label"><span>Max events</span>
+              <input id="scanLimit" type="number" min="1" value="10000" title="Stop after scanning this many events">
+            </label>
+            <label class="field-label"><span>Include FPN</span>
+              <span class="check-label"><input id="includeFpn" type="checkbox"> Ch 11, 22, 45, 56</span>
+            </label>
+          </div>
+          <p class="scan-help">Scope uses the Cobo/AsAd/AGET/Chan selection in the right panel; a parent scope scans all children. Amplitude is the largest absolute signal deviation from the pedestal (median of TB 0–63). The scan stops at the first matching event.</p>
+          <button id="scanButton" class="wide-button" type="button">Scan Signal</button>
+        </section>
+
         <section class="tree-panel">
           <div class="section-title">Cobo / AsAd / AGET</div>
           <div id="groupTree" class="group-tree"></div>
@@ -994,34 +1106,6 @@ INDEX_HTML = r"""<!doctype html>
             <button id="clearSelection" type="button">Clear</button>
             <button id="restoreScanSelection" type="button" class="secondary" disabled>Restore Scan</button>
           </div>
-        </section>
-
-        <section class="control-band">
-          <div class="section-title">Signal Scan</div>
-          <div class="scan-row">
-            <label class="field-label"><span>Scan scope</span>
-              <select id="scanScope" title="Search within the selected channel, AGET, AsAd, or CoBo">
-                <option value="channel">Channel</option>
-                <option value="aget">AGET</option>
-                <option value="asad">AsAd</option>
-                <option value="cobo">Cobo</option>
-                <option value="selection">Selection</option>
-              </select>
-            </label>
-            <label class="field-label"><span>Min amplitude</span>
-              <input id="thresholdInput" type="number" min="0" value="50" title="Minimum absolute deviation from the pedestal">
-            </label>
-          </div>
-          <div class="scan-row">
-            <label class="field-label"><span>Max events</span>
-              <input id="scanLimit" type="number" min="1" value="10000" title="Stop after scanning this many events">
-            </label>
-            <label class="field-label"><span>Include FPN</span>
-              <span class="check-label"><input id="includeFpn" type="checkbox"> Ch 11, 22, 45, 56</span>
-            </label>
-          </div>
-          <p class="scan-help">Scope uses the Cobo/AsAd/AGET/Chan selection above; a parent scope scans all children. Amplitude is the largest absolute signal deviation from the pedestal (median of TB 0–63). The scan stops at the first matching event.</p>
-          <button id="scanButton" class="wide-button" type="button">Scan Signal</button>
         </section>
 
         <section class="channel-panel">

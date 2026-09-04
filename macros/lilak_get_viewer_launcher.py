@@ -216,6 +216,16 @@ def stop_server(address: str, server_script: Path) -> None:
     print("lilak get_viewer stopped.")
 
 
+def port_is_listening(host: str, port: int) -> bool:
+    """Probe by connecting. Binding here would steal the port from the server."""
+    target = "127.0.0.1" if host == "0.0.0.0" else host
+    try:
+        with socket.create_connection((target, port), timeout=0.25):
+            return True
+    except OSError:
+        return False
+
+
 def port_is_available(host: str, port: int) -> bool:
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as check_socket:
@@ -299,7 +309,14 @@ def main() -> None:
             stderr=subprocess.STDOUT,
             start_new_session=True,
         )
-    time.sleep(0.25)
+    listening = False
+    for _ in range(20):
+        time.sleep(0.25)
+        if process.poll() is not None:
+            break
+        if port_is_listening(host, port):
+            listening = True
+            break
     if process.poll() is not None:
         try:
             details = output_log.read_text(errors="replace").strip()
@@ -318,6 +335,9 @@ def main() -> None:
     state_path(arguments.I).write_text(json.dumps(payload, indent=2) + "\n")
 
     print(f"Started lilak get_viewer PID {process.pid} in the background.")
+    if not listening:
+        print(f"Indexing {len(arguments.files) or 1} source(s); the URL starts "
+              f"answering once the index is built. Progress: tail -f {output_log}")
     print(f"Listening on all network interfaces at port {port}." if host == "0.0.0.0" else f"Listening at {arguments.I}.")
     for url in access_urls(arguments.I):
         print(f"URL: {url}")
