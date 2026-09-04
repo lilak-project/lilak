@@ -1,0 +1,12 @@
+
+#LKSiliconArray/EveThreshold   300  # # (ADC above pedestal) threshold used for waveform peak finding and shaped side/top view filling
+#LKSiliconArray/EventCountForMessage     2000  # event count for message at event accumulation
+#LKSiliconArray/FigurePath     .  # path to save figues
+#LKSiliconArray/fillOption     hit  # fill option: hit uses Hit branch; preview marks pads with data; raw sums RawData waveform; shaped/out sums LKPad BufferShaped; caac/cobo/asad/aget/chan/section/layer/row/padid/nhits show pad metadata
+#LKSiliconArray/jumpEventSize  2000  # jump event value amount when jump event button is clicked
+#LKSiliconArray/skipToEnergy   500  # energy to reference when, button(skip to event containing channel with pulse height>energy) is clicked
+
+#si_array/ForceMapping         
+si_array/Mapping1               # name of detector mapping file
+si_array/Mapping2               # name of channel mapping file
+si_array/MappingPath            # name of silicon mapping directory or detector mapping file
