@@ -1,11 +1,11 @@
 #include "TCanvas.h"
 #include "TClass.h"
 #include "TDirectory.h"
+#include "TEnv.h"
 #include "TError.h"
 #include "TFile.h"
 #include "TFolder.h"
 #include "TH1.h"
-#include "THttpCallArg.h"
 #include "THttpServer.h"
 #include "TKey.h"
 #include "TList.h"
@@ -489,32 +489,6 @@ Bool_t lilak_js_parse_address(
     return kTRUE;
 }
 
-Bool_t lilak_js_get_run_number(Int_t& runNumber)
-{
-    if (gLILAKJSServer == nullptr)
-        return kFALSE;
-
-    TRootSniffer* sniffer = gLILAKJSServer->GetSniffer();
-    THttpCallArg* call = sniffer->SetCurrentCallArg(nullptr);
-    const std::string query = call == nullptr ? "" : call->GetQuery();
-    sniffer->SetCurrentCallArg(call);
-
-    const std::string prefix = "arg1=";
-    if (query.compare(0, prefix.size(), prefix) != 0)
-        return kFALSE;
-    const std::string value = query.substr(prefix.size());
-    if (value.empty() || value.size() > 9)
-        return kFALSE;
-
-    runNumber = 0;
-    for (char character : value) {
-        if (character < '0' || character > '9')
-            return kFALSE;
-        runNumber = runNumber * 10 + character - '0';
-    }
-    return kTRUE;
-}
-
 }
 
 void scan_lilak_js_directory(Bool_t force = kFALSE)
@@ -645,10 +619,9 @@ void poll_lilak_js_process()
     lilak_js_update_monitor_items();
 }
 
-Bool_t run_lilak_js_root()
+Bool_t run_lilak_js_root(Int_t runNumber)
 {
-    Int_t runNumber = -1;
-    if (!lilak_js_get_run_number(runNumber) || gLILAKJSRootMacro.IsNull())
+    if (runNumber < 0 || gLILAKJSRootMacro.IsNull())
         return kFALSE;
     TString escapedMacro = gLILAKJSRootMacro;
     escapedMacro.ReplaceAll("\\", "\\\\");
@@ -663,10 +636,9 @@ Bool_t run_lilak_js_root()
     return lilak_js_start_process(arguments, "ROOT", runNumber);
 }
 
-Bool_t run_lilak_js_python()
+Bool_t run_lilak_js_python(Int_t runNumber)
 {
-    Int_t runNumber = -1;
-    if (!lilak_js_get_run_number(runNumber) || gLILAKJSPythonScript.IsNull())
+    if (runNumber < 0 || gLILAKJSPythonScript.IsNull())
         return kFALSE;
     const char* configured = gSystem->Getenv("LILAK_JSROOT_PYTHON");
     const std::vector<std::string> arguments = {
@@ -676,10 +648,9 @@ Bool_t run_lilak_js_python()
     return lilak_js_start_process(arguments, "Python", runNumber);
 }
 
-Bool_t run_lilak_js_shell(Int_t scriptIndex)
+Bool_t run_lilak_js_shell(Int_t scriptIndex, Int_t runNumber)
 {
-    Int_t runNumber = -1;
-    if (!lilak_js_get_run_number(runNumber)
+    if (runNumber < 0
             || scriptIndex < 0
             || scriptIndex >= static_cast<Int_t>(gLILAKJSShellScripts.size()))
         return kFALSE;
@@ -749,6 +720,15 @@ void lilak_js()
 {
     close_lilak_js();
     gROOT->SetBatch(kTRUE);
+
+    // A watched directory is written to by a running analysis job, so a scan
+    // regularly opens a file the writer has not closed yet.  TFile::Recover()
+    // then rebuilds the keys of a half-written file, reads a garbage key
+    // length and smashes the heap -- an abort that killed this server three
+    // times in one session.  Without recovery such a file is only flagged a
+    // zombie, which lilak_js_load_file already skips, and the next scan
+    // retries it once its stamp settles.
+    gEnv->SetValue("TFile.Recover", 0);
 
     const char* addressEnvironment = gSystem->Getenv("LILAK_JS_ADDRESS");
     const char* shellEnvironment = gSystem->Getenv("LILAK_JS_SHELL");
@@ -849,13 +829,13 @@ void lilak_js()
     std::vector<TString> commands;
     if (!gLILAKJSRootMacro.IsNull()) {
         gLILAKJSServer->RegisterCommand(
-                "/Control/RunROOT", "run_lilak_js_root()",
+                "/Control/RunROOT", "run_lilak_js_root(%arg1%)",
                 "button;rootsys/icons/ed_execute.png");
         commands.push_back("/Control/RunROOT");
     }
     if (!gLILAKJSPythonScript.IsNull()) {
         gLILAKJSServer->RegisterCommand(
-                "/Control/RunPython", "run_lilak_js_python()",
+                "/Control/RunPython", "run_lilak_js_python(%arg1%)",
                 "button;rootsys/icons/ed_execute.png");
         commands.push_back("/Control/RunPython");
     }
@@ -875,7 +855,7 @@ void lilak_js()
         if (!shellCommandNames.insert(command.Data()).second)
             command += Form("_%zu", index + 1);
         const TString expression = Form(
-                "run_lilak_js_shell(%zu)", index);
+                "run_lilak_js_shell(%zu,%%arg1%%)", index);
         gLILAKJSServer->RegisterCommand(
                 command, expression,
                 "button;rootsys/icons/ed_execute.png");
@@ -897,4 +877,10 @@ void lilak_js()
     lilak_js_set_status("ready");
     Info("lilak_js", "open http://%s", gLILAKJSAddress.Data());
     Info("lilak_js", "press JSROOT Reload to refresh changed directory items");
+    if (TString(gSystem->Getenv("LILAK_JS_DAEMON")) == "1") {
+        while (true) {
+            gSystem->ProcessEvents();
+            gSystem->Sleep(10);
+        }
+    }
 }

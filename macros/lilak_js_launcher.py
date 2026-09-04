@@ -50,6 +50,19 @@ def process_command(pid: int) -> str:
     return result.stdout.strip()
 
 
+def is_server_process(pid: int, server_macro: Path) -> bool:
+    try:
+        arguments = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")
+    except (FileNotFoundError, PermissionError, ProcessLookupError):
+        return False
+    decoded = [value.decode(errors="replace") for value in arguments if value]
+    return (
+        bool(decoded)
+        and Path(decoded[0]).name in ("root", "root.exe")
+        and str(server_macro) in decoded
+    )
+
+
 def process_exists(pid: int) -> bool:
     try:
         os.kill(pid, 0)
@@ -60,23 +73,107 @@ def process_exists(pid: int) -> bool:
     return True
 
 
+def listener_pids(port: int) -> list[int]:
+    """Find listener PIDs without requiring lsof."""
+    socket_inodes = set()
+    for table in (Path("/proc/net/tcp"), Path("/proc/net/tcp6")):
+        try:
+            lines = table.read_text().splitlines()[1:]
+        except OSError:
+            continue
+        for line in lines:
+            fields = line.split()
+            if fields[3] == "0A" and int(fields[1].rsplit(":", 1)[1], 16) == port:
+                socket_inodes.add(fields[9])
+
+    pids = set()
+    for process_dir in Path("/proc").glob("[0-9]*"):
+        try:
+            for fd in (process_dir / "fd").iterdir():
+                target = os.readlink(fd)
+                if target.startswith("socket:[") and target[8:-1] in socket_inodes:
+                    pids.add(int(process_dir.name))
+                    break
+        except (FileNotFoundError, PermissionError, ProcessLookupError):
+            continue
+    return sorted(pids)
+
+
+def process_environment(pid: int) -> dict[str, str]:
+    try:
+        entries = Path(f"/proc/{pid}/environ").read_bytes().split(b"\0")
+    except (FileNotFoundError, PermissionError, ProcessLookupError):
+        return {}
+    environment = {}
+    for entry in entries:
+        if b"=" in entry:
+            name, value = entry.split(b"=", 1)
+            environment[name.decode(errors="replace")] = value.decode(errors="replace")
+    return environment
+
+
+def list_servers(server_macro: Path) -> None:
+    servers = []
+    for process_dir in Path("/proc").glob("[0-9]*"):
+        pid = int(process_dir.name)
+        if not is_server_process(pid, server_macro):
+            continue
+        environment = process_environment(pid)
+        address = environment.get("LILAK_JS_ADDRESS", "<unknown>")
+        try:
+            port = int(address.rsplit(":", 1)[1])
+            state = "LISTEN" if pid in listener_pids(port) else "STARTING"
+        except (IndexError, ValueError):
+            state = "UNKNOWN"
+        content = environment.get("LILAK_JS_DIRECTORY", "-")
+        runners = []
+        for name, label in (
+            ("LILAK_JS_SHELL", "sh"),
+            ("LILAK_JS_PYTHON", "py"),
+            ("LILAK_JS_ROOT", "ROOT"),
+        ):
+            if environment.get(name):
+                runners.append(f"{label}:{environment[name].replace(chr(10), ',')}")
+        servers.append((pid, state, address, content, ", ".join(runners) or "-",
+                        environment.get("LILAK_JS_LOG", "-")))
+
+    if not servers:
+        print("No lilak js servers are running.")
+        return
+
+    listening_addresses = {
+        address for _, state, address, _, _, _ in servers if state == "LISTEN"
+    }
+    servers = [
+        server for server in servers
+        if server[1] == "LISTEN" or server[2] not in listening_addresses
+    ]
+
+    print("PID     STATE     ADDRESS              WATCHED DIRECTORY")
+    for pid, state, address, content, runners, log_path in sorted(servers):
+        print(f"{pid:<7} {state:<9} {address:<20} {content}")
+        print(f"        runners: {runners}")
+        print(f"        log:     {log_path}")
+        print(f"        stop:    lilak js -K -I {address}  (or: kill {pid})")
+
+
 def kill_server(address: str, server_macro: Path) -> None:
     port = int(address.rsplit(":", 1)[1])
     lsof_executable = shutil.which("lsof")
     if lsof_executable is None and Path("/usr/sbin/lsof").is_file():
         lsof_executable = "/usr/sbin/lsof"
     if lsof_executable is None:
-        raise SystemExit("lsof is required to find the JSROOT server process")
-
-    result = subprocess.run(
-        [lsof_executable, "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    pids = sorted({
-        int(line) for line in result.stdout.splitlines() if line.strip().isdigit()
-    })
+        pids = listener_pids(port)
+    else:
+        result = subprocess.run(
+            [lsof_executable, "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        pids = sorted({
+            int(line) for line in result.stdout.splitlines() if line.strip().isdigit()
+        })
     if not pids:
         print(f"No process is listening at {address}.")
         return
@@ -85,7 +182,7 @@ def kill_server(address: str, server_macro: Path) -> None:
     unrelated = []
     for pid in pids:
         command = process_command(pid)
-        if server_macro.name in command and "root" in command.lower():
+        if is_server_process(pid, server_macro):
             server_pids.append(pid)
         else:
             unrelated.append((pid, command or "<unknown command>"))
@@ -131,6 +228,8 @@ Optional stdout protocol for web monitoring:
 
 Examples:
   lilak js
+  lilak js -L
+  lilak js -F
   lilak js -K
   lilak js -K -I 192.168.1.35:9091
   lilak js -D ./results
@@ -149,6 +248,16 @@ Examples:
         "-K",
         action="store_true",
         help="stop the lilak js server listening at the selected address",
+    )
+    parser.add_argument(
+        "-L",
+        action="store_true",
+        help="list running lilak js servers and the content they serve",
+    )
+    parser.add_argument(
+        "-F",
+        action="store_true",
+        help="run in the foreground instead of the default background mode",
     )
     parser.add_argument(
         "-S",
@@ -191,6 +300,9 @@ def main() -> None:
     if arguments.K:
         kill_server(arguments.I, server_macro)
         return
+    if arguments.L:
+        list_servers(server_macro)
+        return
 
     if not any((arguments.S, arguments.P, arguments.R, arguments.D)):
         arguments.D = str(Path.cwd().resolve())
@@ -215,6 +327,10 @@ def main() -> None:
         else:
             environment[name] = value
 
+    safe_address = re.sub(r"[^A-Za-z0-9_.-]", "_", arguments.I)
+    log_path = Path(f"/tmp/lilak_js_{safe_address}.log")
+    environment["LILAK_JS_LOG"] = str(log_path)
+
     print(f"JSROOT address   : {arguments.I}")
     if arguments.S:
         for script in arguments.S:
@@ -229,7 +345,25 @@ def main() -> None:
         print("WARNING: this server is reachable beyond the loopback interface.")
 
     sys.stdout.flush()
-    os.execvpe(root_executable, [root_executable, "-l", str(server_macro)], environment)
+    root_command = [root_executable, "-l", str(server_macro)]
+    if arguments.F:
+        os.execvpe(root_executable, root_command, environment)
+
+    environment["LILAK_JS_DAEMON"] = "1"
+    with log_path.open("ab") as log_file:
+        process = subprocess.Popen(
+            root_command,
+            stdin=subprocess.DEVNULL,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+            env=environment,
+        )
+    print(f"Started lilak js server PID {process.pid} in the background.")
+    print(f"URL: http://{arguments.I}")
+    print(f"Log: {log_path}")
+    print("List: lilak js -L")
+    print(f"Stop: lilak js -K -I {arguments.I}")
 
 
 if __name__ == "__main__":
