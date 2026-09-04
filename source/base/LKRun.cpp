@@ -1207,6 +1207,14 @@ bool LKRun::Init()
         }
     }
 
+    // Input branches are normally read-only. If persistency/<branch> is set,
+    // keep the existing input branch in the output tree automatically.
+    for (auto branchName : fBranchNames) {
+        TString persistencyParName = TString("persistency/") + branchName;
+        if (fPar -> CheckPar(persistencyParName) && fPar -> GetParBool(persistencyParName))
+            KeepBranchA(branchName);
+    }
+
     for (Int_t iBranch = 0; iBranch < fCountBranches; iBranch++) {
         TString branchName = fBranchNames.at(iBranch);
         TString clonesClassName = fBranchPtr[iBranch] -> GetClass() -> GetName();
