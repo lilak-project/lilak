@@ -27,6 +27,24 @@ def existing_file(value: str) -> str:
     return str(path)
 
 
+def existing_mapping(value: str) -> str:
+    path = Path(value).expanduser().resolve()
+    directory = path if path.is_dir() else path.parent
+    required = (directory / "channel_mapping.txt", directory / "detector_mapping.txt")
+    if not all(item.is_file() for item in required):
+        raise argparse.ArgumentTypeError(
+            f"mapping files not found in {directory}: channel_mapping.txt, detector_mapping.txt"
+        )
+    return str(directory)
+
+
+def existing_directory(value: str) -> str:
+    path = Path(value).expanduser().resolve()
+    if not path.is_dir():
+        raise argparse.ArgumentTypeError(f"directory not found: {value}")
+    return str(path)
+
+
 def server_address(value: str) -> str:
     match = re.fullmatch(r"(?:(?P<host>[A-Za-z0-9_.-]+):)?(?P<port>[0-9]+)", value)
     if match is None:
@@ -159,6 +177,8 @@ def print_server(payload: dict, server_script: Path) -> bool:
     print(f"PID     : {pid}")
     print(f"Address : {payload['address']}")
     print(f"Files   : {len(payload.get('files', []))}")
+    print(f"Mapping : {payload.get('mapping') or '-'}")
+    print(f"Browse  : {payload.get('browsePath') or '-'}")
     for url in access_urls(payload["address"]):
         print(f"URL     : {url}")
     print(f"Log     : {payload.get('log', '-')}")
@@ -245,6 +265,8 @@ Examples:
   lilak get_viewer run_0084.dat
   lilak get_viewer run_0084.dat.*
   lilak get_viewer -I 0.0.0.0:8877 run_0084.dat
+  lilak get_viewer -M mapping_ko2520_0904 run_0084.dat
+  lilak get_viewer -B /data/ganacq run_0084.dat
   lilak get_viewer -L
   lilak get_viewer -K
 """,
@@ -257,6 +279,14 @@ Examples:
     parser.add_argument("-K", action="store_true", help="stop the server at the selected address")
     parser.add_argument("-L", action="store_true", help="list running viewer servers")
     parser.add_argument("-F", action="store_true", help="run in the foreground")
+    parser.add_argument(
+        "-M", "--mapping", metavar="DIRECTORY", type=existing_mapping,
+        help="detector mapping directory (default: no mapping)",
+    )
+    parser.add_argument(
+        "-B", "--browse-path", metavar="DIRECTORY", type=existing_directory,
+        help="initial directory shown by Browse (default: current directory)",
+    )
     parser.add_argument(
         "--no-browser", action="store_true",
         help="do not open a browser in foreground mode (background mode never opens one)",
@@ -289,6 +319,10 @@ def main() -> None:
         raise SystemExit(f"Cannot listen at {arguments.I}: address or port is unavailable.")
 
     command = [sys.executable, str(server_script), "--host", host, "--port", str(port)]
+    if arguments.mapping:
+        command.extend(["--mapping", arguments.mapping])
+    if arguments.browse_path:
+        command.extend(["--browse-path", arguments.browse_path])
     if arguments.files:
         command.extend(["--file", *arguments.files])
     # A browser launched by a detached process can inherit a stale SSH/X11
@@ -330,6 +364,8 @@ def main() -> None:
         "pid": process.pid,
         "address": arguments.I,
         "files": arguments.files,
+        "mapping": arguments.mapping,
+        "browsePath": arguments.browse_path or str(Path.cwd().resolve()),
         "log": str(output_log),
     }
     state_path(arguments.I).write_text(json.dumps(payload, indent=2) + "\n")

@@ -1837,8 +1837,10 @@ _lilak_completions() {{
         COMPREPLY=( $(compgen -f "${{curr_word}}") )
     elif [[ ${{COMP_WORDS[1]}} == "get_viewer" && "$prev_word" == "-I" ]]; then
         COMPREPLY=()
+    elif [[ ${{COMP_WORDS[1]}} == "get_viewer" && "$prev_word" =~ ^(-M|--mapping|-B|--browse-path)$ ]]; then
+        COMPREPLY=( $(compgen -d "${{curr_word}}") )
     elif [[ ${{COMP_WORDS[1]}} == "get_viewer" && "$curr_word" == -* ]]; then
-        COMPREPLY=( $(compgen -W "-K -L -F -I --no-browser -h" -- "${{curr_word}}") )
+        COMPREPLY=( $(compgen -W "-K -L -F -I -M --mapping -B --browse-path --no-browser -h" -- "${{curr_word}}") )
     elif [[ ${{COMP_WORDS[1]}} == "get_viewer" ]]; then
         COMPREPLY=( $(compgen -f "${{curr_word}}") )
     elif [[ ${{COMP_WORDS[1]}} == "js" && "$prev_word" =~ ^-(S|P|R|D)$ ]]; then

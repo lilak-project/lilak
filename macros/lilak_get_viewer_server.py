@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 import argparse
+import bisect
 import cgi
 import json
 import math
 import os
 import posixpath
+import re
 import statistics
 import threading
 import urllib.parse
@@ -18,6 +20,62 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 UPLOAD_ROOT = Path("/tmp/lk_get_viewer_uploads")
 FPN_CHANNELS = {11, 22, 45, 56}
+
+
+class DetectorMapping:
+    def __init__(self, mapping_path: str) -> None:
+        supplied = Path(mapping_path).expanduser().resolve()
+        self.directory = supplied if supplied.is_dir() else supplied.parent
+        channel_file = self.directory / "channel_mapping.txt"
+        detector_file = self.directory / "detector_mapping.txt"
+        if not channel_file.is_file() or not detector_file.is_file():
+            raise FileNotFoundError(
+                f"mapping requires channel_mapping.txt and detector_mapping.txt in {self.directory}"
+            )
+
+        detectors = {}
+        for row in self._read_table(detector_file, "det_type"):
+            det_idx = int(row["det_idx"])
+            detectors[det_idx] = {
+                "detectorType": row["det_type"],
+                "detectorNumber": int(row["det_number"]),
+                "detectorLabel": f"{row['det_type']}-{row['det_number']}",
+                "ringType": row["ring_type"],
+            }
+
+        self.channels = {}
+        for row in self._read_table(channel_file, "ch_idx"):
+            key = tuple(int(row[name]) for name in ("cobo", "asad", "aget", "ch"))
+            detector = detectors.get(int(row["det_idx"]))
+            if detector is not None:
+                self.channels[key] = detector
+        metadata = list(self.channels.values())
+        self.options = {
+            "detectorTypes": sorted({item["detectorType"] for item in metadata}),
+            "detectorNumbers": sorted({item["detectorNumber"] for item in metadata}),
+            "ringTypes": sorted({item["ringType"] for item in metadata}),
+        }
+
+    @staticmethod
+    def _read_table(path: Path, first_column: str) -> Iterable[dict]:
+        lines = path.read_text().splitlines()
+        header_index = next(
+            (index for index, line in enumerate(lines) if line.split("\t", 1)[0] == first_column),
+            None,
+        )
+        if header_index is None:
+            raise ParseError(f"table header not found in {path}")
+        columns = lines[header_index].split("\t")
+        for line in lines[header_index + 1 :]:
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            values = line.split("\t")
+            if len(values) == len(columns):
+                yield dict(zip(columns, values))
+
+
+MAPPING: Optional[DetectorMapping] = None
+BROWSE_START_PATH = str(Path.cwd().resolve())
 
 
 class ParseError(Exception):
@@ -374,13 +432,85 @@ def normalize_selection(payload: Optional[dict]) -> dict:
     return selection
 
 
+def parse_number_expression(value, field: str):
+    if value in (None, "", "all", "Any", "any"):
+        return None
+    text = str(value).strip()
+    if not text or text.lower() in ("all", "any"):
+        return None
+    included = set()
+    excluded = set()
+    for raw_token in text.split(","):
+        token = raw_token.strip()
+        if not token:
+            raise ValueError(f"empty item in {field} filter")
+        is_excluded = token.startswith("!")
+        body = token[1:].strip() if is_excluded else token
+        match = re.fullmatch(r"(\d+)(?:\s*-\s*(\d+))?", body)
+        if match is None:
+            raise ValueError(f"invalid {field} filter item: {token}")
+        start = int(match.group(1))
+        end = int(match.group(2)) if match.group(2) is not None else start
+        if end < start:
+            raise ValueError(f"invalid descending range in {field}: {token}")
+        if end - start > 10000:
+            raise ValueError(f"range is too large in {field}: {token}")
+        target = excluded if is_excluded else included
+        target.update(range(start, end + 1))
+    return {
+        "include": sorted(included) if included else None,
+        "exclude": sorted(excluded),
+    }
+
+
+def normalize_scan_selection(payload: Optional[dict]) -> dict:
+    payload = payload or {}
+    return {
+        key: parse_number_expression(payload.get(key), key)
+        for key in ("cobo", "asad", "aget", "channel")
+    }
+
+
+def normalize_detector_selection(payload: Optional[dict]) -> dict:
+    payload = payload or {}
+    detector_type = payload.get("detectorType")
+    detector_number = payload.get("detectorNumber")
+    ring_type = payload.get("ringType")
+    return {
+        "detectorType": None if detector_type in (None, "", "Any", "any") else str(detector_type),
+        "detectorNumber": (None if detector_number in (None, "", "Any", "any")
+                           else int(detector_number)),
+        "ringType": None if ring_type in (None, "", "Any", "any") else str(ring_type),
+    }
+
+
+def channel_matches_detector(key: Tuple[int, int, int, int], selection: dict) -> bool:
+    if not any(value is not None for value in selection.values()):
+        return True
+    if MAPPING is None:
+        return False
+    metadata = MAPPING.channels.get(key)
+    if metadata is None:
+        return False
+    return all(
+        selection.get(field) is None or metadata.get(field) == selection[field]
+        for field in ("detectorType", "detectorNumber", "ringType")
+    )
+
+
 def channel_matches_tuple(key: Tuple[int, int, int, int], selection: dict) -> bool:
-    cobo, asad, aget, chan = key
-    return (
-        (selection.get("cobo") is None or cobo == selection["cobo"])
-        and (selection.get("asad") is None or asad == selection["asad"])
-        and (selection.get("aget") is None or aget == selection["aget"])
-        and (selection.get("channel") is None or chan == selection["channel"])
+    def matches(value: int, constraint) -> bool:
+        if constraint is None:
+            return True
+        if isinstance(constraint, dict):
+            included = constraint.get("include")
+            excluded = constraint.get("exclude") or []
+            return (included is None or value in included) and value not in excluded
+        return value == constraint
+
+    return all(
+        matches(value, selection.get(field))
+        for field, value in zip(("cobo", "asad", "aget", "channel"), key)
     )
 
 
@@ -437,6 +567,7 @@ class ViewerState:
         self.file_size = 0
         self.event_offsets: List[int] = []
         self.event_ends: List[int] = []
+        self.event_ids: List[int] = []
         self.index_cursor = 0
         self.eof = False
         self.current_event = -1
@@ -454,6 +585,7 @@ class ViewerState:
         self.file_size = 0
         self.event_offsets = []
         self.event_ends = []
+        self.event_ids = []
         self.index_cursor = 0
         self.eof = False
         self.current_event = -1
@@ -533,6 +665,9 @@ class ViewerState:
                 "currentEvent": self.current_event,
                 "indexedEvents": indexed_events,
                 "eof": self.eof,
+                "mappingPath": str(MAPPING.directory) if MAPPING is not None else None,
+                "mappingOptions": MAPPING.options if MAPPING is not None else None,
+                "browsePath": BROWSE_START_PATH,
             }
 
     def ensure_open(self) -> None:
@@ -562,6 +697,7 @@ class ViewerState:
             if not frame.is_blob:
                 self.event_offsets.append(start)
                 self.event_ends.append(end)
+                self.event_ids.append(frame.event_idx)
         self.index_cursor = self.handle.tell()
         return len(self.event_offsets) > event_index
 
@@ -604,9 +740,31 @@ class ViewerState:
             channels = unpack_get_event(frame)
             return self.serialize_event(event_index, frame, channels, normalize_selection(selection))
 
+    def event_index_for_frame(self, frame_number: int) -> int:
+        self.ensure_open()
+        if self.merged_event_refs is not None:
+            index = bisect.bisect_left(self.merged_event_refs, (frame_number,))
+            if (index < len(self.merged_event_refs)
+                    and self.merged_event_refs[index][0] == frame_number):
+                return index
+            raise IndexError(f"frame {frame_number} was not found")
+
+        for index, event_id in enumerate(self.event_ids):
+            if event_id == frame_number:
+                return index
+        while not self.eof:
+            next_index = len(self.event_offsets)
+            if not self.ensure_index(next_index):
+                break
+            if self.event_ids[-1] == frame_number:
+                return len(self.event_ids) - 1
+        raise IndexError(f"frame {frame_number} was not found")
+
     def navigate(self, action: str, selection: Optional[dict] = None) -> dict:
         with self.lock:
-            if action == "first":
+            if action.startswith("frame:"):
+                target = self.event_index_for_frame(int(action.split(":", 1)[1]))
+            elif action == "first":
                 target = 0
             elif action == "previous":
                 target = max(0, self.current_event - 1)
@@ -623,12 +781,19 @@ class ViewerState:
         selection: dict,
         scope: str,
         threshold: float,
+        max_threshold: Optional[float],
         include_fpn: bool,
         max_events: int,
+        direction: str = "forward",
+        detector_selection: Optional[dict] = None,
+        min_tb: Optional[int] = None,
+        max_tb: Optional[int] = None,
     ) -> dict:
         with self.lock:
             scan_selection = scope_selection(selection, scope)
-            start_index = self.current_event + 1 if self.current_event >= 0 else 0
+            detector_selection = normalize_detector_selection(detector_selection)
+            step = -1 if direction == "backward" else 1
+            start_index = self.current_event + step if self.current_event >= 0 else 0
             scanned = 0
             event_index = start_index
             while scanned < max_events:
@@ -636,8 +801,8 @@ class ViewerState:
                     return {
                         "found": False,
                         "scanned": scanned,
-                        "eof": self.eof,
-                        "message": "end of file",
+                        "eof": step > 0 and self.eof,
+                        "message": "beginning of file" if step < 0 else "end of file",
                     }
                 frame = self.read_event_frame(event_index)
                 channels = unpack_get_event(frame)
@@ -646,9 +811,40 @@ class ViewerState:
                         continue
                     if not channel_matches_tuple(key, scan_selection):
                         continue
+                    if not channel_matches_detector(key, detector_selection):
+                        continue
                     stats = analyze_waveform(values)
-                    if stats["amplitude"] >= threshold:
+                    if (stats["amplitude"] >= threshold
+                            and (max_threshold is None or stats["amplitude"] <= max_threshold)
+                            and (min_tb is None or stats["peakTb"] >= min_tb)
+                            and (max_tb is None or stats["peakTb"] <= max_tb)):
                         self.current_event = event_index
+                        event_payload = self.serialize_event(
+                            event_index,
+                            frame,
+                            channels,
+                            normalize_selection({}),
+                        )
+                        matching_summaries = []
+                        for mapped_key, mapped_values in channels.items():
+                            if not channel_matches_tuple(mapped_key, scan_selection):
+                                continue
+                            if not channel_matches_detector(mapped_key, detector_selection):
+                                continue
+                            mapped_summary = {
+                                "cobo": mapped_key[0],
+                                "asad": mapped_key[1],
+                                "aget": mapped_key[2],
+                                "channel": mapped_key[3],
+                            }
+                            if MAPPING is not None:
+                                mapped_summary.update(MAPPING.channels.get(mapped_key, {}))
+                            matching_summaries.append(mapped_summary)
+                        event_payload["event"]["scanSelection"] = scan_selection
+                        event_payload["event"]["scanDetectorSelection"] = detector_selection
+                        event_payload["event"]["selectionMapping"] = mapping_summary(
+                            matching_summaries
+                        )
                         return {
                             "found": True,
                             "scanned": scanned + 1,
@@ -660,10 +856,10 @@ class ViewerState:
                                 "amplitude": stats["amplitude"],
                                 "peakTb": stats["peakTb"],
                             },
-                            "event": self.serialize_event(event_index, frame, channels, scan_selection),
+                            "event": event_payload,
                         }
                 scanned += 1
-                event_index += 1
+                event_index += step
             return {
                 "found": False,
                 "scanned": scanned,
@@ -691,11 +887,20 @@ class ViewerState:
                 "isFpn": key[3] in FPN_CHANNELS,
                 **stats,
             }
+            if MAPPING is not None:
+                summary.update(MAPPING.channels.get(key, {}))
             all_summaries.append(summary)
             if channel_matches_tuple(key, selection):
                 selected_channels.append({**summary, "waveform": values})
 
         first_data_frame = next(iter(iter_data_frames(frame)), frame)
+        selection_summaries = [
+            item for item in all_summaries
+            if channel_matches_tuple(
+                (item["cobo"], item["asad"], item["aget"], item["channel"]),
+                selection,
+            )
+        ]
         return {
             "status": self.status(),
             "event": {
@@ -708,6 +913,7 @@ class ViewerState:
                 "channelCount": len(all_summaries),
                 "selectedCount": len(selected_channels),
                 "selection": selection,
+                "selectionMapping": mapping_summary(selection_summaries),
                 "groups": build_group_tree(all_summaries),
                 "channels": selected_channels,
             },
@@ -738,6 +944,7 @@ def build_group_tree(summaries: List[dict]) -> List[dict]:
                         "count": aget_count,
                         "maxAmplitude": aget_max,
                         "channels": channels,
+                        **mapping_summary(channels),
                     }
                 )
                 asad_count += aget_count
@@ -748,6 +955,9 @@ def build_group_tree(summaries: List[dict]) -> List[dict]:
                     "count": asad_count,
                     "maxAmplitude": asad_max,
                     "agets": aget_nodes,
+                    **mapping_summary(
+                        [channel for aget in aget_nodes for channel in aget["channels"]]
+                    ),
                 }
             )
             cobo_count += asad_count
@@ -758,9 +968,28 @@ def build_group_tree(summaries: List[dict]) -> List[dict]:
                 "count": cobo_count,
                 "maxAmplitude": cobo_max,
                 "asads": asad_nodes,
+                **mapping_summary(
+                    [
+                        channel
+                        for asad in asad_nodes
+                        for aget in asad["agets"]
+                        for channel in aget["channels"]
+                    ]
+                ),
             }
         )
     return cobo_nodes
+
+
+def mapping_summary(summaries: List[dict]) -> dict:
+    return {
+        "detectorLabels": sorted(
+            {item["detectorLabel"] for item in summaries if item.get("detectorLabel")}
+        ),
+        "ringTypes": sorted(
+            {item["ringType"] for item in summaries if item.get("ringType")}
+        ),
+    }
 
 
 STATE = ViewerState()
@@ -794,6 +1023,27 @@ class ViewerHandler(BaseHTTPRequestHandler):
             if parsed.path == "/api/status":
                 self.send_json({"status": STATE.status()})
                 return
+            if parsed.path == "/api/mapping-info":
+                entries = []
+                if MAPPING is not None:
+                    for key, metadata in MAPPING.channels.items():
+                        entries.append({
+                            **metadata,
+                            "cobo": key[0],
+                            "asad": key[1],
+                            "aget": key[2],
+                            "channel": key[3],
+                        })
+                    entries.sort(key=lambda item: (
+                        item["detectorType"], item["detectorNumber"],
+                        item["ringType"], item["cobo"], item["asad"],
+                        item["aget"], item["channel"],
+                    ))
+                self.send_json({
+                    "mappingPath": (str(MAPPING.directory) if MAPPING is not None else None),
+                    "entries": entries,
+                })
+                return
             if parsed.path == "/api/files":
                 query = urllib.parse.parse_qs(parsed.query)
                 self.send_json(list_directory(query.get("path", [os.getcwd()])[0]))
@@ -816,6 +1066,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
             self.send_error(HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:
+        global MAPPING
         try:
             parsed = urllib.parse.urlparse(self.path)
             if parsed.path == "/api/upload":
@@ -823,7 +1074,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 return
 
             payload = self.read_json()
-            selection = normalize_selection(payload.get("selection"))
+            selection = (normalize_scan_selection(payload.get("selection"))
+                         if parsed.path == "/api/scan"
+                         else normalize_selection(payload.get("selection")))
             if parsed.path == "/api/open":
                 # Unmerged CoBo data is one file per source, so the browser
                 # sends every selected path and the state merges them by event
@@ -832,17 +1085,46 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 paths = [str(item) for item in requested]
                 self.send_json(STATE.open_paths(paths, selection=selection))
                 return
+            if parsed.path == "/api/mapping":
+                mapping = DetectorMapping(str(payload["path"]))
+                with STATE.lock:
+                    MAPPING = mapping
+                self.send_json(
+                    {"mappingPath": str(mapping.directory), "status": STATE.status()}
+                )
+                return
+            if parsed.path == "/api/mapping-selection":
+                summaries = []
+                if MAPPING is not None:
+                    for key, metadata in MAPPING.channels.items():
+                        if channel_matches_tuple(key, selection):
+                            summaries.append(metadata)
+                self.send_json({"mapping": mapping_summary(summaries)})
+                return
             if parsed.path == "/api/navigate":
                 self.send_json(STATE.navigate(str(payload.get("action", "current")), selection=selection))
                 return
             if parsed.path == "/api/scan":
+                max_amplitude = payload.get("maxAmplitude")
+                min_tb_value = payload.get("minTb")
+                max_tb_value = payload.get("maxTb")
+                min_tb = None if min_tb_value in (None, "") else int(min_tb_value)
+                max_tb = None if max_tb_value in (None, "") else int(max_tb_value)
+                if min_tb is not None and max_tb is not None and min_tb > max_tb:
+                    raise ValueError("maximum TB must be greater than or equal to minimum TB")
                 self.send_json(
                     STATE.scan_signal(
                         selection=selection,
                         scope=str(payload.get("scope", "channel")),
                         threshold=float(payload.get("threshold", 50)),
+                        max_threshold=(None if max_amplitude in (None, "")
+                                       else float(max_amplitude)),
                         include_fpn=bool(payload.get("includeFpn", False)),
                         max_events=max(1, int(payload.get("maxEvents", 10000))),
+                        direction=str(payload.get("direction", "forward")),
+                        detector_selection=payload.get("detectorSelection"),
+                        min_tb=min_tb,
+                        max_tb=max_tb,
                     )
                 )
                 return
@@ -917,6 +1199,21 @@ def run_self_test() -> None:
     import io
     import tempfile
 
+    multi_selection = normalize_scan_selection({"channel": "10, 15-20, !17"})
+    assert channel_matches_tuple((0, 0, 0, 10), multi_selection)
+    assert channel_matches_tuple((0, 0, 0, 15), multi_selection)
+    assert channel_matches_tuple((0, 0, 0, 20), multi_selection)
+    assert not channel_matches_tuple((0, 0, 0, 14), multi_selection)
+    assert not channel_matches_tuple((0, 0, 0, 17), multi_selection)
+    exclusion_only = normalize_scan_selection({"aget": "!1-2"})
+    assert channel_matches_tuple((0, 0, 0, 0), exclusion_only)
+    assert not channel_matches_tuple((0, 0, 1, 0), exclusion_only)
+    try:
+        normalize_scan_selection({"cobo": "4-2"})
+        raise AssertionError("descending scan range was accepted")
+    except ValueError:
+        pass
+
     raw = make_type1_frame(
         7,
         2,
@@ -962,6 +1259,31 @@ def run_self_test() -> None:
         assert event["status"]["sourceCount"] == 2
         next_event = state.navigate("next")
         assert next_event["event"]["eventIdx"] == 8
+        assert state.navigate("frame:7")["event"]["index"] == 0
+        assert state.navigate("frame:8")["event"]["index"] == 1
+        previous_match = state.scan_signal(
+            selection=normalize_selection({}),
+            scope="selection",
+            threshold=50,
+            max_threshold=None,
+            include_fpn=False,
+            max_events=10,
+            direction="backward",
+        )
+        assert previous_match["found"]
+        assert previous_match["event"]["event"]["eventIdx"] == 7
+        filtered_match = state.scan_signal(
+            selection=normalize_scan_selection({"channel": "1,3,!3"}),
+            scope="selection",
+            threshold=50,
+            max_threshold=None,
+            include_fpn=False,
+            max_events=10,
+            direction="forward",
+        )
+        assert filtered_match["found"]
+        assert filtered_match["event"]["event"]["eventIdx"] == 8
+        assert filtered_match["match"]["channel"] == 1
         state.close()
     print("self-test passed")
 
@@ -975,15 +1297,18 @@ INDEX_HTML = r"""<!doctype html>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>LK GET Web Viewer</title>
+    <title>LILAK GET Web Viewer</title>
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/static/styles.css">
   </head>
   <body>
     <header class="topbar">
       <div class="brand">
-        <span class="brand-mark"></span>
+        <svg class="brand-mark" viewBox="0 0 256 256" aria-hidden="true">
+          <path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40Zm-4.78,91.44c-16.68,35-31.06,50.56-46.65,50.56-19.68,0-31.39-24.56-43.79-50.56C112,113,101,90,91.43,90c-3.74,0-14.37,4-32.21,41.44a8,8,0,0,1-14.44-6.88C61.46,89.59,75.84,74,91.43,74c19.68,0,31.39,24.56,43.79,50.56C144,143,155,166,164.57,166c3.74,0,14.37-4,32.21-41.44a8,8,0,1,1,14.44,6.88Z"></path>
+        </svg>
         <div>
-          <h1>LK GET Web Viewer</h1>
+          <h1>LILAK GET Web Viewer</h1>
           <p id="fileLabel">No file loaded</p>
         </div>
       </div>
@@ -1009,12 +1334,18 @@ INDEX_HTML = r"""<!doctype html>
           <input id="browserPath" type="text" autocomplete="off" aria-label="Directory path">
           <button type="submit">Go</button>
         </form>
+        <div class="browser-search-row">
+          <input id="browserSearch" type="search" autocomplete="off" placeholder="Search files in this folder" aria-label="Search files in this folder">
+        </div>
         <div class="browser-columns"><span>Name</span><span>Size</span></div>
         <div id="browserRows" class="browser-rows"></div>
         <div class="browser-footer">
           <span id="browserSelection">Select one or more files</span>
-          <button id="browserSelectAll" type="button" class="secondary" disabled>Select All</button>
-          <button id="browserOpen" type="button" disabled>Open selected</button>
+          <div class="browser-footer-actions">
+            <button id="browserSelectAll" type="button" class="secondary" disabled>Select All</button>
+            <button id="browserOpenMapping" type="button" class="secondary">Open Mapping</button>
+            <button id="browserOpen" type="button" disabled>Open selected</button>
+          </div>
         </div>
       </section>
     </div>
@@ -1022,57 +1353,82 @@ INDEX_HTML = r"""<!doctype html>
     <main class="workspace">
       <aside class="side-panel">
         <section class="control-band">
-          <div class="section-title">Event</div>
+          <div class="event-jump-row">
+            <label for="jumpInput">Event:</label>
+            <input id="jumpInput" type="number" min="0" placeholder="Event index">
+            <button id="jumpButton" type="button">Go</button>
+          </div>
+          <div class="event-jump-row">
+            <label for="frameInput">Frame:</label>
+            <input id="frameInput" type="number" min="0" placeholder="Frame number">
+            <button id="frameButton" type="button">Go</button>
+          </div>
           <div class="nav-row">
             <button data-nav="first">First</button>
             <button data-nav="previous">Prev</button>
             <button data-nav="next">Next</button>
           </div>
-          <div class="jump-row">
-            <input id="jumpInput" type="number" min="0" placeholder="Event index">
-            <button id="jumpButton" type="button">Go</button>
-          </div>
           <div class="auto-next-row">
             <label><input id="autoNextInterval" type="number" min="0.1" step="0.1" value="1.0"><span>sec</span></label>
-            <button id="autoNextButton" type="button">Auto Next</button>
-          </div>
-          <div class="event-readout">
-            <span id="eventIndex">-</span>
-            <span id="eventMeta">-</span>
+            <button id="autoNextButton" type="button">Auto</button>
           </div>
         </section>
 
-        <section class="control-band">
-          <div class="section-title">Signal Scan</div>
-          <div class="scan-row">
-            <label class="field-label"><span>Scan scope</span>
-              <select id="scanScope" title="Search within the selected channel, AGET, AsAd, or CoBo">
-                <option value="channel">Channel</option>
-                <option value="aget">AGET</option>
-                <option value="asad">AsAd</option>
-                <option value="cobo">Cobo</option>
-                <option value="selection">Selection</option>
-              </select>
-            </label>
-            <label class="field-label"><span>Min amplitude</span>
-              <input id="thresholdInput" type="number" min="0" value="50" title="Minimum absolute deviation from the pedestal">
+        <section class="control-band filter-scan-band">
+          <div class="section-title section-title-with-info"><span>Filter &amp; Scan</span>
+            <span class="info-icon" tabindex="0" aria-label="Filter and Scan information">i
+              <span class="info-tooltip">Electronic filters accept comma-separated values, ranges, and exclusions (for example: 10,15-20,!17). Blank fields match any value. Amplitude is the largest absolute signal deviation from the pedestal (median of TB 0&ndash;63), and TB range applies to its peak TB. The scan stops at the first matching event.</span>
+            </span>
+            <button id="clearScanFilters" type="button">Clear</button>
+          </div>
+          <div class="filter-group electronic-filter-group">
+            <div class="selection-grid">
+              <label>Cobo:<input id="scanCobo" type="text" placeholder="Any" title="Example: 0,2-4,!3"></label>
+              <label>AsAd:<input id="scanAsad" type="text" placeholder="Any" title="Example: 0,2-3,!2"></label>
+              <label>AGET:<input id="scanAget" type="text" placeholder="Any" title="Example: 0,2-3,!2"></label>
+              <label>Chan:<input id="scanChannel" type="text" placeholder="Any" title="Example: 10,15-20,!17"></label>
+            </div>
+          </div>
+          <div class="filter-group detector-filter-group">
+            <div class="detector-selection-grid">
+              <div class="ring-selection-row">
+                <span class="scan-field-title">Det. Ring:</span>
+                <select id="scanRingType" disabled><option value="">Any</option></select>
+                <button id="detectorInfoButton" type="button" disabled>Det info</button>
+              </div>
+            </div>
+            <div class="scan-value-row">
+              <span class="scan-field-title">Det. type-#:</span>
+              <select id="scanDetectorType" disabled><option value="">Any</option></select>
+              <span>&ndash;</span>
+              <input id="scanDetectorNumber" type="number" min="0" placeholder="Any" disabled>
+            </div>
+          </div>
+          <div class="filter-group range-filter-group">
+            <div class="scan-value-row">
+              <span class="scan-field-title">Amp. range:</span>
+              <input id="thresholdInput" type="number" min="0" placeholder="Any" title="Optional minimum absolute deviation from the pedestal">
+              <span>&ndash;</span>
+              <input id="maxAmplitudeInput" type="number" min="0" placeholder="Any" title="Optional maximum absolute deviation from the pedestal">
+            </div>
+            <div class="scan-value-row">
+              <span class="scan-field-title">TB range:</span>
+              <input id="minTbInput" type="number" min="0" max="511" placeholder="Any" title="Optional minimum peak TB">
+              <span>&ndash;</span>
+              <input id="maxTbInput" type="number" min="0" max="511" placeholder="Any" title="Optional maximum peak TB">
+            </div>
+          </div>
+          <div class="scan-value-row scan-options-row">
+            <span class="scan-field-title">Max event:</span>
+            <input id="scanLimit" type="number" min="1" value="10000" title="Stop after scanning this many events">
+            <label class="inline-check"><span>FPN</span>
+              <input id="includeFpn" type="checkbox">
             </label>
           </div>
-          <div class="scan-row">
-            <label class="field-label"><span>Max events</span>
-              <input id="scanLimit" type="number" min="1" value="10000" title="Stop after scanning this many events">
-            </label>
-            <label class="field-label"><span>Include FPN</span>
-              <span class="check-label"><input id="includeFpn" type="checkbox"> Ch 11, 22, 45, 56</span>
-            </label>
+          <div class="scan-direction-row">
+            <button id="scanBackwardButton" type="button">Backward</button>
+            <button id="scanForwardButton" type="button">Forward</button>
           </div>
-          <p class="scan-help">Scope uses the Cobo/AsAd/AGET/Chan selection in the right panel; a parent scope scans all children. Amplitude is the largest absolute signal deviation from the pedestal (median of TB 0–63). The scan stops at the first matching event.</p>
-          <button id="scanButton" class="wide-button" type="button">Scan Signal</button>
-        </section>
-
-        <section class="tree-panel">
-          <div class="section-title">Cobo / AsAd / AGET</div>
-          <div id="groupTree" class="group-tree"></div>
         </section>
       </aside>
 
@@ -1081,41 +1437,43 @@ INDEX_HTML = r"""<!doctype html>
           <div>
             <strong id="plotTitle">Waveforms</strong>
             <span id="plotSubtitle"></span>
-            <span class="plot-hint">wheel zooms, drag pans, double click resets; over a tick strip only that axis moves</span>
+            <span id="plotFileName" class="plot-file-name">No file loaded</span>
           </div>
-          <div class="plot-actions">
+          <div id="plotActions" class="plot-actions">
             <button id="autoScale" type="button">Autoscale</button>
-            <button id="showAll" type="button">Show Event</button>
+            <button id="fullScale" type="button" title="Set TB to 0–512 and ADC to 0–4096">Full scale</button>
+            <button id="showAll" type="button">Show all</button>
+            <button id="saveWaveform" type="button">Save PNG</button>
           </div>
         </div>
         <canvas id="waveCanvas"></canvas>
+        <div id="detectorInfoPanel" class="detector-info-panel" hidden>
+          <table class="detector-info-table">
+            <thead><tr><th>D-Type</th><th>D-#</th><th>Ring</th><th>Cobo</th><th>AsAd</th><th>AGET</th><th>Chan</th></tr></thead>
+            <tbody id="detectorInfoRows"></tbody>
+          </table>
+        </div>
         <div id="statusLine" class="status-line">Ready</div>
       </section>
 
       <aside class="detail-panel">
-        <section class="control-band">
-          <div class="section-title">Selection</div>
-          <div class="selection-grid">
-            <label>Cobo<input id="selCobo" type="number" min="0" placeholder="Any"></label>
-            <label>AsAd<input id="selAsad" type="number" min="0" placeholder="Any"></label>
-            <label>AGET<input id="selAget" type="number" min="0" placeholder="Any"></label>
-            <label>Chan<input id="selChannel" type="number" min="0" max="67" placeholder="Any"></label>
-          </div>
-          <div class="action-row selection-actions">
-            <button id="applySelection" type="button">Apply</button>
-            <button id="clearSelection" type="button">Clear</button>
-            <button id="restoreScanSelection" type="button" class="secondary" disabled>Restore Scan</button>
-          </div>
+        <div class="panel-tabs" role="tablist">
+          <button id="electronicsTab" type="button" class="panel-tab" role="tab">CAAC</button>
+          <button id="channelsTab" type="button" class="panel-tab active" role="tab">Channels</button>
+        </div>
+        <section id="electronicsPanel" class="tab-panel" role="tabpanel" hidden>
+          <div id="groupTree" class="group-tree"></div>
         </section>
-
-        <section class="channel-panel">
-          <div class="section-title">Channels</div>
+        <section id="channelsPanel" class="tab-panel channel-panel active" role="tabpanel">
           <div class="table-wrap">
             <table>
+              <colgroup><col><col><col><col><col><col></colgroup>
               <thead>
                 <tr>
                   <th>CAA</th>
                   <th>Ch</th>
+                  <th>Detector</th>
+                  <th>Ring</th>
                   <th>Amp</th>
                   <th>TB</th>
                 </tr>
@@ -1126,6 +1484,12 @@ INDEX_HTML = r"""<!doctype html>
         </section>
       </aside>
     </main>
+
+    <footer class="event-bookmark-bar">
+      <button id="clearSavedEvents" type="button" class="secondary">Clear Saves</button>
+      <button id="saveEventBookmark" type="button">Save Event</button>
+      <div id="eventBookmarks" class="event-bookmarks" aria-label="Saved events"></div>
+    </footer>
 
     <script src="/static/app.js"></script>
   </body>
@@ -1186,12 +1550,53 @@ button {
 
 button.secondary,
 .plot-actions button,
-.nav-row button,
-#clearSelection,
 #autoScale,
 #showAll {
   background: #ffffff;
   color: var(--text);
+}
+
+#scanBackwardButton,
+#scanForwardButton {
+  border-color: #2f6f49;
+  background: #3b8257;
+  color: #ffffff;
+}
+
+.nav-row button,
+.event-jump-row button,
+#autoNextButton {
+  border-color: #40546a;
+  background: #4b6076;
+  color: #ffffff;
+}
+
+#autoNextButton.running {
+  border-color: #e19a9a;
+  background: #f5c2c2;
+  color: #7f1d1d;
+}
+
+#clearSavedEvents,
+#saveEventBookmark,
+#browseButton,
+#openForm button[type="submit"],
+#openForm .upload-button,
+#browserOpen,
+#autoScale,
+#fullScale,
+#showAll,
+#saveWaveform {
+  border-color: #bcc7d2;
+  background: #dde4eb;
+  color: var(--text);
+}
+
+#showAll.filter-active,
+#autoScale.filter-active {
+  border-color: #60a5fa;
+  background: #dbeafe;
+  color: #1d4f91;
 }
 
 button:hover,
@@ -1204,6 +1609,10 @@ button:disabled {
   cursor: wait;
 }
 
+body.request-busy button {
+  pointer-events: none;
+}
+
 input,
 select {
   border: 1px solid var(--line);
@@ -1213,6 +1622,21 @@ select {
   min-height: 34px;
   padding: 0 9px;
   width: 100%;
+}
+
+input[type="number"] {
+  font-size: 16px;
+}
+
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
 }
 
 input:focus,
@@ -1240,11 +1664,14 @@ select:focus {
 }
 
 .brand-mark {
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
-  background: linear-gradient(135deg, var(--blue), var(--teal) 55%, var(--amber));
+  width: 40px;
+  height: 40px;
   flex: 0 0 auto;
+  color: var(--blue);
+}
+
+.brand-mark path {
+  fill: currentColor;
 }
 
 h1 {
@@ -1305,7 +1732,7 @@ h1 {
   width: min(820px, 96vw);
   height: min(680px, 88vh);
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
   overflow: hidden;
   border: 1px solid var(--line-strong);
   border-radius: 10px;
@@ -1333,6 +1760,14 @@ h1 {
   grid-template-columns: auto 1fr auto;
   gap: 8px;
   padding: 12px 16px;
+}
+
+.browser-search-row {
+  padding: 0 16px 12px;
+}
+
+.browser-search-row input {
+  width: 100%;
 }
 
 .browser-columns,
@@ -1391,8 +1826,20 @@ h1 {
 }
 
 .browser-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  justify-content: stretch;
+  gap: 8px;
   border-top: 1px solid var(--line);
   border-bottom: 0;
+}
+
+.browser-footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 #browserSelection {
@@ -1403,9 +1850,9 @@ h1 {
 }
 
 .workspace {
-  height: calc(100vh - 68px);
+  height: calc(100vh - 116px);
   display: grid;
-  grid-template-columns: 300px minmax(360px, 1fr) 340px;
+  grid-template-columns: 310px minmax(360px, 1fr) 340px;
   grid-template-rows: 100%;
   overflow: hidden;
 }
@@ -1414,6 +1861,7 @@ h1 {
 .detail-panel {
   min-width: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   border-right: 1px solid var(--line);
   background: #f8fafc;
   display: flex;
@@ -1434,6 +1882,13 @@ h1 {
 .control-band {
   border-bottom: 1px solid var(--line);
   flex: 0 0 auto;
+  min-width: 0;
+}
+
+.side-panel input,
+.side-panel select,
+.side-panel label {
+  min-width: 0;
 }
 
 .channel-panel {
@@ -1452,8 +1907,110 @@ h1 {
   margin-bottom: 10px;
 }
 
+.section-title-with-info {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+#clearScanFilters {
+  min-height: 24px;
+  margin-left: auto;
+  padding: 0 8px;
+  border-color: #c1c9d2;
+  background: #e4e8ed;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.control-band input.filter-value,
+.control-band select.filter-value {
+  border-color: #3b82c4;
+  box-shadow: 0 0 0 1px #3b82c4;
+}
+
+.control-band input.filter-invalid {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 1px #dc2626;
+}
+
+.filter-group {
+  position: relative;
+  padding-left: 12px;
+  margin-bottom: 10px;
+}
+
+.filter-group::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  border-radius: 2px;
+  background: #718da8;
+}
+
+.detector-filter-group::before {
+  background: #c49a35;
+}
+
+.range-filter-group::before {
+  background: #718da8;
+}
+
+.filter-group > :last-child {
+  margin-bottom: 0;
+}
+
+.info-icon {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: #ffffff;
+  color: var(--blue);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: none;
+  cursor: help;
+}
+
+.info-tooltip {
+  position: absolute;
+  z-index: 20;
+  top: 23px;
+  left: -80px;
+  width: 276px;
+  padding: 9px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: #18212b;
+  color: #ffffff;
+  box-shadow: 0 8px 22px rgb(15 23 42 / 24%);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0;
+  text-transform: none;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.info-icon:hover .info-tooltip,
+.info-icon:focus .info-tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
 .nav-row,
-.jump-row,
 .auto-next-row,
 .action-row,
 .scan-row {
@@ -1463,12 +2020,31 @@ h1 {
   margin-bottom: 8px;
 }
 
-.jump-row {
-  grid-template-columns: 1fr auto;
+.event-jump-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 54px;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+}
+
+.event-jump-row label {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.event-jump-row button {
+  width: 54px;
+  padding: 0 6px;
 }
 
 .auto-next-row {
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) 76px;
+}
+
+.auto-next-row button {
+  width: 76px;
+  padding: 0 6px;
 }
 
 .auto-next-row label {
@@ -1485,30 +2061,6 @@ h1 {
   grid-template-columns: 1fr 1fr;
 }
 
-.selection-actions {
-  grid-template-columns: 1fr 1fr 1.35fr;
-}
-
-.event-readout {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  padding-top: 4px;
-}
-
-#eventIndex {
-  font-size: 30px;
-  font-weight: 750;
-  color: var(--blue);
-}
-
-#eventMeta {
-  color: var(--muted);
-  font-size: 12px;
-  text-align: right;
-}
-
 .selection-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1518,9 +2070,62 @@ h1 {
 
 .selection-grid label {
   display: grid;
-  gap: 4px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
   color: var(--muted);
+}
+
+.detector-selection-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.detector-selection-grid label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.detector-selection-grid .ring-selection-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) 10px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.detector-selection-grid .ring-selection-row #detectorInfoButton {
+  grid-column: 4;
+}
+
+#detectorInfoButton {
+  min-height: 30px;
+  padding: 0 10px;
+  background: #e4e8ed;
+  color: var(--text);
+}
+
+#detectorInfoButton.active {
+  border-color: #6096c8;
+  background: #dbeafe;
+}
+
+.detector-selection-grid select:disabled,
+.detector-selection-grid input:disabled,
+.scan-value-row select:disabled,
+.scan-value-row input:disabled {
+  background: #eef2f6;
+  color: #94a3b8;
 }
 
 .field-label {
@@ -1528,6 +2133,40 @@ h1 {
   gap: 4px;
   color: var(--muted);
   font-size: 12px;
+}
+
+.scan-value-row {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) 10px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.scan-field-title {
+  white-space: nowrap;
+}
+
+.scan-options-row .inline-check {
+  grid-column: 3 / 5;
+  justify-self: end;
+}
+
+.scan-options-row {
+  margin-left: 12px;
+}
+
+.inline-check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.inline-check input {
+  width: auto;
+  min-height: auto;
 }
 
 .check-label {
@@ -1546,15 +2185,56 @@ h1 {
   min-height: auto;
 }
 
-.scan-help {
-  margin: 2px 0 10px;
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.4;
-}
-
 .wide-button {
   width: 100%;
+}
+
+.scan-direction-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.panel-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--line);
+  background: #ffffff;
+}
+
+.panel-tab {
+  border: 0;
+  border-radius: 0;
+  border-right: 1px solid var(--line);
+  background: #ffffff;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.panel-tab.active {
+  background: #f8fafc;
+  color: var(--blue);
+  box-shadow: inset 0 2px 0 var(--blue);
+}
+
+.tab-panel {
+  display: none;
+  min-height: 0;
+  padding: 12px;
+  overflow: auto;
+  flex: 1 1 auto;
+}
+
+.tab-panel.active {
+  display: flex;
+  flex-direction: column;
+}
+
+.tab-panel[hidden] {
+  display: none;
 }
 
 .tree-panel {
@@ -1630,7 +2310,15 @@ h1 {
   min-height: 0;
   display: grid;
   grid-template-rows: 52px minmax(0, 1fr) 34px;
+  margin: 8px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
   background: var(--panel);
+}
+
+.plot-panel [hidden] {
+  display: none !important;
 }
 
 .plot-toolbar {
@@ -1663,6 +2351,44 @@ h1 {
   display: block;
 }
 
+.detector-info-panel {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 16px 20px;
+  background: #ffffff;
+}
+
+.detector-info-panel[hidden] {
+  display: none;
+}
+
+.detector-info-table {
+  width: 100%;
+  table-layout: auto;
+  font-size: 12px;
+}
+
+.detector-info-table th,
+.detector-info-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #e5e9ee;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.detector-info-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #eef2f6;
+  color: #3f4d5c;
+}
+
+.detector-info-table tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
 .status-line {
   display: flex;
   align-items: center;
@@ -1683,10 +2409,14 @@ h1 {
   color: var(--green);
 }
 
-.plot-hint {
+.plot-file-name {
   display: block;
   color: var(--muted);
   font-size: 11px;
+  max-width: 52vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .table-wrap {
@@ -1699,22 +2429,34 @@ h1 {
   cursor: crosshair;
 }
 
-#waveCanvas.panning {
-  cursor: grabbing;
+#waveCanvas.selecting {
+  cursor: crosshair;
 }
 
 table {
   border-collapse: collapse;
-  width: 100%;
-  font-size: 13px;
+  width: 310px;
+  max-width: none;
+  table-layout: fixed;
+  font-size: 11px;
 }
+
+.channel-panel col:nth-child(1) { width: 52px; }
+.channel-panel col:nth-child(2) { width: 42px; }
+.channel-panel col:nth-child(3) { width: 70px; }
+.channel-panel col:nth-child(4) { width: 44px; }
+.channel-panel col:nth-child(5) { width: 58px; }
+.channel-panel col:nth-child(6) { width: 44px; }
 
 th,
 td {
-  padding: 7px 6px;
+  padding: 6px 3px;
   text-align: right;
   border-bottom: 1px solid var(--line);
   font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 th:first-child,
@@ -1734,9 +2476,45 @@ tbody tr.selected {
   background: var(--select);
 }
 
+tbody tr.scan-dimmed {
+  opacity: 0.28;
+}
+
 tbody tr:hover {
   background: #eef4fb;
   cursor: pointer;
+}
+
+tbody tr.keyboard-highlight {
+  background: #cfe8ff;
+  outline: 1px solid #70aee3;
+  outline-offset: -1px;
+}
+
+.event-bookmark-bar {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  border-top: 1px solid var(--line);
+  background: #ffffff;
+}
+
+.event-bookmarks {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.event-bookmarks button {
+  flex: 0 0 auto;
+  min-height: 30px;
+  background: #ffffff;
+  color: var(--blue);
 }
 
 @media (max-width: 1100px) {
@@ -1753,7 +2531,7 @@ tbody tr:hover {
 
   .workspace {
     height: auto;
-    min-height: calc(100vh - 86px);
+    min-height: calc(100vh - 134px);
     grid-template-columns: 1fr;
     grid-template-rows: auto 560px auto;
   }
@@ -1772,6 +2550,15 @@ tbody tr:hover {
   .channel-panel {
     max-height: 360px;
   }
+
+  .tab-panel {
+    min-height: 360px;
+  }
+
+  .event-bookmark-bar {
+    position: sticky;
+    bottom: 0;
+  }
 }
 """
 
@@ -1786,37 +2573,57 @@ APP_JS = r"""const els = {
   browserClose: document.getElementById("browserClose"),
   browserPathForm: document.getElementById("browserPathForm"),
   browserPath: document.getElementById("browserPath"),
+  browserSearch: document.getElementById("browserSearch"),
   browserUp: document.getElementById("browserUp"),
   browserRows: document.getElementById("browserRows"),
   browserSelection: document.getElementById("browserSelection"),
   browserOpen: document.getElementById("browserOpen"),
+  browserOpenMapping: document.getElementById("browserOpenMapping"),
   browserSelectAll: document.getElementById("browserSelectAll"),
-  eventIndex: document.getElementById("eventIndex"),
-  eventMeta: document.getElementById("eventMeta"),
   jumpInput: document.getElementById("jumpInput"),
   jumpButton: document.getElementById("jumpButton"),
+  frameInput: document.getElementById("frameInput"),
+  frameButton: document.getElementById("frameButton"),
   autoNextInterval: document.getElementById("autoNextInterval"),
   autoNextButton: document.getElementById("autoNextButton"),
-  selCobo: document.getElementById("selCobo"),
-  selAsad: document.getElementById("selAsad"),
-  selAget: document.getElementById("selAget"),
-  selChannel: document.getElementById("selChannel"),
-  applySelection: document.getElementById("applySelection"),
-  clearSelection: document.getElementById("clearSelection"),
-  restoreScanSelection: document.getElementById("restoreScanSelection"),
-  scanScope: document.getElementById("scanScope"),
+  clearSavedEvents: document.getElementById("clearSavedEvents"),
+  scanCobo: document.getElementById("scanCobo"),
+  scanAsad: document.getElementById("scanAsad"),
+  scanAget: document.getElementById("scanAget"),
+  scanChannel: document.getElementById("scanChannel"),
+  scanDetectorType: document.getElementById("scanDetectorType"),
+  scanDetectorNumber: document.getElementById("scanDetectorNumber"),
+  scanRingType: document.getElementById("scanRingType"),
+  detectorInfoButton: document.getElementById("detectorInfoButton"),
+  clearScanFilters: document.getElementById("clearScanFilters"),
   thresholdInput: document.getElementById("thresholdInput"),
+  maxAmplitudeInput: document.getElementById("maxAmplitudeInput"),
+  minTbInput: document.getElementById("minTbInput"),
+  maxTbInput: document.getElementById("maxTbInput"),
   scanLimit: document.getElementById("scanLimit"),
   includeFpn: document.getElementById("includeFpn"),
-  scanButton: document.getElementById("scanButton"),
+  scanBackwardButton: document.getElementById("scanBackwardButton"),
+  scanForwardButton: document.getElementById("scanForwardButton"),
   groupTree: document.getElementById("groupTree"),
+  electronicsTab: document.getElementById("electronicsTab"),
+  channelsTab: document.getElementById("channelsTab"),
+  electronicsPanel: document.getElementById("electronicsPanel"),
+  channelsPanel: document.getElementById("channelsPanel"),
   plotTitle: document.getElementById("plotTitle"),
   plotSubtitle: document.getElementById("plotSubtitle"),
+  plotFileName: document.getElementById("plotFileName"),
+  plotActions: document.getElementById("plotActions"),
   autoScale: document.getElementById("autoScale"),
+  fullScale: document.getElementById("fullScale"),
   showAll: document.getElementById("showAll"),
+  saveWaveform: document.getElementById("saveWaveform"),
   waveCanvas: document.getElementById("waveCanvas"),
+  detectorInfoPanel: document.getElementById("detectorInfoPanel"),
+  detectorInfoRows: document.getElementById("detectorInfoRows"),
   statusLine: document.getElementById("statusLine"),
   channelRows: document.getElementById("channelRows"),
+  saveEventBookmark: document.getElementById("saveEventBookmark"),
+  eventBookmarks: document.getElementById("eventBookmarks"),
 };
 
 const COLORS = [
@@ -1836,24 +2643,93 @@ let currentPayload = null;
 let busyCount = 0;
 let browserParent = null;
 let browserSelectedPaths = [];
+let browserEntries = [];
+let browseStartPath = ".";
+let lastBrowserPath = null;
 let autoNextTimer = null;
-let scanSelectionSnapshot = null;
 let hoveredChannelKey = null;
+let viewSelection = { cobo: null, asad: null, aget: null, channel: null };
+let activeScanSelection = null;
+let activeScanDetectorSelection = null;
+let detectorInfoVisible = false;
+let detectorInfoEntries = [];
+let detectorInfoMappingPath = null;
+let bookmarkedEvents = [];
+let bookmarkPath = null;
 // null means the axes follow the data; a view object holds a zoomed range that
 // survives event navigation until Autoscale or a double click resets it.
 let plotView = null;
 let plotGeometry = null;
 
+const scanFilterControls = [
+  els.scanCobo, els.scanAsad, els.scanAget, els.scanChannel,
+  els.scanRingType, els.scanDetectorType, els.scanDetectorNumber,
+  els.thresholdInput, els.maxAmplitudeInput, els.minTbInput, els.maxTbInput,
+];
+const electronicScanControls = [els.scanCobo, els.scanAsad, els.scanAget, els.scanChannel];
+
+function isValidNumberExpression(rawValue) {
+  const text = rawValue.trim();
+  if (!text || ["any", "all"].includes(text.toLowerCase())) return true;
+  return text.split(",").every((rawToken) => {
+    const token = rawToken.trim();
+    if (!token) return false;
+    const body = token.startsWith("!") ? token.slice(1).trim() : token;
+    const match = body.match(/^(\d+)(?:\s*-\s*(\d+))?$/);
+    if (!match) return false;
+    const start = Number(match[1]);
+    const end = match[2] === undefined ? start : Number(match[2]);
+    return Number.isSafeInteger(start) && Number.isSafeInteger(end)
+      && end >= start && end - start <= 10000;
+  });
+}
+
+function updateFilterHighlights() {
+  scanFilterControls.forEach((control) => {
+    const invalid = electronicScanControls.includes(control)
+      && !isValidNumberExpression(control.value);
+    control.classList.toggle("filter-invalid", invalid);
+    control.classList.toggle("filter-value",
+      !invalid && !control.disabled && control.value.trim() !== "");
+    if (electronicScanControls.includes(control)) {
+      control.setAttribute("aria-invalid", invalid ? "true" : "false");
+    }
+  });
+}
+
+scanFilterControls.forEach((control) => {
+  control.addEventListener("input", updateFilterHighlights);
+  control.addEventListener("change", updateFilterHighlights);
+});
+
 function setBusy(isBusy) {
   busyCount += isBusy ? 1 : -1;
   if (busyCount < 0) busyCount = 0;
-  document.querySelectorAll("button, input, select").forEach((el) => {
-    if (el.id !== "pathInput") el.disabled = busyCount > 0;
-  });
-  if (busyCount === 0 && scanSelectionSnapshot === null) {
-    els.restoreScanSelection.disabled = true;
-  }
+  document.body.classList.toggle("request-busy", busyCount > 0);
+  document.body.setAttribute("aria-busy", busyCount > 0 ? "true" : "false");
 }
+
+document.addEventListener("click", (event) => {
+  if (busyCount > 0 && event.target instanceof Element
+      && event.target.closest("button, .upload-button")) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+}, true);
+
+document.addEventListener("submit", (event) => {
+  if (busyCount > 0) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+}, true);
+
+document.addEventListener("keydown", (event) => {
+  if (busyCount > 0 && ["Enter", " ", "ArrowLeft", "ArrowRight", "Backspace"].includes(event.key)) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+}, true);
 
 function setStatus(message, kind = "") {
   els.statusLine.textContent = message;
@@ -1867,6 +2743,24 @@ function compactPath(path) {
   return `${parts[0] || "/" + parts[1]}/.../${parts.slice(-2).join("/")}`.replace("//", "/");
 }
 
+function fileNameFromPath(path) {
+  if (!path) return "No file loaded";
+  return path.split("/").filter(Boolean).pop() || path;
+}
+
+function waveformDownloadName(path, eventIndex) {
+  const fileName = fileNameFromPath(path);
+  const runMatch = fileName.match(/^(run_\d+)\.dat\./);
+  return runMatch
+    ? `${runMatch[1]}.${eventIndex}.png`
+    : `${fileName}_event_${eventIndex}.png`;
+}
+
+function displayedFileName(status) {
+  const fileName = fileNameFromPath(status.path);
+  return status.sourceCount > 1 ? `${fileName} (${status.sourceCount} files)` : fileName;
+}
+
 function inputValue(input) {
   const raw = input.value.trim();
   if (raw === "") return null;
@@ -1875,19 +2769,140 @@ function inputValue(input) {
 }
 
 function readSelection() {
-  return {
-    cobo: inputValue(els.selCobo),
-    asad: inputValue(els.selAsad),
-    aget: inputValue(els.selAget),
-    channel: inputValue(els.selChannel),
-  };
+  return { ...viewSelection };
 }
 
 function writeSelection(selection) {
-  els.selCobo.value = selection.cobo ?? "";
-  els.selAsad.value = selection.asad ?? "";
-  els.selAget.value = selection.aget ?? "";
-  els.selChannel.value = selection.channel ?? "";
+  viewSelection = {
+    cobo: selection.cobo ?? null,
+    asad: selection.asad ?? null,
+    aget: selection.aget ?? null,
+    channel: selection.channel ?? null,
+  };
+}
+
+function readScanSelection() {
+  return {
+    cobo: els.scanCobo.value.trim() || null,
+    asad: els.scanAsad.value.trim() || null,
+    aget: els.scanAget.value.trim() || null,
+    channel: els.scanChannel.value.trim() || null,
+  };
+}
+
+function readScanDetectorSelection() {
+  return {
+    detectorType: els.scanDetectorType.value || null,
+    detectorNumber: inputValue(els.scanDetectorNumber),
+    ringType: els.scanRingType.value || null,
+  };
+}
+
+function replaceSelectOptions(select, values) {
+  const previous = select.value;
+  select.replaceChildren();
+  const any = document.createElement("option");
+  any.value = "";
+  any.textContent = "Any";
+  select.appendChild(any);
+  values.forEach((value) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    select.appendChild(option);
+  });
+  select.value = values.includes(previous) ? previous : "";
+}
+
+function updateMappingControls(status) {
+  const options = status.mappingOptions;
+  const enabled = Boolean(status.mappingPath && options);
+  if (detectorInfoMappingPath !== status.mappingPath) {
+    detectorInfoEntries = [];
+    detectorInfoMappingPath = status.mappingPath || null;
+    if (detectorInfoVisible) setDetectorInfoVisible(false);
+  }
+  replaceSelectOptions(els.scanDetectorType, enabled ? options.detectorTypes : []);
+  replaceSelectOptions(els.scanRingType, enabled ? options.ringTypes : []);
+  els.scanDetectorType.disabled = !enabled;
+  els.scanDetectorNumber.disabled = !enabled;
+  els.scanRingType.disabled = !enabled;
+  els.detectorInfoButton.disabled = !enabled;
+  if (!enabled) els.scanDetectorNumber.value = "";
+  updateFilterHighlights();
+}
+
+function renderDetectorInfo() {
+  const rows = document.createDocumentFragment();
+  detectorInfoEntries.forEach((entry) => {
+    const tr = document.createElement("tr");
+    ["detectorType", "detectorNumber", "ringType", "cobo", "asad", "aget", "channel"]
+      .forEach((field) => {
+        const td = document.createElement("td");
+        td.textContent = entry[field] ?? "";
+        tr.appendChild(td);
+      });
+    rows.appendChild(tr);
+  });
+  els.detectorInfoRows.replaceChildren(rows);
+  els.plotTitle.textContent = "Detector mapping";
+  els.plotSubtitle.textContent = `${detectorInfoEntries.length} channels`;
+  els.plotFileName.textContent = detectorInfoMappingPath
+    ? fileNameFromPath(detectorInfoMappingPath) : "No mapping loaded";
+  els.plotFileName.title = detectorInfoMappingPath || "";
+}
+
+function setDetectorInfoVisible(visible) {
+  detectorInfoVisible = visible;
+  els.waveCanvas.hidden = visible;
+  els.detectorInfoPanel.hidden = !visible;
+  els.plotActions.hidden = visible;
+  els.detectorInfoButton.classList.toggle("active", visible);
+  els.detectorInfoButton.setAttribute("aria-pressed", visible ? "true" : "false");
+  if (visible) {
+    renderDetectorInfo();
+  } else if (currentPayload) {
+    const { event, status } = currentPayload;
+    els.plotTitle.textContent = `Event ${event.index}`;
+    els.plotSubtitle.textContent = `${event.selectedCount}/${event.channelCount} channels`;
+    els.plotFileName.textContent = displayedFileName(status);
+    els.plotFileName.title = status.path || "";
+    drawWaveforms(event.channels);
+  }
+}
+
+function matchesSelection(channel, selection) {
+  if (!selection) return true;
+  const matchesValue = (value, constraint) => {
+    if (constraint === null || constraint === undefined) return true;
+    if (typeof constraint === "object") {
+      const included = constraint.include;
+      const excluded = constraint.exclude || [];
+      return (included === null || included === undefined || included.includes(value))
+        && !excluded.includes(value);
+    }
+    return value === constraint;
+  };
+  return ["cobo", "asad", "aget", "channel"].every(
+    (key) => matchesValue(channel[key], selection[key]),
+  );
+}
+
+function matchesDetectorSelection(channel, selection) {
+  if (!selection) return true;
+  return (
+    (selection.detectorType === null || selection.detectorType === undefined
+      || channel.detectorType === selection.detectorType)
+    && (selection.detectorNumber === null || selection.detectorNumber === undefined
+      || channel.detectorNumber === selection.detectorNumber)
+    && (selection.ringType === null || selection.ringType === undefined
+      || channel.ringType === selection.ringType)
+  );
+}
+
+function matchesActiveScan(channel) {
+  return matchesSelection(channel, activeScanSelection)
+    && matchesDetectorSelection(channel, activeScanDetectorSelection);
 }
 
 function isSelected(values, level) {
@@ -1928,12 +2943,53 @@ async function postJson(url, payload) {
   });
 }
 
+function bookmarkStorageKey(path) {
+  return `lilak-get-viewer-bookmarks:${path || "no-file"}`;
+}
+
+function renderBookmarks() {
+  els.eventBookmarks.replaceChildren();
+  bookmarkedEvents.forEach((eventIndex) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = `Event ${eventIndex}`;
+    button.title = `Go to event ${eventIndex}`;
+    button.addEventListener("click", () => navigate(String(eventIndex)));
+    els.eventBookmarks.appendChild(button);
+  });
+}
+
+function loadBookmarks(path) {
+  if (bookmarkPath === path) return;
+  bookmarkPath = path;
+  try {
+    const stored = JSON.parse(localStorage.getItem(bookmarkStorageKey(path)) || "[]");
+    bookmarkedEvents = Array.isArray(stored)
+      ? stored.filter(Number.isInteger).filter((value) => value >= 0)
+      : [];
+  } catch (_) {
+    bookmarkedEvents = [];
+  }
+  renderBookmarks();
+}
+
+function saveBookmarks() {
+  try {
+    localStorage.setItem(bookmarkStorageKey(bookmarkPath), JSON.stringify(bookmarkedEvents));
+  } catch (_) {
+    // Bookmarks still work for this page session if browser storage is unavailable.
+  }
+  renderBookmarks();
+}
+
 async function openPaths(paths) {
   if (!paths.length) return;
   setBusy(true);
   try {
     setStatus(paths.length > 1 ? `Opening ${paths.length} files...` : "Opening file...");
     const payload = await postJson("/api/open", { paths, selection: readSelection() });
+    activeScanSelection = null;
+    activeScanDetectorSelection = null;
     renderPayload(payload);
     setStatus(paths.length > 1 ? `Merged ${paths.length} sources` : "File loaded", "good");
   } catch (error) {
@@ -1971,44 +3027,69 @@ function toggleBrowserFile(path, row) {
   refreshBrowserSelection();
 }
 
+function selectVisibleBrowserFiles() {
+  browserSelectedPaths = [];
+  els.browserRows.querySelectorAll(".browser-entry[data-path]").forEach((row) => {
+    browserSelectedPaths.push(row.dataset.path);
+    row.classList.add("selected");
+  });
+  refreshBrowserSelection();
+}
+
+function renderBrowserEntries() {
+  const query = els.browserSearch.value.trim().toLowerCase();
+  const entries = query
+    ? browserEntries.filter((entry) => !entry.isDirectory && entry.name.toLowerCase().includes(query))
+    : browserEntries;
+  els.browserRows.replaceChildren();
+  entries.forEach((entry) => {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "browser-entry";
+    if (!entry.isDirectory) {
+      row.dataset.path = entry.path;
+      row.classList.toggle("selected", browserSelectedPaths.includes(entry.path));
+    }
+
+    const name = document.createElement("span");
+    name.className = "browser-name";
+    name.textContent = `${entry.isDirectory ? "📁" : "📄"} ${entry.name}`;
+    const size = document.createElement("span");
+    size.className = "browser-size";
+    size.textContent = entry.isDirectory ? "Directory" : formatFileSize(entry.size);
+    row.append(name, size);
+
+    if (entry.isDirectory) {
+      row.addEventListener("click", () => browseDirectory(entry.path));
+    } else {
+      row.addEventListener("click", () => toggleBrowserFile(entry.path, row));
+      row.addEventListener("dblclick", () => {
+        els.fileBrowser.hidden = true;
+        openPaths([entry.path]);
+      });
+    }
+    els.browserRows.appendChild(row);
+  });
+  if (!entries.length) {
+    els.browserRows.textContent = query ? "No matching files." : "This directory is empty.";
+  }
+  els.browserSelectAll.disabled = !entries.some((entry) => !entry.isDirectory);
+}
+
 async function browseDirectory(path) {
   els.browserRows.textContent = "Loading...";
   browserSelectedPaths = [];
   refreshBrowserSelection();
   try {
     const payload = await requestJson(`/api/files?path=${encodeURIComponent(path || ".")}`);
+    lastBrowserPath = payload.path;
     browserParent = payload.parent;
     els.browserPath.value = payload.path;
     els.browserUp.disabled = !browserParent;
-    els.browserRows.replaceChildren();
-    payload.entries.forEach((entry) => {
-      const row = document.createElement("button");
-      row.type = "button";
-      row.className = "browser-entry";
-      if (!entry.isDirectory) row.dataset.path = entry.path;
-
-      const name = document.createElement("span");
-      name.className = "browser-name";
-      name.textContent = `${entry.isDirectory ? "📁" : "📄"} ${entry.name}`;
-      const size = document.createElement("span");
-      size.className = "browser-size";
-      size.textContent = entry.isDirectory ? "Directory" : formatFileSize(entry.size);
-      row.append(name, size);
-
-      if (entry.isDirectory) {
-        row.addEventListener("click", () => browseDirectory(entry.path));
-      } else {
-        row.addEventListener("click", () => toggleBrowserFile(entry.path, row));
-        row.addEventListener("dblclick", () => {
-          els.fileBrowser.hidden = true;
-          openPaths([entry.path]);
-        });
-      }
-      els.browserRows.appendChild(row);
-    });
-    if (!payload.entries.length) els.browserRows.textContent = "This directory is empty.";
-    els.browserSelectAll.disabled = !payload.entries.some((entry) => !entry.isDirectory);
+    browserEntries = payload.entries;
+    renderBrowserEntries();
   } catch (error) {
+    browserEntries = [];
     els.browserRows.textContent = error.message;
   }
 }
@@ -2017,10 +3098,22 @@ function closeFileBrowser() {
   els.fileBrowser.hidden = true;
 }
 
+function activateRightTab(name) {
+  const electronicsActive = name === "electronics";
+  els.electronicsTab.classList.toggle("active", electronicsActive);
+  els.channelsTab.classList.toggle("active", !electronicsActive);
+  els.electronicsPanel.classList.toggle("active", electronicsActive);
+  els.channelsPanel.classList.toggle("active", !electronicsActive);
+  els.electronicsPanel.hidden = !electronicsActive;
+  els.channelsPanel.hidden = electronicsActive;
+}
+
 async function navigate(action) {
   setBusy(true);
   try {
     const payload = await postJson("/api/navigate", { action, selection: readSelection() });
+    activeScanSelection = null;
+    activeScanDetectorSelection = null;
     renderPayload(payload);
     setStatus(`Event ${payload.event.index}`);
     return true;
@@ -2035,7 +3128,8 @@ async function navigate(action) {
 function stopAutoNext(message = "") {
   if (autoNextTimer !== null) window.clearTimeout(autoNextTimer);
   autoNextTimer = null;
-  els.autoNextButton.textContent = "Auto Next";
+  els.autoNextButton.textContent = "Auto";
+  els.autoNextButton.classList.remove("running");
   if (message) setStatus(message);
 }
 
@@ -2067,30 +3161,52 @@ function startAutoNext() {
     return;
   }
   els.autoNextButton.textContent = "Stop";
+  els.autoNextButton.classList.add("running");
   autoNextTimer = window.setTimeout(runAutoNext, delay);
   setStatus(`Auto-next every ${delay / 1000} seconds`, "good");
 }
 
-async function scanSignal() {
+async function scanSignal(direction) {
   setBusy(true);
   try {
+    const invalidControl = electronicScanControls.find(
+      (control) => !isValidNumberExpression(control.value),
+    );
+    if (invalidControl) {
+      updateFilterHighlights();
+      invalidControl.focus();
+      throw new Error("Use comma-separated numbers, ranges, or ! exclusions in the red filter field.");
+    }
     setStatus("Scanning...");
-    const selection = readSelection();
-    const scope = els.scanScope.value;
-    scanSelectionSnapshot = { selection: { ...selection }, scope };
-    els.restoreScanSelection.disabled = false;
+    const selection = readScanSelection();
+    const minAmplitude = Number.parseFloat(els.thresholdInput.value || "0");
+    const maxRaw = els.maxAmplitudeInput.value.trim();
+    const maxAmplitude = maxRaw === "" ? null : Number.parseFloat(maxRaw);
+    if (maxAmplitude !== null && maxAmplitude < minAmplitude) {
+      throw new Error("Max amplitude must be greater than or equal to Min amplitude.");
+    }
+    const minTb = inputValue(els.minTbInput);
+    const maxTb = inputValue(els.maxTbInput);
+    if (minTb !== null && maxTb !== null && maxTb < minTb) {
+      throw new Error("Maximum TB must be greater than or equal to minimum TB.");
+    }
     const payload = await postJson("/api/scan", {
       selection,
-      scope,
-      threshold: Number.parseFloat(els.thresholdInput.value || "0"),
+      detectorSelection: readScanDetectorSelection(),
+      scope: "selection",
+      threshold: minAmplitude,
+      maxAmplitude,
+      minTb,
+      maxTb,
       includeFpn: els.includeFpn.checked,
       maxEvents: Number.parseInt(els.scanLimit.value || "10000", 10),
+      direction,
     });
     if (payload.found) {
       renderPayload(payload.event);
       const m = payload.match;
       setStatus(
-        `Found event ${payload.event.event.index}: C${m.cobo} A${m.asad} G${m.aget} Ch${m.channel}, amp ${m.amplitude}`,
+        `Found ${direction === "backward" ? "previous" : "next"} event ${payload.event.event.index}: C${m.cobo} A${m.asad} G${m.aget} Ch${m.channel}, amp ${m.amplitude}`,
         "good",
       );
     } else {
@@ -2108,30 +3224,37 @@ function renderPayload(payload) {
   hoveredChannelKey = null;
   const status = payload.status;
   const event = payload.event;
+  activeScanSelection = event.scanSelection || activeScanSelection;
+  activeScanDetectorSelection = event.scanDetectorSelection || activeScanDetectorSelection;
+  updateMappingControls(status);
+  loadBookmarks(status.path);
   const sourceSuffix = status.sourceCount > 1 ? ` (+${status.sourceCount - 1} sources)` : "";
   els.fileLabel.textContent = `${compactPath(status.path)}${sourceSuffix}`;
   els.fileLabel.title = (status.paths || [status.path]).filter(Boolean).join("\n");
   els.pathInput.value = status.path || els.pathInput.value;
-  els.eventIndex.textContent = event.index;
   els.jumpInput.value = event.index;
-  els.eventMeta.textContent = `GET ${event.eventIdx} | ${event.channelCount} ch`;
+  els.frameInput.value = event.eventIdx;
   els.plotTitle.textContent = `Event ${event.index}`;
   els.plotSubtitle.textContent = `${event.selectedCount}/${event.channelCount} channels`;
+  els.plotFileName.textContent = displayedFileName(status);
+  els.plotFileName.title = status.path || "";
+  els.showAll.classList.toggle("filter-active", event.selectedCount < event.channelCount);
   renderTree(event.groups);
   renderTable(event.channels);
-  drawWaveforms(event.channels);
+  if (detectorInfoVisible) renderDetectorInfo();
+  else drawWaveforms(event.channels);
 }
 
-function makeRow(level, values, name, count, amp, className = "") {
+function makeRow(level, values, name, count, amp, className = "", mapping = {}) {
   const row = document.createElement("div");
   row.className = `tree-row tree-${level} ${className}`.trim();
   if (isSelected(values, level)) row.classList.add("selected");
   row.innerHTML = `
-    <span class="name"></span>
+    <span class="name"><span class="row-name"></span></span>
     <span class="count"></span>
     <span class="amp"></span>
   `;
-  row.querySelector(".name").textContent = name;
+  row.querySelector(".row-name").textContent = name;
   row.querySelector(".count").textContent = count;
   row.querySelector(".amp").textContent = amp.toFixed(0);
   row.addEventListener("click", () => {
@@ -2153,7 +3276,7 @@ function renderTree(groups) {
 
   groups.forEach((cobo) => {
     els.groupTree.appendChild(
-      makeRow("cobo", { cobo: cobo.cobo, asad: null, aget: null, channel: null }, `Cobo ${cobo.cobo}`, cobo.count, cobo.maxAmplitude),
+      makeRow("cobo", { cobo: cobo.cobo, asad: null, aget: null, channel: null }, `Cobo ${cobo.cobo}`, cobo.count, cobo.maxAmplitude, "", cobo),
     );
     cobo.asads.forEach((asad) => {
       els.groupTree.appendChild(
@@ -2163,6 +3286,8 @@ function renderTree(groups) {
           `AsAd ${asad.asad}`,
           asad.count,
           asad.maxAmplitude,
+          "",
+          asad,
         ),
       );
       asad.agets.forEach((aget) => {
@@ -2173,6 +3298,8 @@ function renderTree(groups) {
             `AGET ${aget.aget}`,
             aget.count,
             aget.maxAmplitude,
+            "",
+            aget,
           ),
         );
         aget.channels.forEach((channel) => {
@@ -2184,6 +3311,7 @@ function renderTree(groups) {
               channel.isFpn ? "FPN" : "",
               channel.amplitude,
               channel.isFpn ? "fpn" : "",
+              channel,
             ),
           );
         });
@@ -2199,7 +3327,22 @@ function channelKey(channel) {
 function setHoveredChannel(key) {
   if (hoveredChannelKey === key) return;
   hoveredChannelKey = key;
+  els.channelRows.querySelectorAll("tr[data-channel-key]").forEach((row) => {
+    row.classList.toggle("keyboard-highlight", key !== null && row.dataset.channelKey === key);
+  });
   if (currentPayload) drawWaveforms(currentPayload.event.channels);
+}
+
+function moveChannelHighlight(step) {
+  const channels = currentPayload?.event?.channels || [];
+  if (!channels.length) return;
+  let index = channels.findIndex((channel) => channelKey(channel) === hoveredChannelKey);
+  if (index < 0) index = step > 0 ? 0 : channels.length - 1;
+  else index = Math.max(0, Math.min(channels.length - 1, index + step));
+  const key = channelKey(channels[index]);
+  setHoveredChannel(key);
+  const row = els.channelRows.querySelector(`tr[data-channel-key="${key}"]`);
+  if (row) row.scrollIntoView({ block: "nearest" });
 }
 
 function renderTable(channels) {
@@ -2207,7 +3350,12 @@ function renderTable(channels) {
   channels.forEach((channel) => {
     const tr = document.createElement("tr");
     if (isSelected(channel, "channel")) tr.classList.add("selected");
+    if ((activeScanSelection || activeScanDetectorSelection) && !matchesActiveScan(channel)) {
+      tr.classList.add("scan-dimmed");
+    }
     tr.innerHTML = `
+      <td></td>
+      <td></td>
       <td></td>
       <td></td>
       <td></td>
@@ -2215,8 +3363,10 @@ function renderTable(channels) {
     `;
     tr.children[0].textContent = `${channel.cobo}/${channel.asad}/${channel.aget}`;
     tr.children[1].textContent = channel.isFpn ? `${channel.channel} FPN` : channel.channel;
-    tr.children[2].textContent = channel.amplitude.toFixed(0);
-    tr.children[3].textContent = channel.peakTb;
+    tr.children[2].textContent = channel.detectorLabel || "-";
+    tr.children[3].textContent = channel.ringType || "-";
+    tr.children[4].textContent = channel.amplitude.toFixed(0);
+    tr.children[5].textContent = channel.peakTb;
     tr.addEventListener("click", () => {
       writeSelection({
         cobo: channel.cobo,
@@ -2227,6 +3377,7 @@ function renderTable(channels) {
       navigate("current");
     });
     const key = channelKey(channel);
+    tr.dataset.channelKey = key;
     tr.addEventListener("mouseenter", () => setHoveredChannel(key));
     tr.addEventListener("mouseleave", () => setHoveredChannel(null));
     els.channelRows.appendChild(tr);
@@ -2313,7 +3464,7 @@ function drawWaveforms(channels) {
   if (lastTb <= 0) lastTb = 511;
 
   const tbMin = plotView ? plotView.tbMin : 0;
-  const tbMax = plotView ? plotView.tbMax : lastTb;
+  const tbMax = plotView ? plotView.tbMax : 512;
   const yMin = plotView ? plotView.yMin : autoMin;
   const yMax = plotView ? plotView.yMax : autoMax;
 
@@ -2368,7 +3519,10 @@ function drawWaveforms(channels) {
       return;
     }
     ctx.strokeStyle = COLORS[index % COLORS.length];
-    ctx.globalAlpha = hoveredChannelKey ? Math.min(baseAlpha, 0.18) : baseAlpha;
+    const scanAlpha = (activeScanSelection || activeScanDetectorSelection) && !matchesActiveScan(channel)
+      ? Math.min(baseAlpha, 0.1)
+      : baseAlpha;
+    ctx.globalAlpha = hoveredChannelKey ? Math.min(scanAlpha, 0.18) : scanAlpha;
     ctx.lineWidth = baseWidth;
     strokeWaveform(ctx, channel.waveform, xFor, yFor);
   });
@@ -2380,6 +3534,8 @@ function drawWaveforms(channels) {
   }
   ctx.restore();
   ctx.globalAlpha = 1;
+
+  drawZoomSelection();
 
   const legend = channels.slice(0, 8);
   ctx.textAlign = "left";
@@ -2403,7 +3559,11 @@ els.openForm.addEventListener("submit", (event) => {
 
 els.browseButton.addEventListener("click", () => {
   els.fileBrowser.hidden = false;
-  browseDirectory(els.pathInput.value.trim() || ".");
+  browseDirectory(lastBrowserPath || browseStartPath);
+  requestAnimationFrame(() => {
+    els.browserSearch.focus();
+    els.browserSearch.select();
+  });
 });
 els.browserClose.addEventListener("click", closeFileBrowser);
 els.fileBrowser.addEventListener("click", (event) => {
@@ -2416,22 +3576,87 @@ els.browserPathForm.addEventListener("submit", (event) => {
 els.browserUp.addEventListener("click", () => {
   if (browserParent) browseDirectory(browserParent);
 });
+els.browserSearch.addEventListener("input", renderBrowserEntries);
+els.browserSearch.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || event.isComposing) return;
+  event.preventDefault();
+  if (event.ctrlKey || event.metaKey) {
+    if (!els.browserOpen.disabled) els.browserOpen.click();
+  } else {
+    selectVisibleBrowserFiles();
+  }
+});
 els.browserOpen.addEventListener("click", () => {
   if (!browserSelectedPaths.length) return;
   const paths = browserSelectedPaths.slice();
   closeFileBrowser();
   openPaths(paths);
 });
-els.browserSelectAll.addEventListener("click", () => {
-  browserSelectedPaths = [];
-  els.browserRows.querySelectorAll(".browser-entry[data-path]").forEach((row) => {
-    browserSelectedPaths.push(row.dataset.path);
-    row.classList.add("selected");
-  });
-  refreshBrowserSelection();
+els.browserOpenMapping.addEventListener("click", async () => {
+  const path = els.browserPath.value.trim();
+  if (!path) return;
+  setBusy(true);
+  try {
+    const payload = await postJson("/api/mapping", { path });
+    updateMappingControls(payload.status);
+    closeFileBrowser();
+    if (currentPayload) await navigate("current");
+    setStatus(`Mapping loaded: ${payload.mappingPath}`, "good");
+  } catch (error) {
+    setStatus(error.message, "error");
+  } finally {
+    setBusy(false);
+  }
 });
+els.browserSelectAll.addEventListener("click", selectVisibleBrowserFiles);
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && !els.fileBrowser.hidden) closeFileBrowser();
+  if (event.key === "Escape" && !els.fileBrowser.hidden) {
+    closeFileBrowser();
+    return;
+  }
+  const commandKey = event.ctrlKey || event.metaKey;
+  if (commandKey && !event.altKey) {
+    const key = event.key.toLowerCase();
+    if (key === "o") {
+      event.preventDefault();
+      els.browseButton.click();
+      return;
+    }
+    if (key === "s") {
+      event.preventDefault();
+      if (currentPayload) els.saveWaveform.click();
+      return;
+    }
+  }
+  const target = event.target;
+  const editing = target instanceof HTMLElement && (
+    ["INPUT", "SELECT", "TEXTAREA", "BUTTON"].includes(target.tagName) || target.isContentEditable
+  );
+  if (editing || !els.fileBrowser.hidden || busyCount > 0 || !currentPayload) return;
+  if (event.key === "ArrowRight") {
+    event.preventDefault();
+    navigate("next");
+  } else if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    navigate("previous");
+  } else if (event.key === " ") {
+    event.preventDefault();
+    scanSignal("forward");
+  } else if (event.key === "Backspace") {
+    event.preventDefault();
+    scanSignal("backward");
+  } else if (event.key === "ArrowDown") {
+    event.preventDefault();
+    activateRightTab("channels");
+    moveChannelHighlight(1);
+  } else if (event.key === "ArrowUp") {
+    event.preventDefault();
+    activateRightTab("channels");
+    moveChannelHighlight(-1);
+  } else if (event.key === "Enter") {
+    event.preventDefault();
+    els.saveEventBookmark.click();
+  }
 });
 
 els.uploadInput.addEventListener("change", async () => {
@@ -2443,6 +3668,8 @@ els.uploadInput.addEventListener("change", async () => {
     const form = new FormData();
     form.append("file", file);
     const payload = await requestJson("/api/upload", { method: "POST", body: form });
+    activeScanSelection = null;
+    activeScanDetectorSelection = null;
     renderPayload(payload);
     setStatus("Upload loaded", "good");
   } catch (error) {
@@ -2467,31 +3694,105 @@ els.jumpInput.addEventListener("keydown", (event) => {
     els.jumpButton.click();
   }
 });
+els.frameButton.addEventListener("click", () => {
+  const value = Number.parseInt(els.frameInput.value || "0", 10);
+  if (Number.isFinite(value) && value >= 0) navigate(`frame:${value}`);
+});
+els.frameInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    els.frameButton.click();
+  }
+});
 els.autoNextButton.addEventListener("click", () => {
   if (autoNextTimer === null) startAutoNext();
   else stopAutoNext("Auto-next stopped");
 });
-
-els.applySelection.addEventListener("click", () => navigate("current"));
-els.clearSelection.addEventListener("click", () => {
-  writeSelection({ cobo: null, asad: null, aget: null, channel: null });
-  navigate("current");
-});
-els.restoreScanSelection.addEventListener("click", async () => {
-  if (!scanSelectionSnapshot) return;
-  writeSelection(scanSelectionSnapshot.selection);
-  els.scanScope.value = scanSelectionSnapshot.scope;
-  if (await navigate("current")) setStatus("Scan selection restored", "good");
+els.clearSavedEvents.addEventListener("click", () => {
+  bookmarkedEvents = [];
+  saveBookmarks();
+  setStatus("Saved events cleared", "good");
 });
 els.showAll.addEventListener("click", () => {
   writeSelection({ cobo: null, asad: null, aget: null, channel: null });
   navigate("current");
 });
+els.clearScanFilters.addEventListener("click", () => {
+  scanFilterControls.forEach((control) => { control.value = ""; });
+  els.includeFpn.checked = false;
+  activeScanSelection = null;
+  activeScanDetectorSelection = null;
+  updateFilterHighlights();
+  if (currentPayload) {
+    renderTable(currentPayload.event.channels);
+    if (!detectorInfoVisible) drawWaveforms(currentPayload.event.channels);
+  }
+  setStatus("Filter & Scan fields cleared", "good");
+});
+els.detectorInfoButton.addEventListener("click", async () => {
+  if (detectorInfoVisible) {
+    setDetectorInfoVisible(false);
+    return;
+  }
+  setBusy(true);
+  try {
+    const payload = await requestJson("/api/mapping-info");
+    if (!payload.mappingPath) throw new Error("Load a mapping first");
+    detectorInfoMappingPath = payload.mappingPath;
+    detectorInfoEntries = payload.entries || [];
+    setDetectorInfoVisible(true);
+    setStatus(`Showing ${detectorInfoEntries.length} mapped channels`, "good");
+  } catch (error) {
+    setStatus(error.message, "error");
+  } finally {
+    setBusy(false);
+  }
+});
+els.saveWaveform.addEventListener("click", () => {
+  if (!currentPayload) return;
+  const source = els.waveCanvas;
+  const dpr = window.devicePixelRatio || 1;
+  const headerHeight = Math.round(58 * dpr);
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = source.width;
+  exportCanvas.height = source.height + headerHeight;
+  const ctx = exportCanvas.getContext("2d");
+  const displayName = displayedFileName(currentPayload.status);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+  ctx.fillStyle = "#18212b";
+  ctx.font = `700 ${18 * dpr}px sans-serif`;
+  ctx.textBaseline = "top";
+  ctx.fillText(`Event ${currentPayload.event.index}`, 16 * dpr, 9 * dpr);
+  ctx.fillStyle = "#657280";
+  ctx.font = `${12 * dpr}px sans-serif`;
+  ctx.fillText(displayName, 16 * dpr, 34 * dpr, exportCanvas.width - 32 * dpr);
+  ctx.strokeStyle = "#cfd6df";
+  ctx.beginPath();
+  ctx.moveTo(0, headerHeight - 0.5 * dpr);
+  ctx.lineTo(exportCanvas.width, headerHeight - 0.5 * dpr);
+  ctx.stroke();
+  ctx.drawImage(source, 0, headerHeight);
+  ctx.strokeStyle = "#aab6c3";
+  ctx.lineWidth = dpr;
+  ctx.strokeRect(0.5 * dpr, 0.5 * dpr, exportCanvas.width - dpr, exportCanvas.height - dpr);
+  const link = document.createElement("a");
+  link.download = waveformDownloadName(currentPayload.status.path, currentPayload.event.index);
+  link.href = exportCanvas.toDataURL("image/png");
+  link.click();
+});
+els.saveEventBookmark.addEventListener("click", () => {
+  const eventIndex = currentPayload?.event?.index;
+  if (!Number.isInteger(eventIndex)) return;
+  if (!bookmarkedEvents.includes(eventIndex)) {
+    bookmarkedEvents.push(eventIndex);
+    bookmarkedEvents.sort((a, b) => a - b);
+    saveBookmarks();
+  }
+});
 
 // ---- plot zoom and pan -------------------------------------------------
-// The wheel zooms about the cursor and a drag pans. Over the tick strips only
-// that axis responds, so a run can be stretched in time without touching the
-// amplitude scale.
+// Drag selects a zoom rectangle; tick strips select just one axis.
 function canvasPoint(event) {
   const rect = els.waveCanvas.getBoundingClientRect();
   return { x: event.clientX - rect.left, y: event.clientY - rect.top };
@@ -2510,37 +3811,31 @@ function plotRegion(point) {
 
 function currentView() {
   const g = plotGeometry;
-  return plotView || { tbMin: 0, tbMax: g.lastTb, yMin: g.autoMin, yMax: g.autoMax };
+  return plotView || { tbMin: 0, tbMax: 512, yMin: g.autoMin, yMax: g.autoMax };
 }
 
 function applyView(view) {
-  const g = plotGeometry;
-  const minSpanTb = 4;
-  const minSpanY = 4;
-  let { tbMin, tbMax, yMin, yMax } = view;
-  if (tbMax - tbMin < minSpanTb) {
-    const middle = (tbMin + tbMax) / 2;
-    tbMin = middle - minSpanTb / 2;
-    tbMax = middle + minSpanTb / 2;
-  }
-  if (yMax - yMin < minSpanY) {
-    const middle = (yMin + yMax) / 2;
-    yMin = middle - minSpanY / 2;
-    yMax = middle + minSpanY / 2;
-  }
-  tbMin = Math.max(0, tbMin);
-  tbMax = Math.min(g.lastTb, tbMax);
-  if (tbMax - tbMin < minSpanTb) tbMax = Math.min(g.lastTb, tbMin + minSpanTb);
+  const boundedRange = (low, high, limit) => {
+    const span = Math.min(limit, Math.max(0.001, high - low));
+    const start = Math.max(0, Math.min(limit - span, (low + high - span) / 2));
+    return [start, start + span];
+  };
+  if (!Object.values(view).every(Number.isFinite)) return;
+  const [tbMin, tbMax] = boundedRange(view.tbMin, view.tbMax, 512);
+  const [yMin, yMax] = boundedRange(view.yMin, view.yMax, 4096);
   plotView = { tbMin, tbMax, yMin, yMax };
+  els.autoScale.classList.add("filter-active");
   if (currentPayload) drawWaveforms(currentPayload.event.channels);
 }
 
 function resetView() {
   plotView = null;
+  els.autoScale.classList.remove("filter-active");
   if (currentPayload) drawWaveforms(currentPayload.event.channels);
 }
 
 els.waveCanvas.addEventListener("wheel", (event) => {
+  if (dragState) return;
   const point = canvasPoint(event);
   const region = plotRegion(point);
   if (!region) return;
@@ -2564,55 +3859,98 @@ els.waveCanvas.addEventListener("wheel", (event) => {
   applyView(next);
 }, { passive: false });
 
-let panState = null;
+let dragState = null;
+
+function clampedPlotPoint(event, g) {
+  const point = canvasPoint(event);
+  return {
+    x: Math.max(g.margin.left, Math.min(g.margin.left + g.plotW, point.x)),
+    y: Math.max(g.margin.top, Math.min(g.margin.top + g.plotH, point.y)),
+  };
+}
+
+function drawZoomSelection() {
+  if (!dragState) return;
+  const { start, end, region, geometry: g } = dragState;
+  const x = region === "y" ? g.margin.left : Math.min(start.x, end.x);
+  const y = region === "x" ? g.margin.top : Math.min(start.y, end.y);
+  const w = region === "y" ? g.plotW : Math.abs(end.x - start.x);
+  const h = region === "x" ? g.plotH : Math.abs(end.y - start.y);
+  const ctx = els.waveCanvas.getContext("2d");
+  ctx.save();
+  ctx.fillStyle = "rgba(37, 99, 166, 0.15)";
+  ctx.strokeStyle = "#2563a6";
+  ctx.lineWidth = 1;
+  ctx.setLineDash([5, 3]);
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeRect(x, y, w, h);
+  ctx.restore();
+}
 
 els.waveCanvas.addEventListener("pointerdown", (event) => {
-  const point = canvasPoint(event);
-  const region = plotRegion(point);
+  if (event.button !== 0 || dragState) return;
+  const region = plotRegion(canvasPoint(event));
   if (!region) return;
   event.preventDefault();
+  const point = clampedPlotPoint(event, plotGeometry);
+  dragState = { region, start: point, end: point, view: { ...currentView() },
+    geometry: plotGeometry, pointerId: event.pointerId };
   els.waveCanvas.setPointerCapture(event.pointerId);
-  panState = { region, point, view: currentView() };
-  els.waveCanvas.classList.add("panning");
+  els.waveCanvas.classList.add("selecting");
 });
 
 els.waveCanvas.addEventListener("pointermove", (event) => {
-  if (!panState || !plotGeometry) return;
-  const g = plotGeometry;
-  const point = canvasPoint(event);
-  const view = panState.view;
-  const next = { ...view };
-  if (panState.region === "plot" || panState.region === "x") {
-    const shift = ((point.x - panState.point.x) / g.plotW) * (view.tbMax - view.tbMin);
-    next.tbMin = view.tbMin - shift;
-    next.tbMax = view.tbMax - shift;
-  }
-  if (panState.region === "plot" || panState.region === "y") {
-    const shift = ((point.y - panState.point.y) / g.plotH) * (view.yMax - view.yMin);
-    next.yMin = view.yMin + shift;
-    next.yMax = view.yMax + shift;
-  }
-  applyView(next);
+  if (!dragState || event.pointerId !== dragState.pointerId) return;
+  dragState.end = clampedPlotPoint(event, dragState.geometry);
+  if (currentPayload) drawWaveforms(currentPayload.event.channels);
 });
 
-function endPan(event) {
-  if (!panState) return;
-  panState = null;
-  els.waveCanvas.classList.remove("panning");
+function endDrag(event) {
+  if (!dragState || event.pointerId !== dragState.pointerId) return;
+  const { start, region, view, geometry: g } = dragState;
+  const end = clampedPlotPoint(event, g);
+  dragState = null;
+  els.waveCanvas.classList.remove("selecting");
   if (els.waveCanvas.hasPointerCapture(event.pointerId)) {
     els.waveCanvas.releasePointerCapture(event.pointerId);
   }
+  const useX = region !== "y";
+  const useY = region !== "x";
+  if (event.type !== "pointerup" || (useX && Math.abs(end.x - start.x) < 4)
+      || (useY && Math.abs(end.y - start.y) < 4)) {
+    if (currentPayload) drawWaveforms(currentPayload.event.channels);
+    return;
+  }
+  const next = { ...view };
+  const xValue = (x) => view.tbMin + (x - g.margin.left) / g.plotW * (view.tbMax - view.tbMin);
+  const yValue = (y) => view.yMax - (y - g.margin.top) / g.plotH * (view.yMax - view.yMin);
+  if (useX) {
+    next.tbMin = xValue(Math.min(start.x, end.x));
+    next.tbMax = xValue(Math.max(start.x, end.x));
+  }
+  if (useY) {
+    next.yMin = yValue(Math.max(start.y, end.y));
+    next.yMax = yValue(Math.min(start.y, end.y));
+  }
+  applyView(next);
 }
 
-els.waveCanvas.addEventListener("pointerup", endPan);
-els.waveCanvas.addEventListener("pointercancel", endPan);
+els.waveCanvas.addEventListener("pointerup", endDrag);
+els.waveCanvas.addEventListener("pointercancel", endDrag);
+els.waveCanvas.addEventListener("lostpointercapture", endDrag);
 els.waveCanvas.addEventListener("dblclick", (event) => {
   event.preventDefault();
   resetView();
 });
 
 els.autoScale.addEventListener("click", resetView);
-els.scanButton.addEventListener("click", scanSignal);
+els.fullScale.addEventListener("click", () => {
+  applyView({ tbMin: 0, tbMax: 512, yMin: 0, yMax: 4096 });
+});
+els.scanBackwardButton.addEventListener("click", () => scanSignal("backward"));
+els.scanForwardButton.addEventListener("click", () => scanSignal("forward"));
+els.electronicsTab.addEventListener("click", () => activateRightTab("electronics"));
+els.channelsTab.addEventListener("click", () => activateRightTab("channels"));
 
 window.addEventListener("resize", () => {
   if (currentPayload) drawWaveforms(currentPayload.event.channels);
@@ -2620,6 +3958,8 @@ window.addEventListener("resize", () => {
 
 requestJson("/api/status")
   .then((payload) => {
+    browseStartPath = payload.status.browsePath || ".";
+    updateMappingControls(payload.status);
     if (payload.status.path) {
       return navigate("current");
     }
@@ -2629,10 +3969,15 @@ requestJson("/api/status")
 """
 
 
+# Phosphor Icons wave-sine-fill, MIT licensed.
+FAVICON_SVG = r"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="#2563a6"><path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40Zm-4.78,91.44c-16.68,35-31.06,50.56-46.65,50.56-19.68,0-31.39-24.56-43.79-50.56C112,113,101,90,91.43,90c-3.74,0-14.37,4-32.21,41.44a8,8,0,0,1-14.44-6.88C61.46,89.59,75.84,74,91.43,74c19.68,0,31.39,24.56,43.79,50.56C144,143,155,166,164.57,166c3.74,0,14.37-4,32.21-41.44a8,8,0,1,1,14.44,6.88Z"/></svg>"""
+
+
 STATIC_ASSETS: Dict[str, Tuple[str, str]] = {
     "index.html": ("text/html; charset=utf-8", INDEX_HTML),
     "static/styles.css": ("text/css; charset=utf-8", STYLES_CSS),
     "static/app.js": ("application/javascript; charset=utf-8", APP_JS),
+    "static/favicon.svg": ("image/svg+xml", FAVICON_SVG),
 }
 
 
@@ -2641,9 +3986,19 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--file", nargs="+", help="open and merge these raw source files on startup")
+    parser.add_argument("--mapping", help="mapping directory containing channel_mapping.txt and detector_mapping.txt")
+    parser.add_argument("--browse-path", help="initial directory shown by the file browser")
     parser.add_argument("--no-browser", action="store_true", help="do not open a web browser")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
+
+    global MAPPING, BROWSE_START_PATH
+    if args.mapping:
+        MAPPING = DetectorMapping(args.mapping)
+    browse_path = Path(args.browse_path or os.getcwd()).expanduser().resolve()
+    if not browse_path.is_dir():
+        raise NotADirectoryError(str(browse_path))
+    BROWSE_START_PATH = str(browse_path)
 
     if args.self_test:
         run_self_test()
