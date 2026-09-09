@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <utility>
 
 using namespace std;
 
@@ -16,6 +17,50 @@ LKCompassReco::LKCompassReco()
 LKCompassReco::~LKCompassReco()
 {
     CloseInput();
+}
+
+bool LKCompassReco::IsEarlier(const SortedEntry& lhs, const SortedEntry& rhs)
+{
+    if (lhs.timestamp != rhs.timestamp)
+        return lhs.timestamp < rhs.timestamp;
+    return lhs.entry < rhs.entry;
+}
+
+void LKCompassReco::ClearReadChannels()
+{
+    fChannelAccept.clear();
+}
+
+void LKCompassReco::AddReadChannels(int board, int channelLow, int channelHigh)
+{
+    if (channelLow > channelHigh)
+        std::swap(channelLow, channelHigh);
+    channelLow = TMath::Max(0, channelLow);
+    channelHigh = TMath::Min(kMaxChannel-1, channelHigh);
+    if (channelLow > channelHigh)
+        return;
+
+    if (fChannelAccept.empty())
+        fChannelAccept.assign(size_t(kMaxBoard)*kMaxChannel, 0);
+
+    const int boardLow = board < 0 ? 0 : board;
+    const int boardHigh = board < 0 ? kMaxBoard-1 : board;
+    if (boardLow >= kMaxBoard)
+        return;
+    for (auto b=boardLow; b<=TMath::Min(boardHigh,kMaxBoard-1); ++b)
+        for (auto c=channelLow; c<=channelHigh; ++c)
+            fChannelAccept[size_t(b)*kMaxChannel + c] = 1;
+}
+
+bool LKCompassReco::AcceptRawEntry() const
+{
+    if (fReadEnergyThreshold > 0 && Int_t(fEnergy) < fReadEnergyThreshold)
+        return false;
+    if (fChannelAccept.empty())
+        return true;
+    if (fBoard >= kMaxBoard || fChannel >= kMaxChannel)
+        return false;
+    return fChannelAccept[size_t(fBoard)*kMaxChannel + fChannel] != 0;
 }
 
 void LKCompassReco::SetEntryRange(Long64_t firstEntry, Long64_t lastEntry)
@@ -31,32 +76,14 @@ Long64_t LKCompassReco::GetNumEntries() const
 
 Long64_t LKCompassReco::GetNextEntry() const
 {
-    if (!fIsSorted)
-        return fNextEntry;
-    if (fNextSortedIndex >= Long64_t(fSortedEntryArray.size()))
-        return fEndEntry;
-    return fSortedEntryArray[fNextSortedIndex].entry;
-}
-
-bool LKCompassReco::GetTimestampAt(Long64_t index, ULong64_t& timestamp, bool sorted)
-{
-    if (fInputTree == nullptr || index < 0)
-        return false;
-
-    if (sorted) {
-        if (!fIsSorted || index >= Long64_t(fSortedEntryArray.size()))
-            return false;
-        timestamp = fSortedEntryArray[index].timestamp;
-        return true;
+    if (fSortMode == kSortFull) {
+        if (fNextSortedIndex >= Long64_t(fSortedEntryArray.size()))
+            return fEndEntry;
+        return fSortedEntryArray[fNextSortedIndex].entry;
     }
-
-    const auto firstEntry = TMath::Min(
-        TMath::Max(Long64_t(0), fFirstEntry), fEndEntry);
-    const auto entry = firstEntry + index;
-    if (entry >= fEndEntry || fInputTree->GetEntry(entry) < 0)
-        return false;
-    timestamp = fTimestamp;
-    return true;
+    if (fSortMode == kSortWindow && fSortBufferIndex < fSortBuffer.size())
+        return fSortBuffer[fSortBufferIndex].entry;
+    return fNextEntry;
 }
 
 const LKCompassReco::RawChannel* LKCompassReco::GetRawChannel(int index) const
@@ -68,9 +95,7 @@ const LKCompassReco::RawChannel* LKCompassReco::GetRawChannel(int index) const
 
 void LKCompassReco::CloseInput()
 {
-    fSortedEntryArray.clear();
-    fNextSortedIndex = 0;
-    fIsSorted = false;
+    ResetSortState();
     fInputTree = nullptr;
     if (fInputFile != nullptr) {
         fInputFile->Close();
@@ -161,12 +186,8 @@ bool LKCompassReco::Init()
     ConfigureInputBranches();
 
     const auto numEntries = fInputTree->GetEntries();
-    fNextEntry = TMath::Max(Long64_t(0), fFirstEntry);
     fEndEntry = fLastEntry > 0 ? TMath::Min(fLastEntry + 1, numEntries) : numEntries;
-    if (fNextEntry > fEndEntry)
-        fNextEntry = fEndEntry;
-    fNextSortedIndex = 0;
-    fIsSorted = false;
+    ResetSortState();
 
     cout << "CoMPASS input: " << fInputFileName << endl;
     cout << "CoMPASS tree: " << fInputTreeName << endl;
@@ -176,36 +197,26 @@ bool LKCompassReco::Init()
     return true;
 }
 
-bool LKCompassReco::HasNextEntry() const
+void LKCompassReco::ResetSortState()
 {
-    if (fIsSorted)
-        return fNextSortedIndex < Long64_t(fSortedEntryArray.size());
-    return fNextEntry < fEndEntry;
-}
-
-bool LKCompassReco::ReadNextEntry()
-{
-    if (!HasNextEntry())
-        return false;
-    if (fIsSorted) {
-        const auto& sorted = fSortedEntryArray[fNextSortedIndex];
-        fTimestamp = sorted.timestamp;
-        fChannel = sorted.channel;
-        fBoard = sorted.board;
-        fEnergy = sorted.energy;
-        fEnergyShort = sorted.energyShort;
-        fFlags = sorted.flags;
-        return true;
-    }
-    return fInputTree->GetEntry(fNextEntry) >= 0;
-}
-
-void LKCompassReco::AdvanceEntry()
-{
-    if (fIsSorted)
-        ++fNextSortedIndex;
-    else
-        ++fNextEntry;
+    fSortMode = kSortNone;
+    fSortedEntryArray.clear();
+    fSortedEntryArray.shrink_to_fit();
+    fNextSortedIndex = 0;
+    fSortBuffer.clear();
+    fSortBufferIndex = 0;
+    fSortBufferSafeEntry = 0;
+    fMaxSortBufferSize = 0;
+    fNumOrderViolation = 0;
+    fMaxEmittedEntry = -1;
+    fMaxEntryReach = 0;
+    fNumReadEntry = 0;
+    fNumSkippedEntry = 0;
+    fLastEmittedTimestamp = 0;
+    fHasEmittedEntry = false;
+    fUnsortedEntryReady = false;
+    fRawChannelArray.clear();
+    fNextEntry = TMath::Min(TMath::Max(Long64_t(0), fFirstEntry), fEndEntry);
 }
 
 bool LKCompassReco::Sort()
@@ -215,36 +226,258 @@ bool LKCompassReco::Sort()
         return false;
     }
 
-    if (!fIsSorted) {
-        const auto firstEntry = TMath::Min(
-            TMath::Max(Long64_t(0), fFirstEntry), fEndEntry);
-        const auto numEntries = fEndEntry - firstEntry;
-        fSortedEntryArray.clear();
-        fSortedEntryArray.reserve(numEntries);
-        for (auto entry=firstEntry; entry<fEndEntry; ++entry) {
-            if (fInputTree->GetEntry(entry) < 0) {
-                cout << "Failed to read CoMPASS entry " << entry << " while sorting." << endl;
-                fSortedEntryArray.clear();
-                return false;
-            }
-            fSortedEntryArray.push_back({
-                fTimestamp, entry, fFlags, fChannel, fBoard, fEnergy, fEnergyShort
-            });
-        }
+    ResetSortState();
 
-        std::sort(fSortedEntryArray.begin(), fSortedEntryArray.end(),
-            [](const SortedEntry& lhs, const SortedEntry& rhs) {
-                if (lhs.timestamp != rhs.timestamp)
-                    return lhs.timestamp < rhs.timestamp;
-                return lhs.entry < rhs.entry;
-            });
-        fIsSorted = true;
-        cout << "Sorted " << fSortedEntryArray.size() << " CoMPASS entries by Timestamp." << endl;
+    if (fSortPolicy == kSortWholeRange)
+        return SortWholeRange();
+
+    if (fSortPolicy == kSortByMeasuredWindow) {
+        Long64_t measured = 0;
+        if (!MeasureSortWindow(measured))
+            return false;
+        cout << "CoMPASS raw entries need a sort window of " << measured
+             << " entries." << endl;
+        fSortWindow = TMath::Max(fSortWindow, measured);
+        ResetSortState();
     }
 
-    fNextSortedIndex = 0;
-    fRawChannelArray.clear();
+    if (fSortWindow <= 0)
+        return SortWholeRange();
+
+    // Each block is merged into the carry left by the previous one, so a block
+    // smaller than the window would merge far more entries than it releases.
+    fSortBlock = TMath::Max(fSortBlock, fSortWindow);
+    fSortMode = kSortWindow;
+    fSortBuffer.reserve(fSortBlock + fSortWindow);
+
+    cout << "Sorting CoMPASS entries by Timestamp while reading: window "
+         << fSortWindow << " entries, block " << fSortBlock << " entries, "
+         << 1e-6*double(fSortBlock+fSortWindow)*sizeof(SortedEntry)
+         << " MB buffer." << endl;
     return true;
+}
+
+bool LKCompassReco::MeasureSortWindow(Long64_t& window)
+{
+    // The window has to cover the widest inversion in the file: for every entry,
+    // how far back the first entry sits that already carries a later timestamp.
+    // Running maxima answer that with a binary search, and there are few enough
+    // of them to keep only a decimated history: merging neighbouring maxima
+    // keeps the older index, which can only push the answer up, never down.
+    const auto firstEntry = TMath::Min(
+        TMath::Max(Long64_t(0), fFirstEntry), fEndEntry);
+    const size_t maxRecords = 2000000;
+    std::vector<ULong64_t> maxValue;
+    std::vector<Long64_t> maxIndex;
+    Long64_t bucket = 64;
+    Long64_t worst = 0;
+
+    cout << "Scanning CoMPASS timestamps to measure the sort window..." << endl;
+    for (auto entry=firstEntry; entry<fEndEntry; ++entry) {
+        if (fInputTree->GetEntry(entry) < 0) {
+            cout << "Failed to read CoMPASS entry " << entry
+                 << " while measuring the sort window." << endl;
+            return false;
+        }
+        if (!AcceptRawEntry())
+            continue;
+
+        if (!maxValue.empty() && fTimestamp < maxValue.back()) {
+            const auto found = std::upper_bound(maxValue.begin(), maxValue.end(), fTimestamp);
+            const auto reach = entry - maxIndex[found-maxValue.begin()];
+            if (reach > worst)
+                worst = reach;
+        }
+
+        if (maxValue.empty() || fTimestamp > maxValue.back()) {
+            if (!maxValue.empty() && entry - maxIndex.back() < bucket)
+                maxValue.back() = fTimestamp;
+            else {
+                maxValue.push_back(fTimestamp);
+                maxIndex.push_back(entry);
+            }
+            if (maxValue.size() > maxRecords) {
+                size_t write = 0;
+                for (size_t read=0; read<maxValue.size(); read+=2, ++write) {
+                    maxIndex[write] = maxIndex[read];
+                    maxValue[write] = read+1 < maxValue.size() ? maxValue[read+1] : maxValue[read];
+                }
+                maxValue.resize(write);
+                maxIndex.resize(write);
+                bucket *= 2;
+            }
+        }
+    }
+
+    window = worst + bucket;
+    return true;
+}
+
+bool LKCompassReco::SortWholeRange()
+{
+    const auto firstEntry = fNextEntry;
+    const auto numEntries = fEndEntry - firstEntry;
+    cout << "Sorting all " << numEntries << " CoMPASS entries in memory ("
+         << 1e-9*double(numEntries)*sizeof(SortedEntry) << " GB). Set a nonzero "
+         << "sort window to stream the sort instead." << endl;
+
+    fSortedEntryArray.reserve(numEntries);
+    for (auto entry=firstEntry; entry<fEndEntry; ++entry) {
+        if (fInputTree->GetEntry(entry) < 0) {
+            cout << "Failed to read CoMPASS entry " << entry << " while sorting." << endl;
+            ResetSortState();
+            return false;
+        }
+        ++fNumReadEntry;
+        if (fRawEntryMonitor)
+            fRawEntryMonitor(fTimestamp);
+        if (!AcceptRawEntry()) {
+            ++fNumSkippedEntry;
+            continue;
+        }
+        fSortedEntryArray.push_back({
+            fTimestamp, entry, fFlags, fChannel, fBoard, fEnergy, fEnergyShort
+        });
+    }
+
+    std::sort(fSortedEntryArray.begin(), fSortedEntryArray.end(), IsEarlier);
+    fSortMode = kSortFull;
+    fNextSortedIndex = 0;
+    fMaxSortBufferSize = Long64_t(fSortedEntryArray.size());
+    cout << "Sorted " << fSortedEntryArray.size() << " CoMPASS entries by Timestamp." << endl;
+    return true;
+}
+
+bool LKCompassReco::ReadSortBlock()
+{
+    if (fSortBufferIndex > 0) {
+        fSortBuffer.erase(fSortBuffer.begin(), fSortBuffer.begin()+fSortBufferIndex);
+        fSortBufferIndex = 0;
+    }
+
+    const auto carry = fSortBuffer.size();
+    const auto readUntil = TMath::Min(fNextEntry+fSortBlock, fEndEntry);
+    for (; fNextEntry<readUntil; ++fNextEntry) {
+        if (fInputTree->GetEntry(fNextEntry) < 0) {
+            cout << "Failed to read CoMPASS entry " << fNextEntry << " while sorting." << endl;
+            return false;
+        }
+        ++fNumReadEntry;
+        if (fRawEntryMonitor)
+            fRawEntryMonitor(fTimestamp);
+        if (!AcceptRawEntry()) {
+            ++fNumSkippedEntry;
+            continue;
+        }
+        fSortBuffer.push_back({
+            fTimestamp, fNextEntry, fFlags, fChannel, fBoard, fEnergy, fEnergyShort
+        });
+    }
+    // The carry is already sorted, so the new block only has to be sorted on its
+    // own and merged in.
+    std::sort(fSortBuffer.begin()+carry, fSortBuffer.end(), IsEarlier);
+    if (carry > 0)
+        std::inplace_merge(fSortBuffer.begin(), fSortBuffer.begin()+carry,
+                           fSortBuffer.end(), IsEarlier);
+
+    // An unread entry sits at file index fNextEntry or later, and can only come
+    // before a buffered entry that is within fSortWindow slots of it. Buffered
+    // entries older than that boundary are therefore final and can be released;
+    // the rest stay as the carry for the next block.
+    fSortBufferSafeEntry = (fNextEntry >= fEndEntry) ? fEndEntry : fNextEntry - fSortWindow;
+    if (Long64_t(fSortBuffer.size()) > fMaxSortBufferSize)
+        fMaxSortBufferSize = Long64_t(fSortBuffer.size());
+    return true;
+}
+
+bool LKCompassReco::PrepareSortBuffer()
+{
+    while (true) {
+        if (fSortBufferIndex < fSortBuffer.size()
+            && fSortBuffer[fSortBufferIndex].entry < fSortBufferSafeEntry)
+            return true;
+        if (fNextEntry >= fEndEntry) {
+            // Nothing is left to read, so whatever is buffered is already final.
+            fSortBufferSafeEntry = fEndEntry;
+            return fSortBufferIndex < fSortBuffer.size();
+        }
+        if (!ReadSortBlock())
+            return false;
+    }
+}
+
+bool LKCompassReco::HasNextEntry()
+{
+    if (fSortMode == kSortWindow)
+        return PrepareSortBuffer();
+    if (fSortMode == kSortFull)
+        return fNextSortedIndex < Long64_t(fSortedEntryArray.size());
+
+    // Unsorted: load entries until one passes the read filters. The flag keeps
+    // repeated peeks from reading and reporting the same entry twice.
+    while (!fUnsortedEntryReady && fNextEntry < fEndEntry) {
+        if (fInputTree->GetEntry(fNextEntry) < 0)
+            return false;
+        ++fNumReadEntry;
+        if (fRawEntryMonitor)
+            fRawEntryMonitor(fTimestamp);
+        if (AcceptRawEntry()) {
+            fUnsortedEntryReady = true;
+            break;
+        }
+        ++fNumSkippedEntry;
+        ++fNextEntry;
+    }
+    return fUnsortedEntryReady;
+}
+
+bool LKCompassReco::ReadNextEntry()
+{
+    if (!HasNextEntry())
+        return false;
+    if (fSortMode != kSortNone) {
+        const auto& sorted = (fSortMode == kSortWindow)
+            ? fSortBuffer[fSortBufferIndex]
+            : fSortedEntryArray[fNextSortedIndex];
+        fTimestamp = sorted.timestamp;
+        fChannel = sorted.channel;
+        fBoard = sorted.board;
+        fEnergy = sorted.energy;
+        fEnergyShort = sorted.energyShort;
+        fFlags = sorted.flags;
+        return true;
+    }
+    return fUnsortedEntryReady;
+}
+
+void LKCompassReco::AdvanceEntry()
+{
+    // ReadNextEntry() left the entry being consumed in the fTimestamp field.
+    if (fSortMode == kSortNone) {
+        ++fNextEntry;
+        fUnsortedEntryReady = false;
+        return;
+    }
+
+    if (fHasEmittedEntry && fTimestamp < fLastEmittedTimestamp)
+        ++fNumOrderViolation;
+    fLastEmittedTimestamp = fTimestamp;
+    fHasEmittedEntry = true;
+
+    // An entry released after one that sits further down the file was stored
+    // that many slots too early, which is the displacement the window covers.
+    const auto entry = GetNextEntry();
+    if (entry > fMaxEmittedEntry)
+        fMaxEmittedEntry = entry;
+    else if (fMaxEmittedEntry - entry > fMaxEntryReach)
+        fMaxEntryReach = fMaxEmittedEntry - entry;
+    if (fSortedEntryMonitor)
+        fSortedEntryMonitor(fTimestamp);
+
+    if (fSortMode == kSortWindow)
+        ++fSortBufferIndex;
+    else
+        ++fNextSortedIndex;
 }
 
 bool LKCompassReco::WriteSortedFile(TString fileName)
@@ -253,8 +486,6 @@ bool LKCompassReco::WriteSortedFile(TString fileName)
         cout << "Initialize CoMPASS input before writing a sorted file." << endl;
         return false;
     }
-    if (!Sort())
-        return false;
 
     if (fileName.IsNull()) {
         fileName = fInputFileName;
@@ -267,51 +498,80 @@ bool LKCompassReco::WriteSortedFile(TString fileName)
         return false;
     }
 
+    if (!Sort())
+        return false;
+
+    // A second handle on the input carries the full payload, including optional
+    // waveform branches, so the sorting pass above can keep reading headers
+    // only. Its entries are visited in the order the sorter releases them.
+    auto sourceFile = TFile::Open(fInputFileName, "read");
+    auto sourceTree = sourceFile == nullptr || sourceFile->IsZombie()
+        ? nullptr : dynamic_cast<TTree*>(sourceFile->Get(fInputTreeName));
+    if (sourceTree == nullptr) {
+        cout << "Cannot reopen CoMPASS input file: " << fInputFileName << endl;
+        if (sourceFile != nullptr) { sourceFile->Close(); delete sourceFile; }
+        ResetSortState();
+        return false;
+    }
+
     auto outputFile = TFile::Open(fileName, "recreate");
     if (outputFile == nullptr || outputFile->IsZombie()) {
         cout << "Cannot create sorted CoMPASS file: " << fileName << endl;
         if (outputFile != nullptr)
             delete outputFile;
+        sourceFile->Close();
+        delete sourceFile;
+        ResetSortState();
         return false;
     }
     outputFile->SetCompressionSettings(fInputFile->GetCompressionSettings());
-
-    // Clone every raw branch, including optional waveform data. FindEvent()
-    // returns to the lightweight header-only configuration after this write.
-    fInputTree->SetBranchStatus("*", true);
     outputFile->cd();
-    auto sortedTree = fInputTree->CloneTree(0);
+
+    auto sortedTree = sourceTree->CloneTree(0);
     if (sortedTree == nullptr) {
         cout << "Cannot clone CoMPASS tree " << fInputTreeName << endl;
         outputFile->Close();
         delete outputFile;
-        ConfigureInputBranches();
-        fNextSortedIndex = 0;
+        sourceFile->Close();
+        delete sourceFile;
+        ResetSortState();
         return false;
     }
     sortedTree->SetName(fInputTreeName);
-    sortedTree->SetTitle(fInputTree->GetTitle());
+    sortedTree->SetTitle(sourceTree->GetTitle());
     sortedTree->SetAutoSave(0);
 
     bool success = true;
-    const auto numEntries = Long64_t(fSortedEntryArray.size());
-    for (Long64_t index=0; index<numEntries; ++index) {
-        if (fInputTree->GetEntry(fSortedEntryArray[index].entry) < 0) {
-            cout << "Failed to read CoMPASS entry " << fSortedEntryArray[index].entry
+    Long64_t count = 0;
+    const auto numEntries = fEndEntry - fNextEntry;
+    while (HasNextEntry()) {
+        if (!ReadNextEntry()) {
+            success = false;
+            break;
+        }
+        const auto entry = GetNextEntry();
+        if (sourceTree->GetEntry(entry) < 0) {
+            cout << "Failed to read CoMPASS entry " << entry
                  << " while writing sorted file." << endl;
             success = false;
             break;
         }
         if (sortedTree->Fill() < 0) {
-            cout << "Failed to write sorted CoMPASS entry " << index << endl;
+            cout << "Failed to write sorted CoMPASS entry " << count << endl;
             success = false;
             break;
         }
-        if ((index+1)%100000 == 0 || index+1 == numEntries)
-            cout << "Writing sorted CoMPASS entries: " << index+1
+        AdvanceEntry();
+        if ((++count)%1000000 == 0 || count == numEntries)
+            cout << "Writing sorted CoMPASS entries: " << count
                  << " / " << numEntries << endl;
     }
 
+    if (success && fNumOrderViolation > 0) {
+        cout << fNumOrderViolation << " entries were written out of Timestamp order. "
+             << "The sort window " << fSortWindow << " is too small." << endl;
+        success = false;
+    }
     if (success) {
         outputFile->cd();
         sortedTree->Write(fInputTreeName, TObject::kOverwrite);
@@ -319,10 +579,10 @@ bool LKCompassReco::WriteSortedFile(TString fileName)
     }
     outputFile->Close();
     delete outputFile;
+    sourceFile->Close();
+    delete sourceFile;
 
-    ConfigureInputBranches();
-    fNextSortedIndex = 0;
-    fRawChannelArray.clear();
+    ResetSortState();
     return success;
 }
 
