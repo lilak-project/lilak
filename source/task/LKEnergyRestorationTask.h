@@ -8,6 +8,7 @@
 #include <array>
 #include <map>
 #include <tuple>
+#include <vector>
 
 class LKSiChannel;
 class SKSiHit;
@@ -25,6 +26,19 @@ class LKEnergyRestorationTask : public LKTask
         using StripKey = std::tuple<int,int,int>;
         using LRKey = std::tuple<int,int,int,int>;
 
+        // Repeated post-calibration gain rules: last matching rule wins, default 1.
+        // Detector: detNum side gain; DetID: mapping detIndex side gain;
+        // CAAC: cobo asad aget channel gain. Address/side -1 is a wildcard.
+        // Paired strips use direction-0 channel to select one gain for both ends;
+        // the calibrated RelativeZ is preserved.
+        struct GainRule {
+            int kind = 0; // 0 detector number, 1 detector index, 2 CAAC
+            std::array<int,4> address {{-1,-1,-1,-1}};
+            double gain = 1;
+        };
+        std::vector<GainRule> fGainRules; //!
+        bool LoadGainRules();
+        double GetPostCalibrationGain(const LKSiChannel *channel) const;
         bool LoadEnergyCalibrationFile(TString fileName);
         bool HasC0(const StripKey &key) const;
         bool HasC1(const StripKey &key) const;
@@ -48,7 +62,7 @@ class LKEnergyRestorationTask : public LKTask
         std::map<StripKey, std::array<double,3>> fC2Parameters;
         std::map<StripKey, std::array<double,2>> fC3Parameters;
 
-    ClassDef(LKEnergyRestorationTask, 1)
+    ClassDef(LKEnergyRestorationTask, 2)
 };
 
 #endif

@@ -95,6 +95,25 @@ bool LKCompassRecoTask::SetTimeWindow(Double_t value, TString unit)
     return true;
 }
 
+bool LKCompassRecoTask::SetSortMode(TString mode)
+{
+    mode.ToLower();
+    if (mode == "window")    fSortPolicy = LKCompassReco::kSortByWindow;
+    else if (mode == "auto") fSortPolicy = LKCompassReco::kSortByMeasuredWindow;
+    else if (mode == "full") fSortPolicy = LKCompassReco::kSortWholeRange;
+    else {
+        lk_error << "Unknown LKCompassRecoTask/SortMode: " << mode
+                 << ". Use window, auto, or full." << endl;
+        return false;
+    }
+    return true;
+}
+
+void LKCompassRecoTask::AddReadChannels(int board, int channelLow, int channelHigh)
+{
+    fReadChannelArray.push_back({board, channelLow, channelHigh});
+}
+
 void LKCompassRecoTask::AddTriggerInputFile(TString fileName, TString)
 {
     if (!fileName.IsNull())
@@ -247,6 +266,10 @@ bool LKCompassRecoTask::ConfigureParameters()
     const bool hasLastEntry = fPar->CheckPar("LKCompassRecoTask/LastEntry");
     const bool hasEnergyThreshold = fPar->CheckPar("LKCompassRecoTask/EnergyThreshold");
     const bool hasSortInput = fPar->CheckPar("LKCompassRecoTask/SortInput");
+    const bool hasSortWindow = fPar->CheckPar("LKCompassRecoTask/SortWindow");
+    const bool hasSortBlock = fPar->CheckPar("LKCompassRecoTask/SortBlock");
+    const bool hasSortMode = fPar->CheckPar("LKCompassRecoTask/SortMode");
+    const bool hasReadEnergyThreshold = fPar->CheckPar("LKCompassRecoTask/ReadEnergyThreshold");
     const bool hasW1MainSide = fPar->CheckPar("LKCompassRecoTask/W1MainSide");
 
     fPar->Require("LKCompassRecoTask/InputFileName", "", "CoMPASS ROOT input file", "t");
@@ -256,6 +279,11 @@ bool LKCompassRecoTask::ConfigureParameters()
     fPar->Require("LKCompassRecoTask/LastEntry", "0", "last raw entry, inclusive; 0 means end", "t");
     fPar->Require("LKCompassRecoTask/EnergyThreshold", "0", "minimum raw Energy to collect", "t");
     fPar->Require("LKCompassRecoTask/SortInput", "true", "sort raw entries by Timestamp before reconstruction", "t");
+    fPar->Require("LKCompassRecoTask/SortWindow", "65536", "largest expected displacement between file order and Timestamp order, in raw entries; 0 sorts the whole tree in memory", "t");
+    fPar->Require("LKCompassRecoTask/SortBlock", "262144", "raw entries read into the sorting buffer at a time", "t");
+    fPar->Require("LKCompassRecoTask/SortMode", "window", "window: stream through SortWindow; auto: measure the window this file needs first; full: sort the whole tree in memory", "t");
+    fPar->Require("LKCompassRecoTask/ReadChannels", "", "channels to keep while reading, as [board:]low[-high] items; empty keeps every channel", "t");
+    fPar->Require("LKCompassRecoTask/ReadEnergyThreshold", "0", "drop entries below this raw Energy while reading, before the sorter; 0 keeps every entry", "t");
     fPar->Require("LKCompassRecoTask/W1Map", "", "detID,board,junctionStart,ohmicStart repeated", "t");
     fPar->Require("LKCompassRecoTask/W1XOrigin", "", "detID,left|right repeated; default left", "t");
     fPar->Require("LKCompassRecoTask/W1YOrigin", "", "detID,top|bottom repeated; default top", "t");
@@ -271,6 +299,17 @@ bool LKCompassRecoTask::ConfigureParameters()
     if (hasLastEntry) fPar->UpdatePar(fLastEntry, "LKCompassRecoTask/LastEntry");
     if (hasEnergyThreshold) fPar->UpdatePar(fEnergyThreshold, "LKCompassRecoTask/EnergyThreshold");
     if (hasSortInput) fPar->UpdatePar(fSortInput, "LKCompassRecoTask/SortInput");
+    if (hasSortWindow) fPar->UpdatePar(fSortWindow, "LKCompassRecoTask/SortWindow");
+    if (hasSortBlock) fPar->UpdatePar(fSortBlock, "LKCompassRecoTask/SortBlock");
+    if (hasReadEnergyThreshold) fPar->UpdatePar(fReadEnergyThreshold, "LKCompassRecoTask/ReadEnergyThreshold");
+    if (hasSortMode) {
+        TString sortMode = "window";
+        fPar->UpdatePar(sortMode, "LKCompassRecoTask/SortMode");
+        if (!SetSortMode(sortMode))
+            return false;
+    }
+    if (!ConfigureReadChannels())
+        return false;
 
     if (hasW1MainSide) {
         TString mainSide = "junction";
@@ -293,6 +332,61 @@ bool LKCompassRecoTask::ConfigureParameters()
     if (fEnergyThreshold < 0) {
         lk_error << "LKCompassRecoTask/EnergyThreshold must not be negative." << endl;
         return false;
+    }
+    if (fSortWindow < 0) {
+        lk_error << "LKCompassRecoTask/SortWindow must not be negative." << endl;
+        return false;
+    }
+    if (fSortBlock <= 0) {
+        lk_error << "LKCompassRecoTask/SortBlock must be positive." << endl;
+        return false;
+    }
+    if (fReadEnergyThreshold < 0) {
+        lk_error << "LKCompassRecoTask/ReadEnergyThreshold must not be negative." << endl;
+        return false;
+    }
+    if (fReadEnergyThreshold > fEnergyThreshold && fEnergyThreshold > 0)
+        lk_warning << "LKCompassRecoTask/ReadEnergyThreshold (" << fReadEnergyThreshold
+                   << ") is above EnergyThreshold (" << fEnergyThreshold
+                   << "), so the read filter is the one that decides." << endl;
+    return true;
+}
+
+bool LKCompassRecoTask::ConfigureReadChannels()
+{
+    if (!fPar->CheckPar("LKCompassRecoTask/ReadChannels"))
+        return true;
+
+    // Items look like 16, 16-19, or 0:16-19. Without a board prefix the range
+    // applies to every board.
+    for (auto item : fPar->GetParVString("LKCompassRecoTask/ReadChannels")) {
+        item.ReplaceAll(" ","");
+        if (item.IsNull())
+            continue;
+
+        int board = -1;
+        const auto colon = item.Index(":");
+        if (colon >= 0) {
+            TString boardText = item(0,colon);
+            if (!boardText.IsDec()) {
+                lk_error << "Invalid board in LKCompassRecoTask/ReadChannels: " << item << endl;
+                return false;
+            }
+            board = boardText.Atoi();
+            item = item(colon+1, item.Length()-colon-1);
+        }
+
+        TString lowText = item, highText = item;
+        const auto dash = item.Index("-");
+        if (dash > 0) {
+            lowText = item(0,dash);
+            highText = item(dash+1, item.Length()-dash-1);
+        }
+        if (!lowText.IsDec() || !highText.IsDec()) {
+            lk_error << "Invalid channel range in LKCompassRecoTask/ReadChannels: " << item << endl;
+            return false;
+        }
+        AddReadChannels(board, lowText.Atoi(), highText.Atoi());
     }
     return true;
 }
@@ -626,49 +720,61 @@ void LKCompassRecoTask::PrefixHistogramTitles()
         prefixTitle(object);
 }
 
-void LKCompassRecoTask::FillTimestampGraphs(bool sorted)
+void LKCompassRecoTask::FillTimestampMonitor(TimestampMonitor& monitor, ULong64_t timestamp)
 {
-    auto fill = [this,sorted](TGraph* graph, Long64_t maxEntries) {
-        auto graphEntry = Long64_t(graph->GetN());
-        Long64_t inputEntry = 0;
-        ULong64_t timestamp = 0;
-        while (graphEntry < maxEntries
-            && fReco->GetTimestampAt(inputEntry, timestamp, sorted)) {
-            graph->SetPoint(graphEntry, graphEntry, double(timestamp));
-            ++graphEntry;
-            ++inputEntry;
-        }
+    auto addPoint = [timestamp](TGraph* graph, Int_t maxPoints) {
+        const auto point = graph->GetN();
+        if (point < maxPoints)
+            graph->SetPoint(point, point, double(timestamp));
     };
+    addPoint(monitor.graph40, 40);
+    addPoint(monitor.graph1000, 1000);
 
-    if (sorted) {
-        fill(fTimestampAfter40, 40);
-        fill(fTimestampAfter1000, 1000);
+    if (monitor.hasPrevious) {
+        const double difference = timestamp >= monitor.previousTimestamp
+            ? double(timestamp-monitor.previousTimestamp)
+            : double(monitor.previousTimestamp-timestamp);
+        for (auto histogram : *monitor.differences)
+            histogram->Fill(difference*1.e-6);
     }
-    else {
-        fill(fTimestampBefore40, 40);
-        fill(fTimestampBefore1000, 1000);
-    }
+    monitor.previousTimestamp = timestamp;
+    monitor.hasPrevious = true;
 }
 
-void LKCompassRecoTask::FillTimestampDifferenceHistograms(bool sorted)
+void LKCompassRecoTask::ReportSortQuality() const
 {
-    auto& histograms = sorted ? fTimestampDifferenceAfter : fTimestampDifferenceBefore;
-    Long64_t inputEntry = 0;
-    ULong64_t previousTimestamp = 0;
-    ULong64_t timestamp = 0;
-    bool hasPreviousTimestamp = false;
-    while (fReco->GetTimestampAt(inputEntry, timestamp, sorted)) {
-        if (hasPreviousTimestamp) {
-            const double difference = timestamp >= previousTimestamp
-                ? double(timestamp-previousTimestamp)
-                : double(previousTimestamp-timestamp);
-            for (auto histogram : histograms)
-                histogram->Fill(difference*1.e-6);
-        }
-        previousTimestamp = timestamp;
-        hasPreviousTimestamp = true;
-        ++inputEntry;
+    const auto numSkipped = fReco->GetNumSkippedEntry();
+    if (numSkipped > 0) {
+        const auto numRead = fReco->GetNumReadEntry();
+        lk_info << "Read filters dropped " << numSkipped << " of " << numRead
+                << " raw entries (" << 100.*double(numSkipped)/double(numRead)
+                << " %) before sorting." << endl;
     }
+
+    if (!fSortInput)
+        return;
+
+    const auto numViolation = fReco->GetNumOrderViolation();
+    if (numViolation > 0) {
+        lk_error << numViolation << " entries left the sorter out of Timestamp order, "
+                 << "so this run is NOT sorted exactly. The raw file jumps backwards "
+                 << "by more than LKCompassRecoTask/SortWindow ("
+                 << fReco->GetSortWindow() << "); at least "
+                 << fReco->GetMaxEntryReach() << " entries would be needed. "
+                 << "Set LKCompassRecoTask/SortMode auto to measure the window this "
+                 << "file needs and sort it exactly, or SortMode full to sort the "
+                 << "whole tree in memory. Both are slower." << endl;
+        return;
+    }
+    if (fReco->GetSortPolicy() == LKCompassReco::kSortWholeRange || fReco->GetSortWindow() <= 0) {
+        lk_info << "Sorted the whole raw tree in memory, so the order is exact. The "
+                << "largest displacement between file order and Timestamp order was "
+                << fReco->GetMaxEntryReach() << " entries." << endl;
+        return;
+    }
+    lk_info << "Timestamp sorting held: largest displacement " << fReco->GetMaxEntryReach()
+            << " entries against a window of " << fReco->GetSortWindow()
+            << ", buffering at most " << fReco->GetMaxSortBufferSize() << " entries." << endl;
 }
 
 void LKCompassRecoTask::AddDrawingGroups()
@@ -755,6 +861,8 @@ bool LKCompassRecoTask::Init()
     MakeHistograms();
     MakeTimestampGraphs();
     MakeTimestampDifferenceHistograms();
+    fBeforeSortMonitor = {fTimestampBefore40, fTimestampBefore1000, &fTimestampDifferenceBefore, 0, false};
+    fAfterSortMonitor = {fTimestampAfter40, fTimestampAfter1000, &fTimestampDifferenceAfter, 0, false};
     PrefixHistogramTitles();
     AddDrawingGroups();
     fReco = new LKCompassReco();
@@ -771,23 +879,34 @@ void LKCompassRecoTask::Run(Long64_t numEvents)
     {
         fPreviousW1EntryTimeMap.clear();
         fPreviousComEntryTimeMap.clear();
+        fBeforeSortMonitor.hasPrevious = false;
+        fAfterSortMonitor.hasPrevious = false;
         fReco->SetInputFile(inputFileName);
         fReco->SetInputTreeName(fInputTreeName);
         fReco->SetTimeWindow(fTimeWindow);
         fReco->SetEntryRange(fFirstEntry, fLastEntry);
+        fReco->SetSortWindow(fSortWindow);
+        fReco->SetSortBlock(fSortBlock);
+        fReco->SetSortPolicy(LKCompassReco::ESortPolicy(fSortPolicy));
+        fReco->SetReadEnergyThreshold(fReadEnergyThreshold);
+        fReco->ClearReadChannels();
+        for (auto& range : fReadChannelArray)
+            fReco->AddReadChannels(range.board, range.low, range.high);
+        // The timestamp plots are filled from the entries the reader already
+        // touches, so neither raw order nor Timestamp order costs its own pass.
+        fReco->SetRawEntryMonitor([this](ULong64_t timestamp) {
+            FillTimestampMonitor(fBeforeSortMonitor, timestamp); });
+        fReco->SetSortedEntryMonitor(fSortInput
+            ? LKCompassReco::EntryMonitor([this](ULong64_t timestamp) {
+                  FillTimestampMonitor(fAfterSortMonitor, timestamp); })
+            : LKCompassReco::EntryMonitor());
         if (!fReco->Init()) {
             fRun->SignalEndOfRun();
             return;
         }
-        FillTimestampGraphs(false);
-        FillTimestampDifferenceHistograms(false);
-        if (fSortInput) {
-            if (!fReco->Sort()) {
-                fRun->SignalEndOfRun();
-                return;
-            }
-            FillTimestampGraphs(true);
-            FillTimestampDifferenceHistograms(true);
+        if (fSortInput && !fReco->Sort()) {
+            fRun->SignalEndOfRun();
+            return;
         }
 
         while (fContinueEvent && fReco->FindEvent()) {
@@ -796,6 +915,7 @@ void LKCompassRecoTask::Run(Long64_t numEvents)
             if (fNumEvents > 0 && fCountEvents >= fNumEvents)
                 fContinueEvent = false;
         }
+        ReportSortQuality();
 
         if (!fContinueEvent)
             break;

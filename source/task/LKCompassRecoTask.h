@@ -29,6 +29,15 @@ class LKDrawingGroup;
  * - LKCompassRecoTask/EnergyThreshold: minimum raw Energy to collect (default: 0)
  * - LKCompassRecoTask/FirstEntry, LastEntry: optional inclusive raw-entry range
  * - LKCompassRecoTask/SortInput: sort raw entries by Timestamp before events
+ * - LKCompassRecoTask/SortWindow: largest expected displacement between file
+ *   order and Timestamp order, in raw entries; 0 sorts the whole tree in memory
+ * - LKCompassRecoTask/SortBlock: raw entries read into the sorting buffer at a time
+ * - LKCompassRecoTask/SortMode: window (fast, default), auto (measure the window
+ *   the file needs first), or full (sort the whole tree in memory)
+ * - LKCompassRecoTask/ReadChannels: channels to keep while reading, as
+ *   [board:]low[-high] items; empty keeps every channel
+ * - LKCompassRecoTask/ReadEnergyThreshold: drop entries below this raw Energy
+ *   while reading, before they reach the sorter; 0 keeps every entry
  * - LKCompassRecoTask/W1Map: repeated detID,board,junctionStart,ohmicStart values
  * - LKCompassRecoTask/W1XOrigin: repeated detID,left|right values (default: left)
  * - LKCompassRecoTask/W1YOrigin: repeated detID,top|bottom values (default: top)
@@ -56,6 +65,12 @@ class LKCompassRecoTask : public LKTask
         bool SetTimeWindow(Double_t value, TString unit);
         void SetEnergyThreshold(Int_t value) { fEnergyThreshold = value; }
         void SetSortInput(bool value=true) { fSortInput = value; }
+        void SetSortWindow(Long64_t value) { fSortWindow = value; }
+        void SetSortBlock(Long64_t value) { fSortBlock = value; }
+        bool SetSortMode(TString mode);
+        void SetReadEnergyThreshold(Int_t value) { fReadEnergyThreshold = value; }
+        void AddReadChannels(int board, int channelLow, int channelHigh);
+        void ClearReadChannels() { fReadChannelArray.clear(); }
         void SetEntryRange(Long64_t firstEntry=0, Long64_t lastEntry=0);
         void SetChannelBranches(bool value=true) { fStoreChannelBranches = value; }
         void SetHitBranches(bool value=true) { fStoreHitBranches = value; }
@@ -127,8 +142,25 @@ class LKCompassRecoTask : public LKTask
             std::vector<TH1D*> previousEntryTimeDiff;
         };
 
+        struct ChannelRange {
+            int board;   ///< negative matches any board
+            int low;
+            int high;
+        };
+
+        /// Timestamp statistics accumulated one entry at a time, so that the
+        /// raw-order and Timestamp-order plots cost no extra pass over the tree.
+        struct TimestampMonitor {
+            TGraph* graph40 = nullptr;
+            TGraph* graph1000 = nullptr;
+            std::vector<TH1D*>* differences = nullptr;
+            ULong64_t previousTimestamp = 0;
+            bool hasPrevious = false;
+        };
+
         bool ConfigureParameters();
         bool ConfigureTimeWindow();
+        bool ConfigureReadChannels();
         bool ConfigureInputFiles();
         bool ConfigureMappings();
         bool CheckBinning(const LKBinning& binning) const;
@@ -136,8 +168,8 @@ class LKCompassRecoTask : public LKTask
         void MakeTimestampGraphs();
         void MakeTimestampDifferenceHistograms();
         void PrefixHistogramTitles();
-        void FillTimestampGraphs(bool sorted);
-        void FillTimestampDifferenceHistograms(bool sorted);
+        void FillTimestampMonitor(TimestampMonitor& monitor, ULong64_t timestamp);
+        void ReportSortQuality() const;
         void AddDrawingGroups();
         void ClearEvent();
         void ProcessEvent();
@@ -170,6 +202,8 @@ class LKCompassRecoTask : public LKTask
         TGraph* fTimestampAfter1000 = nullptr; //!
         std::vector<TH1D*> fTimestampDifferenceBefore; //!
         std::vector<TH1D*> fTimestampDifferenceAfter; //!
+        TimestampMonitor fBeforeSortMonitor; //!
+        TimestampMonitor fAfterSortMonitor; //!
 
         std::vector<TString> fInputFileArray; //!
         TString fInputTreeName = "Data_R"; //!
@@ -181,6 +215,11 @@ class LKCompassRecoTask : public LKTask
         Long64_t fCountEvents = 0; //!
         bool fContinueEvent = false; //!
         bool fSortInput = true; //!
+        Long64_t fSortWindow = 65536; //!
+        Long64_t fSortBlock = 262144; //!
+        Int_t fSortPolicy = 0; //! LKCompassReco::ESortPolicy
+        Int_t fReadEnergyThreshold = 0; //!
+        std::vector<ChannelRange> fReadChannelArray; //!
         bool fW1MainSide = false; //!
         bool fStoreChannelBranches = true; //!
         bool fStoreHitBranches = true; //!

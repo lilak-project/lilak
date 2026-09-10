@@ -5,6 +5,9 @@
 #include "LKSiChannel.h"
 #include "SKSiHit.h"
 
+#include <algorithm>
+#include <cmath>
+#include <stdexcept>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -42,6 +45,9 @@ bool LKEnergyRestorationTask::Init()
     fPar -> UpdatePar(fApplyToPairChannel, "LKEnergyRestorationTask/applyToPairChannel");
     fPar -> UpdatePar(fBuildSiHit, "LKEnergyRestorationTask/buildSiHit");
 
+    if (!LoadGainRules())
+        return false;
+
     if (fBuildSiHit)
         fHitArray = fRun -> RegisterBranchA("SiHit", "SKSiHit", 20);
 
@@ -59,6 +65,71 @@ bool LKEnergyRestorationTask::Init()
             << ", C2=" << fC2Parameters.size()
             << ", C3=" << fC3Parameters.size() << endl;
     return true;
+}
+
+bool LKEnergyRestorationTask::LoadGainRules()
+{
+    fGainRules.clear();
+    const TString prefix = "LKEnergyRestorationTask/PostCalibrationGain/";
+    for (int i=0; i<fPar->GetEntriesFast(); ++i) {
+        auto par = fPar->GetParameter(i);
+        if (!par || par->IsCommentOut()) continue;
+        const TString name = par->GetName();
+        int kind = name == prefix+"Detector" ? 0 : name == prefix+"DetID" ? 1 : name == prefix+"CAAC" ? 2 : -1;
+        if (kind < 0) continue;
+        std::string raw = par->GetRaw().Data();
+        std::replace(raw.begin(), raw.end(), ',', ' ');
+        std::istringstream input(raw);
+        std::vector<std::string> tokens;
+        for (std::string token; input >> token;) {
+            TString expanded(token);
+            fPar->ReplaceVariables(expanded);
+            tokens.emplace_back(expanded.Data());
+        }
+        try {
+            const int n = kind == 2 ? 4 : 2;
+            if (tokens.size() != size_t(n+1))
+                throw std::invalid_argument("expected detector side gain OR cobo asad aget channel gain");
+            GainRule rule;
+            rule.kind = kind;
+            for (int j=0; j<n; ++j) {
+                size_t used = 0;
+                rule.address[j] = std::stoi(tokens[j], &used);
+                if (used != tokens[j].size() || rule.address[j] < -1)
+                    throw std::invalid_argument("addresses must be integers >= -1");
+            }
+            if (kind != 2 && rule.address[1] > 1)
+                throw std::invalid_argument("side must be -1 (all), 0 (junction), or 1 (ohmic)");
+            size_t used = 0;
+            rule.gain = std::stod(tokens[n], &used);
+            if (used != tokens[n].size() || !std::isfinite(rule.gain) || rule.gain <= 0)
+                throw std::invalid_argument("gain must be finite and positive");
+            fGainRules.push_back(rule);
+            lk_info << name << " " << raw << endl;
+        } catch (const std::exception &error) {
+            lk_error << "Invalid " << name << ": " << raw << " (" << error.what() << ")" << endl;
+            return false;
+        }
+    }
+    return true;
+}
+
+double LKEnergyRestorationTask::GetPostCalibrationGain(const LKSiChannel *channel) const
+{
+    double gain = 1;
+    for (const auto &rule : fGainRules) {
+        std::array<int,4> address {{channel->GetCobo(), channel->GetAsad(), channel->GetAget(), channel->GetChan()}};
+        const int n = rule.kind == 2 ? 4 : 2;
+        if (rule.kind != 2) {
+            address[0] = rule.kind == 0 ? channel->GetDetNum() : channel->GetDetID();
+            address[1] = channel->GetSide();
+        }
+        bool matches = true;
+        for (int j=0; j<n; ++j)
+            if (rule.address[j] != -1 && rule.address[j] != address[j]) matches = false;
+        if (matches) gain = rule.gain;
+    }
+    return gain;
 }
 
 bool LKEnergyRestorationTask::LoadEnergyCalibrationFile(TString fileName)
@@ -150,6 +221,7 @@ bool LKEnergyRestorationTask::ApplyStandalone(LKSiChannel *channel)
         return false;
 
     auto energy = ApplyLinear(fC0Parameters.at(key), channel->GetEnergy());
+    energy *= GetPostCalibrationGain(channel);
     channel -> SetEnergy(energy);
     AddSiHit(channel, energy);
     return true;
@@ -192,6 +264,7 @@ bool LKEnergyRestorationTask::ApplyPaired(LKSiChannel *channel)
     if (correctedSum <= 0)
         return false;
 
+    correctedSum *= GetPostCalibrationGain(channel);
     auto factor = correctedSum / energySum;
     energyLow *= factor;
     energyHigh *= factor;
@@ -223,7 +296,8 @@ void LKEnergyRestorationTask::AddSiHit(LKSiChannel *channel, double energy, doub
     auto countHits = fHitArray -> GetEntriesFast();
     auto siHit = (SKSiHit *) fHitArray -> ConstructedAt(countHits);
     siHit -> SetDetID(channel->GetDetID());
-    siHit -> SetJunctionStrip(channel->GetStrip());
+    if (channel->GetSide() == 0)
+        siHit -> SetJunctionStrip(channel->GetStrip());
     siHit -> SetKeyEnergy(energy);
     siHit -> SetEnergy(energy);
     siHit -> SetStripPosition(channel->GetPosition());
