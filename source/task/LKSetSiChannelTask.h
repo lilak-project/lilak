@@ -34,6 +34,8 @@ class LKSetSiChannelTask : public LKTask
         TFormula *fSaturationEnergyFormula = nullptr; //! Compiled once at Init
         bool fSaturationNeedsSlope = false;
         int fSaturationSlopeWindow = 6; ///< TB samples immediately before the first saturated TB.
+        int fHitTbStart = 0;
+        int fHitTbEnd = 512;
         LKSiliconArray* fSiliconArray = nullptr;
         LKChannelAnalyzer* fChannelAnalyzer = nullptr;
         LKChannelAnalyzer* fChannelAnalyzer2 = nullptr;
@@ -43,7 +45,7 @@ class LKSetSiChannelTask : public LKTask
         TClonesArray *fSiChannelArray = nullptr;
         TClonesArray *fFitDataArray = nullptr;
 
-    ClassDef(LKSetSiChannelTask, 5)
+    ClassDef(LKSetSiChannelTask, 6)
 };
 
 #endif

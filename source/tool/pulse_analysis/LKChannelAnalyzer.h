@@ -244,7 +244,8 @@ class LKChannelAnalyzer : public LKPadInteractive
 
         int GetTbMax() const  { return fTbMax; }
         int GetTbStart() const  { return fTbStart; }
-        int GetTbStartCut() const  { return fTbStartCut; }
+        int GetTbEnd() const  { return fTbEnd; }
+        int GetTbStartCut() const  { return GetTbEnd(); } ///< Backward-compatible alias for GetTbEnd().
         int GetThreshold() const  { return fThreshold; }
         int GetThresholdOneTbStep() const  { return fThresholdOneStep; }
         int GetNumTbAcendingCut() const  { return fNumTbAcendingCut; }
@@ -259,7 +260,8 @@ class LKChannelAnalyzer : public LKPadInteractive
         void SetTbRange(int tbStart, int tbMax) { fTbStart = tbStart; fTbMax = tbMax; }
         void SetTbMax(int tbMax) { fTbMax = tbMax; }
         void SetTbStart(int tbStart) { fTbStart = tbStart; }
-        void SetTbStartCut(int tbStartCut) { fTbStartCut = tbStartCut; }
+        void SetTbEnd(int tbEnd) { fTbEnd = tbEnd; }
+        void SetTbStartCut(int tbStartCut) { SetTbEnd(tbStartCut); } ///< Backward-compatible alias for SetTbEnd().
         void SetThreshold(int threshold) { fThreshold = threshold; }
         void SetThresholdOneStep(int oneStepThreshold) { fThresholdOneStep = oneStepThreshold; }
         void SetNumTbAcendingCut(int numAcendingCut) { fNumTbAcendingCut = numAcendingCut; }
@@ -326,7 +328,7 @@ class LKChannelAnalyzer : public LKPadInteractive
         // tb
         int          fTbMax = 512; ///< Maximum TB in buffer. Must be set with SetTbMax()
         int          fTbStart = 1; ///< Starting TB-position for analysis. Must be set with SetTbStart()
-        int          fTbStartCut = -1; ///< Pulse TB-position cannot be larger than fTbStartCut. Automatically set from pulse: fTbStartCut = fTbMax - fNDFFit. Can be set with SetTbStartCut()
+        int          fTbEnd = -1; ///< Exclusive end of the TB analysis range. Automatically set from pulse to fTbMax - fNDFFit. Can be set with SetTbEnd().
         int          fNumTbAcendingCut = 5; ///< Peak will be recognize if number-of-TBs-acending >= fNumTbAcendingCut. Automatically set from pulse: fNumTbAcendingCut = int(fWidthLeading*2/3).Can be set with SetNumTbAcendingCut()
 
         // y

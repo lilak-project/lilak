@@ -28,6 +28,15 @@ bool LKSetSiChannelTask::Init()
 {
     fPar -> UpdatePar(fPulserAnalysis,
             "LKSetSiChannelTask/pulser_analysis false # Force inverted pulse polarity and skip saturation processing.");
+    fPar -> UpdatePar(fHitTbStart,
+            "LKSetSiChannelTask/hit_tb_range 0 512 # Search range [start, end) for waveform hits.", 0);
+    fPar -> UpdatePar(fHitTbEnd, "LKSetSiChannelTask/hit_tb_range", 1);
+    if (fHitTbStart < 0 || fHitTbStart >= fHitTbEnd || fHitTbEnd > 512) {
+        lk_error << "Invalid LKSetSiChannelTask/hit_tb_range "
+                 << fHitTbStart << " " << fHitTbEnd
+                 << ". Expected 0 <= start < end <= 512." << endl;
+        return false;
+    }
 
     fPar->UpdatePar(fPedestalTbFirst, "LKSetSiChannelTask/PedestalTbRange", 0);
     fPar->UpdatePar(fPedestalTbLast, "LKSetSiChannelTask/PedestalTbRange", 1);
@@ -91,6 +100,11 @@ bool LKSetSiChannelTask::Init()
     fChannelAnalyzer2 = new LKChannelAnalyzer();
     fChannelAnalyzer2 -> SetPulse(pulseFileName);
     //fChannelAnalyzer2 -> Print();
+
+    for (auto analyzer : {fChannelAnalyzer, fChannelAnalyzer2}) {
+        analyzer -> SetTbStart(fHitTbStart);
+        analyzer -> SetTbEnd(fHitTbEnd);
+    }
 
     return true;
 }

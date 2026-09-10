@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 #include "LKChannelAnalyzer.h"
 #include "TLine.h"
@@ -124,8 +125,8 @@ void LKChannelAnalyzer::ConfigureFromPulse()
     fTbStepIfFoundHit = fNDFFit;
     fTbStepIfSaturated = int(fWidth*1.2);
     fTbSeparationWidth = fNDFFit;
-    if (fTbStartCut<0)
-        fTbStartCut = fTbMax - fNDFFit;
+    if (fTbEnd<0)
+        fTbEnd = fTbMax - fNDFFit;
     fNumTbAcendingCut = int(fWidthLeading*2/3);
 
     Init();
@@ -171,7 +172,7 @@ void LKChannelAnalyzer::Print(Option_t *option) const
         e_info << "== General" << endl;
         e_info << "   fTbMax             = " << fTbMax               << endl;
         e_info << "   fTbStart           = " << fTbStart             << endl;
-        e_info << "   fTbStartCut        = " << fTbStartCut          << endl;
+        e_info << "   fTbEnd             = " << fTbEnd               << endl;
         e_info << "   fNumTbAcendingCut  = " << fNumTbAcendingCut    << endl;
         e_info << "   fDynamicRange      = " << fDynamicRange        << endl;
         e_info << "   fDataIsInverted    = " << fDataIsInverted      << endl;
@@ -202,7 +203,7 @@ void LKChannelAnalyzer::Print(Option_t *option) const
         e_info << "   fThreshold         = " << fThreshold           << endl;
         e_info << "   fTbMax             = " << fTbMax               << endl;
         e_info << "   fTbStart           = " << fTbStart             << endl;
-        e_info << "   fTbStartCut        = " << fTbStartCut          << endl;
+        e_info << "   fTbEnd             = " << fTbEnd               << endl;
         e_info << "   fNumTbAcendingCut  = " << fNumTbAcendingCut    << endl;
         e_info << "   fDynamicRange      = " << fDynamicRange        << endl;
         e_info << "   fDataIsInverted    = " << fDataIsInverted      << endl;
@@ -213,7 +214,7 @@ void LKChannelAnalyzer::Print(Option_t *option) const
         e_info << "   fThreshold         = " << fThreshold           << endl;
         e_info << "   fTbMax             = " << fTbMax               << endl;
         e_info << "   fTbStart           = " << fTbStart             << endl;
-        e_info << "   fTbStartCut        = " << fTbStartCut          << endl;
+        e_info << "   fTbEnd             = " << fTbEnd               << endl;
         e_info << "   fNumTbAcendingCut  = " << fNumTbAcendingCut    << endl;
         e_info << "   fDynamicRange      = " << fDynamicRange        << endl;
         e_info << "   fDataIsInverted    = " << fDataIsInverted      << endl;
@@ -496,7 +497,8 @@ void LKChannelAnalyzer::AnalyzeSigAtMaximum()
 {
     int tbHit = 0;
     double amplitude = -DBL_MAX;
-    for (auto tb=0; tb<fTbMax; ++tb) {
+    int tbEnd = (fTbEnd < 0 ? fTbMax : std::min(fTbEnd, fTbMax));
+    for (auto tb=std::max(fTbStart, 0); tb<tbEnd; ++tb) {
         if (amplitude<fBuffer[tb]) {
             tbHit = tb;
             amplitude = fBuffer[tb];
@@ -518,7 +520,8 @@ void LKChannelAnalyzer::AnalyzeSigAtThreshold()
     int tMax = 0;
     double xMin, xMax, width, integral;
     double amplitude = -DBL_MAX;
-    for (auto tb=0; tb<fTbMax; ++tb)
+    int tbEnd = (fTbEnd < 0 ? fTbMax : std::min(fTbEnd, fTbMax));
+    for (auto tb=std::max(fTbStart, 0); tb<tbEnd; ++tb)
     {
         auto value = fBuffer[tb];
         if (tbAtThreshold<0 && value>fThreshold)
@@ -585,7 +588,7 @@ void LKChannelAnalyzer::AnalyzePulseFitting()
 #ifdef DEBUG_CHANA_ANALYZE
             lk_debug << tbPointer << " " << tbStartOfPulse << endl;
 #endif
-            if (tbStartOfPulse > fTbStartCut-1)
+            if (tbStartOfPulse > fTbEnd-1)
                 break;
 
             bool isSaturated = false;
@@ -1034,9 +1037,9 @@ bool LKChannelAnalyzer::FitPulse(double *buffer, int tbStartOfPulse, int tbPeak,
         tbStep = par.TbStep();
         tbCurr = par.NextTb(tbPrev);
 
-        if (tbCurr<0 || tbCurr>fTbStartCut) {
+        if (tbCurr<0 || tbCurr>fTbEnd) {
 #ifdef DEBUG_CHANA_FITPULSE
-            lk_debug << "break(" << countIteration << ") tbCur<0 || tbCur<fTbStartCut : " << tbCurr << " " << fTbStartCut << endl;
+            lk_debug << "break(" << countIteration << ") tbCurr<0 || tbCurr>fTbEnd : " << tbCurr << " " << fTbEnd << endl;
 #endif
             return false;
         }
