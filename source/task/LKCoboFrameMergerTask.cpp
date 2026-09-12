@@ -1,7 +1,10 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <algorithm>
+#include <cstdint>
 #include <utility>
+#include <vector>
 using namespace std;
 
 #include "LKCoboFrameMergerTask.h"
@@ -17,6 +20,22 @@ using namespace std;
 ClassImp(LKCoboFrameMergerTask);
 
 namespace {
+// Offline files can contain tens of millions of frames.  Keep only enough
+// information to find each frame again instead of retaining its waveform
+// payload in LKCoboFrameMerger::fPending.
+struct OfflineFrameRef
+{
+    OfflineFrameRef(uint64_t position, uint32_t event, uint32_t source)
+    : filePosition(position), eventId(event), sourceId(source) {}
+
+    uint64_t filePosition;
+    uint32_t eventId;
+    uint32_t sourceId;
+};
+
+static_assert(sizeof(OfflineFrameRef) == 16,
+        "OfflineFrameRef must stay compact; large runs contain many millions of frames");
+
 // Size in bytes of the frame whose 8-byte primary header starts at hdr.
 // Mirrors LKGETFrameParser: low nibble of byte 0 is the log2 block size and
 // bytes 1..3 hold the frame size in blocks (big endian) for CoBo frames.
@@ -127,15 +146,21 @@ void LKCoboFrameMergerTask::Run(Long64_t numEvents)
         }
     }
 
-    fMerger->SetNumSources(nSources);
-
     // Frames are not stored in strictly increasing event-id order inside a raw
-    // CoBo file (the writer groups them by AsAd), so - exactly like
-    // cobo-frame-merge - every frame of every source is indexed first and the
-    // merged events are emitted afterwards in ascending event-id order.
+    // CoBo file (the writer groups them by AsAd), so every frame must first be
+    // indexed.  Store compact file references just like cobo-frame-merge does;
+    // retaining LKGETRawFrame here would keep the complete raw payload in RAM.
+    std::vector<OfflineFrameRef> frameIndex;
     for (int i = 0; i < nSources && fContinueEvent; ++i) {
         Long64_t nCobo = 0;
         while (true) {
+            auto framePosition = inputs[i].tellg();
+            if (framePosition == std::streampos(-1)) {
+                lk_error << "Could not get input position for source " << i << endl;
+                fRun->SignalEndOfRun();
+                return;
+            }
+
             LKGETRawFrame frame;
             if (!fParser.ReadNextFrame(inputs[i], frame))
                 break;
@@ -145,18 +170,76 @@ void LKCoboFrameMergerTask::Run(Long64_t numEvents)
                 fConverter->ProcessFrame(frame);
             }
             else if (frame.frameType == 1 || frame.frameType == 2) {
-                fMerger->AddFrame(i, frame);
+                frameIndex.emplace_back(
+                        static_cast<uint64_t>(static_cast<std::streamoff>(framePosition)),
+                        frame.eventIdx,
+                        static_cast<uint32_t>(i));
                 ++nCobo;
             }
             // any other frame type (blob, ...) is skipped
         }
-        fMerger->CloseSource(i);
-        inputs[i].close();
+        inputs[i].clear();
         lk_info << "Source " << i << ": indexed " << nCobo << " CoBo frame(s)" << endl;
     }
 
-    // every source closed -> flush the merged events in ascending id order
-    DrainReadyEvents();
+    lk_info << "Sorting " << frameIndex.size() << " compact frame reference(s); index uses "
+            << (frameIndex.capacity() * sizeof(OfflineFrameRef)) / (1024 * 1024)
+            << " MiB" << endl;
+    std::sort(frameIndex.begin(), frameIndex.end(),
+            [](const OfflineFrameRef& lhs, const OfflineFrameRef& rhs) {
+                if (lhs.eventId != rhs.eventId)
+                    return lhs.eventId < rhs.eventId;
+                if (lhs.sourceId != rhs.sourceId)
+                    return lhs.sourceId < rhs.sourceId;
+                return lhs.filePosition < rhs.filePosition;
+            });
+
+    // Re-read and merge one event at a time.  Only that event's payload is
+    // resident, while the compact index remains in memory.
+    size_t indexPosition = 0;
+    while (indexPosition < frameIndex.size() && fContinueEvent) {
+        const uint32_t eventId = frameIndex[indexPosition].eventId;
+        LKGETRawFrame merged;
+        merged.frameType = 0xFF01;
+        merged.isLayered = true;
+        merged.eventIdx = eventId;
+
+        uint64_t mergedSize = 0;
+        do {
+            const auto& ref = frameIndex[indexPosition];
+            auto& input = inputs[ref.sourceId];
+            input.clear();
+            input.seekg(static_cast<std::streamoff>(ref.filePosition), ios::beg);
+
+            LKGETRawFrame child;
+            if (!input.good() || !fParser.ReadNextFrame(input, child)) {
+                lk_error << "Could not re-read source " << ref.sourceId
+                         << " at byte " << ref.filePosition << endl;
+                fRun->SignalEndOfRun();
+                return;
+            }
+            if ((child.frameType != 1 && child.frameType != 2) || child.eventIdx != eventId) {
+                lk_error << "Indexed frame changed in source " << ref.sourceId
+                         << " at byte " << ref.filePosition << endl;
+                fRun->SignalEndOfRun();
+                return;
+            }
+
+            mergedSize += child.bytes.size();
+            merged.children.push_back(std::move(child));
+            ++indexPosition;
+        }
+        while (indexPosition < frameIndex.size() && frameIndex[indexPosition].eventId == eventId);
+
+        merged.itemCount = static_cast<uint32_t>(merged.children.size());
+        merged.frameSizeBytes = mergedSize;
+        fLastMergedSize = static_cast<Int_t>(mergedSize);
+        fConverter->ProcessFrame(merged);
+        SignalNextEvent();
+    }
+
+    for (auto& input : inputs)
+        input.close();
 }
 
 void LKCoboFrameMergerTask::DrainReadyEvents()
