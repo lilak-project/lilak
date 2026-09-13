@@ -249,6 +249,14 @@ class LKChannelAnalyzer : public LKPadInteractive
         int GetThreshold() const  { return fThreshold; }
         int GetThresholdOneTbStep() const  { return fThresholdOneStep; }
         int GetNumTbAcendingCut() const  { return fNumTbAcendingCut; }
+        /// Inclusive pedestal interval; (-1,-1) restores automatic selection.
+        void SetPedestalTbRange(int first, int last);
+        double GetNoiseScale() const { return fNoiseScale; }
+        /// Opposite lobe / positive peak ratio, after polarity normalization.
+        void SetBipolarPercentRange(double minimum, double maximum);
+        void SetBipolarWindow(int window);
+        bool IsBipolar() const;
+        bool IsBipolar(double minRatio, double maxRatio, int window) const;
         double GetPedestal() const  { return fPedestal; }
         int GetDynamicRange() const  { return fDynamicRange; }
         int GetNDF() const  { return fNDFFit; }
@@ -321,6 +329,12 @@ class LKChannelAnalyzer : public LKPadInteractive
         bool         fUsedSample[20];
         double       fPedestalSample[20] = {0.};
         double       fStddevSample[20] = {0.};
+        double       fBipolarMinPercent = 50;
+        double       fBipolarMaxPercent = 150;
+        int          fBipolarWindow = 30;
+        int          fPedestalTbFirst = -1;
+        int          fPedestalTbLast = -1;
+        double       fNoiseScale = 0;
         double       fPedestal = 0; ///< pedestal level of current channel
         double       fPedestalErrorRefSampleCut = 10;
         const double fCVCut = 0.2; ///< stdDev/mean cut for collecting samples used for calculating pedestal.
@@ -393,7 +407,7 @@ class LKChannelAnalyzer : public LKPadInteractive
 
         void ConfigureFromPulse();
 
-    ClassDef(LKChannelAnalyzer,2);
+    ClassDef(LKChannelAnalyzer,3);
 };
 
 #endif
