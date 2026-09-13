@@ -274,6 +274,9 @@ class LKRun : public LKVirtualRun
         bool ExecuteLastEvent() { return ExecuteEvent(-5); }
 
         bool CheckMute(Long64_t eventCount=-1) { if (eventCount<0) eventCount = fEventCount; return (eventCount==0||eventCount%fEventCountForMessage!=0); }
+        /// Stop remaining tasks for this event; output suppression is a separate decision.
+        void StopCurrentEvent();
+        void ExecuteTask(Option_t *option="0") override;
         void DoNotFillCurrentEvent() { fFillCurrentEvent = false; }
 
         /// Search input files with given LKRun/RunID.
@@ -434,6 +437,8 @@ class LKRun : public LKVirtualRun
 
     private:
         static LKRun *fInstance;
+
+        bool fStopCurrentEvent = false; //! transient execution state
 
     ClassDef(LKRun, 1)
 };

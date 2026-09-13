@@ -2591,3 +2591,21 @@ void LKRun::Draw(Option_t* option)
     fDataViewer -> SetRun(this);
     topDrawingGroup -> Draw(TString(fDrawOption));
 }
+
+void LKRun::StopCurrentEvent()
+{
+    fStopCurrentEvent = true;
+    // TTask checks this before every child, including nested task lists.
+    fgBreakPoint = this;
+}
+
+void LKRun::ExecuteTask(Option_t *option)
+{
+    fStopCurrentEvent = false;
+    TTask::ExecuteTask(option);
+    if (fStopCurrentEvent) {
+        // Abort only after the Exec/ExecuteTasks stack has unwound.
+        TTask::Abort();
+        fStopCurrentEvent = false;
+    }
+}
