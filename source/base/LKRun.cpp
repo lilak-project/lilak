@@ -2420,6 +2420,11 @@ vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchTag, TStrin
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////
             if (searchTag=="mfm")
             {
+                // Sidecar files generated for MFM navigation begin with the
+                // same run name, but they are metadata rather than raw input.
+                if (fileName.Contains(".mfm_event_index")
+                        || fileName.Contains(".mfm_event_ranges.json"))
+                    continue;
                 //if (sysFile->IsDirectory()==false && fileName.Index("run_")==0 && fileName.Sizeof()>=32)
                 if (sysFile->IsDirectory()==false && fileName.Index("run_")==0)
                 {

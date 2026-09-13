@@ -279,6 +279,10 @@ vector<TString> LKTestRun::SearchRunFiles(int searchRunNo, TString searchTag, TS
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////
             if (searchTag=="mfm")
             {
+                // Do not treat viewer/merger sidecar caches as raw MFM input.
+                if (fileName.Contains(".mfm_event_index")
+                        || fileName.Contains(".mfm_event_ranges.json"))
+                    continue;
                 if (sysFile->IsDirectory()==false && fileName.Index("run_")==0 && fileName.Sizeof()>=32)
                 {
                     int runNo = TString(fileName(5,4)).Atoi();
