@@ -56,11 +56,33 @@ using namespace std;
  *  - [name] can set group using "/". ex) group/name
  *  - To add additional parameter file, start [name] with "<". ex) <common_parameters   path/to/additional/config.mac
  *
+ * ## Conditions in parameter names
+ *  - A slash-separated ?parameter==value segment admits the line only if the comparison is true.
+ *    Example: group/?run==8000/runs 94, 95, 96:100 is stored as group/runs when run is 8000.
+ *  - Numeric comparisons: ==, !=, <, >, <=, >=. Do not put spaces inside the name.
+ *  - Operands can be numeric values/expressions or previously added parameter names (run, {limit}).
+ *    Missing parameter references skip the line.
+ *  - Chained comparisons test every adjacent pair: ?10<run<=15 means 10<run AND run<=15.
+ *    Example: group/?10<run<15/runs 11:14. Descending ranges such as ?15>run>10 also work.
+ *  - Both sides may refer to parameters: ?name==name1, ?run>run2, ?lower<run<upper.
+ *    Quote literal strings to distinguish them from parameter names.
+ *  - Slashes inside {...} references and quoted strings do not split the parameter path.
+ *    Example: ?{LKRun/RunID}==8000/group/value or ?{LKRun/RunID}:{8000,{other/run}}/value.
+ *  - Membership: ?run:{1,2,5,6,7}. An empty list matches nothing.
+ *    Lists also accept booleans and quoted strings: ?name:{"first_run","second_run"}.
+ *  - Boolean comparisons accept true/false (case-insensitive), equivalent to 1/0.
+ *    Example: ?is_good==false. Quoted string literals compare case-sensitively with == or !=:
+ *    ?name=="first_run" or ?name!="first_run". String ordering is not supported.
+ *  - Multiple condition segments must all be true. Evaluation happens when the line is added.
+ *  - Existing ?{parameter}==value conditions and the !name rewrite marker remain supported.
+ *
  * ## [value]
  *  - [value] can be a single value or a list of values.
  *  - If [value] is a list of values, they should be separated by commas.
  *  - [value] can reference other parameters values using {...}. ex) {[name]}, {[name][1]}.
  *  - [value] can reference environment variable using e{...}. ex) e{ROOTSYS}, e{HOME}, e{LILAK_PATH}
+ *  - An unset or empty environment variable can have a default value using e{NAME:-default}.
+ *    Example: common_run e{RUN:-147}
  *
  * ## Folloing symbols should not be included in name / value
  *   - name  : < @ & ! = { } / *
@@ -143,7 +165,7 @@ class LKParameterContainer : public TObjArray
         { return FindAndRetrieveColumnValue(fileName, searchColumn, TString(Form("%d",searchValue)), getColumn, getValue); }
         int  FindAndRetrieveColumnValue(TString fileName, int searchColumn, double searchValue, int getColumn, TString &getValue)
         { return FindAndRetrieveColumnValue(fileName, searchColumn, TString(Form("%f",searchValue)), getColumn, getValue); }
-        void ReplaceEnvVariables(TString &val); ///< evaluate and replace all unraveled variables with ({par},+,-,...)
+        void ReplaceEnvVariables(TString &val); ///< Replace e{NAME}, e{NAME:-default}, and cv{...} environment expressions
         void ReplaceVariables(TString &val); ///< evaluate and replace all unraveled variables with ({par},+,-,...)
 
         /**
