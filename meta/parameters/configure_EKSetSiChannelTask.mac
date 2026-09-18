@@ -1,7 +1,0 @@
-
-persistency/PFData            true
-persistency/SiChannel         true
-
-reco/IgnoreMultHit            
-
-stark/pulseFile               

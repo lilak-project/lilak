@@ -1,4 +1,0 @@
-keep                          EKSiHit SiHit_12RdE
-keep                          EKSiHit SiHit_12RE
-keep                          EKSiHit SiHit_16R
-register                      EKRecoHit RecoHit

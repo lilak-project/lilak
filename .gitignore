@@ -55,7 +55,7 @@ __pycache__
 meta/*
 !meta/*.in
 !meta/*.conf
-!meta/parameters
+meta/parameters/
 meta/elog_config.json
 meta/elog_env.sh
 doxy.conf

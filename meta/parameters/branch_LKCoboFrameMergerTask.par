@@ -1,2 +1,0 @@
-register                      LKEventHeader FrameHeader
-register                      GETChannel RawData
