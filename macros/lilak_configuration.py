@@ -1512,16 +1512,23 @@ lilak() {{
                 found_target=1
                 par_file="$LILAK_PATH/meta/parameters/configure_LKRun.mac"
                 root_command="root -l -q -e 'auto run = new LKRun(); run -> SetCollectPar(\\"${{par_file}}\\"); run -> Init();'"
-                echo
-                echo "=============================="
                 echo "Class: LKRun"
-                echo "$root_command"
-                eval "$root_command"
+                make_meta_log="$LILAK_PATH/data/log/make_meta_LKRun.log"
+                mkdir -p "$(dirname "$make_meta_log")"
+                if [ "$LILAK_MAKE_META_VERBOSE" = "1" ]; then
+                    echo "$root_command"
+                    eval "$root_command"
+                else
+                    eval "$root_command" > "$make_meta_log" 2>&1
+                fi
                 run_status=$?
                 if [ -f "$par_file" ]; then
                     generated_files+=("$par_file")
                 fi
-                if [ "${{#generated_files[@]}}" -gt 0 ]; then
+                if [ "$run_status" -ne 0 ] && [ ! -f "$par_file" ]; then
+                    echo "  failed. Log: $make_meta_log"
+                fi
+                if [ "$LILAK_MAKE_META_VERBOSE" = "1" ] && [ "${{#generated_files[@]}}" -gt 0 ]; then
                     echo
                     echo "Generated files:"
                     printf '%s\\n' "${{generated_files[@]}}"
@@ -1545,11 +1552,15 @@ lilak() {{
                 else
                     root_command="root -l -q -e 'auto run = new LKRun(); run -> Add(new ${{class_name}}); run -> SetCollectSubPar(\\"${{par_file}}\\"); run -> SetCollectBranchPar(\\"${{branch_file}}\\"); run -> Init();'"
                 fi
-                echo
-                echo "=============================="
                 echo "Class: ${{class_name}}"
-                echo "$root_command"
-                eval "$root_command"
+                make_meta_log="$LILAK_PATH/data/log/make_meta_${{class_name}}.log"
+                mkdir -p "$(dirname "$make_meta_log")"
+                if [ "$LILAK_MAKE_META_VERBOSE" = "1" ]; then
+                    echo "$root_command"
+                    eval "$root_command"
+                else
+                    eval "$root_command" > "$make_meta_log" 2>&1
+                fi
                 run_status=$?
                 if [ -f "$par_file" ]; then
                     generated_files+=("$par_file")
@@ -1557,12 +1568,15 @@ lilak() {{
                 if [ "$class_name" != "LKRun" ] && [ -f "$branch_file" ]; then
                     generated_files+=("$branch_file")
                 fi
+                if [ "$run_status" -ne 0 ] && {{ [ ! -f "$par_file" ] || {{ [ "$class_name" != "LKRun" ] && [ ! -f "$branch_file" ]; }}; }}; then
+                    echo "  failed. Log: $make_meta_log"
+                fi
             done < "$par_list_file"
             if [ -n "$target_class" ] && [ "$found_target" -eq 0 ]; then
                 echo "Class not found in $par_list_file: $target_class"
                 return 1
             fi
-            if [ "${{#generated_files[@]}}" -gt 0 ]; then
+            if [ "$LILAK_MAKE_META_VERBOSE" = "1" ] && [ "${{#generated_files[@]}}" -gt 0 ]; then
                 echo
                 echo "Generated files:"
                 printf '%s\\n' "${{generated_files[@]}}"
