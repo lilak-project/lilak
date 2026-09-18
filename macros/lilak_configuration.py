@@ -1224,7 +1224,13 @@ lilak_warn_if_make_meta_is_stale() {{
         echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
         return
     fi
-    if ! cmp -s "$current_tags" "$last_meta_tags"; then
+    local current_norm=""
+    local last_norm=""
+    current_norm=$(mktemp)
+    last_norm=$(mktemp)
+    grep -v '^[[:space:]]*$' "$current_tags" > "$current_norm"
+    grep -v '^[[:space:]]*$' "$last_meta_tags" > "$last_norm"
+    if ! cmp -s "$current_norm" "$last_norm"; then
         echo
         echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
         echo "Current build git tags differ from the last make_meta snapshot."
@@ -1232,9 +1238,10 @@ lilak_warn_if_make_meta_is_stale() {{
         echo "Last make_meta snapshot: $last_meta_tags"
         echo "Current build tags      : $current_tags"
         echo "Diff:"
-        diff -u "$last_meta_tags" "$current_tags" || true
+        diff -u "$last_norm" "$current_norm" || true
         echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     fi
+    rm -f "$current_norm" "$last_norm"
 }}
 
 lilak_run_make_meta_for_stale_classes() {{

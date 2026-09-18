@@ -26,6 +26,9 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         status=$?
     fi
     source "${LILAK_PATH}/macros/command_lilak.sh"
+    if [[ $status -eq 0 ]]; then
+        lilak make_meta
+    fi
     exit $status
 else
     # Script is sourced
