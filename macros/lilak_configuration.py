@@ -1244,6 +1244,37 @@ lilak_warn_if_make_meta_is_stale() {{
     rm -f "$current_norm" "$last_norm"
 }}
 
+lilak_make_meta_if_needed() {{
+    local current_tags="$LILAK_PATH/meta/LKCompiledTags.log"
+    local last_meta_tags="$LILAK_PATH/meta/LKLastMakeMetaTags.log"
+    if [ ! -f "$current_tags" ]; then
+        return
+    fi
+    if [ ! -f "$last_meta_tags" ]; then
+        echo
+        echo "Running make_meta because the tag snapshot is missing."
+        lilak make_meta
+        return
+    fi
+
+    local current_norm=""
+    local last_norm=""
+    current_norm=$(mktemp)
+    last_norm=$(mktemp)
+    grep -v '^[[:space:]]*$' "$current_tags" > "$current_norm"
+    grep -v '^[[:space:]]*$' "$last_meta_tags" > "$last_norm"
+    if ! cmp -s "$current_norm" "$last_norm"; then
+        rm -f "$current_norm" "$last_norm"
+        echo
+        echo "Running make_meta because build tags changed."
+        lilak make_meta
+        return
+    fi
+    rm -f "$current_norm" "$last_norm"
+
+    lilak_run_make_meta_for_stale_classes
+}}
+
 lilak_run_make_meta_for_stale_classes() {{
     local par_list_file="$LILAK_PATH/meta/LKClassList.par.log"
     if [ ! -f "$par_list_file" ]; then
