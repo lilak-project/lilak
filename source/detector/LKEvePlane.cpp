@@ -354,11 +354,22 @@ void LKEvePlane::UpdateChannelBuffer()
             auto engy = channel -> GetEnergy();
             auto time = channel -> GetTime();
             auto pdst = channel -> GetPedestal();
+            auto buffer = (useShapedBuffer ? ((LKPad*) channel) -> GetArrayShaped() : channel -> GetWaveformY());
+
+            fChannelAnalyzer -> Analyze(buffer);
+            auto numHits = fChannelAnalyzer -> GetNumHits();
+            auto pedestal = fChannelAnalyzer -> GetPedestal();
+            auto noise = fChannelAnalyzer -> GetNoiseScale();
+            auto psaTime = (numHits>0 ? fChannelAnalyzer -> GetTbHit(0) : -1.);
+            auto height = (numHits>0 ? fChannelAnalyzer -> GetAmplitude(0) : 0.);
+            auto signalToNoise = (noise>0 ? height/noise : 0.);
 
             TString title = Form("(PC) = (%d, %d)", fSelPadID, fSelRawDataID);
             title = title + Form(", (i,j) = (%1.f, %1.f)", pad->GetI(), pad->GetJ());
             title = title + Form(", (CAAC) = (%d, %d, %d, %d)", cobo, asad, aget, chan);
             title = title + Form(", (TEP)=(%.1f, %.1f, %.1f)", time, engy, pdst);
+            title = title + Form(", PSA(T,H,P,N,S/N,#)=(%.1f, %.1f, %.1f, %.1f, %.1f, %d)",
+                                 psaTime, height, pedestal, noise, signalToNoise, numHits);
             fHistChannelBuffer -> SetTitle(title);
 
             fPadChannelBuffer -> cd();
@@ -366,9 +377,6 @@ void LKEvePlane::UpdateChannelBuffer()
 
             if (fFitChannel)
             {
-                auto buffer = (useShapedBuffer ? ((LKPad*) channel) -> GetArrayShaped() : channel -> GetWaveformY());
-                fChannelAnalyzer -> Analyze(buffer);
-                auto numHits = fChannelAnalyzer -> GetNumHits();
                 fPadChannelBuffer -> cd();
                 auto graphPedestal = fChannelAnalyzer -> GetPedestalGraph();
                 graphPedestal -> SetLineColor(kAzure+10);//Orange-3);
@@ -377,7 +385,6 @@ void LKEvePlane::UpdateChannelBuffer()
                 {
                     auto tbHit = fChannelAnalyzer -> GetTbHit(iHit);
                     auto amplitude = fChannelAnalyzer -> GetAmplitude(iHit);
-                    auto pedestal = fChannelAnalyzer -> GetPedestal();
                     lk_info << iHit << ") (T,E,P) = (" << tbHit << ", " << amplitude << ", " << pedestal << ")" << endl;
                     auto graph = fChannelAnalyzer -> GetPulseGraph(tbHit,amplitude,pedestal);
                     graph -> SetLineColor(kBlue-4);

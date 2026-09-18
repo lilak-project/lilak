@@ -45,6 +45,9 @@ class LKPulseShapeAnalysisTask : public LKTask
         bool fFixPulseFunctionAlpha = false;
         bool fFixPulseFunctionTau = false;
         bool fUseRootPulseFit = true;
+        TString fInputBranchName = "RawData";
+        bool fUseShapedBuffer = false;
+        TString fAnalysisMode = "fit";
 
     ClassDef(LKPulseShapeAnalysisTask,1);
 };

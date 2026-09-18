@@ -135,6 +135,8 @@ void LKChannelAnalyzer::ConfigureFromPulse()
 void LKChannelAnalyzer::Clear(Option_t *option)
 {
     fPedestal = 0;
+    fNoiseScale = 0;
+    fIsBipolar = false;
     fDynamicRange = fDynamicRangeOriginal;
     fNumHits = 0;
     fFitParameterArray.clear();
@@ -771,6 +773,18 @@ double LKChannelAnalyzer::FindAndSubtractPedestal(double *buffer)
     fDynamicRange = fDynamicRange - pedestalFinal;
 
     fPedestal = pedestalFinal;
+
+    auto tbFirst = std::max(0, fPedestalTbFirst);
+    auto tbLast = std::min(fTbMax - 1, fPedestalTbLast);
+    double noise2 = 0;
+    int noiseCount = 0;
+    if (tbFirst <= tbLast) {
+        for (auto tb=tbFirst; tb<=tbLast; ++tb) {
+            noise2 += buffer[tb] * buffer[tb];
+            ++noiseCount;
+        }
+    }
+    fNoiseScale = (noiseCount > 0 ? std::sqrt(noise2 / noiseCount) : 0);
 
     return pedestalFinal;
 }

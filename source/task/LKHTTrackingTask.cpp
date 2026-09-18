@@ -37,7 +37,7 @@ bool LKHTTrackingTask::Init()
     }
     fPar -> UpdatePar(fNumHitsCut,"LKHTTrackingTask/num_hits_cut  3");
 
-    auto fTrackTemp = new LKLinearTrack();
+    fTrackTemp = new LKLinearTrack();
 
     fTracker0 = new LKHTLineTracker();
     fTracker1 = new LKHTLineTracker();

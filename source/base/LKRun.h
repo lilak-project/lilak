@@ -275,6 +275,7 @@ class LKRun : public LKVirtualRun
 
         bool CheckMute(Long64_t eventCount=-1) { if (eventCount<0) eventCount = fEventCount; return (eventCount==0||eventCount%fEventCountForMessage!=0); }
         void DoNotFillCurrentEvent() { fFillCurrentEvent = false; }
+        void StopCurrentEvent() { DoNotFillCurrentEvent(); }
 
         /// Search input files with given LKRun/RunID.
         /// Search and return array of matching files -> run_runNo*.[tag].root
