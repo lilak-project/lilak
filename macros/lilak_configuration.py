@@ -1116,7 +1116,7 @@ update_git_repos() {{
 
 lilak_write_current_tag_list() {{
     local output_file="$1"
-    local version_line=""
+    local main_version=""
     local branch=""
     local count=""
     local hash=""
@@ -1126,7 +1126,8 @@ lilak_write_current_tag_list() {{
             count=$(git -C "$LILAK_PATH" rev-list --count "$branch" 2>/dev/null)
             hash=$(git -C "$LILAK_PATH" rev-parse --short "$branch" 2>/dev/null)
             if [ -n "$branch" ] && [ -n "$count" ] && [ -n "$hash" ]; then
-                echo "lilak ${{branch}}.${{count}}.${{hash}}"
+                main_version="${{branch}}.${{count}}.${{hash}}"
+                echo "lilak ${{main_version}}"
             fi
         fi
         for project_dir in {" ".join(self.lf_lilak_projects)}; do
@@ -1137,6 +1138,8 @@ lilak_write_current_tag_list() {{
                 if [ -n "$branch" ] && [ -n "$count" ] && [ -n "$hash" ]; then
                     echo "${{project_dir}} ${{branch}}.${{count}}.${{hash}}"
                 fi
+            elif [ -n "$main_version" ] && [ -d "$LILAK_PATH/$project_dir" ]; then
+                echo "${{project_dir}} ${{main_version}}"
             fi
         done
     }} > "$output_file"
