@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shlex
 import signal
 import socket
 import subprocess
@@ -82,24 +83,69 @@ def process_exists(pid: int) -> bool:
     return True
 
 
-def is_viewer_process(pid: int, server_script: Path) -> bool:
+def process_arguments(pid: int) -> List[str]:
     try:
         arguments = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")
+        return [item.decode(errors="replace") for item in arguments if item]
     except (FileNotFoundError, PermissionError, ProcessLookupError):
-        return False
-    decoded = [item.decode(errors="replace") for item in arguments if item]
-    return str(server_script) in decoded
+        pass
+
+    try:
+        result = subprocess.run(
+            ["ps", "-ax", "-o", "pid=,command="],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return []
+    if result.returncode == 0:
+        for line in result.stdout.splitlines():
+            pid_text, separator, command = line.strip().partition(" ")
+            if not separator or pid_text != str(pid):
+                continue
+            try:
+                return shlex.split(command.strip())
+            except ValueError:
+                return command.strip().split()
+    return []
+
+
+def is_viewer_process(pid: int, server_script: Path) -> bool:
+    return str(server_script) in process_arguments(pid)
 
 
 def discover_servers(server_script: Path) -> List[Dict]:
     servers = []
-    for process_dir in Path("/proc").glob("[0-9]*"):
-        pid = int(process_dir.name)
+    processes = []
+    if Path("/proc").is_dir():
+        for process_dir in Path("/proc").glob("[0-9]*"):
+            pid = int(process_dir.name)
+            decoded = process_arguments(pid)
+            if decoded:
+                processes.append((pid, decoded))
+    else:
         try:
-            arguments = (process_dir / "cmdline").read_bytes().split(b"\0")
-        except (FileNotFoundError, PermissionError, ProcessLookupError):
-            continue
-        decoded = [item.decode(errors="replace") for item in arguments if item]
+            result = subprocess.run(
+                ["ps", "-ax", "-o", "pid=,command="],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except OSError:
+            result = None
+        if result is not None and result.returncode == 0:
+            for line in result.stdout.splitlines():
+                pid_text, separator, command = line.strip().partition(" ")
+                if not separator or not pid_text.isdigit():
+                    continue
+                try:
+                    decoded = shlex.split(command.strip())
+                except ValueError:
+                    decoded = command.strip().split()
+                processes.append((int(pid_text), decoded))
+
+    for pid, decoded in processes:
         if str(server_script) not in decoded:
             continue
         host = "127.0.0.1"
@@ -166,7 +212,9 @@ def access_urls(address: str) -> List[str]:
     host, port = split_address(address)
     if host == "0.0.0.0":
         hosts = interface_addresses()
-        return [f"http://{value}:{port}/" for value in hosts] or [f"http://127.0.0.1:{port}/"]
+        return [f"http://localhost:{port}/"] + [
+            f"http://{value}:{port}/" for value in hosts
+        ]
     return [f"http://{host}:{port}/"]
 
 

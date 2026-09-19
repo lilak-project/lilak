@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import argparse
 import bisect
-import cgi
 import json
 import math
 import os
@@ -12,8 +11,11 @@ import threading
 import urllib.parse
 import webbrowser
 from dataclasses import dataclass, field
+from email import policy
+from email.parser import BytesParser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from io import BytesIO
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
@@ -76,6 +78,45 @@ class DetectorMapping:
 
 MAPPING: Optional[DetectorMapping] = None
 BROWSE_START_PATH = str(Path.cwd().resolve())
+
+
+def read_multipart_file(headers, stream) -> Tuple[str, BytesIO]:
+    content_type = headers.get("Content-Type", "")
+    try:
+        content_length = int(headers.get("Content-Length", "0"))
+    except ValueError as exc:
+        raise RuntimeError("invalid upload content length") from exc
+    if content_length <= 0:
+        raise RuntimeError("upload body is empty")
+
+    body = stream.read(content_length)
+    if len(body) != content_length:
+        raise RuntimeError("upload body is cut off")
+
+    mime_headers = (
+        f"Content-Type: {content_type}\r\n"
+        "MIME-Version: 1.0\r\n\r\n"
+    ).encode("iso-8859-1")
+    message = BytesParser(policy=policy.default).parsebytes(mime_headers + body)
+    if message.get_content_type() != "multipart/form-data" or not message.is_multipart():
+        raise RuntimeError("upload requires multipart/form-data with a boundary")
+
+    for part in message.walk():
+        if part.is_multipart():
+            continue
+        if part.get_content_disposition() != "form-data":
+            continue
+        if part.get_param("name", header="content-disposition") != "file":
+            continue
+        filename = part.get_filename() or ""
+        if not filename:
+            raise RuntimeError("upload field 'file' has no filename")
+        content = part.get_payload(decode=True)
+        if content is None:
+            raise RuntimeError("upload field 'file' has no content")
+        return filename, BytesIO(content)
+
+    raise RuntimeError("upload field 'file' is missing")
 
 
 class ParseError(Exception):
@@ -144,22 +185,40 @@ def resolve_frame_type(data: bytes, offset: int = 0) -> int:
     return type_be
 
 
+def layered_is_little_endian(data: bytes, offset: int, block_size: int) -> bool:
+    """Choose the byte order shared by a layered frame's primary/secondary headers."""
+    if len(data) < offset + 20:
+        raise ParseError("layered frame header shorter than 20 bytes")
+
+    candidates = []
+    for little_endian in (False, True):
+        byte_order = "little" if little_endian else "big"
+        frame_size = int.from_bytes(data[offset + 1 : offset + 4], byte_order) * block_size
+        header_size = int.from_bytes(data[offset + 8 : offset + 10], byte_order) * block_size
+        item_count = int.from_bytes(data[offset + 12 : offset + 16], byte_order)
+        valid = (
+            20 <= header_size <= frame_size
+            and item_count <= (frame_size - header_size) // 8
+        )
+        candidates.append((valid, header_size, little_endian))
+
+    if candidates[0][0] != candidates[1][0]:
+        return candidates[1][0]
+    if candidates[0][0] and candidates[0][1] != candidates[1][1]:
+        return candidates[1][1] < candidates[0][1]
+    return False
+
+
 def frame_size_of(data: bytes, offset: int, block_size: int, frame_type: int) -> int:
-    # 0xFF11 is the MFM file header blob, whose size field is little endian.
+    # The file-header blob is little endian. Layered frames exist in both byte
+    # orders, while basic GET frames remain big endian.
     if frame_type == 0xFF11:
         return read_le24(data, offset) * block_size
+    if frame_type in LAYERED_FRAME_TYPES:
+        frame_offset = offset - 1
+        if layered_is_little_endian(data, frame_offset, block_size):
+            return read_le24(data, offset) * block_size
     return read_be24(data, offset) * block_size
-
-
-def layered_is_little_endian(data: bytes, frame_type: int, block_size: int, size: int) -> bool:
-    header_be = read_be16(data, 8) * block_size
-    header_le = read_le16(data, 8) * block_size
-    use_le = frame_type == 0xFF11
-    if use_le and not 20 <= header_le <= size:
-        use_le = False
-    if not use_le and not 20 <= header_be <= size and 20 <= header_le <= size:
-        use_le = True
-    return use_le
 
 
 @dataclass
@@ -227,7 +286,7 @@ class FrameParser:
             file_end=offset + frame_size,
         )
         if frame.is_layered and len(header) >= 20:
-            if layered_is_little_endian(header, frame_type, block_size, frame_size):
+            if layered_is_little_endian(header, 0, block_size):
                 frame.event_idx = read_le32(header, 16)
             else:
                 frame.event_idx = read_be32(header, 16)
@@ -246,14 +305,21 @@ class FrameParser:
         if len(header) != 8:
             raise ParseError(f"short frame header at byte {offset}")
 
+        frame_type = resolve_frame_type(header, 5)
+        if frame_type in LAYERED_FRAME_TYPES:
+            secondary_header = handle.read(12)
+            if len(secondary_header) != 12:
+                raise ParseError(f"layered frame header is cut off at byte {offset}")
+            header += secondary_header
+
         p2_block = header[0] & 0x0F
         block_size = 1 if p2_block == 0 else 1 << p2_block
-        frame_size = frame_size_of(header, 1, block_size, resolve_frame_type(header, 5))
-        if frame_size < 8:
+        frame_size = frame_size_of(header, 1, block_size, frame_type)
+        if frame_size < len(header):
             raise ParseError(f"invalid frame size {frame_size} at byte {offset}")
 
-        rest = handle.read(frame_size - 8)
-        if len(rest) != frame_size - 8:
+        rest = handle.read(frame_size - len(header))
+        if len(rest) != frame_size - len(header):
             raise TruncatedFrameError(f"frame at byte {offset} is cut off at end of file")
 
         frame = self.parse_frame_bytes(header + rest, offset)
@@ -286,7 +352,7 @@ class FrameParser:
         if frame.is_layered:
             if len(data) < 20:
                 raise ParseError(f"layered frame too short at byte {file_offset}")
-            if layered_is_little_endian(data, frame_type, block_size, len(data)):
+            if layered_is_little_endian(data, 0, block_size):
                 frame.header_size_bytes = read_le16(data, 8) * block_size
                 frame.item_size_bytes = read_le16(data, 10)
                 frame.item_count = read_le32(data, 12)
@@ -303,7 +369,8 @@ class FrameParser:
                     raise ParseError(f"child frame header outside parent at byte {file_offset + offset}")
                 child_p2 = data[offset] & 0x0F
                 child_block = 1 if child_p2 == 0 else 1 << child_p2
-                child_size = read_be24(data, offset + 1) * child_block
+                child_type = resolve_frame_type(data, offset + 5)
+                child_size = frame_size_of(data, offset + 1, child_block, child_type)
                 if child_size < 8 or offset + child_size > len(data):
                     raise ParseError(f"child frame outside parent at byte {file_offset + offset}")
                 child = self.parse_frame_bytes(data[offset : offset + child_size], file_offset + offset)
@@ -1134,11 +1201,8 @@ class ViewerHandler(BaseHTTPRequestHandler):
 
     def handle_upload(self) -> None:
         UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
-        form = cgi.FieldStorage(fp=self.rfile, headers=self.headers, environ={"REQUEST_METHOD": "POST"})
-        item = form["file"] if "file" in form else None
-        if item is None or not item.filename:
-            raise RuntimeError("upload field 'file' is missing")
-        name = os.path.basename(item.filename)
+        filename, source = read_multipart_file(self.headers, self.rfile)
+        name = os.path.basename(filename)
         target = UPLOAD_ROOT / name
         counter = 1
         while target.exists():
@@ -1146,7 +1210,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
             counter += 1
         with open(target, "wb") as output:
             while True:
-                chunk = item.file.read(1024 * 1024)
+                chunk = source.read(1024 * 1024)
                 if not chunk:
                     break
                 output.write(chunk)
@@ -1195,9 +1259,46 @@ def make_type1_frame(event_idx: int, cobo: int, asad: int, samples: List[Tuple[i
     return bytes(data)
 
 
+def make_layered_frame(event_idx: int, children: List[bytes], byte_order: str) -> bytes:
+    header_size = 24
+    frame_size = header_size + sum(len(child) for child in children)
+    data = bytearray(frame_size)
+    data[0] = 0x80
+    data[1:4] = frame_size.to_bytes(3, byte_order)
+    data[5:7] = (0xFF01).to_bytes(2, "big")
+    data[7] = 1
+    data[8:10] = header_size.to_bytes(2, byte_order)
+    data[10:12] = (0).to_bytes(2, byte_order)
+    data[12:16] = len(children).to_bytes(4, byte_order)
+    data[16:20] = event_idx.to_bytes(4, byte_order)
+    offset = header_size
+    for child in children:
+        data[offset : offset + len(child)] = child
+        offset += len(child)
+    return bytes(data)
+
+
 def run_self_test() -> None:
     import io
     import tempfile
+
+    boundary = "----lilak-get-viewer-test"
+    uploaded_bytes = b"\r\n\x00raw-data\n"
+    upload_body = (
+        f"--{boundary}\r\n"
+        'Content-Disposition: form-data; name="note"\r\n\r\n'
+        "ignored\r\n"
+        f"--{boundary}\r\n"
+        'Content-Disposition: form-data; name="file"; filename="run.dat"\r\n'
+        "Content-Type: application/octet-stream\r\n\r\n"
+    ).encode("ascii") + uploaded_bytes + f"\r\n--{boundary}--\r\n".encode("ascii")
+    upload_headers = {
+        "Content-Type": f'multipart/form-data; boundary="{boundary}"',
+        "Content-Length": str(len(upload_body)),
+    }
+    upload_name, upload_stream = read_multipart_file(upload_headers, io.BytesIO(upload_body))
+    assert upload_name == "run.dat"
+    assert upload_stream.read() == uploaded_bytes
 
     multi_selection = normalize_scan_selection({"channel": "10, 15-20, !17"})
     assert channel_matches_tuple((0, 0, 0, 10), multi_selection)
@@ -1241,6 +1342,17 @@ def run_self_test() -> None:
     )
     assert tree[0]["cobo"] == 2
     assert tree[0]["asads"][0]["asad"] == 1
+
+    for byte_order in ("big", "little"):
+        layered_raw = make_layered_frame(37, [raw], byte_order)
+        layered = parser.read_next_frame(io.BytesIO(layered_raw))
+        assert layered is not None
+        assert layered.frame_size_bytes == len(layered_raw)
+        assert layered.header_size_bytes == 24
+        assert layered.item_count == 1
+        assert layered.event_idx == 37
+        assert len(layered.children) == 1
+        assert unpack_get_event(layered)[(2, 1, 3, 57)][11] == 800
 
     # Unmerged sources may contain frames in non-event order. Verify that the
     # viewer groups them by event id and combines channels across sources.
@@ -1422,7 +1534,7 @@ INDEX_HTML = r"""<!doctype html>
             <span class="scan-field-title">Max event:</span>
             <input id="scanLimit" type="number" min="1" value="10000" title="Stop after scanning this many events">
             <label class="inline-check"><span>FPN</span>
-              <input id="includeFpn" type="checkbox">
+              <input id="includeFpn" type="checkbox" checked>
             </label>
           </div>
           <div class="scan-direction-row">
@@ -1443,6 +1555,7 @@ INDEX_HTML = r"""<!doctype html>
             <button id="autoScale" type="button">Autoscale</button>
             <button id="fullScale" type="button" title="Set TB to 0–512 and ADC to 0–4096">Full scale</button>
             <button id="showAll" type="button">Show all</button>
+            <button id="filterOnly" type="button" aria-pressed="false" title="Hide channels that do not match Filter &amp; Scan">Filt. only</button>
             <button id="saveWaveform" type="button">Save PNG</button>
           </div>
         </div>
@@ -1551,7 +1664,8 @@ button {
 button.secondary,
 .plot-actions button,
 #autoScale,
-#showAll {
+#showAll,
+#filterOnly {
   background: #ffffff;
   color: var(--text);
 }
@@ -1586,6 +1700,7 @@ button.secondary,
 #autoScale,
 #fullScale,
 #showAll,
+#filterOnly,
 #saveWaveform {
   border-color: #bcc7d2;
   background: #dde4eb;
@@ -1593,6 +1708,7 @@ button.secondary,
 }
 
 #showAll.filter-active,
+#filterOnly.filter-active,
 #autoScale.filter-active {
   border-color: #60a5fa;
   background: #dbeafe;
@@ -2244,19 +2360,19 @@ h1 {
 
 .group-tree {
   display: grid;
-  gap: 4px;
+  gap: 0;
   font-size: 13px;
 }
 
 .tree-row {
   display: grid;
   grid-template-columns: 1fr auto auto;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
-  min-height: 28px;
+  min-height: 26px;
   border: 1px solid transparent;
-  border-radius: 6px;
-  padding: 4px 7px;
+  border-radius: 4px;
+  padding: 2px 5px;
   cursor: pointer;
 }
 
@@ -2271,10 +2387,33 @@ h1 {
 }
 
 .tree-row .name {
+  display: flex;
+  align-items: center;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tree-toggle {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 18px;
+  min-height: 0;
+  margin: 0 3px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 18px;
+}
+
+.tree-toggle:hover {
+  border: 0;
+  background: #e5edf5;
+  color: var(--text);
 }
 
 .tree-row .count,
@@ -2616,6 +2755,7 @@ APP_JS = r"""const els = {
   autoScale: document.getElementById("autoScale"),
   fullScale: document.getElementById("fullScale"),
   showAll: document.getElementById("showAll"),
+  filterOnly: document.getElementById("filterOnly"),
   saveWaveform: document.getElementById("saveWaveform"),
   waveCanvas: document.getElementById("waveCanvas"),
   detectorInfoPanel: document.getElementById("detectorInfoPanel"),
@@ -2651,6 +2791,8 @@ let hoveredChannelKey = null;
 let viewSelection = { cobo: null, asad: null, aget: null, channel: null };
 let activeScanSelection = null;
 let activeScanDetectorSelection = null;
+let filterOnlyEnabled = false;
+const collapsedTreeNodes = new Set();
 let detectorInfoVisible = false;
 let detectorInfoEntries = [];
 let detectorInfoMappingPath = null;
@@ -2698,8 +2840,17 @@ function updateFilterHighlights() {
 }
 
 scanFilterControls.forEach((control) => {
-  control.addEventListener("input", updateFilterHighlights);
-  control.addEventListener("change", updateFilterHighlights);
+  control.addEventListener("input", () => {
+    updateFilterHighlights();
+    if (filterOnlyEnabled && currentPayload) renderCurrentEventViews();
+  });
+  control.addEventListener("change", () => {
+    updateFilterHighlights();
+    if (filterOnlyEnabled && currentPayload) renderCurrentEventViews();
+  });
+});
+els.includeFpn.addEventListener("change", () => {
+  if (filterOnlyEnabled && currentPayload) renderCurrentEventViews();
 });
 
 function setBusy(isBusy) {
@@ -2716,6 +2867,15 @@ document.addEventListener("click", (event) => {
     event.stopImmediatePropagation();
   }
 }, true);
+
+// Mouse-clicked controls otherwise retain focus, causing the global shortcut
+// handler to treat subsequent keys as control input. Keep keyboard-originated
+// clicks focused so Tab/Enter navigation remains accessible.
+document.addEventListener("click", (event) => {
+  if (event.detail <= 0 || !(event.target instanceof Element)) return;
+  const button = event.target.closest("button");
+  if (button instanceof HTMLElement) button.blur();
+});
 
 document.addEventListener("submit", (event) => {
   if (busyCount > 0) {
@@ -2864,10 +3024,9 @@ function setDetectorInfoVisible(visible) {
   } else if (currentPayload) {
     const { event, status } = currentPayload;
     els.plotTitle.textContent = `Event ${event.index}`;
-    els.plotSubtitle.textContent = `${event.selectedCount}/${event.channelCount} channels`;
     els.plotFileName.textContent = displayedFileName(status);
     els.plotFileName.title = status.path || "";
-    drawWaveforms(event.channels);
+    renderCurrentEventViews();
   }
 }
 
@@ -2903,6 +3062,115 @@ function matchesDetectorSelection(channel, selection) {
 function matchesActiveScan(channel) {
   return matchesSelection(channel, activeScanSelection)
     && matchesDetectorSelection(channel, activeScanDetectorSelection);
+}
+
+function normalizedNumberExpression(rawValue) {
+  const text = rawValue.trim();
+  if (!text || ["any", "all"].includes(text.toLowerCase())) return null;
+  if (!isValidNumberExpression(text)) return { invalid: true };
+  const include = [];
+  const exclude = [];
+  text.split(",").forEach((rawToken) => {
+    const token = rawToken.trim();
+    const excluded = token.startsWith("!");
+    const body = excluded ? token.slice(1).trim() : token;
+    const [startText, endText = startText] = body.split("-").map((item) => item.trim());
+    const start = Number.parseInt(startText, 10);
+    const end = Number.parseInt(endText, 10);
+    const target = excluded ? exclude : include;
+    for (let value = start; value <= end; value += 1) target.push(value);
+  });
+  return { include: include.length ? include : null, exclude };
+}
+
+function readFrameFilterSelection() {
+  return {
+    cobo: normalizedNumberExpression(els.scanCobo.value),
+    asad: normalizedNumberExpression(els.scanAsad.value),
+    aget: normalizedNumberExpression(els.scanAget.value),
+    channel: normalizedNumberExpression(els.scanChannel.value),
+  };
+}
+
+function matchesFrameFilter(channel) {
+  if (!filterOnlyEnabled) return true;
+  const selection = readFrameFilterSelection();
+  if (Object.values(selection).some((constraint) => constraint?.invalid)) return false;
+  if (!matchesSelection(channel, selection)) return false;
+  if (!matchesDetectorSelection(channel, readScanDetectorSelection())) return false;
+  if (!els.includeFpn.checked && channel.isFpn) return false;
+
+  const minAmplitude = els.thresholdInput.value.trim() === ""
+    ? null : Number.parseFloat(els.thresholdInput.value);
+  const maxAmplitude = els.maxAmplitudeInput.value.trim() === ""
+    ? null : Number.parseFloat(els.maxAmplitudeInput.value);
+  const minTb = inputValue(els.minTbInput);
+  const maxTb = inputValue(els.maxTbInput);
+  return (minAmplitude === null || channel.amplitude >= minAmplitude)
+    && (maxAmplitude === null || channel.amplitude <= maxAmplitude)
+    && (minTb === null || channel.peakTb >= minTb)
+    && (maxTb === null || channel.peakTb <= maxTb);
+}
+
+function filteredGroupTree(groups) {
+  if (!filterOnlyEnabled) return groups || [];
+  return (groups || []).map((cobo) => {
+    const asads = cobo.asads.map((asad) => {
+      const agets = asad.agets.map((aget) => {
+        const channels = aget.channels.filter(matchesFrameFilter);
+        return {
+          ...aget,
+          channels,
+          count: channels.length,
+          maxAmplitude: Math.max(0, ...channels.map((channel) => channel.amplitude)),
+        };
+      }).filter((aget) => aget.channels.length > 0);
+      return {
+        ...asad,
+        agets,
+        count: agets.reduce((total, aget) => total + aget.count, 0),
+        maxAmplitude: Math.max(0, ...agets.map((aget) => aget.maxAmplitude)),
+      };
+    }).filter((asad) => asad.agets.length > 0);
+    return {
+      ...cobo,
+      asads,
+      count: asads.reduce((total, asad) => total + asad.count, 0),
+      maxAmplitude: Math.max(0, ...asads.map((asad) => asad.maxAmplitude)),
+    };
+  }).filter((cobo) => cobo.asads.length > 0);
+}
+
+function groupChannelCount(groups) {
+  return groups.reduce(
+    (total, cobo) => total + cobo.asads.reduce(
+      (asadTotal, asad) => asadTotal + asad.agets.reduce(
+        (agetTotal, aget) => agetTotal + aget.channels.length, 0,
+      ), 0,
+    ), 0,
+  );
+}
+
+function displayedChannels() {
+  const channels = currentPayload?.event?.channels || [];
+  return filterOnlyEnabled ? channels.filter(matchesFrameFilter) : channels;
+}
+
+function renderCurrentEventViews() {
+  if (!currentPayload) return;
+  const { event } = currentPayload;
+  const groups = filteredGroupTree(event.groups);
+  const channels = displayedChannels();
+  const filteredCount = groupChannelCount(groups);
+  els.filterOnly.classList.toggle("filter-active", filterOnlyEnabled);
+  els.filterOnly.setAttribute("aria-pressed", filterOnlyEnabled ? "true" : "false");
+  els.plotSubtitle.textContent = filterOnlyEnabled
+    ? `${filteredCount}/${event.channelCount} filtered · ${channels.length} plotted`
+    : `${event.selectedCount}/${event.channelCount} channels`;
+  renderTree(groups);
+  renderTable(channels);
+  if (detectorInfoVisible) renderDetectorInfo();
+  else drawWaveforms(channels);
 }
 
 function isSelected(values, level) {
@@ -3235,17 +3503,13 @@ function renderPayload(payload) {
   els.jumpInput.value = event.index;
   els.frameInput.value = event.eventIdx;
   els.plotTitle.textContent = `Event ${event.index}`;
-  els.plotSubtitle.textContent = `${event.selectedCount}/${event.channelCount} channels`;
   els.plotFileName.textContent = displayedFileName(status);
   els.plotFileName.title = status.path || "";
   els.showAll.classList.toggle("filter-active", event.selectedCount < event.channelCount);
-  renderTree(event.groups);
-  renderTable(event.channels);
-  if (detectorInfoVisible) renderDetectorInfo();
-  else drawWaveforms(event.channels);
+  renderCurrentEventViews();
 }
 
-function makeRow(level, values, name, count, amp, className = "", mapping = {}) {
+function makeRow(level, values, name, count, amp, className = "", mapping = {}, collapsible = null) {
   const row = document.createElement("div");
   row.className = `tree-row tree-${level} ${className}`.trim();
   if (isSelected(values, level)) row.classList.add("selected");
@@ -3257,6 +3521,23 @@ function makeRow(level, values, name, count, amp, className = "", mapping = {}) 
   row.querySelector(".row-name").textContent = name;
   row.querySelector(".count").textContent = count;
   row.querySelector(".amp").textContent = amp.toFixed(0);
+  if (collapsible?.hasChildren) {
+    const collapsed = collapsedTreeNodes.has(collapsible.key);
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "tree-toggle";
+    toggle.textContent = collapsed ? "▶" : "▼";
+    toggle.title = `${collapsed ? "Expand" : "Collapse"} ${name}`;
+    toggle.setAttribute("aria-label", toggle.title);
+    toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    toggle.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (collapsed) collapsedTreeNodes.delete(collapsible.key);
+      else collapsedTreeNodes.add(collapsible.key);
+      renderCurrentEventViews();
+    });
+    row.querySelector(".name").prepend(toggle);
+  }
   row.addEventListener("click", () => {
     writeSelection(values);
     navigate("current");
@@ -3275,10 +3556,13 @@ function renderTree(groups) {
   }
 
   groups.forEach((cobo) => {
+    const coboKey = `cobo:${cobo.cobo}`;
     els.groupTree.appendChild(
-      makeRow("cobo", { cobo: cobo.cobo, asad: null, aget: null, channel: null }, `Cobo ${cobo.cobo}`, cobo.count, cobo.maxAmplitude, "", cobo),
+      makeRow("cobo", { cobo: cobo.cobo, asad: null, aget: null, channel: null }, `Cobo ${cobo.cobo}`, cobo.count, cobo.maxAmplitude, "", cobo, { key: coboKey, hasChildren: cobo.asads.length > 0 }),
     );
+    if (collapsedTreeNodes.has(coboKey)) return;
     cobo.asads.forEach((asad) => {
+      const asadKey = `asad:${cobo.cobo}/${asad.asad}`;
       els.groupTree.appendChild(
         makeRow(
           "asad",
@@ -3288,9 +3572,12 @@ function renderTree(groups) {
           asad.maxAmplitude,
           "",
           asad,
+          { key: asadKey, hasChildren: asad.agets.length > 0 },
         ),
       );
+      if (collapsedTreeNodes.has(asadKey)) return;
       asad.agets.forEach((aget) => {
+        const agetKey = `aget:${cobo.cobo}/${asad.asad}/${aget.aget}`;
         els.groupTree.appendChild(
           makeRow(
             "aget",
@@ -3300,8 +3587,10 @@ function renderTree(groups) {
             aget.maxAmplitude,
             "",
             aget,
+            { key: agetKey, hasChildren: aget.channels.length > 0 },
           ),
         );
+        if (collapsedTreeNodes.has(agetKey)) return;
         aget.channels.forEach((channel) => {
           els.groupTree.appendChild(
             makeRow(
@@ -3330,11 +3619,11 @@ function setHoveredChannel(key) {
   els.channelRows.querySelectorAll("tr[data-channel-key]").forEach((row) => {
     row.classList.toggle("keyboard-highlight", key !== null && row.dataset.channelKey === key);
   });
-  if (currentPayload) drawWaveforms(currentPayload.event.channels);
+  if (currentPayload) drawWaveforms(displayedChannels());
 }
 
 function moveChannelHighlight(step) {
-  const channels = currentPayload?.event?.channels || [];
+  const channels = displayedChannels();
   if (!channels.length) return;
   let index = channels.findIndex((channel) => channelKey(channel) === hoveredChannelKey);
   if (index < 0) index = step > 0 ? 0 : channels.length - 1;
@@ -3362,7 +3651,8 @@ function renderTable(channels) {
       <td></td>
     `;
     tr.children[0].textContent = `${channel.cobo}/${channel.asad}/${channel.aget}`;
-    tr.children[1].textContent = channel.isFpn ? `${channel.channel} FPN` : channel.channel;
+    tr.children[1].textContent = channel.isFpn ? `*${channel.channel}` : channel.channel;
+    if (channel.isFpn) tr.children[1].title = "FPN channel";
     tr.children[2].textContent = channel.detectorLabel || "-";
     tr.children[3].textContent = channel.ringType || "-";
     tr.children[4].textContent = channel.amplitude.toFixed(0);
@@ -3714,18 +4004,40 @@ els.clearSavedEvents.addEventListener("click", () => {
   setStatus("Saved events cleared", "good");
 });
 els.showAll.addEventListener("click", () => {
+  filterOnlyEnabled = false;
   writeSelection({ cobo: null, asad: null, aget: null, channel: null });
   navigate("current");
 });
+els.filterOnly.addEventListener("click", async () => {
+  if (!filterOnlyEnabled) {
+    const invalidControl = electronicScanControls.find(
+      (control) => !isValidNumberExpression(control.value),
+    );
+    if (invalidControl) {
+      updateFilterHighlights();
+      invalidControl.focus();
+      setStatus("Fix the invalid filter before enabling Filt. only.", "error");
+      return;
+    }
+    filterOnlyEnabled = true;
+    writeSelection({ cobo: null, asad: null, aget: null, channel: null });
+    const loaded = currentPayload ? await navigate("current") : true;
+    if (!currentPayload) renderCurrentEventViews();
+    if (loaded) setStatus("Showing only channels that match Filter & Scan", "good");
+  } else {
+    filterOnlyEnabled = false;
+    renderCurrentEventViews();
+    setStatus("Filter-only mode off", "good");
+  }
+});
 els.clearScanFilters.addEventListener("click", () => {
   scanFilterControls.forEach((control) => { control.value = ""; });
-  els.includeFpn.checked = false;
+  els.includeFpn.checked = true;
   activeScanSelection = null;
   activeScanDetectorSelection = null;
   updateFilterHighlights();
   if (currentPayload) {
-    renderTable(currentPayload.event.channels);
-    if (!detectorInfoVisible) drawWaveforms(currentPayload.event.channels);
+    renderCurrentEventViews();
   }
   setStatus("Filter & Scan fields cleared", "good");
 });
@@ -3825,13 +4137,13 @@ function applyView(view) {
   const [yMin, yMax] = boundedRange(view.yMin, view.yMax, 4096);
   plotView = { tbMin, tbMax, yMin, yMax };
   els.autoScale.classList.add("filter-active");
-  if (currentPayload) drawWaveforms(currentPayload.event.channels);
+  if (currentPayload) drawWaveforms(displayedChannels());
 }
 
 function resetView() {
   plotView = null;
   els.autoScale.classList.remove("filter-active");
-  if (currentPayload) drawWaveforms(currentPayload.event.channels);
+  if (currentPayload) drawWaveforms(displayedChannels());
 }
 
 els.waveCanvas.addEventListener("wheel", (event) => {
@@ -3902,7 +4214,7 @@ els.waveCanvas.addEventListener("pointerdown", (event) => {
 els.waveCanvas.addEventListener("pointermove", (event) => {
   if (!dragState || event.pointerId !== dragState.pointerId) return;
   dragState.end = clampedPlotPoint(event, dragState.geometry);
-  if (currentPayload) drawWaveforms(currentPayload.event.channels);
+  if (currentPayload) drawWaveforms(displayedChannels());
 });
 
 function endDrag(event) {
@@ -3918,7 +4230,7 @@ function endDrag(event) {
   const useY = region !== "x";
   if (event.type !== "pointerup" || (useX && Math.abs(end.x - start.x) < 4)
       || (useY && Math.abs(end.y - start.y) < 4)) {
-    if (currentPayload) drawWaveforms(currentPayload.event.channels);
+    if (currentPayload) drawWaveforms(displayedChannels());
     return;
   }
   const next = { ...view };
@@ -3953,7 +4265,7 @@ els.electronicsTab.addEventListener("click", () => activateRightTab("electronics
 els.channelsTab.addEventListener("click", () => activateRightTab("channels"));
 
 window.addEventListener("resize", () => {
-  if (currentPayload) drawWaveforms(currentPayload.event.channels);
+  if (currentPayload) drawWaveforms(displayedChannels());
 });
 
 requestJson("/api/status")
