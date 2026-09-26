@@ -37,26 +37,35 @@ bool LKMicromegas::Init()
 {
     LKEvePlane::Init();
 
+    // A detector plane added directly through lilak/add is wrapped in the
+    // generic "LKDetector".  In that case, keep all Micromegas parameters in
+    // the plane's own namespace instead of exposing LKDetector/* parameters.
+    // Concrete detectors such as AToMX retain their existing detector-level
+    // namespace for backward compatibility.
+    TString parName = fDetName;
+    if (parName.IsNull() || parName == "LKDetector")
+        parName = fName;
+
     fPar -> UpdatePar(fDZPad,fName+"/padsize_z  4");
     fPar -> UpdatePar(fDXPad,fName+"/padsize_x  4");
-    fPar -> UpdateBinning(fDetName+"/binning_x  64,  -128, 128  # binning, range throuh x-axis", fNX, fX1, fX2);
-    fPar -> UpdateBinning(fDetName+"/binning_y  512, 0,    -512  # binning, range throuh y-axis", fNY, fY2, fY1);
-    fPar -> UpdateBinning(fDetName+"/binning_z  72,  0,     288  # binning, range throuh z-axis", fNZ, fZ1, fZ2);
+    fPar -> UpdateBinning(parName+"/binning_x  64,  -128, 128  # binning, range throuh x-axis", fNX, fX1, fX2);
+    fPar -> UpdateBinning(parName+"/binning_y  512, 0,    -512  # binning, range throuh y-axis", fNY, fY2, fY1);
+    fPar -> UpdateBinning(parName+"/binning_z  72,  0,     288  # binning, range throuh z-axis", fNZ, fZ1, fZ2);
 
     if (fNX <= 0 || fX1 == fX2 || std::abs(fX2 - fX1) < 0.5*fNX*fDXPad) {
-        lk_warning << fDetName << "/binning_x is invalid. Using default 64, -128, 128." << endl;
+        lk_warning << parName << "/binning_x is invalid. Using default 64, -128, 128." << endl;
         fNX = 64;
         fX1 = -128;
         fX2 = 128;
     }
     if (fNY <= 0 || fY1 == fY2) {
-        lk_warning << fDetName << "/binning_y is invalid. Using default 512, -512, 0." << endl;
+        lk_warning << parName << "/binning_y is invalid. Using default 512, -512, 0." << endl;
         fNY = 512;
         fY1 = -512;
         fY2 = 0;
     }
     if (fNZ <= 0 || fZ1 == fZ2 || std::abs(fZ2 - fZ1) < 0.5*fNZ*fDZPad) {
-        lk_warning << fDetName << "/binning_z is invalid. Using default 72, 0, 288." << endl;
+        lk_warning << parName << "/binning_z is invalid. Using default 72, 0, 288." << endl;
         fNZ = 72;
         fZ1 = 0;
         fZ2 = 288;
@@ -65,17 +74,17 @@ bool LKMicromegas::Init()
             << "y=(" << fNY << ", " << fY1 << ", " << fY2 << "), "
             << "z=(" << fNZ << ", " << fZ1 << ", " << fZ2 << ")" << endl;
 
-    fPar -> UpdatePar(fMappingFileName,fDetName+"/Mapping {lilak_common}/micromegas_mapping_caac_zx.txt # cobo asad aget chan iz ix");
-    fPar -> UpdatePar(fUsePixelSpace,fDetName+"/UsePixelSpace false");
-    fPar -> UpdatePar(fThreshold,fDetName+"/EveThreshold 300 # (ADC above pedestal) threshold applied to shaped/raw waveform bins in side view and shaped top-view integral.");
+    fPar -> UpdatePar(fMappingFileName,parName+"/Mapping {lilak_common}/micromegas_mapping_caac_zx.txt # cobo asad aget chan iz ix");
+    fPar -> UpdatePar(fUsePixelSpace,parName+"/UsePixelSpace false");
+    fPar -> UpdatePar(fThreshold,parName+"/EveThreshold 300 # (ADC above pedestal) threshold applied to shaped/raw waveform bins in side view and shaped top-view integral.");
 
-    fPar -> UpdatePar(fNumCobo,fDetName+"/MaxCobo 6   # maximum number of cobos");
+    fPar -> UpdatePar(fNumCobo,parName+"/MaxCobo 6   # maximum number of cobos");
 
     fPosition = 0;
     fTbToLength = 1;
     if (!fUsePixelSpace) {
-        if (fPar -> CheckPar(fDetName+"/tb_to_length  1  # mm")) {
-            fTbToLength = fPar -> GetParDouble(fDetName+"/tb_to_length");
+        if (fPar -> CheckPar(parName+"/tb_to_length  1  # mm")) {
+            fTbToLength = fPar -> GetParDouble(parName+"/tb_to_length");
         }
     }
 

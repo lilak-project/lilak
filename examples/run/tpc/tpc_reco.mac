@@ -1,0 +1,44 @@
+# running lilak
+lilak/print       all
+lilak/add         LKMicromegas
+lilak/add         LKGETConversionTask
+lilak/add         LKPulseShapeAnalysisTask
+lilak/auto_exit   1
+lilak/run         0
+
+# main configuration
+LKRun/Name                  tpc
+LKRun/RunID                 113
+LKRun/SearchRun             mfm
+LKRun/Tag                   reco
+LKRun/InputPath             /path/to/input
+LKRun/OutputPath            /path/to/output
+LKRun/EventCountForMessage  100
+
+persistency/FrameHeader  true
+persistency/RawData      true
+persistency/Hit          true
+
+# Expanded from the v3 ASAD-0 map with z offsets 0, 4, 8, and 12 pads.
+LKMicromegas/Mapping       mapping.txt
+LKMicromegas/UsePixelSpace false
+LKMicromegas/MaxCobo       6
+LKMicromegas/padsize_z     4
+LKMicromegas/padsize_x     4
+LKMicromegas/binning_x     64, -128, 128
+LKMicromegas/binning_y     512, 0, -512
+LKMicromegas/binning_z     72, 0, 288
+
+# Raw GET/MFM decoding
+LKFrameBuilder/MaxCobo             6
+LKFrameBuilder/MaxAsad             4
+LKFrameBuilder/MaxAget             4
+LKFrameBuilder/MaxChannels         68
+
+# Real-data pulse-shape analysis
+LKPulseShapeAnalysisTask/inputBranchName       RawData
+LKPulseShapeAnalysisTask/useShapedBuffer       false
+LKPulseShapeAnalysisTask/analysisMode          maximum
+LKPulseShapeAnalysisTask/fixPulseFunctionAlpha false
+LKPulseShapeAnalysisTask/fixPulseFunctionTau   false
+LKPulseShapeAnalysisTask/useRootPulseFit       true

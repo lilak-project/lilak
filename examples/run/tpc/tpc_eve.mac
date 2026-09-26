@@ -1,0 +1,31 @@
+# Event display for atomx_0113.reco.root produced by run_reco.mac
+lilak/print       all
+lilak/add         LKMicromegas
+lilak/add         LKEveTask
+lilak/auto_exit   0
+lilak/execute     0
+
+LKRun/Name        tpc
+LKRun/RunID       113
+LKRun/Tag         eve
+LKRun/SearchRun   reco
+LKRun/InputPath   /path/to/input
+LKRun/OutputPath  /path/to/output
+
+LKEveTask/drawEve3D  false
+LKEveTask/drawPlane  true
+
+LKMicromegas/Mapping       mapping.txt
+LKMicromegas/UsePixelSpace false
+LKMicromegas/MaxCobo       6
+LKMicromegas/padsize_z     4
+LKMicromegas/padsize_x     4
+LKMicromegas/binning_x     64, -128, 128
+LKMicromegas/binning_y     512, 0, -512
+LKMicromegas/binning_z     72, 0, 288
+LKMicromegas/fillOption    raw
+LKMicromegas/EveThreshold  300
+
+Hit/markerStyle  20
+Hit/markerSize   1.1
+Hit/markerColor  kBlue
