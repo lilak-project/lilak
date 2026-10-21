@@ -79,6 +79,19 @@ bool LKMicromegas::Init()
     fPar -> UpdatePar(fThreshold,parName+"/EveThreshold 300 # (ADC above pedestal) threshold applied to shaped/raw waveform bins in side view and shaped top-view integral.");
 
     fPar -> UpdatePar(fNumCobo,parName+"/MaxCobo 6   # maximum number of cobos");
+    bool extendMapping = false;
+    TString extendAxis = "asad";
+    int extendCount = 4;
+    int extendZStep = 4;
+    fPar -> UpdatePar(extendMapping,parName+"/ExtendMapping false # Enable repeated CAAC mapping along z.");
+    fPar -> UpdatePar(extendAxis,parName+"/MappingRepeatID asad # Electronics ID incremented per copy: asad or cobo.");
+    fPar -> UpdatePar(extendCount,parName+"/MappingRepeatCount 4 # Number of mapping copies including the original.");
+    fPar -> UpdatePar(extendZStep,parName+"/MappingRepeatZStep 4 # (pads) Positive z index increment per copy; does not resize binning_z.");
+    extendAxis.ToLower();
+    if (extendMapping && ((extendAxis != "asad" && extendAxis != "cobo") || extendCount < 1 || extendZStep < 1)) {
+        lk_error << "Invalid mapping repeat parameters" << endl;
+        return false;
+    }
 
     fPosition = 0;
     fTbToLength = 1;
@@ -152,14 +165,32 @@ bool LKMicromegas::Init()
     {
         iz = iz-1;
         ix = ix-1;
-        auto padID = iz + ix*fNZ;
-        fMapCAACToPadID[cobo][asad][aget][chan] = padID;
-        auto pad = (LKPad*) fChannelArray -> At(padID);
-        pad -> SetCobo(cobo);
-        pad -> SetAsad(asad);
-        pad -> SetAget(aget);
-        pad -> SetChan(chan);
-        ++countMap;
+        const int copies = extendMapping ? extendCount : 1;
+        for (int copy=0; copy<copies; ++copy) {
+            const int mappedCobo = cobo + (extendAxis == "cobo" ? copy : 0);
+            const int mappedAsad = asad + (extendAxis == "asad" ? copy : 0);
+            const long long mappedZ = static_cast<long long>(iz) + static_cast<long long>(copy)*extendZStep;
+            if (mappedCobo < 0 || mappedCobo >= fNumCobo || mappedAsad < 0 || mappedAsad >= fNumAsad ||
+                aget < 0 || aget >= fNumAget || chan < 0 || chan >= fNumChan ||
+                mappedZ < 0 || mappedZ >= fNZ || ix < 0 || ix >= fNX) {
+                lk_error << "Mapping outside CAAC/pad bounds at copy " << copy
+                         << ": " << mappedCobo << " " << mappedAsad << " " << aget << " " << chan
+                         << " z/x=" << mappedZ << "/" << ix << endl;
+                return false;
+            }
+            auto padID = static_cast<int>(mappedZ) + ix*fNZ;
+            auto pad = (LKPad*) fChannelArray -> At(padID);
+            if (fMapCAACToPadID[mappedCobo][mappedAsad][aget][chan] >= 0 || pad -> GetCobo() >= 0) {
+                lk_error << "Duplicate electronics channel or pad in mapping at pad " << padID << endl;
+                return false;
+            }
+            fMapCAACToPadID[mappedCobo][mappedAsad][aget][chan] = padID;
+            pad -> SetCobo(mappedCobo);
+            pad -> SetAsad(mappedAsad);
+            pad -> SetAget(aget);
+            pad -> SetChan(chan);
+            ++countMap;
+        }
     }
 
     lk_info << countMap << " pads are mapped!" << endl;
