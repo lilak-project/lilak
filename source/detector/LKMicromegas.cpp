@@ -80,15 +80,15 @@ bool LKMicromegas::Init()
 
     fPar -> UpdatePar(fNumCobo,parName+"/MaxCobo 6   # maximum number of cobos");
     bool extendMapping = false;
-    TString extendAxis = "asad";
-    int extendCount = 4;
+    int repeatAsad = 1;
+    int repeatCobo = 1;
     int extendZStep = 4;
     fPar -> UpdatePar(extendMapping,parName+"/ExtendMapping false # Enable repeated CAAC mapping along z.");
-    fPar -> UpdatePar(extendAxis,parName+"/MappingRepeatID asad # Electronics ID incremented per copy: asad or cobo.");
-    fPar -> UpdatePar(extendCount,parName+"/MappingRepeatCount 4 # Number of mapping copies including the original.");
+    fPar -> UpdatePar(repeatAsad,parName+"/MappingRepeatAsad 1 # Number of AsAd copies including the original; AsAd increases by one per copy.");
+    fPar -> UpdatePar(repeatCobo,parName+"/MappingRepeatCobo 1 # Number of CoBo copies including the original; CoBo increases after each group of AsAd copies.");
     fPar -> UpdatePar(extendZStep,parName+"/MappingRepeatZStep 4 # (pads) Positive z index increment per copy; does not resize binning_z.");
-    extendAxis.ToLower();
-    if (extendMapping && ((extendAxis != "asad" && extendAxis != "cobo") || extendCount < 1 || extendZStep < 1)) {
+    if (extendMapping && (repeatAsad < 1 || repeatAsad > fNumAsad ||
+                          repeatCobo < 1 || repeatCobo > fNumCobo || extendZStep < 1)) {
         lk_error << "Invalid mapping repeat parameters" << endl;
         return false;
     }
@@ -165,10 +165,10 @@ bool LKMicromegas::Init()
     {
         iz = iz-1;
         ix = ix-1;
-        const int copies = extendMapping ? extendCount : 1;
+        const int copies = extendMapping ? repeatAsad*repeatCobo : 1;
         for (int copy=0; copy<copies; ++copy) {
-            const int mappedCobo = cobo + (extendAxis == "cobo" ? copy : 0);
-            const int mappedAsad = asad + (extendAxis == "asad" ? copy : 0);
+            const long long mappedCobo = static_cast<long long>(cobo) + (extendMapping ? copy/repeatAsad : 0);
+            const long long mappedAsad = static_cast<long long>(asad) + (extendMapping ? copy%repeatAsad : 0);
             const long long mappedZ = static_cast<long long>(iz) + static_cast<long long>(copy)*extendZStep;
             if (mappedCobo < 0 || mappedCobo >= fNumCobo || mappedAsad < 0 || mappedAsad >= fNumAsad ||
                 aget < 0 || aget >= fNumAget || chan < 0 || chan >= fNumChan ||
