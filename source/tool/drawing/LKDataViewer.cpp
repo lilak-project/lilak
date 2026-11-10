@@ -233,11 +233,8 @@ void LKDataViewer::CreateMainCanvas()
     fTabSpace = new TGTab(fMainFrame, (1 - fControlFrameXRatio) * fInitWidth, fInitHeight, (*(gClient->GetResourcePool()->GetFrameGC()))());
     fTabSpace->SetMinHeight(fRFEntry*fTabSpace->GetHeight());
     fMainFrame->AddFrame(fTabSpace, NewHintsMainFrame());
-    LKDrawingGroup *group = nullptr;
-
-    TIter next(fTopDrawingGroup);
-    while ((group = (LKDrawingGroup*) next()))
-        AddGroupTab(group);
+    for (auto iGroup=0; iGroup<fTopDrawingGroup->GetEntries(); ++iGroup)
+        AddGroupTab((LKDrawingGroup*)fTopDrawingGroup->At(iGroup));
 
     //fPublicGroupIsAdded = true;
     //fPublicTabIndex = AddGroupTab(fPublicGroup);

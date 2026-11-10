@@ -22,6 +22,20 @@ using namespace std;
 
 #include "LKMisc.h"
 
+class LKDrawingEntry
+{
+    public:
+        LKDrawingEntry() = default;
+        LKDrawingEntry(TObject* object, TString drawOption="", TString title="")
+        : fObject(object), fTitle(title), fDrawOption(drawOption) {}
+
+        TObject* fObject = nullptr;
+        TString fTitle;
+        TString fDrawOption;
+
+    ClassDefNV(LKDrawingEntry, 1)
+};
+
 class LKDrawing : public TObjArray
 {
     public:
@@ -30,16 +44,16 @@ class LKDrawing : public TObjArray
         LKDrawing(TObject* obj, TString drawStyle);
         ~LKDrawing() {}
 
-        virtual const char* GetName() const;
+        const char* GetName() const override;
         /// option
         /// - "v" : Draw with LKDataViewer
         /// - "raw" : Skip almost all functions of LKDrawing.
         /// - raw : Skip almost all functions of LKDrawing.
-        virtual void Draw(Option_t *option="");
-        virtual void Print(Option_t *option="") const;
-        virtual Int_t Write(const char *name = nullptr, Int_t option=TObject::kSingleKey, Int_t bufsize = 0) const;
-        virtual void Clear(Option_t *option="");
-        virtual void Browse(TBrowser *b);
+        void Draw(Option_t *option="") override;
+        void Print(Option_t *option="") const override;
+        Int_t Write(const char *name = nullptr, Int_t option=TObject::kSingleKey, Int_t bufsize = 0) const override;
+        void Clear(Option_t *option="") override;
+        void Browse(TBrowser *b) override;
         void Init();
         void CopyTo(LKDrawing* drawing, bool clearFirst=true);
         virtual Double_t GetHistEntries() const;
@@ -49,7 +63,7 @@ class LKDrawing : public TObjArray
         void Fill(TTree* tree);
 
         ////////////////////////////////////////////////////////////////////////////////////
-        virtual void Add(TObject *obj) { Add(obj,"",""); }
+        void Add(TObject *obj) override { Add(obj,"",""); }
         /// drawOption will be used to draw the object when Draw method is called. Some specaial cases are:
         /// - "stat0" : if object is histogram, SetStat(0) will be called to the histogram
         /// - "drawx" : object will be added to the list but will not be drawn.
@@ -64,8 +78,8 @@ class LKDrawing : public TObjArray
         void SetFitObjects(TObject *data, TF1 *fit);
         bool Fit(TString option="RQ0B");
         void AddDrawing(LKDrawing *drawing);
-        void SetTitle(int i, TString title) { fTitleArray[i] = title; }
-        void SetOption(int i, TString option) { fDrawOptionArray[i] = option; }
+        void SetTitle(int i, TString title);
+        void SetOption(int i, TString option);
         void SetCanvas(TVirtualPad* cvs) { fCvs = (TPad*) cvs; }
         void SetCanvas(TPad* cvs) { fCvs = (TPad*) cvs; }
         void SetCanvas(TCanvas* cvs) { fCvs = (TPad*) cvs; }
@@ -77,14 +91,20 @@ class LKDrawing : public TObjArray
         bool GetOn(int iObj);
 
         ////////////////////////////////////////////////////////////////////////////////////
+        int GetEntries() const override { return int(fEntries.size()); }
+        int GetEntriesFast() const { return int(fEntries.size()); }
+        TObject* At(int i) const override { return i>=0 && i<GetEntries() ? fEntries[i].fObject : nullptr; }
+        int IndexOf(const TObject* object) const override;
         int GetNumDrawings() const { return GetEntries(); }
-        TString GetTitle(int i) const { return fTitleArray.at(i); }
-        TString GetOption(int i) const { return fDrawOptionArray.at(i); }
+        TString GetTitle(int i) const;
+        TString GetOption(int i) const;
         TPad* GetCanvas() { return fCvs; }
         TH1* GetMainHist() { return fMainHist; }
         LKCut* GetCut() { return fCuts; }
         TObject* FindObjectStartWith(const char* name) const;
         TObject* FindObjectNameClass(TString name, TClass *tclass) const;
+        TObject* FindObject(const char* name) const override;
+        TObject* FindObject(const TObject* object) const override;
 
         ////////////////////////////////////////////////////////////////////////////////////
         void SetHistColor(TH2* hist, int color, int max);
@@ -222,20 +242,45 @@ class LKDrawing : public TObjArray
         void Update(TString option="");
 
         ////////////////////////////////////////////////////////////////////////////////////
-        bool GetFit() const { if (fFitFunction!=nullptr) return true; return false; }
-        bool FitDataIsHist() const { if (fDataHist!=nullptr) return true; return false; }
-        bool FitDataIsGraph() const { if (fDataGraph!=nullptr) return true; return false; }
-        TH1*     GetDataHist() { return fDataHist; }
-        TGraph*  GetDataGraph() { return fDataGraph; }
-        TF1*     GetFitFunction() { return fFitFunction; }
+        void RestorePersistentState() { ReconnectPersistentReferences(); }
+        bool GetFit() const { const_cast<LKDrawing*>(this)->ReconnectPersistentReferences(); return fFitFunction!=nullptr; }
+        bool FitDataIsHist() const { const_cast<LKDrawing*>(this)->ReconnectPersistentReferences(); return fDataHist!=nullptr; }
+        bool FitDataIsGraph() const { const_cast<LKDrawing*>(this)->ReconnectPersistentReferences(); return fDataGraph!=nullptr; }
+        TH1*     GetDataHist() { ReconnectPersistentReferences(); return fDataHist; }
+        TGraph*  GetDataGraph() { ReconnectPersistentReferences(); return fDataGraph; }
+        TF1*     GetFitFunction() { ReconnectPersistentReferences(); return fFitFunction; }
 
     private:
         void MakeLegend(bool remake=false);
+        void ReconnectPersistentReferences();
+
+        // Keep the legacy collection mutators inaccessible.  The TObjArray
+        // base remains only as a schema-v2 compatibility shim; version-3
+        // entries live in fEntries.
+        using TObjArray::AddAt;
+        using TObjArray::AddAtAndExpand;
+        using TObjArray::AddFirst;
+        using TObjArray::AddLast;
+        using TObjArray::AddAtFree;
+        using TObjArray::AddAfter;
+        using TObjArray::AddBefore;
+        using TObjArray::RemoveAt;
+        using TObjArray::Remove;
+        using TObjArray::RemoveRange;
+        using TObjArray::RecursiveRemove;
+        using TObjArray::Compress;
+        using TObjArray::Delete;
+        using TObjArray::Expand;
+        using TObjArray::SetLast;
+        using TObjArray::Randomize;
+        using TObjArray::Sort;
+        using TObjArray::operator[];
 
     private:
         TString fGlobalOption = "stats_corner:font=42";
-        vector<TString> fTitleArray;
-        vector<TString> fDrawOptionArray;
+        vector<TString> fTitleArray; ///< legacy schema-v2 read buffer; empty in v3
+        vector<TString> fDrawOptionArray; ///< legacy schema-v2 read buffer; empty in v3
+        vector<LKDrawingEntry> fEntries;
 
     private:
         LKCut*   fCuts         = nullptr; //!
@@ -249,7 +294,7 @@ class LKDrawing : public TObjArray
 
         //LKRunTimeMeasure* fRM = nullptr; //!
 
-    ClassDef(LKDrawing, 2)
+    ClassDefOverride(LKDrawing, 3)
 };
 
 #endif
