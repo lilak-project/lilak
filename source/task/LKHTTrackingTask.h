@@ -60,6 +60,9 @@ class LKHTTrackingTask : public LKTask
         double       fTCZ = fZ1;
 
         int          fNumHitsCut = 3; ///< number of hits should be larger than this cut to be reconstructed
+        int          fMaxTracks = 1;
+        double       fTrackDistanceCut = 12;
+        int          fMinTrackHits = 5;
 
     ClassDef(LKHTTrackingTask,1);
 };

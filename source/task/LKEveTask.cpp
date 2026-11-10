@@ -5,6 +5,7 @@
 #include "TVirtualX.h"
 #include "TGWindow.h"
 #include "TGeoManager.h"
+#include "TPolyLine3D.h"
 #include "TRootEmbeddedCanvas.h"
 
 #ifdef ACTIVATE_EVE
@@ -105,8 +106,8 @@ bool LKEveTask::Init()
 
 void LKEveTask::Exec(Option_t*)
 {
-    if (fDrawEve3D) DrawEve3D();
     if (fDrawPlane) DrawDetectorPlanes();
+    if (fDrawEve3D) DrawEve3D();
 }
 
 void LKEveTask::DrawEve3D()
@@ -283,6 +284,8 @@ void LKEveTask::DrawEve3D()
         fGraphHit3DArray = new TClonesArray("TGraph2DErrors",100);
     }
     fCanvas3D -> cd();
+    fCanvas3D -> Clear();
+    fCanvas3D -> cd();
     fFrame3D -> Draw();
 
     fGraphTrack3DArray -> Clear("C");
@@ -327,10 +330,15 @@ void LKEveTask::DrawEve3D()
                     auto graphTrack3D = (TGraph2DErrors*) fGraphTrack3DArray -> ConstructedAt(countTracklets++);
                     graphTrack3D -> Clear();
                     tracklet -> FillTrajectory3D(graphTrack3D,LKVector3::kZ,LKVector3::kX,LKVector3::kY);
-                    graphTrack3D -> SetLineColor(kRed);
-                    SetGraphAtt(graphTrack3D,branchName);
-                    //SetEveMarkerAtt(graphTrack3D,branchName);
-                    graphTrack3D -> Draw("same line");
+                    if (graphTrack3D->GetN()<2)
+                        continue;
+                    auto line = new TPolyLine3D(graphTrack3D->GetN());
+                    for (auto iPoint = 0; iPoint < graphTrack3D->GetN(); ++iPoint)
+                        line->SetPoint(iPoint,graphTrack3D->GetX()[iPoint],graphTrack3D->GetY()[iPoint],graphTrack3D->GetZ()[iPoint]);
+                    line->SetLineColor(kRed);
+                    line->SetLineWidth(2);
+                    line->SetBit(kCanDelete);
+                    line->Draw("same");
                 }
             }
         }

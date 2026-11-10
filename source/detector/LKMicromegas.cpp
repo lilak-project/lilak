@@ -399,6 +399,7 @@ void LKMicromegas::UpdateEventDisplay2()
             gStyle -> SetNumberContours(fEnergyMax);
     }
     fHistEventDisplay2 -> Draw(fEventDisplayDrawOption);
+    DrawTrackOverlay(fPadEventDisplay2,1);
     fEventDisplayDrawOption = "colz";
 }
 

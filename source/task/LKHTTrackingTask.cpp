@@ -1,5 +1,6 @@
 #include "LKHTTrackingTask.h"
 #include "LKGeoBox.h"
+#include <algorithm>
 #include <vector>
 
 ClassImp(LKHTTrackingTask);
@@ -21,6 +22,9 @@ bool LKHTTrackingTask::Init()
     fPar -> Require("LKHTTrackingTask/binning_t",    "100, 0, 0",      "range 0, 0 will set range automatically");
     fPar -> Require("LKHTTrackingTask/transform_ct", "0, 0, 0",        "transform center, is center point where transform is performed.");
     fPar -> Require("LKHTTrackingTask/num_hits_cut", "3",              "Skip event if number of hits in event is lower than this cut");
+    fPar -> Require("LKHTTrackingTask/max_tracks",   "1",              "Maximum number of separate tracks to find");
+    fPar -> Require("LKHTTrackingTask/track_distance_cut", "12",        "Maximum 3D distance (mm) from a candidate line for hit association");
+    fPar -> Require("LKHTTrackingTask/min_track_hits", "5",            "Minimum associated hits required for a track");
     fPar -> Require("LKHTTrackingTask/mode",         "xy, zy",         "Choose from xy, yz, yz, yx, zx, zy. If two different modes are selected, two HT-trackers will be created");
 
     fPar -> UpdateBinning("LKHTTrackingTask/binning_x", fNX, fX1, fX2);
@@ -36,6 +40,16 @@ bool LKHTTrackingTask::Init()
         fTCZ = fZ1;
     }
     fPar -> UpdatePar(fNumHitsCut,"LKHTTrackingTask/num_hits_cut  3");
+
+    int maxTracks = 1;
+    double trackDistanceCut = 12;
+    int minTrackHits = 5;
+    fPar -> UpdatePar(maxTracks,"LKHTTrackingTask/max_tracks  1");
+    fPar -> UpdatePar(trackDistanceCut,"LKHTTrackingTask/track_distance_cut  12");
+    fPar -> UpdatePar(minTrackHits,"LKHTTrackingTask/min_track_hits  5");
+    fMaxTracks = std::max(1,maxTracks);
+    fTrackDistanceCut = trackDistanceCut;
+    fMinTrackHits = std::max(3,minTrackHits);
 
     fTrackTemp = new LKLinearTrack();
 
@@ -136,6 +150,55 @@ void LKHTTrackingTask::Exec(Option_t *option)
         return;
     }
 
+    if (fMaxTracks>1 && fNumHT==2) {
+        std::vector<LKHit*> remaining;
+        remaining.reserve(numHitsAll);
+        for (auto iHitArray=0; iHitArray<fCountHitBranches; ++iHitArray) {
+            auto hitArray = fHitArray[iHitArray];
+            for (auto iHit=0; iHit<hitArray->GetEntries(); ++iHit)
+                remaining.push_back((LKHit*) hitArray->At(iHit));
+        }
+
+        while (fNumTracks<fMaxTracks && int(remaining.size())>=fMinTrackHits) {
+            fTracker0 -> Clear();
+            fTracker1 -> Clear();
+            for (auto hit : remaining) {
+                fTracker0 -> AddHit(hit,fAxis00,fAxis01);
+                fTracker1 -> AddHit(hit,fAxis10,fAxis11);
+            }
+            fTracker0 -> Transform();
+            fTracker1 -> Transform();
+            auto paramPoint0 = fTracker0 -> FindNextMaximumParamPoint();
+            auto paramPoint1 = fTracker1 -> FindNextMaximumParamPoint();
+            auto track0 = fTracker0 -> FitTrackWithParamPoint(paramPoint0);
+            auto track1 = fTracker1 -> FitTrackWithParamPoint(paramPoint1);
+            fTrackTemp -> Clear();
+            if (!fTrackTemp->Create3DTrack(track0,fAxisConf0,track1,fAxisConf1))
+                break;
+
+            std::vector<LKHit*> selected;
+            for (auto hit : remaining)
+                if (fTrackTemp->DistanceToLine(hit->GetPosition()) <= fTrackDistanceCut)
+                    selected.push_back(hit);
+            if (int(selected.size())<fMinTrackHits)
+                break;
+
+            auto track = (LKLinearTrack*) fTrackArray -> ConstructedAt(fNumTracks);
+            track -> SetTrackID(fNumTracks);
+            for (auto hit : selected)
+                track -> AddHit(hit);
+            if (!track->Fit())
+                break;
+            track -> SetQuality(1);
+            ++fNumTracks;
+
+            remaining.erase(std::remove_if(remaining.begin(),remaining.end(),
+                [&](LKHit* hit) { return std::find(selected.begin(),selected.end(),hit)!=selected.end(); }),
+                remaining.end());
+        }
+    }
+    else
+
     if (fNumHT==1) {
         // 1D -------------------------------------------------------------------------------------------
         fTracker0 -> Clear();
@@ -193,11 +256,12 @@ void LKHTTrackingTask::Exec(Option_t *option)
     {
         auto track = (LKLinearTrack*) fTrackArray -> At(iTrack);
         track -> SetTrackID(iTrack);
-        LKGeoBox box(0.5*(fX2+fX1),0.5*(fY2+fY1),0.5*(fZ2+fZ1),fX2-fX1,fY2-fY1,fZ2-fZ1);
-        //box.Print();
-        TVector3 point1, point2;
-        box.GetCrossingPoints(*track,point1,point2);
-        track -> SetTrack(point1, point2);
+        if (fMaxTracks==1) {
+            LKGeoBox box(0.5*(fX2+fX1),0.5*(fY2+fY1),0.5*(fZ2+fZ1),fX2-fX1,fY2-fY1,fZ2-fZ1);
+            TVector3 point1, point2;
+            box.GetCrossingPoints(*track,point1,point2);
+            track -> SetTrack(point1, point2);
+        }
         track -> Print();
     }
 

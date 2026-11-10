@@ -4,11 +4,43 @@ using namespace std;
 #include "LKEvePlane.h"
 #include "GETChannel.h"
 #include "LKPad.h"
+#include "LKPulse.h"
+#include "LKTracklet.h"
 #include "TStyle.h"
 #include "TSystem.h"
 #include "TApplication.h"
+#include "TGraphErrors.h"
+#include "TLatex.h"
+
+#include <algorithm>
 
 ClassImp(LKEvePlane)
+
+void LKEvePlane::DrawTrackOverlay(TPad* pad, int iPad)
+{
+    if (pad==nullptr || fTrackArray==nullptr)
+        return;
+    pad -> cd();
+    auto axis1 = GetAxis1(iPad);
+    auto axis2 = GetAxis2(iPad);
+    for (auto iTrack=0; iTrack<fTrackArray->GetEntriesFast(); ++iTrack) {
+        auto track = dynamic_cast<LKTracklet*>(fTrackArray->At(iTrack));
+        if (track==nullptr || !track->DoDrawOnDetectorPlane())
+            continue;
+        auto line = new TGraphErrors();
+        track -> FillTrajectory(line,axis1,axis2);
+        if (line->GetN()<2) {
+            delete line;
+            continue;
+        }
+        line -> SetLineColor(kRed);
+        line -> SetLineWidth(2);
+        line -> SetLineStyle(1);
+        line -> SetBit(kCanDelete);
+        line -> Draw("L SAME");
+    }
+    pad -> Modified();
+}
 
 LKEvePlane::LKEvePlane()
 : LKDetectorPlane("LKEvePlane","")
@@ -129,6 +161,8 @@ void LKEvePlane::Draw(Option_t *option)
     FillDataToHist(fillOption);
     SetPalette();
     UpdateAll();
+    fCanvas -> Modified();
+    fCanvas -> Update();
 }
 
 void LKEvePlane::UpdateAll()
@@ -160,6 +194,7 @@ void LKEvePlane::UpdateEventDisplay1()
         //    gStyle -> SetNumberContours(fEnergyMax-fEnergyMin);
     }
     fHistEventDisplay1 -> Draw(fEventDisplayDrawOption);
+    DrawTrackOverlay(fPadEventDisplay1,0);
     fEventDisplayDrawOption = "colz";
 }
 
@@ -183,6 +218,7 @@ void LKEvePlane::UpdateEventDisplay2()
         //    gStyle -> SetNumberContours(fEnergyMax-fEnergyMin);
     }
     fHistEventDisplay2 -> Draw(fEventDisplayDrawOption);
+    DrawTrackOverlay(fPadEventDisplay2,1);
     fEventDisplayDrawOption = "colz";
 }
 
@@ -244,8 +280,9 @@ void LKEvePlane::UpdateChannelBuffer()
         auto channel = (GETChannel*) fRawDataArray -> At(fSelRawDataID);
         TString selectedFillOption = fFillOptionSelected;
         selectedFillOption.ToLower();
+        const auto showStoredHits = selectedFillOption.Index("hit")==0 && fHitArray!=nullptr;
         const auto useShapedBuffer =
-            (selectedFillOption.Index("shaped")==0 || selectedFillOption.Index("out")==0) &&
+            (showStoredHits || selectedFillOption.Index("shaped")==0 || selectedFillOption.Index("out")==0) &&
             channel -> InheritsFrom(LKPad::Class());
         //channel -> Print();
         //channel -> GetBuffer().Print();
@@ -344,8 +381,10 @@ void LKEvePlane::UpdateChannelBuffer()
                 ((LKPad*) channel) -> SetHist(fHistChannelBuffer, "out");
             else
                 channel -> FillHist(fHistChannelBuffer);
-            if      (fEnergyMax==0) fHistChannelBuffer -> SetMaximum(-1111);
-            else if (fEnergyMax==1) fHistChannelBuffer -> SetMaximum(4200);
+            if (!showStoredHits) {
+                if      (fEnergyMax==0) fHistChannelBuffer -> SetMaximum(-1111);
+                else if (fEnergyMax==1) fHistChannelBuffer -> SetMaximum(4200);
+            }
 
             auto cobo = channel -> GetCobo();
             auto asad = channel -> GetAsad();
@@ -364,18 +403,60 @@ void LKEvePlane::UpdateChannelBuffer()
             auto height = (numHits>0 ? fChannelAnalyzer -> GetAmplitude(0) : 0.);
             auto signalToNoise = (noise>0 ? height/noise : 0.);
 
-            TString title = Form("(PC) = (%d, %d)", fSelPadID, fSelRawDataID);
-            title = title + Form(", (i,j) = (%1.f, %1.f)", pad->GetI(), pad->GetJ());
-            title = title + Form(", (CAAC) = (%d, %d, %d, %d)", cobo, asad, aget, chan);
-            title = title + Form(", (TEP)=(%.1f, %.1f, %.1f)", time, engy, pdst);
-            title = title + Form(", PSA(T,H,P,N,S/N,#)=(%.1f, %.1f, %.1f, %.1f, %.1f, %d)",
-                                 psaTime, height, pedestal, noise, signalToNoise, numHits);
-            fHistChannelBuffer -> SetTitle(title);
+            int storedHitCount = 0;
+            double storedPeak = 0.;
+            double storedTb = -1.;
+            if (showStoredHits) {
+                TIter nextHit(fHitArray);
+                LKHit* storedHit = nullptr;
+                while ((storedHit = (LKHit*) nextHit())) {
+                    const auto hitPadID = storedHit -> GetPadID();
+                    if (hitPadID >= 0 ? hitPadID != pad -> GetPadID() : storedHit -> GetChannelID() != channel -> GetChannelID())
+                        continue;
+                    ++storedHitCount;
+                    if (storedHit -> GetCharge() > storedPeak) {
+                        storedPeak = storedHit -> GetCharge();
+                        storedTb = storedHit -> GetTb();
+                    }
+                }
+
+                double observedMax = pedestal;
+                for (auto tb = 0; tb < 512; ++tb)
+                    observedMax = std::max(observedMax, double(buffer[tb]));
+                const auto signalSpan = std::max(100., std::max(storedPeak, observedMax - pedestal));
+                fHistChannelBuffer -> SetMinimum(std::max(0., pedestal - 0.4*signalSpan));
+                fHistChannelBuffer -> SetMaximum(std::max(observedMax, pedestal + storedPeak) + 0.2*signalSpan);
+                fHistChannelBuffer -> SetTitle(";TB;");
+                fHistChannelBuffer -> SetLineWidth(2);
+                fHistChannelBuffer -> GetXaxis() -> SetLabelSize(0.075);
+                fHistChannelBuffer -> GetYaxis() -> SetLabelSize(0.075);
+                fHistChannelBuffer -> GetXaxis() -> SetTitleSize(0.075);
+            }
+
+            if (!showStoredHits) {
+                TString title = Form("(PC) = (%d, %d)", fSelPadID, fSelRawDataID);
+                title = title + Form(", (i,j) = (%1.f, %1.f)", pad->GetI(), pad->GetJ());
+                title = title + Form(", (CAAC) = (%d, %d, %d, %d)", cobo, asad, aget, chan);
+                title = title + Form(", (TEP)=(%.1f, %.1f, %.1f)", time, engy, pdst);
+                title = title + Form(", PSA(T,H,P,N,S/N,#)=(%.1f, %.1f, %.1f, %.1f, %.1f, %d)",
+                                     psaTime, height, pedestal, noise, signalToNoise, numHits);
+                fHistChannelBuffer -> SetTitle(title);
+            }
 
             fPadChannelBuffer -> cd();
             fHistChannelBuffer -> Draw();
+            if (showStoredHits) {
+                TLatex label;
+                label.SetTextFont(42);
+                label.SetTextSize(0.072);
+                if (storedHitCount > 0)
+                    label.DrawLatexNDC(0.17, 0.90, Form("Pad %d   Peak %.0f ADC at TB %.0f", pad -> GetPadID(), storedPeak, storedTb));
+                else
+                    label.DrawLatexNDC(0.17, 0.90, Form("Pad %d   No PSA hit", pad -> GetPadID()));
+                label.DrawLatexNDC(0.02, 0.82, "ADC");
+            }
 
-            if (fFitChannel)
+            if (fFitChannel && !showStoredHits)
             {
                 fPadChannelBuffer -> cd();
                 auto graphPedestal = fChannelAnalyzer -> GetPedestalGraph();
@@ -395,7 +476,57 @@ void LKEvePlane::UpdateChannelBuffer()
                 //fFitChannel = false;
             }
 
-            if (useShapedBuffer && channel -> InheritsFrom(LKPad::Class()))
+            if (showStoredHits)
+            {
+                TString pulseFile = TString(gSystem -> Getenv("LILAK_PATH")) + "/common/pulseReference.mac";
+                if (fPar -> CheckPar("LKPulseShapeAnalysisTask/pulseParameterFile")) {
+                    TString configuredPulseFile = fPar -> GetParString("LKPulseShapeAnalysisTask/pulseParameterFile");
+                    if (!configuredPulseFile.IsNull())
+                        pulseFile = configuredPulseFile;
+                }
+                LKPulse pulse(pulseFile);
+                if (pulse.IsGood()) {
+                    double peakOffset = 0.;
+                    double peakValue = 0.;
+                    for (double tb = pulse.GetPulseFunctionTbMin(); tb <= pulse.GetPulseFunctionTbMax(); tb += 0.1) {
+                        const auto value = pulse.EvalTb(tb, 0., 1.);
+                        if (value > peakValue) {
+                            peakValue = value;
+                            peakOffset = tb;
+                        }
+                    }
+
+                    TString analysisMode = "";
+                    if (fPar -> CheckPar("LKPulseShapeAnalysisTask/analysisMode"))
+                        analysisMode = fPar -> GetParString("LKPulseShapeAnalysisTask/analysisMode");
+                    analysisMode.ToLower();
+                    const auto peakMode = (analysisMode == "maximum" || analysisMode == "max");
+
+                    TIter nextHit(fHitArray);
+                    LKHit* storedHit = nullptr;
+                    while ((storedHit = (LKHit*) nextHit())) {
+                        const auto hitPadID = storedHit -> GetPadID();
+                        if (hitPadID >= 0 ? hitPadID != pad -> GetPadID() : storedHit -> GetChannelID() != channel -> GetChannelID())
+                            continue;
+                        const auto hitAmplitude = storedHit -> GetCharge();
+                        if (hitAmplitude <= 0 || peakValue <= 0)
+                            continue;
+                        const auto tb0 = storedHit -> GetTb() - (peakMode ? peakOffset : 0.);
+                        const auto pulseAmplitude = peakMode ? hitAmplitude / peakValue : hitAmplitude;
+                        auto pulseGraph = pulse.GetPulseGraph(tb0, pulseAmplitude, storedHit -> GetPedestal());
+                        TGraph line;
+                        for (auto iPoint = 0; iPoint < pulseGraph -> GetN(); ++iPoint)
+                            line.SetPoint(iPoint, pulseGraph -> GetPointX(iPoint), pulseGraph -> GetPointY(iPoint));
+                        line.SetLineColor(kRed+1);
+                        line.SetLineWidth(2);
+                        line.SetLineStyle(1);
+                        line.DrawClone("L SAME");
+                        delete pulseGraph;
+                    }
+                }
+            }
+
+            if (useShapedBuffer && !showStoredHits && channel -> InheritsFrom(LKPad::Class()))
                 ((LKPad*) channel) -> DrawHits();
         }
     }
@@ -494,7 +625,7 @@ TCanvas *LKEvePlane::GetCanvas(Option_t *option)
         fPadEventDisplay2 -> SetNumber(2);
         fPadEventDisplay2 -> Draw();
         fPadChannelBuffer = new TPad("LKEvePlanePad_channel","",0,0,0.5,fYCCanvas);
-        fPadChannelBuffer -> SetMargin(0.12,0.05,0.20,0.10);
+        fPadChannelBuffer -> SetMargin(0.16,0.05,0.22,0.17);
         fPadChannelBuffer -> SetNumber(3);
         fPadChannelBuffer -> Draw();
         fPadControlEvent1 = new TPad("LKEvePlanePad_control1","",0.5,y1,1,y2);

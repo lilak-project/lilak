@@ -76,6 +76,7 @@ class LKEvePlane : public LKDetectorPlane, public LKPadInteractive
         virtual void UpdateAll();
         virtual void UpdateEventDisplay1();
         virtual void UpdateEventDisplay2();
+        void DrawTrackOverlay(TPad* pad, int iPad);
         virtual void UpdateChannelBuffer();
         virtual void UpdateControlEvent1();
         virtual void UpdateControlEvent2();
