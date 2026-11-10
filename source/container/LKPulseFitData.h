@@ -32,7 +32,7 @@ class LKPulseFitData : public LKContainer
         double fSlope; ///< reconstructed slope
         double fSlopePar0; ///< extra slope parameters
         double fSlopePar1; ///< extra slope parameters
-        double fSlopeAmplitude; ///< reconstructed amplitude from slope correlation
+        double fSlopeAmplitude; ///< Output amplitude; LKSetSiChannelTask uses SaturationEnergyFormula (default marker 10000).
 
     ClassDef(LKPulseFitData, 1)
 };

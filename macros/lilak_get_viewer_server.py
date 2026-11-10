@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 import argparse
 import bisect
+import fcntl
 import json
 import math
+import mmap
 import os
 import posixpath
 import re
+import shlex
+import shutil
 import statistics
+import struct
+import subprocess
+import tempfile
 import threading
 import urllib.parse
 import webbrowser
@@ -50,7 +57,10 @@ class DetectorMapping:
             key = tuple(int(row[name]) for name in ("cobo", "asad", "aget", "ch"))
             detector = detectors.get(int(row["det_idx"]))
             if detector is not None:
-                self.channels[key] = detector
+                self.channels[key] = {
+                    **detector,
+                    "strip": int(row["strip"]),
+                }
         metadata = list(self.channels.values())
         self.options = {
             "detectorTypes": sorted({item["detectorType"] for item in metadata}),
@@ -601,24 +611,497 @@ def list_directory(path: str) -> dict:
     if not target.is_dir():
         raise NotADirectoryError(str(target))
 
+    event_ranges = {}
+    for ranges_file in target.glob("*" + MFM_RANGES_SUFFIX):
+        metadata = load_valid_mfm_ranges(ranges_file)
+        if metadata is None:
+            continue
+        for source in metadata["sources"]:
+            event_ranges[str((target / source["name"]).resolve())] = {
+                "minEvent": source.get("minEvent"),
+                "maxEvent": source.get("maxEvent"),
+                "frameCount": source.get("frameCount"),
+            }
+
     entries = []
     for child in target.iterdir():
+        if (child.name.endswith(MFM_INDEX_SUFFIX)
+                or child.name.endswith(MFM_RANGES_SUFFIX)
+                or child.name.endswith(MFM_INDEX_SUFFIX + ".lock")
+                or (child.name.startswith(".") and ".tmp-" in child.name)):
+            continue
         try:
             is_directory = child.is_dir()
             stat = child.stat()
         except OSError:
             continue
-        entries.append(
-            {
-                "name": child.name,
-                "path": str(child.resolve()),
-                "isDirectory": is_directory,
-                "size": 0 if is_directory else stat.st_size,
-            }
-        )
-    entries.sort(key=lambda item: (not item["isDirectory"], item["name"].lower()))
+        resolved = str(child.resolve())
+        entries.append({
+            "name": child.name,
+            "path": resolved,
+            "isDirectory": is_directory,
+            "size": 0 if is_directory else stat.st_size,
+            **event_ranges.get(resolved, {}),
+        })
+    entries.sort(key=lambda item: (
+        not item["isDirectory"],
+        tuple(int(part) if part.isdigit() else part.lower()
+              for part in re.split(r"(\d+)", item["name"])),
+    ))
     parent = str(target.parent) if target.parent != target else None
     return {"path": str(target), "parent": parent, "entries": entries}
+
+
+def root_reader_environment(root_config: Path) -> dict:
+    environment = os.environ.copy()
+    root_library = str(root_config.parent.parent / "lib")
+    lilak_root = Path(__file__).resolve().parent.parent
+    if not (lilak_root / "build" / "libLILAK.so").is_file():
+        lilak_root = Path(environment.get("LILAK_PATH", "/root/lilak")).resolve()
+    lilak_library = str(lilak_root / "build")
+    inherited = environment.get("LD_LIBRARY_PATH", "")
+    environment["LD_LIBRARY_PATH"] = ":".join(
+        item for item in (root_library, lilak_library, inherited) if item
+    )
+    return environment
+
+
+def ensure_root_reader() -> Tuple[Path, Path]:
+    source = Path(__file__).resolve().with_name("lilak_get_viewer_root_reader.cpp")
+    if not source.is_file():
+        raise RuntimeError(f"ROOT reader source is missing: {source}")
+    candidates = sorted(Path("/root/opt").glob("root-*/bin/root-config"), reverse=True)
+    system_root_config = shutil.which("root-config")
+    if system_root_config:
+        candidates.append(Path(system_root_config))
+    if not candidates:
+        raise RuntimeError("ROOT root-config was not found")
+    root_config = candidates[0]
+    binary = Path(f"/tmp/lilak_get_viewer_root_reader_{os.getuid()}")
+    lilak_root = Path(__file__).resolve().parent.parent
+    if not (lilak_root / "build" / "libLILAK.so").is_file():
+        lilak_root = Path(os.environ.get("LILAK_PATH", "/root/lilak")).resolve()
+    lilak_library = lilak_root / "build" / "libLILAK.so"
+    rebuild = (not binary.is_file()
+               or binary.stat().st_mtime < source.stat().st_mtime
+               or (lilak_library.is_file()
+                   and binary.stat().st_mtime < lilak_library.stat().st_mtime))
+    if rebuild:
+        cflags = shlex.split(subprocess.check_output(
+            [str(root_config), "--cflags"], text=True
+        ))
+        libraries = shlex.split(subprocess.check_output(
+            [str(root_config), "--libs"], text=True
+        ))
+        include_directories = [
+            lilak_root / "source" / "container",
+            lilak_root / "source" / "container" / "readout",
+            lilak_root / "source" / "container" / "measurement",
+            lilak_root / "source" / "base",
+            lilak_root / "source" / "tool",
+            lilak_root / "source" / "geometry",
+        ]
+        command = ["g++", "-O2", *cflags]
+        command.extend(f"-I{directory}" for directory in include_directories)
+        command.extend([
+            str(source), "-o", str(binary), f"-L{lilak_root / 'build'}", "-lLILAK",
+            *libraries, f"-Wl,-rpath,{root_config.parent.parent / 'lib'}",
+            f"-Wl,-rpath,{lilak_root / 'build'}",
+        ])
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout).strip()
+            raise RuntimeError(f"failed to build ROOT reader: {detail[-2000:]}")
+    return binary, root_config
+
+
+def ensure_raw_indexer() -> Path:
+    source = Path(__file__).resolve().with_name("lilak_get_viewer_raw_indexer.cpp")
+    if not source.is_file():
+        raise RuntimeError(f"raw indexer source is missing: {source}")
+    lilak_root = Path(__file__).resolve().parent.parent
+    header = lilak_root / "source" / "tool" / "get_convter" / "LKGETOfflineFrameIndex.h"
+    if not header.is_file():
+        lilak_root = Path(os.environ.get("LILAK_PATH", "/root/lilak")).resolve()
+        header = lilak_root / "source" / "tool" / "get_convter" / "LKGETOfflineFrameIndex.h"
+    binary = Path(f"/tmp/lilak_get_viewer_raw_indexer_{os.getuid()}")
+    rebuild = (not binary.is_file()
+               or binary.stat().st_mtime < source.stat().st_mtime
+               or binary.stat().st_mtime < header.stat().st_mtime)
+    if rebuild:
+        command = [
+            "g++", "-std=c++11", "-O2", f"-I{header.parent}",
+            str(source), "-o", str(binary),
+        ]
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout).strip()
+            raise RuntimeError(f"failed to build raw indexer: {detail[-2000:]}")
+    return binary
+
+
+MFM_INDEX_SUFFIX = ".mfm_event_index"
+MFM_RANGES_SUFFIX = ".mfm_event_ranges.json"
+
+
+def natural_name_key(path: Path) -> tuple:
+    return tuple(
+        int(part) if part.isdigit() else part.lower()
+        for part in re.split(r"(\d+)", path.name)
+    )
+
+
+def mfm_family(path: str) -> Tuple[Path, List[Path]]:
+    selected = Path(path).resolve()
+    numbered = re.fullmatch(r"(.+)\.(\d+)", selected.name)
+    candidate = selected.with_name(numbered.group(1)) if numbered else selected
+    base = candidate if candidate.is_file() else selected
+    members = [base] if base.is_file() else []
+    members.extend(
+        child for child in base.parent.glob(base.name + ".*")
+        if child.is_file() and re.fullmatch(re.escape(base.name) + r"\.\d+", child.name)
+    )
+    return base, sorted({item.resolve() for item in members}, key=natural_name_key)
+
+
+def persistent_mfm_cache(paths: List[str]) -> Optional[Tuple[Path, List[Path], Path, Path]]:
+    if not paths:
+        return None
+    base, members = mfm_family(paths[0])
+    selected = {Path(path).resolve() for path in paths}
+    if not members or selected != set(members):
+        return None
+    for path in paths[1:]:
+        other_base, _other_members = mfm_family(path)
+        if other_base != base:
+            return None
+    index_path = Path(str(base) + MFM_INDEX_SUFFIX)
+    ranges_path = Path(str(base) + MFM_RANGES_SUFFIX)
+    return base, members, index_path, ranges_path
+
+
+def source_stat(path: Path) -> dict:
+    stat = path.stat()
+    return {"name": path.name, "size": stat.st_size, "mtimeNs": stat.st_mtime_ns}
+
+
+def load_valid_mfm_ranges(path: Path, expected_paths: Optional[List[Path]] = None) -> Optional[dict]:
+    try:
+        payload = json.loads(path.read_text())
+        if payload.get("format") != "lilak-mfm-event-ranges" or payload.get("version") != 1:
+            return None
+        directory = path.parent
+        sources = payload["sources"]
+        if expected_paths is not None and [item["name"] for item in sources] != [p.name for p in expected_paths]:
+            return None
+        for item in sources:
+            source = directory / item["name"]
+            current = source_stat(source)
+            if current["size"] != item["size"] or current["mtimeNs"] != item["mtimeNs"]:
+                return None
+        return payload
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+        return None
+
+
+class CompactRawIndex:
+    HEADER = struct.Struct("<8sIIQQQQQQQ")
+    SOURCE = struct.Struct("<QQ")
+    FRAME = struct.Struct("<QII")
+    EVENT = struct.Struct("<QII")
+    AUXILIARY = struct.Struct("<QII")
+
+    def __init__(self, paths: List[str]) -> None:
+        self.path = None
+        self.handle = None
+        self.mapping = None
+        self.temporary = True
+        resolved_paths = [Path(path).resolve() for path in paths]
+        cache = persistent_mfm_cache(paths)
+        try:
+            if cache is None:
+                descriptor, index_path = tempfile.mkstemp(
+                    prefix="lilak_get_viewer_index_", suffix=".bin"
+                )
+                os.close(descriptor)
+                self.path = index_path
+                self._build(index_path, resolved_paths)
+                self._open(resolved_paths)
+                return
+
+            _base, canonical_paths, index_path, ranges_path = cache
+            resolved_paths = canonical_paths
+            metadata = load_valid_mfm_ranges(ranges_path, canonical_paths)
+            if metadata is not None and index_path.is_file():
+                self.path = str(index_path)
+                self.temporary = False
+                try:
+                    self._open(canonical_paths)
+                    print(f"using cached MFM event index: {index_path}", flush=True)
+                    return
+                except ParseError:
+                    self.close()
+
+            lock_path = Path(str(index_path) + ".lock")
+            with open(lock_path, "a+") as lock:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+                metadata = load_valid_mfm_ranges(ranges_path, canonical_paths)
+                if metadata is not None and index_path.is_file():
+                    self.path = str(index_path)
+                    self.temporary = False
+                    try:
+                        self._open(canonical_paths)
+                        print(f"using cached MFM event index: {index_path}", flush=True)
+                        return
+                    except ParseError:
+                        self.close()
+
+                index_fd, temporary_index = tempfile.mkstemp(
+                    prefix=f".{index_path.name}.tmp-", dir=str(index_path.parent)
+                )
+                os.close(index_fd)
+                ranges_fd, temporary_ranges = tempfile.mkstemp(
+                    prefix=f".{ranges_path.name}.tmp-", dir=str(ranges_path.parent)
+                )
+                os.close(ranges_fd)
+                try:
+                    source_ranges = self._build(temporary_index, canonical_paths)
+                    header = self._read_header(temporary_index, canonical_paths)
+                    sources = []
+                    for source_id, source in enumerate(canonical_paths):
+                        item = source_stat(source)
+                        item.update(source_ranges[source_id])
+                        sources.append(item)
+                    payload = {
+                        "format": "lilak-mfm-event-ranges",
+                        "version": 1,
+                        "indexFile": index_path.name,
+                        "frameCount": header[3],
+                        "eventCount": header[4],
+                        "sources": sources,
+                    }
+                    Path(temporary_ranges).write_text(
+                        json.dumps(payload, indent=2, sort_keys=True) + "\n"
+                    )
+                    os.replace(temporary_index, index_path)
+                    os.replace(temporary_ranges, ranges_path)
+                    os.chmod(index_path, 0o664)
+                    os.chmod(ranges_path, 0o664)
+                finally:
+                    for temporary in (temporary_index, temporary_ranges):
+                        try:
+                            os.unlink(temporary)
+                        except FileNotFoundError:
+                            pass
+                self.path = str(index_path)
+                self.temporary = False
+                self._open(canonical_paths)
+                print(f"saved MFM event index: {index_path}", flush=True)
+        except Exception:
+            self.close()
+            raise
+
+    def _build(self, index_path: str, paths: List[Path]) -> dict:
+        result = subprocess.run(
+            [str(ensure_raw_indexer()), str(index_path), *(str(path) for path in paths)],
+            capture_output=True, text=True, check=False,
+        )
+        if result.stderr:
+            print(result.stderr, end="", flush=True)
+        if result.returncode != 0:
+            raise ParseError(
+                f"raw indexing failed: {(result.stderr or result.stdout).strip()}"
+            )
+        ranges = {}
+        for line in result.stdout.splitlines():
+            fields = line.split()
+            if len(fields) == 5 and fields[0] == "LKGET_SOURCE":
+                source_id, frame_count = int(fields[1]), int(fields[2])
+                ranges[source_id] = {
+                    "frameCount": frame_count,
+                    "minEvent": None if fields[3] == "-" else int(fields[3]),
+                    "maxEvent": None if fields[4] == "-" else int(fields[4]),
+                }
+        if set(ranges) != set(range(len(paths))):
+            raise ParseError("raw indexer did not return every source event range")
+        return ranges
+
+    @classmethod
+    def _read_header(cls, path: str, sources: List[Path]) -> tuple:
+        with open(path, "rb") as handle:
+            data = handle.read(cls.HEADER.size)
+            handle.seek(0, os.SEEK_END)
+            file_size = handle.tell()
+        if len(data) != cls.HEADER.size:
+            raise ParseError("raw index is truncated")
+        header = cls.HEADER.unpack(data)
+        (magic, version, indexed_sources, frames, events, auxiliary_count,
+         source_offset, frame_offset, event_offset, auxiliary_offset) = header
+        expected_size = auxiliary_offset + auxiliary_count * cls.AUXILIARY.size
+        if (magic != b"LKGVIX2\0" or version != 2 or indexed_sources != len(sources)
+                or source_offset != cls.HEADER.size
+                or frame_offset != source_offset + indexed_sources * cls.SOURCE.size
+                or event_offset != frame_offset + frames * cls.FRAME.size
+                or auxiliary_offset != event_offset + events * cls.EVENT.size
+                or expected_size != file_size):
+            raise ParseError("raw index has an invalid format")
+        with open(path, "rb") as handle:
+            handle.seek(source_offset)
+            for source in sources:
+                stored = handle.read(cls.SOURCE.size)
+                if len(stored) != cls.SOURCE.size:
+                    raise ParseError("raw index source table is truncated")
+                file_size, modification_time_ns = cls.SOURCE.unpack(stored)
+                current = source_stat(source)
+                if (file_size != current["size"]
+                        or modification_time_ns != current["mtimeNs"]):
+                    raise ParseError("raw index does not match its source files")
+        return header
+
+    def _open(self, sources: List[Path]) -> None:
+        assert self.path is not None
+        self._read_header(self.path, sources)
+        self.handle = open(self.path, "rb")
+        self.mapping = mmap.mmap(self.handle.fileno(), 0, access=mmap.ACCESS_READ)
+        (_magic, _version, _sources, self.frame_count, self.event_count,
+         self.auxiliary_count, self.source_offset, self.frame_offset,
+         self.event_offset, self.auxiliary_offset) = self.HEADER.unpack_from(self.mapping)
+
+    def close(self) -> None:
+        if self.mapping is not None:
+            self.mapping.close()
+            self.mapping = None
+        if self.handle is not None:
+            self.handle.close()
+            self.handle = None
+        path = getattr(self, "path", None)
+        if path and self.temporary:
+            try:
+                os.unlink(path)
+            except FileNotFoundError:
+                pass
+        self.path = None
+
+    def __len__(self) -> int:
+        return self.event_count
+
+    def event_refs(self, event_index: int) -> Tuple[int, List[Tuple[int, int]]]:
+        if not 0 <= event_index < self.event_count:
+            raise IndexError("event is outside the indexed file range")
+        assert self.mapping is not None
+        first, event_id, count = self.EVENT.unpack_from(
+            self.mapping, self.event_offset + event_index * self.EVENT.size
+        )
+        refs = []
+        for frame_index in range(first, first + count):
+            file_offset, indexed_event_id, source_id = self.FRAME.unpack_from(
+                self.mapping, self.frame_offset + frame_index * self.FRAME.size
+            )
+            if indexed_event_id != event_id:
+                raise ParseError("raw index event table is inconsistent")
+            refs.append((source_id, file_offset))
+        return event_id, refs
+
+    def event_index_for_id(self, event_id: int) -> int:
+        assert self.mapping is not None
+        low, high = 0, self.event_count
+        while low < high:
+            middle = (low + high) // 2
+            _first, middle_id, _count = self.EVENT.unpack_from(
+                self.mapping, self.event_offset + middle * self.EVENT.size
+            )
+            if middle_id < event_id:
+                low = middle + 1
+            else:
+                high = middle
+        if low < self.event_count:
+            _first, found_id, _count = self.EVENT.unpack_from(
+                self.mapping, self.event_offset + low * self.EVENT.size
+            )
+            if found_id == event_id:
+                return low
+        raise IndexError(f"frame {event_id} was not found")
+
+
+def probe_root_file(path: str) -> dict:
+    binary, root_config = ensure_root_reader()
+    result = subprocess.run(
+        [str(binary), path, "-"], capture_output=True, text=True,
+        env=root_reader_environment(root_config), check=False,
+    )
+    line = result.stdout.strip().splitlines()
+    if result.returncode != 0 or not line or not line[0].startswith("BRANCHES "):
+        detail = (result.stderr or result.stdout).strip()
+        raise ParseError(f"could not inspect ROOT file: {detail or 'invalid event tree'}")
+    fields = line[0].split()
+    return {"entries": int(fields[1]), "branches": fields[2:]}
+
+
+class RootEventReader:
+    def __init__(self, path: str, branch: str) -> None:
+        binary, root_config = ensure_root_reader()
+        self.process = subprocess.Popen(
+            [str(binary), path, branch], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL, text=True, bufsize=1,
+            env=root_reader_environment(root_config),
+        )
+        ready = self.process.stdout.readline().strip() if self.process.stdout else ""
+        if not ready.startswith("READY "):
+            self.close()
+            raise ParseError(f"could not open ROOT branch {branch}")
+        self.entries = int(ready.split()[1])
+
+    def close(self) -> None:
+        process = getattr(self, "process", None)
+        if process is None:
+            return
+        if process.stdin:
+            process.stdin.close()
+        try:
+            process.wait(timeout=1)
+        except subprocess.TimeoutExpired:
+            process.terminate()
+            try:
+                process.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                process.kill()
+        self.process = None
+
+    def read_event(self, event_index: int) -> tuple:
+        if self.process is None or self.process.poll() is not None:
+            raise RuntimeError("ROOT reader is not running")
+        assert self.process.stdin is not None and self.process.stdout is not None
+        self.process.stdin.write(f"{event_index}\n")
+        self.process.stdin.flush()
+        header = self.process.stdout.readline().strip().split()
+        if len(header) != 4 or header[0] != "EVENT":
+            raise ParseError("ROOT reader returned an invalid event header")
+        frame_number, event_time, channel_count = map(int, header[1:])
+        channels = {}
+        metadata = {}
+        for _ in range(channel_count):
+            fields = self.process.stdout.readline().strip().split()
+            if len(fields) != 523:
+                raise ParseError("ROOT reader returned an invalid channel waveform")
+            key = tuple(map(int, fields[:4]))
+            pedestal, stored_time, stored_amplitude, noise_scale = map(float, fields[4:8])
+            strip, detector_number, inverted = map(int, fields[8:11])
+            channels[key] = list(map(int, fields[11:]))
+            info = {
+                "storedPedestal": pedestal,
+                "storedTime": stored_time,
+                "storedAmplitude": stored_amplitude,
+                "noiseScale": noise_scale,
+                "inverted": bool(inverted),
+            }
+            if strip >= 0:
+                info["strip"] = strip
+            if detector_number >= 0:
+                info["detectorNumber"] = detector_number
+            metadata[key] = info
+        if self.process.stdout.readline().strip() != "END":
+            raise ParseError("ROOT reader event was not terminated")
+        return frame_number, event_time, channels, metadata
 
 
 class ViewerState:
@@ -629,6 +1112,10 @@ class ViewerState:
         self.paths: List[str] = []
         self.handle = None
         self.source_handles = []
+        self.root_reader: Optional[RootEventReader] = None
+        self.raw_index: Optional[CompactRawIndex] = None
+        self.root_branch: Optional[str] = None
+        self.pending_paths: List[str] = []
         self.merged_event_refs: Optional[List[Tuple[int, List[Tuple[int, int]]]]] = None
         self.truncated_sources: List[dict] = []
         self.file_size = 0
@@ -640,12 +1127,20 @@ class ViewerState:
         self.current_event = -1
 
     def close(self) -> None:
+        if self.root_reader is not None:
+            self.root_reader.close()
+        if self.raw_index is not None:
+            self.raw_index.close()
         if self.handle is not None:
             self.handle.close()
         for handle in self.source_handles:
             handle.close()
         self.handle = None
         self.source_handles = []
+        self.root_reader = None
+        self.raw_index = None
+        self.root_branch = None
+        self.pending_paths = []
         self.merged_event_refs = None
         self.path = None
         self.paths = []
@@ -660,7 +1155,10 @@ class ViewerState:
     def open_path(self, path: str, selection: Optional[dict] = None) -> dict:
         return self.open_paths([path], selection=selection)
 
-    def open_paths(self, paths: List[str], selection: Optional[dict] = None) -> dict:
+    def open_paths(
+        self, paths: List[str], selection: Optional[dict] = None,
+        root_branch: Optional[str] = None,
+    ) -> dict:
         with self.lock:
             expanded_paths = [os.path.abspath(os.path.expanduser(path)) for path in paths]
             if not expanded_paths:
@@ -668,6 +1166,31 @@ class ViewerState:
             for expanded in expanded_paths:
                 if not os.path.isfile(expanded):
                     raise FileNotFoundError(expanded)
+            root_paths = [path for path in expanded_paths if path.lower().endswith(".root")]
+            if root_paths:
+                if len(expanded_paths) != 1:
+                    raise ValueError("open one ROOT file at a time")
+                root_info = probe_root_file(expanded_paths[0])
+                branches = root_info["branches"]
+                if not branches:
+                    raise ParseError("ROOT event tree has neither RawData nor SiChannel")
+                if root_branch not in branches:
+                    if root_branch is not None:
+                        raise ValueError(f"ROOT branch is not available: {root_branch}")
+                    if len(branches) > 1:
+                        raise ValueError("choose RawData or SiChannel before opening this ROOT file")
+                    root_branch = branches[0]
+                self.close()
+                self.path = expanded_paths[0]
+                self.paths = expanded_paths
+                self.file_size = os.path.getsize(expanded_paths[0])
+                self.root_branch = root_branch
+                self.root_reader = RootEventReader(expanded_paths[0], root_branch)
+                self.eof = True
+                return self.load_event(0, selection=selection)
+            cache = persistent_mfm_cache(expanded_paths)
+            if cache is not None:
+                expanded_paths = [str(path) for path in cache[1]]
             self.close()
             self.path = expanded_paths[0]
             self.paths = expanded_paths
@@ -683,43 +1206,33 @@ class ViewerState:
                 return self.load_event(0, selection=selection)
 
             # Basic CoBo frames are not necessarily ordered by event id inside
-            # one source. Mirror LKCoboFrameMergerTask: index every source,
-            # group all type 1/2 frames by event id, then expose sorted events.
-            grouped: Dict[int, List[Tuple[int, int]]] = {}
+            # one source. Build the shared compact C++ offset index and mmap its
+            # on-disk representation instead of retaining Python objects.
             self.source_handles = [open(path, "rb") for path in expanded_paths]
             self.truncated_sources = []
-            for source_index, handle in enumerate(self.source_handles):
-                print(f"indexing source {source_index + 1}/{len(expanded_paths)}: "
-                      f"{expanded_paths[source_index]}", flush=True)
-                while True:
-                    offset = handle.tell()
-                    try:
-                        frame = self.parser.index_next_frame(handle)
-                    except TruncatedFrameError as error:
-                        # A run cut off mid frame is routine; keep what is whole.
-                        self.truncated_sources.append(
-                            {"path": expanded_paths[source_index], "detail": str(error)}
-                        )
-                        print(f"  incomplete final frame: {error}", flush=True)
-                        break
-                    if frame is None:
-                        break
-                    if frame.frame_type in (1, 2):
-                        grouped.setdefault(frame.event_idx, []).append((source_index, offset))
-                    elif frame.is_layered:
-                        grouped.setdefault(frame.event_idx, []).append((source_index, offset))
-            self.merged_event_refs = sorted(grouped.items())
+            try:
+                self.raw_index = CompactRawIndex(expanded_paths)
+            except Exception:
+                for handle in self.source_handles:
+                    handle.close()
+                self.source_handles = []
+                raise
             self.eof = True
-            print(f"indexed {len(self.merged_event_refs)} events "
+            print(f"indexed {len(self.raw_index)} events "
                   f"from {len(expanded_paths)} source(s)", flush=True)
-            if not self.merged_event_refs:
+            if not self.raw_index:
+                self.close()
                 raise ParseError("no GET data frames found in input files")
             return self.load_event(0, selection=selection)
 
     def status(self) -> dict:
         with self.lock:
             indexed_events = (
-                len(self.merged_event_refs)
+                self.root_reader.entries
+                if self.root_reader is not None
+                else len(self.raw_index)
+                if self.raw_index is not None
+                else len(self.merged_event_refs)
                 if self.merged_event_refs is not None
                 else len(self.event_offsets)
             )
@@ -732,19 +1245,27 @@ class ViewerState:
                 "currentEvent": self.current_event,
                 "indexedEvents": indexed_events,
                 "eof": self.eof,
+                "inputType": "ROOT" if self.root_reader is not None else "GET",
+                "rootBranch": self.root_branch,
+                "pendingPaths": list(self.pending_paths),
                 "mappingPath": str(MAPPING.directory) if MAPPING is not None else None,
                 "mappingOptions": MAPPING.options if MAPPING is not None else None,
                 "browsePath": BROWSE_START_PATH,
             }
 
     def ensure_open(self) -> None:
-        if self.handle is None and not self.source_handles:
+        if (self.handle is None and not self.source_handles
+                and self.root_reader is None and self.raw_index is None):
             raise RuntimeError("no file is open")
 
     def ensure_index(self, event_index: int) -> bool:
         self.ensure_open()
         if event_index < 0:
             return False
+        if self.root_reader is not None:
+            return event_index < self.root_reader.entries
+        if self.raw_index is not None:
+            return event_index < len(self.raw_index)
         if self.merged_event_refs is not None:
             return event_index < len(self.merged_event_refs)
         if len(self.event_offsets) > event_index:
@@ -771,8 +1292,10 @@ class ViewerState:
     def read_event_frame(self, event_index: int) -> RawFrame:
         if not self.ensure_index(event_index):
             raise IndexError("event is outside the indexed file range")
-        if self.merged_event_refs is not None:
-            event_id, refs = self.merged_event_refs[event_index]
+        if self.raw_index is not None or self.merged_event_refs is not None:
+            event_id, refs = (self.raw_index.event_refs(event_index)
+                              if self.raw_index is not None
+                              else self.merged_event_refs[event_index])
             children = []
             total_size = 0
             for source_index, offset in refs:
@@ -802,13 +1325,38 @@ class ViewerState:
 
     def load_event(self, event_index: int, selection: Optional[dict] = None) -> dict:
         with self.lock:
-            frame = self.read_event_frame(event_index)
+            frame, channels, channel_metadata = self.read_event_data(event_index)
             self.current_event = event_index
-            channels = unpack_get_event(frame)
-            return self.serialize_event(event_index, frame, channels, normalize_selection(selection))
+            return self.serialize_event(
+                event_index, frame, channels, normalize_selection(selection), channel_metadata
+            )
+
+    def read_event_data(self, event_index: int) -> tuple:
+        if self.root_reader is not None:
+            if not self.ensure_index(event_index):
+                raise IndexError("event is outside the ROOT tree range")
+            frame_number, event_time, channels, metadata = self.root_reader.read_event(event_index)
+            frame = RawFrame(event_idx=frame_number, event_time=event_time)
+            return frame, channels, metadata
+        frame = self.read_event_frame(event_index)
+        return frame, unpack_get_event(frame), {}
 
     def event_index_for_frame(self, frame_number: int) -> int:
         self.ensure_open()
+        if self.root_reader is not None:
+            # ROOT files normally store entries in frame order. Check the
+            # requested entry first, then fall back to a linear header search.
+            if 0 <= frame_number < self.root_reader.entries:
+                actual, _time, _channels, _metadata = self.root_reader.read_event(frame_number)
+                if actual == frame_number:
+                    return frame_number
+            for index in range(self.root_reader.entries):
+                actual, _time, _channels, _metadata = self.root_reader.read_event(index)
+                if actual == frame_number:
+                    return index
+            raise IndexError(f"frame {frame_number} was not found")
+        if self.raw_index is not None:
+            return self.raw_index.event_index_for_id(frame_number)
         if self.merged_event_refs is not None:
             index = bisect.bisect_left(self.merged_event_refs, (frame_number,))
             if (index < len(self.merged_event_refs)
@@ -855,6 +1403,8 @@ class ViewerState:
         detector_selection: Optional[dict] = None,
         min_tb: Optional[int] = None,
         max_tb: Optional[int] = None,
+        min_channels: Optional[int] = None,
+        max_channels: Optional[int] = None,
     ) -> dict:
         with self.lock:
             scan_selection = scope_selection(selection, scope)
@@ -871,8 +1421,14 @@ class ViewerState:
                         "eof": step > 0 and self.eof,
                         "message": "beginning of file" if step < 0 else "end of file",
                     }
-                frame = self.read_event_frame(event_index)
-                channels = unpack_get_event(frame)
+                frame, channels, channel_metadata = self.read_event_data(event_index)
+                channel_count = len(channels)
+                if ((min_channels is not None and channel_count < min_channels)
+                        or (max_channels is not None and channel_count > max_channels)):
+                    scanned += 1
+                    event_index += step
+                    continue
+                signal_matches = []
                 for key, values in sorted(channels.items()):
                     if not include_fpn and key[3] in FPN_CHANNELS:
                         continue
@@ -885,46 +1441,61 @@ class ViewerState:
                             and (max_threshold is None or stats["amplitude"] <= max_threshold)
                             and (min_tb is None or stats["peakTb"] >= min_tb)
                             and (max_tb is None or stats["peakTb"] <= max_tb)):
-                        self.current_event = event_index
-                        event_payload = self.serialize_event(
-                            event_index,
-                            frame,
-                            channels,
-                            normalize_selection({}),
-                        )
-                        matching_summaries = []
-                        for mapped_key, mapped_values in channels.items():
-                            if not channel_matches_tuple(mapped_key, scan_selection):
-                                continue
-                            if not channel_matches_detector(mapped_key, detector_selection):
-                                continue
-                            mapped_summary = {
-                                "cobo": mapped_key[0],
-                                "asad": mapped_key[1],
-                                "aget": mapped_key[2],
-                                "channel": mapped_key[3],
-                            }
-                            if MAPPING is not None:
-                                mapped_summary.update(MAPPING.channels.get(mapped_key, {}))
-                            matching_summaries.append(mapped_summary)
-                        event_payload["event"]["scanSelection"] = scan_selection
-                        event_payload["event"]["scanDetectorSelection"] = detector_selection
-                        event_payload["event"]["selectionMapping"] = mapping_summary(
-                            matching_summaries
-                        )
-                        return {
-                            "found": True,
-                            "scanned": scanned + 1,
-                            "match": {
-                                "cobo": key[0],
-                                "asad": key[1],
-                                "aget": key[2],
-                                "channel": key[3],
-                                "amplitude": stats["amplitude"],
-                                "peakTb": stats["peakTb"],
-                            },
-                            "event": event_payload,
+                        signal_matches.append((key, stats))
+
+                # Multiple values in Chan are conjunctive: "1-4" only matches
+                # an event when channels 1, 2, 3, and 4 all pass the remaining
+                # filters and the amplitude/TB limits. Other CAAC fields remain
+                # value sets because they define where those channels may live.
+                channel_constraint = scan_selection.get("channel")
+                required_channels = set()
+                if isinstance(channel_constraint, dict):
+                    required_channels.update(channel_constraint.get("include") or [])
+                    required_channels.difference_update(channel_constraint.get("exclude") or [])
+                matched_channels = {key[3] for key, _stats in signal_matches}
+                if signal_matches and required_channels.issubset(matched_channels):
+                    key, stats = signal_matches[0]
+                    self.current_event = event_index
+                    event_payload = self.serialize_event(
+                        event_index,
+                        frame,
+                        channels,
+                        normalize_selection({}),
+                        channel_metadata,
+                    )
+                    matching_summaries = []
+                    for mapped_key, mapped_values in channels.items():
+                        if not channel_matches_tuple(mapped_key, scan_selection):
+                            continue
+                        if not channel_matches_detector(mapped_key, detector_selection):
+                            continue
+                        mapped_summary = {
+                            "cobo": mapped_key[0],
+                            "asad": mapped_key[1],
+                            "aget": mapped_key[2],
+                            "channel": mapped_key[3],
                         }
+                        if MAPPING is not None:
+                            mapped_summary.update(MAPPING.channels.get(mapped_key, {}))
+                        matching_summaries.append(mapped_summary)
+                    event_payload["event"]["scanSelection"] = scan_selection
+                    event_payload["event"]["scanDetectorSelection"] = detector_selection
+                    event_payload["event"]["selectionMapping"] = mapping_summary(
+                        matching_summaries
+                    )
+                    return {
+                        "found": True,
+                        "scanned": scanned + 1,
+                        "match": {
+                            "cobo": key[0],
+                            "asad": key[1],
+                            "aget": key[2],
+                            "channel": key[3],
+                            "amplitude": stats["amplitude"],
+                            "peakTb": stats["peakTb"],
+                        },
+                        "event": event_payload,
+                    }
                 scanned += 1
                 event_index += step
             return {
@@ -940,7 +1511,9 @@ class ViewerState:
         frame: RawFrame,
         channels: Dict[Tuple[int, int, int, int], List[int]],
         selection: dict,
+        channel_metadata: Optional[Dict[Tuple[int, int, int, int], dict]] = None,
     ) -> dict:
+        channel_metadata = channel_metadata or {}
         selected_channels = []
         all_summaries = []
         for key in sorted(channels.keys()):
@@ -956,6 +1529,7 @@ class ViewerState:
             }
             if MAPPING is not None:
                 summary.update(MAPPING.channels.get(key, {}))
+            summary.update(channel_metadata.get(key, {}))
             all_summaries.append(summary)
             if channel_matches_tuple(key, selection):
                 selected_channels.append({**summary, "waveform": values})
@@ -1144,13 +1718,21 @@ class ViewerHandler(BaseHTTPRequestHandler):
             selection = (normalize_scan_selection(payload.get("selection"))
                          if parsed.path == "/api/scan"
                          else normalize_selection(payload.get("selection")))
+            if parsed.path == "/api/root-info":
+                path = os.path.abspath(os.path.expanduser(str(payload["path"])))
+                if not os.path.isfile(path):
+                    raise FileNotFoundError(path)
+                self.send_json(probe_root_file(path))
+                return
             if parsed.path == "/api/open":
                 # Unmerged CoBo data is one file per source, so the browser
                 # sends every selected path and the state merges them by event
                 # id. A lone "path" is still accepted.
                 requested = payload.get("paths") or [payload["path"]]
                 paths = [str(item) for item in requested]
-                self.send_json(STATE.open_paths(paths, selection=selection))
+                self.send_json(STATE.open_paths(
+                    paths, selection=selection, root_branch=payload.get("rootBranch")
+                ))
                 return
             if parsed.path == "/api/mapping":
                 mapping = DetectorMapping(str(payload["path"]))
@@ -1175,10 +1757,25 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 max_amplitude = payload.get("maxAmplitude")
                 min_tb_value = payload.get("minTb")
                 max_tb_value = payload.get("maxTb")
+                min_channels_value = payload.get("minChannels")
+                max_channels_value = payload.get("maxChannels")
                 min_tb = None if min_tb_value in (None, "") else int(min_tb_value)
                 max_tb = None if max_tb_value in (None, "") else int(max_tb_value)
+                min_channels = (None if min_channels_value in (None, "")
+                                else int(min_channels_value))
+                max_channels = (None if max_channels_value in (None, "")
+                                else int(max_channels_value))
                 if min_tb is not None and max_tb is not None and min_tb > max_tb:
                     raise ValueError("maximum TB must be greater than or equal to minimum TB")
+                if min_channels is not None and min_channels < 0:
+                    raise ValueError("minimum channel count cannot be negative")
+                if max_channels is not None and max_channels < 0:
+                    raise ValueError("maximum channel count cannot be negative")
+                if (min_channels is not None and max_channels is not None
+                        and min_channels > max_channels):
+                    raise ValueError(
+                        "maximum channel count must be greater than or equal to minimum channel count"
+                    )
                 self.send_json(
                     STATE.scan_signal(
                         selection=selection,
@@ -1192,6 +1789,8 @@ class ViewerHandler(BaseHTTPRequestHandler):
                         detector_selection=payload.get("detectorSelection"),
                         min_tb=min_tb,
                         max_tb=max_tb,
+                        min_channels=min_channels,
+                        max_channels=max_channels,
                     )
                 )
                 return
@@ -1229,6 +1828,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         if not head_only:
             self.wfile.write(data)
@@ -1357,11 +1957,12 @@ def run_self_test() -> None:
     # Unmerged sources may contain frames in non-event order. Verify that the
     # viewer groups them by event id and combines channels across sources.
     with tempfile.TemporaryDirectory(prefix="lk_get_viewer_test_") as directory:
-        source0 = Path(directory) / "source0.graw"
-        source1 = Path(directory) / "source1.graw"
+        source0 = Path(directory) / "run_test.graw"
+        source1 = Path(directory) / "run_test.graw.1"
         source0.write_bytes(
             make_type1_frame(8, 0, 0, [(0, 1, 0, 108)])
             + make_type1_frame(7, 0, 0, [(0, 2, 0, 107)])
+            + make_type1_frame(9, 0, 0, [(0, 1, 0, 109), (0, 2, 0, 209)])
         )
         source1.write_bytes(make_type1_frame(7, 1, 0, [(0, 3, 0, 207)]))
         state = ViewerState()
@@ -1396,7 +1997,53 @@ def run_self_test() -> None:
         assert filtered_match["found"]
         assert filtered_match["event"]["event"]["eventIdx"] == 8
         assert filtered_match["match"]["channel"] == 1
+        conjunctive_channel_match = state.scan_signal(
+            selection=normalize_scan_selection({"channel": "1-2"}),
+            scope="selection",
+            threshold=50,
+            max_threshold=None,
+            include_fpn=False,
+            max_events=10,
+            direction="forward",
+        )
+        assert conjunctive_channel_match["found"]
+        assert conjunctive_channel_match["event"]["event"]["eventIdx"] == 9
+        channel_count_match = state.scan_signal(
+            selection=normalize_scan_selection({}),
+            scope="selection",
+            threshold=50,
+            max_threshold=None,
+            include_fpn=False,
+            max_events=10,
+            direction="backward",
+            min_channels=2,
+            max_channels=2,
+        )
+        assert channel_count_match["found"]
+        assert channel_count_match["event"]["event"]["eventIdx"] == 7
+        assert channel_count_match["event"]["event"]["channelCount"] == 2
         state.close()
+        index_path = Path(str(source0) + MFM_INDEX_SUFFIX)
+        ranges_path = Path(str(source0) + MFM_RANGES_SUFFIX)
+        assert index_path.is_file()
+        metadata = load_valid_mfm_ranges(ranges_path, [source0, source1])
+        assert metadata is not None
+        assert metadata["sources"][0]["minEvent"] == 7
+        assert metadata["sources"][0]["maxEvent"] == 9
+        listed = {item["name"]: item for item in list_directory(directory)["entries"]}
+        assert listed[source0.name]["minEvent"] == 7
+        assert listed[source1.name]["maxEvent"] == 7
+        assert index_path.name not in listed
+        cached_state = ViewerState()
+        cached_event = cached_state.open_paths([str(source1), str(source0)])
+        assert cached_event["event"]["eventIdx"] == 7
+        cached_state.close()
+        source_stat = source1.stat()
+        os.utime(
+            source1,
+            ns=(source_stat.st_atime_ns, source_stat.st_mtime_ns + 1),
+        )
+        assert load_valid_mfm_ranges(ranges_path, [source0, source1]) is None
     print("self-test passed")
 
 
@@ -1410,7 +2057,7 @@ INDEX_HTML = r"""<!doctype html>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>LILAK GET Web Viewer</title>
-    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+    <link id="favicon" rel="icon" href="/static/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/static/styles.css">
   </head>
   <body>
@@ -1420,7 +2067,7 @@ INDEX_HTML = r"""<!doctype html>
           <path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40Zm-4.78,91.44c-16.68,35-31.06,50.56-46.65,50.56-19.68,0-31.39-24.56-43.79-50.56C112,113,101,90,91.43,90c-3.74,0-14.37,4-32.21,41.44a8,8,0,0,1-14.44-6.88C61.46,89.59,75.84,74,91.43,74c19.68,0,31.39,24.56,43.79,50.56C144,143,155,166,164.57,166c3.74,0,14.37-4,32.21-41.44a8,8,0,1,1,14.44,6.88Z"></path>
         </svg>
         <div>
-          <h1>LILAK GET Web Viewer</h1>
+          <h1>LILAK GET Web Viewer <span id="instancePort" class="instance-port"></span></h1>
           <p id="fileLabel">No file loaded</p>
         </div>
       </div>
@@ -1449,7 +2096,7 @@ INDEX_HTML = r"""<!doctype html>
         <div class="browser-search-row">
           <input id="browserSearch" type="search" autocomplete="off" placeholder="Search files in this folder" aria-label="Search files in this folder">
         </div>
-        <div class="browser-columns"><span>Name</span><span>Size</span></div>
+        <div class="browser-columns"><span>Name</span><span>Event range</span><span>Size</span></div>
         <div id="browserRows" class="browser-rows"></div>
         <div class="browser-footer">
           <span id="browserSelection">Select one or more files</span>
@@ -1461,6 +2108,18 @@ INDEX_HTML = r"""<!doctype html>
         </div>
       </section>
     </div>
+
+    <div id="rootBranchChooser" class="modal-backdrop" hidden>
+      <section class="root-branch-chooser" role="dialog" aria-modal="true" aria-labelledby="rootBranchTitle">
+        <h2 id="rootBranchTitle">Choose ROOT branch</h2>
+        <p id="rootBranchFile"></p>
+        <p>This file contains more than one waveform branch. Choose which data to view.</p>
+        <div id="rootBranchButtons" class="root-branch-buttons"></div>
+        <button id="rootBranchCancel" type="button" class="secondary">Cancel</button>
+      </section>
+    </div>
+
+    <div id="channelTooltip" class="channel-tooltip" role="tooltip" hidden></div>
 
     <main class="workspace">
       <aside class="side-panel">
@@ -1489,7 +2148,7 @@ INDEX_HTML = r"""<!doctype html>
         <section class="control-band filter-scan-band">
           <div class="section-title section-title-with-info"><span>Filter &amp; Scan</span>
             <span class="info-icon" tabindex="0" aria-label="Filter and Scan information">i
-              <span class="info-tooltip">Electronic filters accept comma-separated values, ranges, and exclusions (for example: 10,15-20,!17). Blank fields match any value. Amplitude is the largest absolute signal deviation from the pedestal (median of TB 0&ndash;63), and TB range applies to its peak TB. The scan stops at the first matching event.</span>
+              <span class="info-tooltip">Electronic filters accept comma-separated values, ranges, and exclusions (for example: 10,15-20,!17). Blank fields match any value. Amplitude is the largest absolute signal deviation from the pedestal (median of TB 0&ndash;63), TB range applies to its peak TB, and #Ch range uses the event's total decoded channel count including FPN. The scan stops at the first matching event.</span>
             </span>
             <button id="clearScanFilters" type="button">Clear</button>
           </div>
@@ -1498,7 +2157,7 @@ INDEX_HTML = r"""<!doctype html>
               <label>Cobo:<input id="scanCobo" type="text" placeholder="Any" title="Example: 0,2-4,!3"></label>
               <label>AsAd:<input id="scanAsad" type="text" placeholder="Any" title="Example: 0,2-3,!2"></label>
               <label>AGET:<input id="scanAget" type="text" placeholder="Any" title="Example: 0,2-3,!2"></label>
-              <label>Chan:<input id="scanChannel" type="text" placeholder="Any" title="Example: 10,15-20,!17"></label>
+              <label>Chan:<input id="scanChannel" type="text" placeholder="Any" title="All listed channels are required. Example: 10,15-20,!17"></label>
             </div>
           </div>
           <div class="filter-group detector-filter-group">
@@ -1529,6 +2188,12 @@ INDEX_HTML = r"""<!doctype html>
               <span>&ndash;</span>
               <input id="maxTbInput" type="number" min="0" max="511" placeholder="Any" title="Optional maximum peak TB">
             </div>
+            <div class="scan-value-row">
+              <span class="scan-field-title">#Ch range:</span>
+              <input id="minChannelCountInput" type="number" min="0" placeholder="Any" title="Optional minimum total channel count">
+              <span>&ndash;</span>
+              <input id="maxChannelCountInput" type="number" min="0" placeholder="Any" title="Optional maximum total channel count">
+            </div>
           </div>
           <div class="scan-value-row scan-options-row">
             <span class="scan-field-title">Max event:</span>
@@ -1557,6 +2222,7 @@ INDEX_HTML = r"""<!doctype html>
             <button id="showAll" type="button">Show all</button>
             <button id="filterOnly" type="button" aria-pressed="false" title="Hide channels that do not match Filter &amp; Scan">Filt. only</button>
             <button id="saveWaveform" type="button">Save PNG</button>
+            <button id="saveCsv" type="button">Save CSV</button>
           </div>
         </div>
         <canvas id="waveCanvas"></canvas>
@@ -1580,13 +2246,14 @@ INDEX_HTML = r"""<!doctype html>
         <section id="channelsPanel" class="tab-panel channel-panel active" role="tabpanel">
           <div class="table-wrap">
             <table>
-              <colgroup><col><col><col><col><col><col></colgroup>
+              <colgroup><col><col><col><col><col><col><col></colgroup>
               <thead>
                 <tr>
                   <th>CAA</th>
                   <th>Ch</th>
-                  <th>Detector</th>
                   <th>Ring</th>
+                  <th>Detector</th>
+                  <th>Strip</th>
                   <th>Amp</th>
                   <th>TB</th>
                 </tr>
@@ -1613,6 +2280,8 @@ INDEX_HTML = r"""<!doctype html>
 STYLES_CSS = r""":root {
   color-scheme: light;
   --bg: #f3f5f7;
+  --instance-color: #2563a6;
+  --instance-soft: #dbeafe;
   --panel: #ffffff;
   --line: #cfd6df;
   --line-strong: #aab6c3;
@@ -1701,7 +2370,8 @@ button.secondary,
 #fullScale,
 #showAll,
 #filterOnly,
-#saveWaveform {
+#saveWaveform,
+#saveCsv {
   border-color: #bcc7d2;
   background: #dde4eb;
   color: var(--text);
@@ -1783,7 +2453,7 @@ select:focus {
   width: 40px;
   height: 40px;
   flex: 0 0 auto;
-  color: var(--blue);
+  color: var(--instance-color);
 }
 
 .brand-mark path {
@@ -1795,6 +2465,17 @@ h1 {
   font-size: 18px;
   line-height: 1.1;
   letter-spacing: 0;
+}
+
+.instance-port {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--instance-soft);
+  color: var(--instance-color);
+  font-size: 12px;
+  vertical-align: 2px;
 }
 
 .brand p {
@@ -1856,6 +2537,67 @@ h1 {
   box-shadow: 0 24px 70px rgb(15 23 42 / 35%);
 }
 
+.root-branch-chooser {
+  width: min(430px, 94vw);
+  padding: 20px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgb(15 23 42 / 35%);
+}
+
+.root-branch-chooser h2 {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+
+.root-branch-chooser p {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+#rootBranchFile {
+  overflow: hidden;
+  color: var(--text);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.root-branch-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.root-branch-buttons button {
+  min-height: 42px;
+  background: #dbeafe;
+  color: #173a63;
+}
+
+.channel-tooltip {
+  position: fixed;
+  z-index: 200;
+  max-width: 280px;
+  padding: 8px 10px;
+  border: 1px solid #8291a2;
+  border-radius: 6px;
+  background: #18212b;
+  color: #ffffff;
+  box-shadow: 0 6px 18px rgb(15 23 42 / 28%);
+  font-size: 12px;
+  line-height: 1.45;
+  pointer-events: none;
+  white-space: pre-line;
+}
+
+.channel-tooltip[hidden] {
+  display: none;
+}
+
 .browser-header,
 .browser-footer {
   display: flex;
@@ -1889,7 +2631,7 @@ h1 {
 .browser-columns,
 .browser-entry {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 110px;
+  grid-template-columns: minmax(0, 1fr) 180px 110px;
   gap: 12px;
   align-items: center;
 }
@@ -1903,7 +2645,8 @@ h1 {
   font-weight: 700;
 }
 
-.browser-columns span:last-child,
+.browser-columns span:nth-child(n+2),
+.browser-entry .browser-event-range,
 .browser-entry .browser-size {
   text-align: right;
 }
@@ -2580,12 +3323,13 @@ table {
   font-size: 11px;
 }
 
-.channel-panel col:nth-child(1) { width: 52px; }
-.channel-panel col:nth-child(2) { width: 42px; }
-.channel-panel col:nth-child(3) { width: 70px; }
-.channel-panel col:nth-child(4) { width: 44px; }
-.channel-panel col:nth-child(5) { width: 58px; }
-.channel-panel col:nth-child(6) { width: 44px; }
+.channel-panel col:nth-child(1) { width: 48px; }
+.channel-panel col:nth-child(2) { width: 34px; }
+.channel-panel col:nth-child(3) { width: 38px; }
+.channel-panel col:nth-child(4) { width: 62px; }
+.channel-panel col:nth-child(5) { width: 38px; }
+.channel-panel col:nth-child(6) { width: 48px; }
+.channel-panel col:nth-child(7) { width: 34px; }
 
 th,
 td {
@@ -2703,6 +3447,8 @@ tbody tr.keyboard-highlight {
 
 
 APP_JS = r"""const els = {
+  favicon: document.getElementById("favicon"),
+  instancePort: document.getElementById("instancePort"),
   fileLabel: document.getElementById("fileLabel"),
   openForm: document.getElementById("openForm"),
   pathInput: document.getElementById("pathInput"),
@@ -2719,6 +3465,10 @@ APP_JS = r"""const els = {
   browserOpen: document.getElementById("browserOpen"),
   browserOpenMapping: document.getElementById("browserOpenMapping"),
   browserSelectAll: document.getElementById("browserSelectAll"),
+  rootBranchChooser: document.getElementById("rootBranchChooser"),
+  rootBranchFile: document.getElementById("rootBranchFile"),
+  rootBranchButtons: document.getElementById("rootBranchButtons"),
+  rootBranchCancel: document.getElementById("rootBranchCancel"),
   jumpInput: document.getElementById("jumpInput"),
   jumpButton: document.getElementById("jumpButton"),
   frameInput: document.getElementById("frameInput"),
@@ -2739,6 +3489,8 @@ APP_JS = r"""const els = {
   maxAmplitudeInput: document.getElementById("maxAmplitudeInput"),
   minTbInput: document.getElementById("minTbInput"),
   maxTbInput: document.getElementById("maxTbInput"),
+  minChannelCountInput: document.getElementById("minChannelCountInput"),
+  maxChannelCountInput: document.getElementById("maxChannelCountInput"),
   scanLimit: document.getElementById("scanLimit"),
   includeFpn: document.getElementById("includeFpn"),
   scanBackwardButton: document.getElementById("scanBackwardButton"),
@@ -2757,14 +3509,39 @@ APP_JS = r"""const els = {
   showAll: document.getElementById("showAll"),
   filterOnly: document.getElementById("filterOnly"),
   saveWaveform: document.getElementById("saveWaveform"),
+  saveCsv: document.getElementById("saveCsv"),
   waveCanvas: document.getElementById("waveCanvas"),
   detectorInfoPanel: document.getElementById("detectorInfoPanel"),
   detectorInfoRows: document.getElementById("detectorInfoRows"),
   statusLine: document.getElementById("statusLine"),
   channelRows: document.getElementById("channelRows"),
+  channelTooltip: document.getElementById("channelTooltip"),
   saveEventBookmark: document.getElementById("saveEventBookmark"),
   eventBookmarks: document.getElementById("eventBookmarks"),
 };
+
+const viewerPort = window.location.port || (window.location.protocol === "https:" ? "443" : "80");
+const portNumber = Number.parseInt(viewerPort, 10) || 0;
+const instancePalette = [
+  { color: "#2563a6", soft: "#dbeafe" },
+  { color: "#c2410c", soft: "#ffedd5" },
+  { color: "#0f766e", soft: "#ccfbf1" },
+  { color: "#7c3aed", soft: "#ede9fe" },
+  { color: "#b45309", soft: "#fef3c7" },
+  { color: "#be185d", soft: "#fce7f3" },
+];
+const paletteIndex = ((portNumber - 8877) % instancePalette.length + instancePalette.length)
+  % instancePalette.length;
+const instanceTheme = instancePalette[paletteIndex];
+document.documentElement.style.setProperty("--instance-color", instanceTheme.color);
+document.documentElement.style.setProperty("--instance-soft", instanceTheme.soft);
+els.instancePort.textContent = `:${viewerPort}`;
+document.title = `LILAK GET Web Viewer :${viewerPort}`;
+const iconPath = document.querySelector(".brand-mark path")?.getAttribute("d");
+if (iconPath) {
+  const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="${instanceTheme.color}"><path d="${iconPath}"/></svg>`;
+  els.favicon.href = `data:image/svg+xml,${encodeURIComponent(iconSvg)}`;
+}
 
 const COLORS = [
   "#2563a6",
@@ -2798,15 +3575,22 @@ let detectorInfoEntries = [];
 let detectorInfoMappingPath = null;
 let bookmarkedEvents = [];
 let bookmarkPath = null;
-// null means the axes follow the data; a view object holds a zoomed range that
+const FULL_SCALE_VIEW = { tbMin: 0, tbMax: 512, yMin: 0, yMax: 4096 };
+// Start each file at the complete GET time-bucket and ADC ranges. A view object
 // survives event navigation until Autoscale or a double click resets it.
-let plotView = null;
+let plotView = { ...FULL_SCALE_VIEW };
 let plotGeometry = null;
+
+function useDefaultFullScale() {
+  plotView = { ...FULL_SCALE_VIEW };
+  els.autoScale.classList.remove("filter-active");
+}
 
 const scanFilterControls = [
   els.scanCobo, els.scanAsad, els.scanAget, els.scanChannel,
   els.scanRingType, els.scanDetectorType, els.scanDetectorNumber,
   els.thresholdInput, els.maxAmplitudeInput, els.minTbInput, els.maxTbInput,
+  els.minChannelCountInput, els.maxChannelCountInput,
 ];
 const electronicScanControls = [els.scanCobo, els.scanAsad, els.scanAget, els.scanChannel];
 
@@ -2908,12 +3692,17 @@ function fileNameFromPath(path) {
   return path.split("/").filter(Boolean).pop() || path;
 }
 
-function waveformDownloadName(path, eventIndex) {
+function eventDownloadName(path, eventIndex, extension) {
   const fileName = fileNameFromPath(path);
   const runMatch = fileName.match(/^(run_\d+)\.dat\./);
   return runMatch
-    ? `${runMatch[1]}.${eventIndex}.png`
-    : `${fileName}_event_${eventIndex}.png`;
+    ? `${runMatch[1]}.${eventIndex}.${extension}`
+    : `${fileName}_event_${eventIndex}.${extension}`;
+}
+
+function csvCell(value) {
+  const text = String(value ?? "");
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
 function displayedFileName(status) {
@@ -3250,16 +4039,54 @@ function saveBookmarks() {
   renderBookmarks();
 }
 
-async function openPaths(paths) {
+function closeRootBranchChooser() {
+  els.rootBranchChooser.hidden = true;
+  els.rootBranchButtons.replaceChildren();
+}
+
+function showRootBranchChooser(paths, branches) {
+  els.rootBranchFile.textContent = fileNameFromPath(paths[0]);
+  els.rootBranchFile.title = paths[0];
+  els.rootBranchButtons.replaceChildren();
+  branches.forEach((branch) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = branch;
+    button.addEventListener("click", () => {
+      closeRootBranchChooser();
+      openPaths(paths, branch);
+    });
+    els.rootBranchButtons.appendChild(button);
+  });
+  els.rootBranchChooser.hidden = false;
+}
+
+async function openPaths(paths, rootBranch = null) {
   if (!paths.length) return;
   setBusy(true);
   try {
     setStatus(paths.length > 1 ? `Opening ${paths.length} files...` : "Opening file...");
-    const payload = await postJson("/api/open", { paths, selection: readSelection() });
+    if (!rootBranch && paths.length === 1 && paths[0].toLowerCase().endsWith(".root")) {
+      const info = await postJson("/api/root-info", { path: paths[0] });
+      if ((info.branches || []).length > 1) {
+        showRootBranchChooser(paths, info.branches);
+        setStatus("Choose the ROOT waveform branch");
+        return;
+      }
+      if (!(info.branches || []).length) {
+        throw new Error("ROOT event tree has neither RawData nor SiChannel");
+      }
+      [rootBranch] = info.branches;
+    }
+    const payload = await postJson("/api/open", {
+      paths, rootBranch, selection: readSelection(),
+    });
     activeScanSelection = null;
     activeScanDetectorSelection = null;
+    useDefaultFullScale();
     renderPayload(payload);
-    setStatus(paths.length > 1 ? `Merged ${paths.length} sources` : "File loaded", "good");
+    const branchMessage = payload.status.rootBranch ? ` (${payload.status.rootBranch})` : "";
+    setStatus(paths.length > 1 ? `Merged ${paths.length} sources` : `File loaded${branchMessage}`, "good");
   } catch (error) {
     setStatus(error.message, "error");
   } finally {
@@ -3325,7 +4152,14 @@ function renderBrowserEntries() {
     const size = document.createElement("span");
     size.className = "browser-size";
     size.textContent = entry.isDirectory ? "Directory" : formatFileSize(entry.size);
-    row.append(name, size);
+    const eventRange = document.createElement("span");
+    eventRange.className = "browser-event-range";
+    eventRange.textContent = (
+      Number.isInteger(entry.minEvent) && Number.isInteger(entry.maxEvent)
+        ? `${entry.minEvent.toLocaleString()} – ${entry.maxEvent.toLocaleString()}`
+        : ""
+    );
+    row.append(name, eventRange, size);
 
     if (entry.isDirectory) {
       row.addEventListener("click", () => browseDirectory(entry.path));
@@ -3458,6 +4292,11 @@ async function scanSignal(direction) {
     if (minTb !== null && maxTb !== null && maxTb < minTb) {
       throw new Error("Maximum TB must be greater than or equal to minimum TB.");
     }
+    const minChannels = inputValue(els.minChannelCountInput);
+    const maxChannels = inputValue(els.maxChannelCountInput);
+    if (minChannels !== null && maxChannels !== null && maxChannels < minChannels) {
+      throw new Error("Maximum #Ch must be greater than or equal to minimum #Ch.");
+    }
     const payload = await postJson("/api/scan", {
       selection,
       detectorSelection: readScanDetectorSelection(),
@@ -3466,6 +4305,8 @@ async function scanSignal(direction) {
       maxAmplitude,
       minTb,
       maxTb,
+      minChannels,
+      maxChannels,
       includeFpn: els.includeFpn.checked,
       maxEvents: Number.parseInt(els.scanLimit.value || "10000", 10),
       direction,
@@ -3489,21 +4330,22 @@ async function scanSignal(direction) {
 
 function renderPayload(payload) {
   currentPayload = payload;
-  hoveredChannelKey = null;
   const status = payload.status;
   const event = payload.event;
+  hoveredChannelKey = selectedSingleChannelKey(event.channels);
   activeScanSelection = event.scanSelection || activeScanSelection;
   activeScanDetectorSelection = event.scanDetectorSelection || activeScanDetectorSelection;
   updateMappingControls(status);
   loadBookmarks(status.path);
   const sourceSuffix = status.sourceCount > 1 ? ` (+${status.sourceCount - 1} sources)` : "";
-  els.fileLabel.textContent = `${compactPath(status.path)}${sourceSuffix}`;
+  const branchSuffix = status.rootBranch ? ` [${status.rootBranch}]` : "";
+  els.fileLabel.textContent = `${compactPath(status.path)}${sourceSuffix}${branchSuffix}`;
   els.fileLabel.title = (status.paths || [status.path]).filter(Boolean).join("\n");
   els.pathInput.value = status.path || els.pathInput.value;
   els.jumpInput.value = event.index;
   els.frameInput.value = event.eventIdx;
   els.plotTitle.textContent = `Event ${event.index}`;
-  els.plotFileName.textContent = displayedFileName(status);
+  els.plotFileName.textContent = `${displayedFileName(status)}${branchSuffix}`;
   els.plotFileName.title = status.path || "";
   els.showAll.classList.toggle("filter-active", event.selectedCount < event.channelCount);
   renderCurrentEventViews();
@@ -3613,6 +4455,15 @@ function channelKey(channel) {
   return `${channel.cobo}/${channel.asad}/${channel.aget}/${channel.channel}`;
 }
 
+function selectedSingleChannelKey(channels = currentPayload?.event?.channels || []) {
+  if (channels.length !== 1 || viewSelection.channel === null) return null;
+  const channel = channels[0];
+  const fields = ["cobo", "asad", "aget", "channel"];
+  return fields.every((field) => viewSelection[field] === channel[field])
+    ? channelKey(channel)
+    : null;
+}
+
 function setHoveredChannel(key) {
   if (hoveredChannelKey === key) return;
   hoveredChannelKey = key;
@@ -3634,7 +4485,95 @@ function moveChannelHighlight(step) {
   if (row) row.scrollIntoView({ block: "nearest" });
 }
 
+function channelUsesAdcInversion(channel) {
+  const rawPedestal = channel.pedestal;
+  const storedPedestal = channel.storedPedestal;
+  if (Number.isFinite(rawPedestal) && Number.isFinite(storedPedestal)
+      && storedPedestal >= 0) {
+    const directDistance = Math.abs(rawPedestal - storedPedestal);
+    const invertedDistance = Math.abs((4096 - rawPedestal) - storedPedestal);
+    return invertedDistance < directDistance;
+  }
+  return Boolean(channel.inverted);
+}
+
+function displayedPedestal(channel) {
+  const pedestal = channel.storedPedestal;
+  if (!Number.isFinite(pedestal) || pedestal < 0) return pedestal;
+  // SiChannel metadata may store the pedestal in the corrected orientation,
+  // while the viewer deliberately draws the original ADC samples unchanged.
+  return channelUsesAdcInversion(channel) ? 4096 - pedestal : pedestal;
+}
+
+function channelSignalInfo(channel) {
+  const pedestal = displayedPedestal(channel);
+  const time = channel.storedTime;
+  const amplitude = channel.storedAmplitude;
+  if (!Number.isFinite(pedestal) || pedestal < 0
+      || !Number.isFinite(time) || time < 0
+      || !Number.isFinite(amplitude) || amplitude < 0) return null;
+  const waveform = plottedWaveform(channel);
+  const sampleIndex = Math.max(0, Math.min(waveform.length - 1, Math.round(time)));
+  const direction = waveform[sampleIndex] < pedestal ? -1 : 1;
+  return {
+    pedestal, time, amplitude, direction,
+    signalLevel: pedestal + direction * amplitude,
+  };
+}
+
+function channelDetailLines(channel) {
+  if (!Number.isFinite(channel.storedPedestal) || channel.storedPedestal < 0) return [];
+  const pedestal = displayedPedestal(channel);
+  const amplitude = Number.isFinite(channel.storedAmplitude) && channel.storedAmplitude >= 0
+    ? channel.storedAmplitude
+    : null;
+  const signalInfo = channelSignalInfo(channel);
+  const signalLevel = signalInfo?.signalLevel ?? null;
+  const noise = Number.isFinite(channel.noiseScale) ? Math.abs(channel.noiseScale) : null;
+  const signalToNoise = amplitude !== null && noise !== null && noise > 0
+    ? amplitude / noise
+    : null;
+  const noiseRatio = noise !== null && pedestal !== 0
+    ? 100 * noise / Math.abs(pedestal)
+    : null;
+  const details = [
+    `CAA/Ch: ${channel.cobo}/${channel.asad}/${channel.aget}/${channel.channel}`,
+    `Pedestal: ${pedestal.toFixed(3)}`,
+    `Time: ${Number.isFinite(channel.storedTime) && channel.storedTime >= 0 ? channel.storedTime.toFixed(3) : "-"}`,
+    `Amplitude: ${amplitude === null ? "-" : amplitude.toFixed(3)}`,
+    `Signal level: ${signalLevel === null ? "-" : signalLevel.toFixed(3)}${signalInfo ? ` (pedestal ${signalInfo.direction < 0 ? "-" : "+"} amplitude)` : ""}`,
+    `Noise: ${noise === null ? "-" : noise.toFixed(3)}${noiseRatio === null ? "" : ` (${noiseRatio.toFixed(3)}% of pedestal)`}`,
+    `S/N ratio: ${signalToNoise === null ? "-" : signalToNoise.toFixed(3)}`,
+    `fInverted: ${channel.inverted ? "yes" : "no"}`,
+    "ADC display: raw (no inversion)",
+  ];
+  if (channel.noiseScale < 0) details.push("Noise sign: bipolar pulse flag");
+  return details;
+}
+
+function moveChannelTooltip(event) {
+  if (els.channelTooltip.hidden) return;
+  const gap = 14;
+  const left = Math.min(event.clientX + gap, window.innerWidth - els.channelTooltip.offsetWidth - 8);
+  const top = Math.min(event.clientY + gap, window.innerHeight - els.channelTooltip.offsetHeight - 8);
+  els.channelTooltip.style.left = `${Math.max(8, left)}px`;
+  els.channelTooltip.style.top = `${Math.max(8, top)}px`;
+}
+
+function showChannelTooltip(channel, event) {
+  const details = channelDetailLines(channel);
+  if (!details.length) return;
+  els.channelTooltip.textContent = details.join("\n");
+  els.channelTooltip.hidden = false;
+  moveChannelTooltip(event);
+}
+
+function hideChannelTooltip() {
+  els.channelTooltip.hidden = true;
+}
+
 function renderTable(channels) {
+  hideChannelTooltip();
   els.channelRows.replaceChildren();
   channels.forEach((channel) => {
     const tr = document.createElement("tr");
@@ -3649,14 +4588,21 @@ function renderTable(channels) {
       <td></td>
       <td></td>
       <td></td>
+      <td></td>
     `;
     tr.children[0].textContent = `${channel.cobo}/${channel.asad}/${channel.aget}`;
-    tr.children[1].textContent = channel.isFpn ? `*${channel.channel}` : channel.channel;
+    tr.children[1].textContent = channel.isFpn ? `${channel.channel} FPN` : channel.channel;
     if (channel.isFpn) tr.children[1].title = "FPN channel";
-    tr.children[2].textContent = channel.detectorLabel || "-";
-    tr.children[3].textContent = channel.ringType || "-";
-    tr.children[4].textContent = channel.amplitude.toFixed(0);
-    tr.children[5].textContent = channel.peakTb;
+    tr.children[2].textContent = channel.ringType || "-";
+    tr.children[3].textContent = channel.detectorLabel || "-";
+    tr.children[4].textContent = channel.strip ?? "-";
+    tr.children[5].textContent = channel.amplitude.toFixed(0);
+    tr.children[6].textContent = channel.peakTb;
+    const details = channelDetailLines(channel);
+    if (details.length) tr.setAttribute("aria-label", details.join(", "));
+    const key = channelKey(channel);
+    tr.dataset.channelKey = key;
+    if (hoveredChannelKey === key) tr.classList.add("keyboard-highlight");
     tr.addEventListener("click", () => {
       writeSelection({
         cobo: channel.cobo,
@@ -3666,10 +4612,15 @@ function renderTable(channels) {
       });
       navigate("current");
     });
-    const key = channelKey(channel);
-    tr.dataset.channelKey = key;
-    tr.addEventListener("mouseenter", () => setHoveredChannel(key));
-    tr.addEventListener("mouseleave", () => setHoveredChannel(null));
+    tr.addEventListener("mouseenter", (event) => {
+      setHoveredChannel(key);
+      showChannelTooltip(channel, event);
+    });
+    tr.addEventListener("mousemove", moveChannelTooltip);
+    tr.addEventListener("mouseleave", () => {
+      setHoveredChannel(selectedSingleChannelKey());
+      hideChannelTooltip();
+    });
     els.channelRows.appendChild(tr);
   });
 }
@@ -3706,6 +4657,10 @@ function strokeWaveform(ctx, waveform, xFor, yFor) {
   ctx.stroke();
 }
 
+function plottedWaveform(channel) {
+  return channel.waveform;
+}
+
 function drawWaveforms(channels) {
   const { ctx, width, height } = resizeCanvas();
   ctx.clearRect(0, 0, width, height);
@@ -3734,7 +4689,7 @@ function drawWaveforms(channels) {
   let lastTb = 0;
   channels.forEach((channel) => {
     if (channel.waveform.length - 1 > lastTb) lastTb = channel.waveform.length - 1;
-    channel.waveform.forEach((value) => {
+    plottedWaveform(channel).forEach((value) => {
       if (value < autoMin) autoMin = value;
       if (value > autoMax) autoMax = value;
     });
@@ -3769,16 +4724,17 @@ function drawWaveforms(channels) {
   ctx.font = "12px sans-serif";
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
-  for (let i = 0; i <= 5; i += 1) {
-    const y = margin.top + (i / 5) * plotH;
-    const value = yMax - (i / 5) * (yMax - yMin);
-    ctx.strokeStyle = i === 0 || i === 5 ? "#cfd6df" : "#e7ebef";
+  const yStep = niceStep(yMax - yMin, 6);
+  const firstYTick = Math.ceil(yMin / yStep) * yStep;
+  for (let value = firstYTick; value <= yMax; value += yStep) {
+    const y = yFor(value);
+    ctx.strokeStyle = "#e7ebef";
     ctx.beginPath();
     ctx.moveTo(margin.left, y);
     ctx.lineTo(margin.left + plotW, y);
     ctx.stroke();
     ctx.fillStyle = "#657280";
-    ctx.fillText(value.toFixed(0), margin.left - 8, y);
+    ctx.fillText(String(Math.round(value)), margin.left - 8, y);
   }
 
   ctx.textAlign = "center";
@@ -3814,13 +4770,81 @@ function drawWaveforms(channels) {
       : baseAlpha;
     ctx.globalAlpha = hoveredChannelKey ? Math.min(scanAlpha, 0.18) : scanAlpha;
     ctx.lineWidth = baseWidth;
-    strokeWaveform(ctx, channel.waveform, xFor, yFor);
+    strokeWaveform(ctx, plottedWaveform(channel), xFor, yFor);
   });
   if (hovered) {
+    const pedestal = displayedPedestal(hovered.channel);
+    if (Number.isFinite(pedestal) && pedestal >= 0) {
+      const noise = Number.isFinite(hovered.channel.noiseScale)
+        ? Math.abs(hovered.channel.noiseScale)
+        : 0;
+      if (noise > 0) {
+        const bandTop = yFor(pedestal + noise);
+        const bandBottom = yFor(pedestal - noise);
+        ctx.fillStyle = "#60a5fa";
+        ctx.globalAlpha = 0.16;
+        ctx.fillRect(margin.left, bandTop, plotW, bandBottom - bandTop);
+      }
+      ctx.strokeStyle = "#2563a6";
+      ctx.globalAlpha = 0.8;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(margin.left, yFor(pedestal));
+      ctx.lineTo(margin.left + plotW, yFor(pedestal));
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
     ctx.strokeStyle = COLORS[hovered.index % COLORS.length];
     ctx.globalAlpha = 1;
     ctx.lineWidth = Math.max(2.2, baseWidth + 1.2);
-    strokeWaveform(ctx, hovered.channel.waveform, xFor, yFor);
+    strokeWaveform(ctx, plottedWaveform(hovered.channel), xFor, yFor);
+    const signalInfo = channelSignalInfo(hovered.channel);
+    if (signalInfo) {
+      const hitX = xFor(signalInfo.time);
+      const hitY = yFor(signalInfo.signalLevel);
+      const pedestalY = yFor(signalInfo.pedestal);
+      ctx.strokeStyle = COLORS[hovered.index % COLORS.length];
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(hitX, pedestalY);
+      ctx.lineTo(hitX, hitY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = COLORS[hovered.index % COLORS.length];
+      ctx.beginPath();
+      ctx.arc(hitX, hitY, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.font = "bold 12px sans-serif";
+      ctx.textAlign = hitX > margin.left + plotW * 0.7 ? "right" : "left";
+      const labelX = hitX + (ctx.textAlign === "right" ? -7 : 7);
+      const lineHeight = 15;
+      const noiseScale = Number.isFinite(hovered.channel.noiseScale)
+        ? Math.abs(hovered.channel.noiseScale)
+        : null;
+      const signalToNoise = noiseScale !== null && noiseScale > 0
+        ? signalInfo.amplitude / noiseScale
+        : null;
+      const infoLines = [
+        `Time ${signalInfo.time.toFixed(1)}`,
+        `Amplitude ${signalInfo.amplitude.toFixed(1)}`,
+        `Noise scale ${noiseScale === null ? "-" : noiseScale.toFixed(1)}`,
+        `S/N ratio ${signalToNoise === null ? "-" : signalToNoise.toFixed(2)}`,
+      ];
+      const labelHeight = infoLines.length * lineHeight;
+      const roomAbove = hitY - labelHeight - 7 >= margin.top;
+      const roomBelow = hitY + 7 + labelHeight <= margin.top + plotH;
+      const preferBelow = signalInfo.direction < 0;
+      const labelBelow = preferBelow ? (roomBelow || !roomAbove) : (!roomAbove && roomBelow);
+      ctx.textBaseline = "top";
+      const desiredLabelY = labelBelow ? hitY + 7 : hitY - labelHeight - 7;
+      const labelY = Math.max(
+        margin.top + 2,
+        Math.min(desiredLabelY, margin.top + plotH - labelHeight - 2),
+      );
+      infoLines.forEach((line, index) => ctx.fillText(line, labelX, labelY + index * lineHeight));
+    }
   }
   ctx.restore();
   ctx.globalAlpha = 1;
@@ -3858,6 +4882,10 @@ els.browseButton.addEventListener("click", () => {
 els.browserClose.addEventListener("click", closeFileBrowser);
 els.fileBrowser.addEventListener("click", (event) => {
   if (event.target === els.fileBrowser) closeFileBrowser();
+});
+els.rootBranchCancel.addEventListener("click", closeRootBranchChooser);
+els.rootBranchChooser.addEventListener("click", (event) => {
+  if (event.target === els.rootBranchChooser) closeRootBranchChooser();
 });
 els.browserPathForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -3900,6 +4928,10 @@ els.browserOpenMapping.addEventListener("click", async () => {
 });
 els.browserSelectAll.addEventListener("click", selectVisibleBrowserFiles);
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !els.rootBranchChooser.hidden) {
+    closeRootBranchChooser();
+    return;
+  }
   if (event.key === "Escape" && !els.fileBrowser.hidden) {
     closeFileBrowser();
     return;
@@ -3960,6 +4992,7 @@ els.uploadInput.addEventListener("change", async () => {
     const payload = await requestJson("/api/upload", { method: "POST", body: form });
     activeScanSelection = null;
     activeScanDetectorSelection = null;
+    useDefaultFullScale();
     renderPayload(payload);
     setStatus("Upload loaded", "good");
   } catch (error) {
@@ -4089,9 +5122,53 @@ els.saveWaveform.addEventListener("click", () => {
   ctx.lineWidth = dpr;
   ctx.strokeRect(0.5 * dpr, 0.5 * dpr, exportCanvas.width - dpr, exportCanvas.height - dpr);
   const link = document.createElement("a");
-  link.download = waveformDownloadName(currentPayload.status.path, currentPayload.event.index);
+  link.download = eventDownloadName(currentPayload.status.path, currentPayload.event.index, "png");
   link.href = exportCanvas.toDataURL("image/png");
   link.click();
+});
+els.saveCsv.addEventListener("click", () => {
+  if (!currentPayload) return;
+  const { event, status } = currentPayload;
+  const channels = event.channels || [];
+  if (!channels.length) {
+    setStatus("There are no visible channels to save.", "error");
+    return;
+  }
+  const caac = (channel) => `${channel.cobo}/${channel.asad}/${channel.aget}/${channel.channel}`;
+  const rows = [
+    ["File", displayedFileName(status)],
+    ["ROOT branch", status.rootBranch || ""],
+    ["Event", event.index],
+    ["Frame", event.eventIdx],
+    [],
+    ["TB", ...channels.map(caac)],
+    ["Detector", ...channels.map((channel) => channel.detectorLabel || "")],
+    ["Ring", ...channels.map((channel) => channel.ringType || "")],
+    ["Strip", ...channels.map((channel) => channel.strip ?? "")],
+  ];
+  if (status.rootBranch) {
+    rows.push(
+      ["Stored pedestal", ...channels.map((channel) => channel.storedPedestal ?? "")],
+      ["Stored time", ...channels.map((channel) => channel.storedTime ?? "")],
+      ["Stored amplitude", ...channels.map((channel) => channel.storedAmplitude ?? "")],
+      ["Noise scale", ...channels.map((channel) => channel.noiseScale ?? "")],
+    );
+  }
+  const sampleCount = channels.reduce(
+    (maximum, channel) => Math.max(maximum, channel.waveform.length), 0,
+  );
+  for (let tb = 0; tb < sampleCount; tb += 1) {
+    rows.push([tb, ...channels.map((channel) => channel.waveform[tb] ?? "")]);
+  }
+  const csv = `\ufeff${rows.map((row) => row.map(csvCell).join(",")).join("\r\n")}\r\n`;
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.download = eventDownloadName(status.path, event.index, "csv");
+  link.href = url;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setStatus(`Saved CSV for Event ${event.index} (${channels.length} channels)`, "good");
 });
 els.saveEventBookmark.addEventListener("click", () => {
   const eventIndex = currentPayload?.event?.index;
@@ -4257,7 +5334,7 @@ els.waveCanvas.addEventListener("dblclick", (event) => {
 
 els.autoScale.addEventListener("click", resetView);
 els.fullScale.addEventListener("click", () => {
-  applyView({ tbMin: 0, tbMax: 512, yMin: 0, yMax: 4096 });
+  applyView(FULL_SCALE_VIEW);
 });
 els.scanBackwardButton.addEventListener("click", () => scanSignal("backward"));
 els.scanForwardButton.addEventListener("click", () => scanSignal("forward"));
@@ -4272,6 +5349,9 @@ requestJson("/api/status")
   .then((payload) => {
     browseStartPath = payload.status.browsePath || ".";
     updateMappingControls(payload.status);
+    if ((payload.status.pendingPaths || []).length) {
+      return openPaths(payload.status.pendingPaths);
+    }
     if (payload.status.path) {
       return navigate("current");
     }
@@ -4317,16 +5397,26 @@ def main() -> None:
         return
 
     if args.file:
-        STATE.open_paths(args.file)
+        startup_paths = [os.path.abspath(os.path.expanduser(path)) for path in args.file]
+        if len(startup_paths) == 1 and startup_paths[0].lower().endswith(".root"):
+            root_info = probe_root_file(startup_paths[0])
+            if len(root_info["branches"]) > 1:
+                STATE.pending_paths = startup_paths
+            else:
+                STATE.open_paths(startup_paths)
+        else:
+            STATE.open_paths(startup_paths)
 
     server = ThreadingHTTPServer((args.host, args.port), ViewerHandler)
     port = server.server_address[1]
     url = f"http://{args.host}:{port}/"
     print(f"LK GET web viewer listening on {url}")
-    if args.file:
+    if args.file and not STATE.pending_paths:
         print(f"Opened {len(args.file)} source file(s):")
         for path in args.file:
             print(f"  {os.path.abspath(path)}")
+    elif STATE.pending_paths:
+        print(f"Waiting for ROOT branch selection: {STATE.pending_paths[0]}")
     if not args.no_browser:
         browser_host = "127.0.0.1" if args.host == "0.0.0.0" else args.host
         webbrowser.open(f"http://{browser_host}:{port}/")

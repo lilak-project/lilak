@@ -2420,6 +2420,11 @@ vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchTag, TStrin
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////
             if (searchTag=="mfm")
             {
+                // Sidecar files generated for MFM navigation begin with the
+                // same run name, but they are metadata rather than raw input.
+                if (fileName.Contains(".mfm_event_index")
+                        || fileName.Contains(".mfm_event_ranges.json"))
+                    continue;
                 //if (sysFile->IsDirectory()==false && fileName.Index("run_")==0 && fileName.Sizeof()>=32)
                 if (sysFile->IsDirectory()==false && fileName.Index("run_")==0)
                 {
@@ -2585,4 +2590,22 @@ void LKRun::Draw(Option_t* option)
     fDataViewer = topDrawingGroup -> CreateViewer();
     fDataViewer -> SetRun(this);
     topDrawingGroup -> Draw(TString(fDrawOption));
+}
+
+void LKRun::StopCurrentEvent()
+{
+    fStopCurrentEvent = true;
+    // TTask checks this before every child, including nested task lists.
+    fgBreakPoint = this;
+}
+
+void LKRun::ExecuteTask(Option_t *option)
+{
+    fStopCurrentEvent = false;
+    TTask::ExecuteTask(option);
+    if (fStopCurrentEvent) {
+        // Abort only after the Exec/ExecuteTasks stack has unwound.
+        TTask::Abort();
+        fStopCurrentEvent = false;
+    }
 }

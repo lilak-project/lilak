@@ -1686,6 +1686,68 @@ lilak() {{
                 ' "$2"; then
                     lilak_root_options+=(-b)
                 fi
+
+                if [ -f "$2" ] && [ "${{LILAK_RUN_FANOUT:-1}}" != 0 ] && [ "${{LILAK_RUN_FANOUT_ACTIVE:-0}}" != 1 ]; then
+                    local lilak_run_temp_dir
+                    local lilak_run_plan_file
+                    local lilak_run_log_file
+                    local lilak_selected_run
+                    local lilak_run_status=0
+                    local lilak_start_index=0
+                    local lilak_index
+                    local -a lilak_run_plan
+                    local -a lilak_run_ids
+
+                    lilak_run_temp_dir=$(mktemp -d "${{TMPDIR:-/tmp}}/lilak_run.XXXXXX") || return 1
+                    lilak_run_plan_file="$lilak_run_temp_dir/runs.txt"
+                    lilak_run_log_file="$lilak_run_temp_dir/resolve.log"
+                    if ! LILAK_RUN_PARAMETER_FILE="$2" LILAK_RUN_PLAN_FILE="$lilak_run_plan_file" \
+                        root -l -b -q "$LILAK_PATH/macros/resolve_lilak_run_ids.C" >"$lilak_run_log_file" 2>&1 \
+                        || [ ! -s "$lilak_run_plan_file" ]; then
+                        cat "$lilak_run_log_file" >&2
+                        rm -f -- "$lilak_run_plan_file" "$lilak_run_log_file"
+                        rmdir -- "$lilak_run_temp_dir"
+                        return 1
+                    fi
+
+                    mapfile -t lilak_run_plan < "$lilak_run_plan_file"
+                    lilak_selected_run="${{lilak_run_plan[0]}}"
+                    lilak_run_ids=("${{lilak_run_plan[@]:1}}")
+                    if (( ${{#lilak_run_ids[@]}} > 1 )) \
+                        || {{ (( ${{#lilak_run_ids[@]}} == 1 )) && [ "${{lilak_run_ids[0]}}" != "$lilak_selected_run" ]; }}; then
+                        if [ -n "${{START_RUN:-}}" ]; then
+                            while (( lilak_start_index < ${{#lilak_run_ids[@]}} )) \
+                                && [ "${{lilak_run_ids[lilak_start_index]}}" != "$START_RUN" ]; do
+                                ((lilak_start_index+=1))
+                            done
+                            if (( lilak_start_index == ${{#lilak_run_ids[@]}} )); then
+                                echo "Error: START_RUN=$START_RUN is not in lilak/run_list" >&2
+                                rm -f -- "$lilak_run_plan_file" "$lilak_run_log_file"
+                                rmdir -- "$lilak_run_temp_dir"
+                                return 2
+                            fi
+                            lilak_run_ids=("${{lilak_run_ids[@]:lilak_start_index}}")
+                        fi
+
+                        printf 'Run selection: %s -> %d runs\n' "$lilak_selected_run" "${{#lilak_run_ids[@]}}"
+                        for lilak_index in "${{!lilak_run_ids[@]}}"; do
+                            printf '[%d/%d] RUN=%s lilak run %s\n' \
+                                "$((lilak_index + 1))" "${{#lilak_run_ids[@]}}" \
+                                "${{lilak_run_ids[lilak_index]}}" "$2"
+                            if [ "${{DRY_RUN:-0}}" != 1 ]; then
+                                RUN="${{lilak_run_ids[lilak_index]}}" LILAK_RUN_FANOUT_ACTIVE=1 \
+                                    root "${{lilak_root_options[@]}}" '{self.lilak_path}/macros/run_lilak.C("'"$2"'")' \
+                                    || {{ lilak_run_status=$?; break; }}
+                            fi
+                        done
+                        rm -f -- "$lilak_run_plan_file" "$lilak_run_log_file"
+                        rmdir -- "$lilak_run_temp_dir"
+                        return "$lilak_run_status"
+                    fi
+
+                    rm -f -- "$lilak_run_plan_file" "$lilak_run_log_file"
+                    rmdir -- "$lilak_run_temp_dir"
+                fi
                 root "${{lilak_root_options[@]}}" '{self.lilak_path}/macros/run_lilak.C("'"$2"'")'
             fi
             ;;

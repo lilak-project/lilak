@@ -19,6 +19,11 @@
 #include "TSystemFile.h"
 #include "TTimer.h"
 
+#if defined(__linux__)
+#include <bits/waitflags.h>
+#endif
+#include <sys/wait.h>
+
 #include <algorithm>
 #include <cctype>
 #include <csignal>
@@ -28,7 +33,6 @@
 #include <spawn.h>
 #include <set>
 #include <string>
-#include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
 
@@ -801,6 +805,8 @@ void lilak_js()
     TString engine;
     if (host == "127.0.0.1" || host == "localhost")
         engine = Form("http:%d?loopback&top=LILAK;noglobal", port);
+    else if (host == "0.0.0.0")
+        engine = Form("http:%d?top=LILAK;noglobal", port);
     else
         engine = Form("http:%s:%d?top=LILAK;noglobal", host.Data(), port);
 

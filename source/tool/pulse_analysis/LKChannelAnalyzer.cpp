@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 #include "LKChannelAnalyzer.h"
 #include "TLine.h"
 #include "TLegend.h"
@@ -136,7 +137,6 @@ void LKChannelAnalyzer::Clear(Option_t *option)
 {
     fPedestal = 0;
     fNoiseScale = 0;
-    fIsBipolar = false;
     fDynamicRange = fDynamicRangeOriginal;
     fNumHits = 0;
     fFitParameterArray.clear();
@@ -620,8 +620,81 @@ void LKChannelAnalyzer::AnalyzePulseFitting()
     }
 }
 
+void LKChannelAnalyzer::SetPedestalTbRange(int first, int last)
+{
+    if (!((first == -1 && last == -1) || (first >= 0 && first <= last && last < fTbMax)))
+        throw std::invalid_argument("Invalid inclusive pedestal TB range");
+    fPedestalTbFirst = first;
+    fPedestalTbLast = last;
+}
+
+void LKChannelAnalyzer::SetBipolarPercentRange(double minimum, double maximum)
+{
+    if (!std::isfinite(minimum) || !std::isfinite(maximum) || minimum <= 0 || maximum < minimum)
+        throw std::invalid_argument("Invalid bipolar percent range");
+    fBipolarMinPercent = minimum;
+    fBipolarMaxPercent = maximum;
+}
+
+void LKChannelAnalyzer::SetBipolarWindow(int window)
+{
+    if (window < 1 || window >= fTbMax) throw std::invalid_argument("Invalid bipolar window");
+    fBipolarWindow = window;
+}
+
+bool LKChannelAnalyzer::IsBipolar() const
+{
+    return IsBipolar(fBipolarMinPercent/100., fBipolarMaxPercent/100., fBipolarWindow);
+}
+
+bool LKChannelAnalyzer::IsBipolar(double minRatio, double maxRatio, int window) const
+{
+    if (minRatio <= 0 || maxRatio < minRatio || window < 1) return false;
+    // Use the original waveform: pulse fitting can modify fBuffer.
+    for (int i=0; i<fNumHits; ++i) {
+        int center = std::max(0, std::min(fTbMax-1, int(GetTbHit(i))));
+        int peak = center;
+        const int first = std::max(0, center-window);
+        const int last = std::min(fTbMax-1, center+window);
+        for (int tb=first; tb<=last; ++tb)
+            if (fBufferOrigin[tb] > fBufferOrigin[peak]) peak = tb;
+        const double amplitude = fBufferOrigin[peak] - fPedestal;
+        if (amplitude <= 0) continue;
+        const int lo = std::max(0, peak-window);
+        const int hi = std::min(fTbMax-1, peak+window);
+        int trough = lo;
+        for (int tb=lo; tb<=hi; ++tb)
+            if (fBufferOrigin[tb] < fBufferOrigin[trough]) trough = tb;
+        const double opposite = fPedestal - fBufferOrigin[trough];
+        const double ratio = opposite/amplitude;
+        // Require an interior trough and recovery on both sides (also accepts clipped troughs).
+        if (trough > 0 && trough < fTbMax-1 && ratio >= minRatio && ratio <= maxRatio) {
+            const int left = std::max(0, trough-window);
+            const int right = std::min(fTbMax-1, trough+window);
+            if (fBufferOrigin[left] > fBufferOrigin[trough] + 0.5*opposite &&
+                fBufferOrigin[right] > fBufferOrigin[trough] + 0.5*opposite) return true;
+        }
+    }
+    return false;
+}
+
 double LKChannelAnalyzer::FindAndSubtractPedestal(double *buffer)
 {
+    if (fPedestalTbFirst >= 0) {
+        double mean = 0, m2 = 0;
+        int n = 0;
+        for (int tb=fPedestalTbFirst; tb<=fPedestalTbLast; ++tb) {
+            const double delta = buffer[tb] - mean;
+            mean += delta / ++n;
+            m2 += delta * (buffer[tb] - mean);
+        }
+        fPedestal = mean;
+        fNoiseScale = std::sqrt(std::max(0.0, m2 / n));
+        for (int tb=0; tb<fTbMax; ++tb) buffer[tb] -= mean;
+        fDynamicRange -= mean;
+        return mean;
+    }
+
     for (auto i=0; i<fNumPedestalSamples; ++i) {
         fUsedSample[i] = false;
         fPedestalSample[i] = 0.;
@@ -767,24 +840,22 @@ double LKChannelAnalyzer::FindAndSubtractPedestal(double *buffer)
     lk_debug << pedestalFinal << endl;
 #endif
 
-    for (auto iTb=0; iTb<fTbMax; ++iTb)
-        buffer[iTb] = buffer[iTb] - pedestalFinal;
+    double noiseSum = 0;
+    int noiseCount = 0;
+    for (int tb=0; tb<fTbMax; ++tb) {
+        const int sample = std::min(tb/fNumTbSample, fNumPedestalSamplesM1);
+        if (fUsedSample[sample]) {
+            const double delta = buffer[tb] - pedestalFinal;
+            noiseSum += delta * delta;
+            ++noiseCount;
+        }
+        buffer[tb] -= pedestalFinal;
+    }
+    fNoiseScale = noiseCount ? std::sqrt(noiseSum/noiseCount) : 0;
 
     fDynamicRange = fDynamicRange - pedestalFinal;
 
     fPedestal = pedestalFinal;
-
-    auto tbFirst = std::max(0, fPedestalTbFirst);
-    auto tbLast = std::min(fTbMax - 1, fPedestalTbLast);
-    double noise2 = 0;
-    int noiseCount = 0;
-    if (tbFirst <= tbLast) {
-        for (auto tb=tbFirst; tb<=tbLast; ++tb) {
-            noise2 += buffer[tb] * buffer[tb];
-            ++noiseCount;
-        }
-    }
-    fNoiseScale = (noiseCount > 0 ? std::sqrt(noise2 / noiseCount) : 0);
 
     return pedestalFinal;
 }

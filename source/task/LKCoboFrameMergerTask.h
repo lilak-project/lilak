@@ -31,6 +31,9 @@
  *                                        online           # online (watcher) mode
  *   LKCoboFrameMergerTask/watcherIP      ip0 ip1 ...       # one ip per source (online)
  *   LKCoboFrameMergerTask/watcherPort    port0 port1 ...   # one port per source (online)
+ *   LKCoboFrameMergerTask/save_mfm_event_index true         # persist viewer-compatible index
+ *   LKCoboFrameMergerTask/use_mfm_event_index true          # load a valid existing index
+ *   LKCoboFrameMergerTask/mfm_event_index_only false        # stop after creating/loading index
  * Inputs may also be supplied through LKRun (LKRun/SearchRun, AddInputFile),
  * in which case every input file is treated as one source.
  */
@@ -58,6 +61,9 @@ class LKCoboFrameMergerTask : public LKTask
 
         int fSleepBeforeConnect = 1;
         int fBreakAfterFailNumber = 10;
+        bool fSaveMFMEventIndex = true;
+        bool fUseMFMEventIndex = true;
+        bool fMFMEventIndexOnly = false;
 
     public:
         LKCoboFrameMergerTask();
