@@ -145,17 +145,29 @@ Later parameters override earlier ones, so project-specific files can override c
 
 ## Conditional parameters
 
-Use `@` to define a parameter that is only applied when its group name has been set as a parameter value elsewhere:
+Put a `?` segment in the name to apply a line only when a condition holds. The condition segment is dropped from the stored name:
 
 ```
 using       option1
 
-@option1/par   value1   # applied — "option1" was set above
-@option2/par   value2   # ignored — "option2" was not set
-@option3/par   value3   # ignored
+?using=="option1"/par   value1   # applied, stored as par
+?using=="option2"/par   value2   # ignored
+?!run_type/run_type     e5       # applied only when run_type is missing or empty
 ```
 
-This is useful for switching between named configurations in one file.
+- `?name=="value"`, `?run>10`, `?10<run<=15`, `?run:{1,2,5}`: comparisons and membership (see `LKParameterContainer.h`).
+- `?!name`: true when `name` is missing or has an empty value. `?!{name}` also works.
+
+### `@` (deprecated)
+
+Older files use `@`. It still works, so existing `.mac` files need no change, but write new files with `?`/`?!`:
+
+| old | new |
+|-----|-----|
+| `@option1/par value1` | `?using=="option1"/par value1` |
+| `@-run_type/run_type e5` | `?!run_type/run_type e5` |
+
+`@option1/` fires when *any* parameter has the value `option1`; `?` names the parameter it checks, so pick the one that carries the choice (`using` above).
 
 ---
 

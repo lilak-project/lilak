@@ -1558,6 +1558,17 @@ Bool_t LKParameterContainer::AddPar(TString name, TString value, TString comment
             TString formula;
             bool goodToAdd = false;
             tokName.Remove(0, 1);
+            if (tokName.BeginsWith("!") && !tokName.BeginsWith("!=")) {
+                // ?!name : true when name is missing or empty (same test as @-name/).
+                TString target = tokName(1, tokName.Length()-1);
+                if (target.BeginsWith("{") && target.EndsWith("}"))
+                    target = target(1, target.Length()-2);
+                if (target.IsNull() || (CheckPar(target) && !GetParString(target).IsNull())) {
+                    lk_info << "Skip add par: ?!" << target << " is false." << endl;
+                    return false;
+                }
+                continue;
+            }
             // Operators and list separators inside quoted strings are literal text.
             auto splitCondition = [](const TString &text, bool list,
                                      std::vector<TString> &parts, std::vector<TString> &ops) {
@@ -2125,7 +2136,6 @@ LKParameter *LKParameterContainer::FindPar(TString givenName, bool terminateIfNu
     {
         if (parameter) {
             auto parName = parameter -> GetName();
-            if (TString(parName).Index("RunIDRange")>0)
             if (parameter -> IsLegacy())
                 continue;
             if (parameter -> IsConditional()) {
