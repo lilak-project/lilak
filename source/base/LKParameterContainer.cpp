@@ -2136,6 +2136,10 @@ LKParameter *LKParameterContainer::FindPar(TString givenName, bool terminateIfNu
     {
         if (parameter) {
             auto parName = parameter -> GetName();
+            // Legacy skip is limited to RunIDRange on purpose: AddParameterContainer copies
+            // the legacy flag from merged files (e.g. a run's .root), so skipping every legacy
+            // parameter here hides values that only exist as legacy copies. Last match wins anyway.
+            if (TString(parName).Index("RunIDRange")>0)
             if (parameter -> IsLegacy())
                 continue;
             if (parameter -> IsConditional()) {
