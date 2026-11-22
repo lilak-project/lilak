@@ -48,7 +48,8 @@ using namespace std;
  * ## [header]
  *  [header] defines the characteristic of line.
  *  - < : Input parameter file. The parameter-value will be given as anohter input parameter file.
- *  - @ : Conditional parameter. May be used when user wants to define parameter, only when group name is defined as parameter-name or parameter-value, ex) @group/name value
+ *  - @ : (deprecated, still supported) Conditional parameter, only when group name is defined as parameter-name or parameter-value, ex) @group/name value.
+ *        New files should use ? conditions instead: @group/name -> ?selector=="group"/name, @-group/name -> ?!group/name
  *  - [tab] : See [group] section below.
  *
  * ## [name] and group
@@ -73,6 +74,8 @@ using namespace std;
  *  - Boolean comparisons accept true/false (case-insensitive), equivalent to 1/0.
  *    Example: ?is_good==false. Quoted string literals compare case-sensitively with == or !=:
  *    ?name=="first_run" or ?name!="first_run". String ordering is not supported.
+ *  - Missing or empty: ?!name (or ?!{name}) is true when name is not defined or its value is empty.
+ *    Example: ?!run_type/run_type e5 sets a default only when run_type was not given.
  *  - Multiple condition segments must all be true. Evaluation happens when the line is added.
  *  - Existing ?{parameter}==value conditions and the !name rewrite marker remain supported.
  *
