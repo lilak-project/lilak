@@ -180,7 +180,6 @@ foreach(_directory ${LILAK_SOURCE_DIRECTORY_LIST})
     message(STATUS "root-link directory : " ${_directory})
     include_directories(${_directory})
     string(REPLACE / _ _name ${_directory})
-    list(APPEND LILAK_SOURCE_NAME_LIST ${_name})
     set(LILAK_${_name}_G_NAME G__${_name}_Dict)
 
     file(GLOB LILAK_${_name}_SOURCE_FILES ${_directory}/*.cpp)
@@ -193,6 +192,13 @@ foreach(_directory ${LILAK_SOURCE_DIRECTORY_LIST})
         list(REMOVE_ITEM LILAK_${_name}_HEADER_FILES
             ${LILAK_PATH}/source/tool/get_convter/LKGETConverter.h
         )
+    endif()
+
+    # rootcling (ROOT 6.40+) refuses a dictionary without headers, so empty directories are skipped.
+    if(LILAK_${_name}_HEADER_FILES)
+        list(APPEND LILAK_SOURCE_NAME_LIST ${_name})
+    elseif(LILAK_${_name}_SOURCE_FILES)
+        message(WARNING "${_directory} has .cpp files but no headers; skipped")
     endif()
 
     # list separate strings using ";". list append add semicolon automatically just after previous string.
