@@ -3,6 +3,7 @@
 #include <ctime>
 #include <sstream>
 #include <map>
+#include <functional>
 #include <vector>
 #include <cerrno>
 #include <cstdlib>
@@ -780,7 +781,7 @@ bool LKRun::Init()
     fPar -> Require("LKRun/Tag",          "tag",            "tag",             "t", countParOrder++);
     fPar -> Require("LKRun/OutputPath",   "{lilak_data}",   "path to the output. Default path {lilak_data} is lilak/data/",  "", countParOrder++);
     fPar -> Require("LKRun/InputPath",    "/path/to/in/",   "LKRun will search files from input paths when LKRun/SearchRun", "t/", countParOrder++);
-    fPar -> Require("LKRun/SearchRun",    "mfm",            "search input files with LKRun/RunID. opt=mfm: search mfm files, opt=[tag]: search run_runNo.*.[tag].root", "t/", countParOrder++);
+    fPar -> Require("LKRun/SearchRun",    "mfm",            "search input files with LKRun/RunID. opt=mfm: search mfm files, opt=[tag]: search run_runNo.*.[tag].root; add recursive to search subfolders", "t/", countParOrder++);
     fPar -> Require("LKRun/AutoTerminate","true",           "automatically terminate root after end of run", "t", countParOrder++);
     fPar -> Require("LKRun/Division",     0,                "division within the run [optional]", "t/", countParOrder++);
     fPar -> Require("LKRun/InputFile",    "to/input/file",  "input file. Cannot be used with LKRun/SearchRun", "t/", countParOrder++);
@@ -899,24 +900,26 @@ bool LKRun::Init()
                     fInputPathArray.push_back(pathName);
             }
 
+            // LKRun/SearchRun <tag> [option2] [recursive]
             auto numSearchOptions = fPar -> GetParN("LKRun/SearchRun");
-            if (numSearchOptions==1)
-                searchTag = fPar -> GetParString("LKRun/SearchRun");
-            if (numSearchOptions==2) {
-                searchTag = fPar -> GetParString("LKRun/SearchRun",0);
-                searchOption2 = fPar -> GetParString("LKRun/SearchRun",1);
+            bool searchRecursive = false;
+            searchTag = fPar -> GetParString("LKRun/SearchRun",0);
+            for (auto iOption=1; iOption<numSearchOptions; ++iOption) {
+                TString option = fPar -> GetParString("LKRun/SearchRun",iOption);
+                if (option=="recursive") searchRecursive = true;
+                else searchOption2 = option;
             }
             if (fRunIDList.size()>0)
             {
                 for (auto runID : fRunIDList)
                 {
-                    vector<TString> inputFiles = SearchRunFiles(runID,searchTag, searchOption2);
+                    vector<TString> inputFiles = SearchRunFiles(runID,searchTag, searchOption2, searchRecursive);
                     for (auto fileName : inputFiles)
                         fInputFileNameArray.push_back(fileName);
                 }
             }
             else {
-                vector<TString> inputFiles = SearchRunFiles(fRunID,searchTag, searchOption2);
+                vector<TString> inputFiles = SearchRunFiles(fRunID,searchTag, searchOption2, searchRecursive);
                 for (auto fileName : inputFiles)
                     fInputFileNameArray.push_back(fileName);
             }
@@ -2418,21 +2421,43 @@ LKDetectorPlane *LKRun::FindDetectorPlane(const char *name)
     return plane;
 }
 
-vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchTag, TString searchOption2)
+vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchTag, TString searchOption2, bool recursive)
 {
-    //fInputPathArray.push_back("/home/cens-alpha-00/data/ganacq_manip/test/acquisition/run");
-    //fInputPathArray.push_back("/root/lilak/stark/macros/data");
+    // Regular files of a directory as (directory, file name); with recursive, also of every
+    // subdirectory, skipping hidden and symbolic-link directories (the same walk as Scope).
+    std::function<void(TString, vector<std::pair<TString,TString>>&)> listFiles;
+    listFiles = [&](TString dir, vector<std::pair<TString,TString>>& out) {
+        TSystemDirectory sysDir("search_dir", dir);
+        TList *files = sysDir.GetListOfFiles();
+        if (files==nullptr) return;
+        TIter next(files);
+        TSystemFile *sysFile = nullptr;
+        while ((sysFile=(TSystemFile*)next())) {
+            TString name = sysFile -> GetName();
+            if (name=="." || name=="..") continue;
+            TString full = dir + "/" + name;
+            FileStat_t stat;
+            if (gSystem->GetPathInfo(full, stat)!=0) continue;
+            if (R_ISDIR(stat.fMode)) {
+                if (recursive && name[0]!='.' && !stat.fIsLink)
+                    listFiles(full, out);
+            }
+            else
+                out.push_back({dir, name});
+        }
+        delete files;
+    };
 
     vector<TString> matchingFiles;
-    TSystemFile *sysFile = nullptr;
-    int countPath = 0;
     for (auto path : fInputPathArray)
     {
-        lk_info << "Looking for " << searchRunNo << "(" << searchTag << ") in " << path << endl;
-        TIter nextFile(TSystemDirectory(Form("search_path_%d",countPath),path).GetListOfFiles());
-        while ((sysFile=(TSystemFile*)nextFile()))
+        lk_info << "Looking for " << searchRunNo << "(" << searchTag << ") in " << path << (recursive?" and its subfolders":"") << endl;
+        vector<std::pair<TString,TString>> entries;
+        listFiles(path, entries);
+        for (auto &entry : entries)
         {
-            TString fileName = sysFile -> GetName();
+            TString fileDir = entry.first;
+            TString fileName = entry.second;
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////
             if (searchTag=="mfm")
             {
@@ -2441,26 +2466,28 @@ vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchTag, TStrin
                 if (fileName.Contains(".mfm_event_index")
                         || fileName.Contains(".mfm_event_ranges.json"))
                     continue;
-                //if (sysFile->IsDirectory()==false && fileName.Index("run_")==0 && fileName.Sizeof()>=32)
-                if (sysFile->IsDirectory()==false && fileName.Index("run_")==0)
+                if (fileName.Index("run_")==0)
                 {
                     int runNo = TString(fileName(5,4)).Atoi();
                     int division = (fileName.Sizeof()>32) ? TString(fileName(32,fileName.Sizeof()-32-1)).Atoi() : 0;
                     bool matched = false;
                     if (runNo==searchRunNo)
                         matched = true;
-                    if (!searchOption2.IsNull()) {
-                        if (searchOption2.IsDigit())
-                            searchOption2 = Form(".%s",searchOption2.Data());
-                        matched = fileName.EndsWith("s");
+                    if (matched && !searchOption2.IsNull()) {
+                        // a number selects that division file (.N), anything else must end the name
+                        TString suffix = searchOption2.IsDigit() ? TString(Form(".%s",searchOption2.Data())) : searchOption2;
+                        matched = fileName.EndsWith(suffix);
                     }
-                    if (matched) matchingFiles.push_back(path+"/"+fileName);
+                    FileStat_t stat;
+                    if (matched && gSystem->GetPathInfo(fileDir+"/"+fileName, stat)==0 && stat.fSize==0)
+                        matched = false; // empty files carry no frames
+                    if (matched) matchingFiles.push_back(fileDir+"/"+fileName);
                 }
             }
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////
             else if (!searchTag.IsNull())
             {
-                if (sysFile->IsDirectory()==false && fileName.Index((fRunName+"_"))==0 && fileName.EndsWith(searchTag+".root"))
+                if (fileName.Index((fRunName+"_"))==0 && fileName.EndsWith(searchTag+".root"))
                 {
                     int runNo = TString(fileName(fRunName.Sizeof(),4)).Atoi();
                     int division = 0;
@@ -2481,7 +2508,7 @@ vector<TString> LKRun::SearchRunFiles(int searchRunNo, TString searchTag, TStrin
                     {
                         TString tag = TString(((TObjString*)tokens->At(numTokens-2))->GetString());
                         if (runNo==searchRunNo && tag==searchTag)
-                            matchingFiles.push_back(path+"/"+fileName);
+                            matchingFiles.push_back(fileDir+"/"+fileName);
                     }
                 }
             }

@@ -285,7 +285,7 @@ class LKRun : public LKVirtualRun
 
         /// Search input files with given LKRun/RunID.
         /// Search and return array of matching files -> run_runNo*.[tag].root
-        vector<TString> SearchRunFiles(int runNo, TString searchOption, TString searchOption2="");
+        vector<TString> SearchRunFiles(int runNo, TString searchOption, TString searchOption2="", bool recursive=false);
 
         bool AddDrawing(TObject* drawing, TString label, int i=-1);
         void PrintDrawings();
