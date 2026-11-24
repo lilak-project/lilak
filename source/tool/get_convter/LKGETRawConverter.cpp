@@ -109,6 +109,7 @@ bool LKGETRawConverter::Init()
     fCurrEventIdx = -1;
     fPrevEventIdx = 0;
     fMutantCounter = 0;
+    fMuTanTTimeStamp.clear();
     fMultGET = 0;
     fCountEvents = 0;
 
@@ -217,6 +218,8 @@ void LKGETRawConverter::Event(const LKGETRawFrame& frame)
     if (frame.isLayered && !frame.children.empty())
         eventTime = ULong64_t(frame.children.front().eventTime);
     eventHeader->SetEventTime(eventTime);
+    auto mutant = fMuTanTTimeStamp.find(UInt_t(frame.eventIdx));
+    eventHeader->SetMTETimeStamp(mutant == fMuTanTTimeStamp.end() ? 0 : double(mutant->second));
 
     if (frame.isLayered) {
         for (size_t iFrame = 0; iFrame < frame.children.size(); ++iFrame) {
@@ -375,6 +378,7 @@ void LKGETRawConverter::DecodeMuTanTFrame(const LKGETRawFrame& frame)
         return;
 
     try {
+        fMuTanTTimeStamp[ReadBE32(frame.Data() + 14)] = ReadBE48(frame.Data() + 8);
         if (fSet2PMode) {
             fListOfEventIdx.push_back(ReadBE32(frame.Data() + 14));
             fListOfD2PTime.push_back(ReadBE32(frame.Data() + 60) * 10);

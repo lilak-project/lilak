@@ -15,6 +15,8 @@ void LKEventHeader::Clear(Option_t *option)
     fEventNumber = -1;
     fBufferStart = -1;
     fBufferSize = -1;
+    fEventTime = 0;
+    fMTETimeStamp = 0;
 }
 
 void LKEventHeader::Print(Option_t *option) const
@@ -29,4 +31,6 @@ void LKEventHeader::Copy(TObject &object) const
     ((LKEventHeader&)object).SetEventNumber(fEventNumber);
     ((LKEventHeader&)object).SetBufferStart(fBufferStart);
     ((LKEventHeader&)object).SetBufferSize(fBufferSize);
+    ((LKEventHeader&)object).SetEventTime(fEventTime);
+    ((LKEventHeader&)object).SetMTETimeStamp(fMTETimeStamp);
 }

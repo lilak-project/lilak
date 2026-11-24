@@ -18,12 +18,14 @@ class LKEventHeader : public LKContainer
         void SetBufferStart(size_t buffer) { fBufferStart = buffer; }
         void SetBufferSize(int size) { fBufferSize = size; }
         void SetEventTime(ULong64_t time) { fEventTime = time; }
+        void SetMTETimeStamp(double time) { fMTETimeStamp = time; } ///< MuTanT timestamp of this event (0 if none)
 
         bool IsGoodEvent() const { return fIsGoodEvent; }
         int GetEventNumber() const { return fEventNumber; }
         size_t GetBufferStart() const { return fBufferStart; }
         int GetBufferSize() const { return fBufferSize; }
         ULong64_t GetEventTime() const { return fEventTime; }
+        double GetMTETimeStamp() const { return fMTETimeStamp; }
 
         bool fIsGoodEvent = false;
         int fEventNumber = -1;
