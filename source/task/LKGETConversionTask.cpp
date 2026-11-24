@@ -25,7 +25,8 @@ bool LKGETConversionTask::Init()
     fPar->UpdatePar(zeroSuppressionMode,
             "LKGETConversionTask/zero_suppression_mode auto # auto | none | linear_interpolation");
 
-    if (fPar->CheckPar("LKGETConversionTask/InputFileName")) {
+    // A line with the name but no value (as templates write it) counts as not set.
+    if (fPar->CheckPar("LKGETConversionTask/InputFileName") && fPar->GetParN("LKGETConversionTask/InputFileName") > 0) {
         auto inputFileName = fPar->GetParString("LKGETConversionTask/InputFileName");
         if (fTriggerInputFileNameArray.size() > 0) {
             lk_error << "Cannot use two different inputs from LKGETConversionTask/InputFileName and LKRun/SearchRun" << endl;

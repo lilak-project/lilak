@@ -110,6 +110,8 @@ class LKParameter : public TNamed
         bool MathchHead(TString head) const;
 
     private:
+        /// Value at idx (fValue when idx<0); empty with an error when idx is out of range.
+        TString ValueAt(int idx) const;
         void ProcessTypeError(TString type, TString value) const;
         bool CheckFormulaValidity(TString formula, bool isInt=false) const;
 
