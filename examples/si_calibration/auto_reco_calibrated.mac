@@ -1,3 +1,5 @@
+# Needs the stark project (LKEnergyRestorationTask lives in stark/task).
+# STARK_DATA: STARK data directory with raw/ and reco/ (default ./data), e.g. STARK_DATA=/path/to/stark lilak run ...
 #lilak/print  all  # print after init gen:par:out:in:det:task
 #lilak/collect_par  print  # file name to write collected parameters. 'print' to print out on screen
 #lilak/auto_exit  0  # set(1)/unset(0) auto termination
@@ -15,8 +17,8 @@ LKEnergyRestorationTask/buildSiHit  true
 LKRun/Name  pre_li7  # name of the run
 LKRun/RunID  e{RUN}  # run number
 LKRun/Tag  reco_calibrated  # tag
-LKRun/OutputPath  /Users/jungwoo/data/stark/reco  # path to the output. Default path {lilak_data} is lilak/data/
-LKRun/InputPath  /Users/jungwoo/data/stark/raw  # LKRun will search files from input paths when LKRun/SearchRun
+LKRun/OutputPath  e{STARK_DATA:-data}/reco  # path to the output. Default path {lilak_data} is lilak/data/
+LKRun/InputPath  e{STARK_DATA:-data}/raw  # LKRun will search files from input paths when LKRun/SearchRun
 LKRun/SearchRun  mfm  # search input files with LKRun/RunID. opt=mfm: search mfm files, opt=[tag]: search run_runNo.*.[tag].root
 LKRun/AutoTerminate  true  # automatically terminate root after end of run
 #LKRun/EntriesLimit  e{ENTRIES}

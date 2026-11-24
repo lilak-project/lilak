@@ -137,18 +137,6 @@ LKRun::LKRun(TString runName, Int_t id, Int_t division, TString tag)
     CreateParameterContainer();
 
     AlwaysPrintMessage();
-
-    {
-        time_t start_time = time(0);
-        time_t tt_start_time = start_time;
-        struct tm *now = localtime(&tt_start_time);
-        TString ymd = Form("%04d%02d%02d",now->tm_year+1900,now->tm_mon+1,now->tm_mday);
-        TString hms = Form("%02d%02d%02d",now->tm_hour,now->tm_min,now->tm_sec);
-        TString stamp_name = "";//TString("ready_") + ymd + "_" + hms + ".log";
-        TString lastLogName = TString(LILAK_PATH) + "/data/lk_last_output.log";
-        unlink(lastLogName.Data());
-        symlink(fLogFileName1.Data(), lastLogName.Data());
-    }
 }
 
 void LKRun::PrintLILAK()
@@ -643,6 +631,13 @@ bool LKRun::Init()
         return fInitialized;
     fRunInit = true;
 
+    if (!fDryInit) {
+        // Empty until this run writes its init log: the parameter editor reads a failed run from that.
+        TString lastLogName = TString(LILAK_PATH) + "/data/lk_last_output.log";
+        unlink(lastLogName.Data());
+        symlink(fLogFileName1.Data(), lastLogName.Data());
+    }
+
     if (fInitialized)
         fInitialized = false;
 
@@ -785,10 +780,10 @@ bool LKRun::Init()
     fPar -> Require("LKRun/Tag",          "tag",            "tag",             "t", countParOrder++);
     fPar -> Require("LKRun/OutputPath",   "{lilak_data}",   "path to the output. Default path {lilak_data} is lilak/data/",  "", countParOrder++);
     fPar -> Require("LKRun/InputPath",    "/path/to/in/",   "LKRun will search files from input paths when LKRun/SearchRun", "t/", countParOrder++);
-    fPar -> Require("LKRun/SearchRun",    "mfm",            "search input files with LKRun/RunID. opt=mfm: search mfm files, opt=[tag]: search run_runNo.*.[tag].root", "t", countParOrder++);
+    fPar -> Require("LKRun/SearchRun",    "mfm",            "search input files with LKRun/RunID. opt=mfm: search mfm files, opt=[tag]: search run_runNo.*.[tag].root", "t/", countParOrder++);
     fPar -> Require("LKRun/AutoTerminate","true",           "automatically terminate root after end of run", "t", countParOrder++);
     fPar -> Require("LKRun/Division",     0,                "division within the run [optional]", "t/", countParOrder++);
-    fPar -> Require("LKRun/InputFile",    "to/input/file",  "input file. Cannot be used with LKRun/SearchRun", "t", countParOrder++);
+    fPar -> Require("LKRun/InputFile",    "to/input/file",  "input file. Cannot be used with LKRun/SearchRun", "t/", countParOrder++);
     fPar -> Require("LKRun/FriendFile",   "to/friend/file", "input friend file",                  "t/", countParOrder++);
     fPar -> Require("LKRun/RunIDList",    "1, 2, 3, 4",     "list of run numbers separated by ,", "t/", countParOrder++);
     fPar -> Require("LKRun/RunIDRange",   "1, 10",          "list of run numbers ranged by ,",    "t/", countParOrder++);
@@ -951,7 +946,7 @@ bool LKRun::Init()
     if (!fInputFileName.IsNull()) {
         e_cout << endl;
         if (!LKRun::CheckFileExistence(fInputFileName)) {
-            lk_info << "Given input file deos not exist! " << fInputFileName << endl;
+            lk_info << "Given input file does not exist! " << fInputFileName << endl;
             return false;
         }
         fInputFile = new TFile(fInputFileName, "read");
@@ -1121,6 +1116,15 @@ bool LKRun::Init()
         fOuputHash = GetFileHash(fOutputFileName);
     }
 
+    // Dry init (SetDryInit) must not overwrite an existing output file: the output goes to a temporary file
+    // that is unlinked right away, and the run header keeps the file it would have written.
+    TString intendedOutputFileName = fOutputFileName;
+    intendedOutputFileName.ReplaceAll("//","/");
+    if (fDryInit && !fOutputFileName.IsNull()) {
+        lk_info << "Dry init: output file would be " << intendedOutputFileName << " (not written)" << endl;
+        fOutputFileName = Form("%s/lilak_dry_init_%d.root", gSystem->TempDirectory(), gSystem->GetPid());
+    }
+
     if (!fOutputFileName.IsNull())
     {
         if (LKRun::CheckFileExistence(fOutputFileName)) {}
@@ -1142,6 +1146,8 @@ bool LKRun::Init()
             fOutputFile = new TFile(fOutputFileName, "recreate");
             fOutputTree = new TTree("event", "");
         }
+        if (fDryInit)
+            gSystem -> Unlink(fOutputFileName);
     }
 
     if (!fOutputFileName.IsNull() && !fInputFileName.IsNull()) {
@@ -1171,7 +1177,7 @@ bool LKRun::Init()
             fRunHeader -> AddPar(Form("InputFile/%d",iInput),fInputFileNameArray[iInput]);
         for (Int_t iFriend = idxInput; iFriend < fFriendFileNameArray.size(); iFriend++)
             fRunHeader -> AddPar(Form("FriendFile/%d",iFriend),fFriendFileNameArray[iFriend]);
-        fRunHeader -> AddPar("OutputFile",fOutputFileName);
+        fRunHeader -> AddPar("OutputFile",fDryInit ? intendedOutputFileName : fOutputFileName);
         fRunHeader -> AddPar("RunName",fRunName);
         fRunHeader -> AddPar("FileName",fFileName);
         fRunHeader -> AddPar("RunID",fRunID);
@@ -1289,6 +1295,10 @@ bool LKRun::Init()
         TString justName = fOutputFileName(fOutputFileName.Last('/')+1,fOutputFileName.Index(".root")-fOutputFileName.Last('/')-1);
         fLogFileName1 = TString(LILAK_PATH) + "/data/log/" + "init_" + ymd + "_" + hms + ".log";
         fLogFileName2 = TString(LILAK_PATH) + "/data/log/" + "init_" + justName + ".log";
+        if (fDryInit) { // nothing under data/: the caller reads this from the "Dry init log:" line and removes it
+            fLogFileName1 = Form("%s/init_dry_%d.log", gSystem->TempDirectory(), gSystem->GetPid());
+            fLogFileName2 = "";
+        }
         fRunHeader -> AddPar("init_log1",fLogFileName1);
         fRunHeader -> AddPar("init_log2",fLogFileName2);
     }
@@ -1300,21 +1310,29 @@ bool LKRun::Init()
     fRunHeader -> AddPar("Initialized",fInitialized);
 
     fRunHeader -> SaveAs(fLogFileName1);
-    unlink(fLogFileName2.Data());
-    symlink(fLogFileName1.Data(), fLogFileName2.Data());
+    if (fDryInit)
+        lk_info << "Dry init log: " << fLogFileName1 << endl;
+    else {
+        unlink(fLogFileName2.Data());
+        symlink(fLogFileName1.Data(), fLogFileName2.Data());
 
-    TString lastLogName = TString(LILAK_PATH) + "/data/lk_last_output.log";
-    unlink(lastLogName.Data());
-    symlink(fLogFileName1.Data(), lastLogName.Data());
+        TString lastLogName = TString(LILAK_PATH) + "/data/lk_last_output.log";
+        unlink(lastLogName.Data());
+        symlink(fLogFileName1.Data(), lastLogName.Data());
+    }
 
-    if (fInitialized)
+    if (fInitialized && !fDryInit)
         SendElogRunHook("I");
 
-    if (fInitialized && fAllowLILAKRun)
-    {
+    if (fInitialized) {
         lk_info << fNumEntries << " input entries" << endl;
         lk_info << "Initialized!" << endl;
+    }
+    else
+        lk_error << "Initialize failed!" << endl;
 
+    if (fInitialized && fAllowLILAKRun && !fDryInit)
+    {
         if (onlineAfterInit>=0 || runAfterInit>=0 || exeAfterInit>=0)
         {
             if (onlineAfterInit>=0)
@@ -1338,8 +1356,6 @@ bool LKRun::Init()
             return true;
         }
     }
-    else
-        lk_error << "Initialize failed!" << endl;
 
     return fInitialized;
 }

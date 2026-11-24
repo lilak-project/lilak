@@ -127,6 +127,10 @@ class LKRun : public LKVirtualRun
         void AddParAfter(TString fname) { fParAddAfter = fname; }
 
         void SetLILAKRun(bool allow_execution=true) { fIsLILAKRun = true; fAllowLILAKRun = allow_execution; }
+        /// Init only to look at the configuration: the output goes to a removed temporary file, the init log to
+        /// the temporary directory (printed as "Dry init log:"), no elog push, no run. Used by lilak collect_par
+        /// and the parameter editor's configure.
+        void SetDryInit(bool dry=true) { fDryInit = dry; }
 
         void SetCollectPar(TString configName="") { fCollectParAndPrintTo = (configName.IsNull()?"lilak_configure":configName); }
         void SetCollectSubPar(TString configName="") { fCollectSubParAndPrintTo = (configName.IsNull()?"lilak_configure":configName); }
@@ -422,6 +426,7 @@ class LKRun : public LKVirtualRun
 
         bool fIsLILAKRun = false;
         bool fAllowLILAKRun = true;
+        bool fDryInit = false;
 
         TString fCollectParAndPrintTo = "";
         TString fCollectSubParAndPrintTo = "";

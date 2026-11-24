@@ -13,6 +13,7 @@ using namespace std;
 #include "GETChannel.h"
 #include "LKEventHeader.h"
 #include "get_convter/LKGETOfflineFrameIndex.h"
+#include "get_convter/LKGETFrameFileIndex.h"
 
 #include <sys/socket.h> /* for socket(), connect(), recv() */
 #include <sys/file.h>
@@ -36,209 +37,6 @@ uint64_t PeekFrameSize(const uint8_t* hdr)
     return sizeInBlocks * blockSize;
 }
 
-std::string FindMFMFamilyBase(const std::vector<TString>& files)
-{
-    if (files.empty())
-        return "";
-    std::string base = files.front().Data();
-    auto dot = base.find_last_of('.');
-    if (dot != std::string::npos && dot + 1 < base.size()
-            && std::all_of(base.begin() + dot + 1, base.end(), ::isdigit)) {
-        auto candidate = base.substr(0, dot);
-        if (::access(candidate.c_str(), F_OK) == 0)
-            base = candidate;
-    }
-    for (size_t i = 0; i < files.size(); ++i) {
-        const std::string expected = i == 0 ? base : base + "." + std::to_string(i);
-        if (std::string(files[i].Data()) != expected)
-            return "";
-    }
-    return base;
-}
-
-std::string FileNameOnly(const std::string& path)
-{
-    auto slash = path.find_last_of('/');
-    return slash == std::string::npos ? path : path.substr(slash + 1);
-}
-
-std::string JsonEscape(const std::string& value)
-{
-    std::ostringstream output;
-    for (unsigned char ch : value) {
-        if (ch == '\\' || ch == '"') output << '\\' << ch;
-        else if (ch == '\n') output << "\\n";
-        else if (ch == '\r') output << "\\r";
-        else if (ch == '\t') output << "\\t";
-        else if (ch < 0x20) {
-            const char* digits = "0123456789abcdef";
-            output << "\\u00" << digits[ch >> 4] << digits[ch & 0x0f];
-        }
-        else output << ch;
-    }
-    return output.str();
-}
-
-uint64_t MTimeNs(const struct stat& status)
-{
-#if defined(__APPLE__)
-    return uint64_t(status.st_mtimespec.tv_sec) * 1000000000ULL + status.st_mtimespec.tv_nsec;
-#else
-    return uint64_t(status.st_mtim.tv_sec) * 1000000000ULL + status.st_mtim.tv_nsec;
-#endif
-}
-
-bool ReadSourceRecords(const std::vector<TString>& files,
-        std::vector<LKGETOfflineFrameIndex::SourceRecord>& records)
-{
-    records.clear();
-    for (const auto& file : files) {
-        struct stat status = {};
-        if (::stat(file.Data(), &status) != 0) {
-            records.clear();
-            return false;
-        }
-        records.push_back({static_cast<uint64_t>(status.st_size), MTimeNs(status)});
-    }
-    return true;
-}
-
-bool SameSourceRecords(const std::vector<LKGETOfflineFrameIndex::SourceRecord>& lhs,
-        const std::vector<LKGETOfflineFrameIndex::SourceRecord>& rhs)
-{
-    if (lhs.size() != rhs.size())
-        return false;
-    for (size_t i = 0; i < lhs.size(); ++i) {
-        if (lhs[i].fileSize != rhs[i].fileSize
-                || lhs[i].modificationTimeNs != rhs[i].modificationTimeNs)
-            return false;
-    }
-    return true;
-}
-
-bool ExistingIndexIsCurrent(const std::string& indexPath,
-        const std::vector<LKGETOfflineFrameIndex::SourceRecord>& sources,
-        size_t frameCount)
-{
-    struct stat indexStatus = {};
-    if (::stat(indexPath.c_str(), &indexStatus) != 0)
-        return false;
-    std::ifstream input(indexPath, std::ios::binary);
-    LKGETOfflineFrameIndex::FileHeader header = {};
-    input.read(reinterpret_cast<char*>(&header), sizeof(header));
-    if (!input || std::memcmp(header.magic, "LKGVIX2", 7) != 0
-            || header.version != 2 || header.sourceCount != sources.size()
-            || header.frameCount != frameCount
-            || header.sourceTableOffset != sizeof(header)
-            || header.frameTableOffset != header.sourceTableOffset
-                + header.sourceCount * sizeof(LKGETOfflineFrameIndex::SourceRecord)
-            || header.eventTableOffset != header.frameTableOffset
-                + header.frameCount * sizeof(LKGETOfflineFrameIndex::FrameRef)
-            || header.auxiliaryTableOffset != header.eventTableOffset
-                + header.eventCount * sizeof(LKGETOfflineFrameIndex::EventRef)
-            || uint64_t(indexStatus.st_size) != header.auxiliaryTableOffset
-                + header.auxiliaryFrameCount
-                    * sizeof(LKGETOfflineFrameIndex::AuxiliaryFrameRef))
-        return false;
-    std::vector<LKGETOfflineFrameIndex::SourceRecord> storedSources(header.sourceCount);
-    if (!storedSources.empty())
-        input.read(reinterpret_cast<char*>(storedSources.data()),
-                storedSources.size() * sizeof(storedSources.front()));
-    if (!input || !SameSourceRecords(storedSources, sources))
-            return false;
-    return true;
-}
-
-bool WriteEventRanges(const std::string& path, const std::string& indexPath,
-        const std::vector<TString>& files, const std::vector<uint64_t>& frameCounts,
-        const std::vector<uint32_t>& minimumEvents,
-        const std::vector<uint32_t>& maximumEvents,
-        const LKGETOfflineFrameIndex& index)
-{
-    std::ofstream output(path, std::ios::trunc);
-    if (!output)
-        return false;
-    output << "{\n  \"eventCount\": " << index.EventCount()
-           << ",\n  \"format\": \"lilak-mfm-event-ranges\""
-           << ",\n  \"frameCount\": " << index.Size()
-           << ",\n  \"indexFile\": \"" << JsonEscape(FileNameOnly(indexPath)) << "\""
-           << ",\n  \"sources\": [\n";
-    for (size_t i = 0; i < files.size(); ++i) {
-        struct stat status = {};
-        if (::stat(files[i].Data(), &status) != 0)
-            return false;
-        output << "    {\n      \"frameCount\": " << frameCounts[i]
-               << ",\n      \"maxEvent\": ";
-        if (frameCounts[i] == 0) output << "null";
-        else output << maximumEvents[i];
-        output << ",\n      \"minEvent\": ";
-        if (frameCounts[i] == 0) output << "null";
-        else output << minimumEvents[i];
-        output << ",\n      \"mtimeNs\": " << MTimeNs(status)
-               << ",\n      \"name\": \"" << JsonEscape(FileNameOnly(files[i].Data())) << "\""
-               << ",\n      \"size\": " << uint64_t(status.st_size) << "\n    }";
-        if (i + 1 != files.size()) output << ',';
-        output << '\n';
-    }
-    output << "  ],\n  \"version\": 1\n}\n";
-    return output.good();
-}
-
-bool SaveMFMEventIndex(const std::vector<TString>& files,
-        const std::vector<LKGETOfflineFrameIndex::SourceRecord>& sources,
-        const std::vector<uint64_t>& frameCounts,
-        const std::vector<uint32_t>& minimumEvents,
-        const std::vector<uint32_t>& maximumEvents,
-        const LKGETOfflineFrameIndex& index,
-        const std::vector<LKGETOfflineFrameIndex::AuxiliaryFrameRef>& auxiliaryFrames)
-{
-    const auto base = FindMFMFamilyBase(files);
-    if (base.empty())
-        return false;
-    const auto indexPath = base + ".mfm_event_index";
-    const auto rangesPath = base + ".mfm_event_ranges.json";
-    const auto lockPath = indexPath + ".lock";
-    const int lockFd = ::open(lockPath.c_str(), O_CREAT | O_RDWR, 0664);
-    if (lockFd < 0 || ::flock(lockFd, LOCK_EX) != 0) {
-        if (lockFd >= 0) ::close(lockFd);
-        return false;
-    }
-
-    const auto suffix = ".tmp." + std::to_string(::getpid());
-    const auto temporaryIndex = indexPath + suffix;
-    const auto temporaryRanges = rangesPath + suffix;
-    bool success = true;
-    if (!ExistingIndexIsCurrent(indexPath, sources, index.Size())) {
-        success = index.Write(temporaryIndex, sources, auxiliaryFrames);
-        std::vector<LKGETOfflineFrameIndex::SourceRecord> currentSources;
-        success = success && ReadSourceRecords(files, currentSources)
-            && SameSourceRecords(sources, currentSources);
-        success = success && ::rename(temporaryIndex.c_str(), indexPath.c_str()) == 0;
-        if (success) ::chmod(indexPath.c_str(), 0664);
-    }
-    if (success) {
-        success = WriteEventRanges(temporaryRanges, indexPath, files, frameCounts,
-                minimumEvents, maximumEvents, index)
-            && ::rename(temporaryRanges.c_str(), rangesPath.c_str()) == 0;
-        if (success) ::chmod(rangesPath.c_str(), 0664);
-    }
-    ::unlink(temporaryIndex.c_str());
-    ::unlink(temporaryRanges.c_str());
-    ::flock(lockFd, LOCK_UN);
-    ::close(lockFd);
-    return success;
-}
-
-bool LoadMFMEventIndex(const std::vector<TString>& files,
-        const std::vector<LKGETOfflineFrameIndex::SourceRecord>& sources,
-        LKGETOfflineFrameIndex& index,
-        std::vector<LKGETOfflineFrameIndex::AuxiliaryFrameRef>& auxiliaryFrames)
-{
-    const auto base = FindMFMFamilyBase(files);
-    if (base.empty())
-        return false;
-    return index.Load(base + ".mfm_event_index", sources, auxiliaryFrames);
-}
 }
 
 LKCoboFrameMergerTask::LKCoboFrameMergerTask()
@@ -250,6 +48,27 @@ bool LKCoboFrameMergerTask::Init()
 {
     fEventHeaderArray = fRun->RegisterBranchA("FrameHeader", "LKEventHeader", 1);
     fChannelArray = fRun->RegisterBranchA("RawData", "GETChannel", 1000);
+
+    // Read every parameter before the input checks below: make_meta and collect_par run Init()
+    // without input, and a parameter read after an early return never reaches their template.
+    fPar->Require("LKCoboFrameMergerTask/watcherIP", "ip0", "online: one watcher IP per source", "/");
+    fPar->Require("LKCoboFrameMergerTask/watcherPort", "port0", "online: one watcher port per source", "/");
+    fPar->UpdatePar(fSleepBeforeConnect,
+            "LKCoboFrameMergerTask/sleepBeforeConnect 1 # online: seconds to wait before connecting");
+    fPar->UpdatePar(fBreakAfterFailNumber,
+            "LKCoboFrameMergerTask/breakAfterFailNumber 10 # online: stop after this many failed reads");
+    fPar->UpdatePar(fSaveMFMEventIndex,
+            "LKCoboFrameMergerTask/save_mfm_event_index true # Save each raw file's frame index beside it (.<file>.scope_index, shared with Scope)");
+    fPar->UpdatePar(fUseMFMEventIndex,
+            "LKCoboFrameMergerTask/use_mfm_event_index true # Use a raw file's saved frame index when it is still valid");
+    fPar->UpdatePar(fMFMEventIndexOnly,
+            "LKCoboFrameMergerTask/mfm_event_index_only false # Stop after creating or loading the frame indexes");
+
+    fConverter = new LKGETRawConverter();
+    fConverter->SetPar(fPar);
+    TString zeroSuppressionMode = "auto";
+    fPar->UpdatePar(zeroSuppressionMode,
+            "LKCoboFrameMergerTask/zero_suppression_mode auto # auto | none | linear_interpolation");
 
     if (fPar->CheckPar("LKCoboFrameMergerTask/InputFileName")) {
         auto numInputs = fPar->GetParN("LKCoboFrameMergerTask/InputFileName");
@@ -272,8 +91,6 @@ bool LKCoboFrameMergerTask::Init()
                 fWatcherPort.push_back(fPar->GetParInt("LKCoboFrameMergerTask/watcherPort", (int) i));
                 lk_info << "Source " << i << " watcher " << fWatcherIP[i] << ":" << fWatcherPort[i] << endl;
             }
-            fPar->UpdatePar(fSleepBeforeConnect, "LKCoboFrameMergerTask/sleepBeforeConnect");
-            fPar->UpdatePar(fBreakAfterFailNumber, "LKCoboFrameMergerTask/breakAfterFailNumber");
         }
         else {
             if (fTriggerInputFileNameArray.size() > 0) {
@@ -293,18 +110,6 @@ bool LKCoboFrameMergerTask::Init()
         return false;
     }
 
-    fPar->UpdatePar(fSaveMFMEventIndex,
-            "LKCoboFrameMergerTask/save_mfm_event_index true # Save viewer-compatible MFM event index beside raw files");
-    fPar->UpdatePar(fUseMFMEventIndex,
-            "LKCoboFrameMergerTask/use_mfm_event_index true # Load a valid MFM event index when available");
-    fPar->UpdatePar(fMFMEventIndexOnly,
-            "LKCoboFrameMergerTask/mfm_event_index_only false # Stop after creating or loading the MFM event index");
-
-    fConverter = new LKGETRawConverter();
-    fConverter->SetPar(fPar);
-    TString zeroSuppressionMode = "auto";
-    fPar->UpdatePar(zeroSuppressionMode,
-            "LKCoboFrameMergerTask/zero_suppression_mode auto # auto | none | linear_interpolation");
     if (!fConverter->SetZeroSuppressionMode(zeroSuppressionMode))
         return false;
     fConverter->SetChannelArray(fChannelArray);
@@ -346,148 +151,84 @@ void LKCoboFrameMergerTask::Run(Long64_t numEvents)
         }
     }
 
-    std::vector<LKGETOfflineFrameIndex::SourceRecord> initialSourceRecords;
-    if (!ReadSourceRecords(fTriggerInputFileNameArray, initialSourceRecords)) {
-        lk_error << "Could not read input file size and modification time" << endl;
-        fRun->SignalEndOfRun();
-        return;
-    }
-
-    // Frames are not stored in strictly increasing event-id order inside a raw
-    // CoBo file (the writer groups them by AsAd), so every frame must first be
-    // indexed.  Store compact file references just like cobo-frame-merge does;
-    // retaining LKGETRawFrame here would keep the complete raw payload in RAM.
-    LKGETOfflineFrameIndex frameIndex;
-    std::vector<LKGETOfflineFrameIndex::AuxiliaryFrameRef> auxiliaryFrames;
-    std::vector<uint64_t> sourceFrameCounts(nSources, 0);
-    std::vector<uint32_t> sourceMinimumEvents(
-            nSources, std::numeric_limits<uint32_t>::max());
-    std::vector<uint32_t> sourceMaximumEvents(nSources, 0);
-    const auto cacheBase = FindMFMFamilyBase(fTriggerInputFileNameArray);
-    const auto cacheIndexPath = cacheBase.empty()
-        ? std::string() : cacheBase + ".mfm_event_index";
-    const auto cacheRangesPath = cacheBase.empty()
-        ? std::string() : cacheBase + ".mfm_event_ranges.json";
-    struct stat cacheStatus = {};
-    const bool cacheExists = !cacheIndexPath.empty()
-        && ::stat(cacheIndexPath.c_str(), &cacheStatus) == 0;
-    if (cacheBase.empty()) {
-        lk_warning << "MFM event-index cache is unavailable: inputs are not one complete numbered file family" << endl;
-    }
-    else {
-        lk_info << "MFM event-index cache file: " << cacheIndexPath << endl;
-        if (!fUseMFMEventIndex)
-            lk_info << "MFM event-index cache loading is disabled" << endl;
-        else if (cacheExists)
-            lk_info << "Found MFM event-index cache (" << uint64_t(cacheStatus.st_size)
-                    << " bytes); validating against " << nSources << " source file(s)" << endl;
+    // Each source keeps its frame table beside it (".<name>.scope_index", shared with the Scope
+    // viewer), so any combination of CoBo files is indexed once.  Frames are not in event order
+    // inside a CoBo file (the writer groups them by AsAd), so the merge needs every frame's
+    // position first; only compact references stay in memory, not the payloads.
+    auto readFrameRecords = [&](const std::string& fileName,
+            std::vector<LKGETFrameFileIndex::Record>& records) -> bool {
+        const auto indexPath = LKGETFrameFileIndex::PathFor(fileName);
+        uint64_t size = 0, mtimeNs = 0;
+        if (!LKGETFrameFileIndex::Fingerprint(fileName, size, mtimeNs)) {
+            lk_error << "Could not read size and modification time of " << fileName << endl;
+            return false;
+        }
+        if (fUseMFMEventIndex && LKGETFrameFileIndex::Load(fileName, size, mtimeNs, records)) {
+            lk_info << "Loaded frame index " << indexPath << " (" << records.size() << " frames)" << endl;
+            return true;
+        }
+        uint64_t cutAt = 0;
+        std::string error;
+        if (!LKGETFrameFileIndex::Scan(fileName, records, cutAt, error)) {
+            lk_error << "Could not index " << fileName << ": " << error << endl;
+            return false;
+        }
+        if (cutAt > 0) {
+            lk_warning << fileName << ": last frame cut off at byte " << cutAt << " of " << size
+                       << " (file still being written?); using the whole frames, frame index not saved" << endl;
+            return true;
+        }
+        uint64_t sizeAfter = 0, mtimeAfter = 0;
+        if (!fSaveMFMEventIndex)
+            return true;
+        if (!LKGETFrameFileIndex::Fingerprint(fileName, sizeAfter, mtimeAfter)
+                || sizeAfter != size || mtimeAfter != mtimeNs)
+            lk_warning << fileName << " changed while indexing; frame index not saved" << endl;
+        else if (LKGETFrameFileIndex::Save(fileName, size, mtimeNs, records))
+            lk_info << "Saved frame index " << indexPath << " (" << records.size() << " frames)" << endl;
         else
-            lk_info << "MFM event-index cache not found; raw sources will be indexed" << endl;
-    }
-    const bool loadedIndex = fUseMFMEventIndex
-        && LoadMFMEventIndex(fTriggerInputFileNameArray, initialSourceRecords,
-                frameIndex, auxiliaryFrames);
-    if (loadedIndex) {
-        lk_info << "Loaded MFM event-index cache: " << frameIndex.Size()
-                << " frame reference(s), " << frameIndex.EventCount()
-                << " event(s), " << auxiliaryFrames.size()
-                << " auxiliary frame(s)" << endl;
-        for (const auto& ref : auxiliaryFrames) {
-            if (ref.sourceId >= inputs.size()) {
-                lk_error << "Invalid auxiliary source in MFM event index" << endl;
-                fRun->SignalEndOfRun();
-                return;
-            }
-            auto& input = inputs[ref.sourceId];
-            input.clear();
-            input.seekg(static_cast<std::streamoff>(ref.filePosition), ios::beg);
-            LKGETRawFrame frame;
-            if (!input.good() || !fParser.ReadNextFrame(input, frame)
-                    || frame.frameType != ref.frameType
-                    || (frame.frameType != 0x7 && frame.frameType != 0x8)) {
-                lk_error << "Invalid auxiliary frame in MFM event index at byte "
-                         << ref.filePosition << endl;
-                fRun->SignalEndOfRun();
-                return;
-            }
-            fConverter->ProcessFrame(frame);
-        }
-    }
-    else {
-        if (fUseMFMEventIndex && cacheExists)
-            lk_warning << "MFM event-index cache is stale or invalid; rebuilding from raw sources" << endl;
-        for (int i = 0; i < nSources && fContinueEvent; ++i) {
-            Long64_t nCobo = 0;
-            while (true) {
-                auto framePosition = inputs[i].tellg();
-                if (framePosition == std::streampos(-1)) {
-                    lk_error << "Could not get input position for source " << i << endl;
-                    fRun->SignalEndOfRun();
-                    return;
-                }
+            lk_warning << "Could not save frame index " << indexPath << " (folder not writable?)" << endl;
+        return true;
+    };
 
-                LKGETRawFrame frame;
-                if (!fParser.ReadNextFrame(inputs[i], frame))
-                    break;
-                if (frame.frameType == 0x7 || frame.frameType == 0x8) {
-                    auxiliaryFrames.push_back({
-                            static_cast<uint64_t>(static_cast<std::streamoff>(framePosition)),
-                            static_cast<uint32_t>(i), frame.frameType});
-                    fConverter->ProcessFrame(frame);
-                }
-                else if (frame.frameType == 1 || frame.frameType == 2) {
-                    frameIndex.Add(static_cast<uint32_t>(i),
-                            static_cast<uint64_t>(static_cast<std::streamoff>(framePosition)),
-                            frame.eventIdx);
-                    sourceMinimumEvents[i] = std::min(sourceMinimumEvents[i], frame.eventIdx);
-                    sourceMaximumEvents[i] = std::max(sourceMaximumEvents[i], frame.eventIdx);
-                    ++nCobo;
-                }
-            }
-            inputs[i].clear();
-            sourceFrameCounts[i] = nCobo;
-            lk_info << "Source " << i << ": indexed " << nCobo << " CoBo frame(s)" << endl;
+    LKGETOfflineFrameIndex frameIndex;
+    std::vector<std::pair<int, LKGETFrameFileIndex::Record>> auxiliaryFrames;
+    for (int i = 0; i < nSources; ++i) {
+        std::vector<LKGETFrameFileIndex::Record> records;
+        if (!readFrameRecords(fTriggerInputFileNameArray[i].Data(), records)) {
+            fRun->SignalEndOfRun();
+            return;
         }
-
-        lk_info << "Sorting " << frameIndex.Size() << " compact frame reference(s); index uses "
-                << frameIndex.CapacityBytes() / (1024 * 1024)
-                << " MiB" << endl;
-        frameIndex.Sort();
-        if (fSaveMFMEventIndex) {
-            if (!cacheIndexPath.empty()) {
-                lk_info << "Saving MFM event-index cache: " << cacheIndexPath << endl;
-                lk_info << "Cache contents: " << frameIndex.Size()
-                        << " frame reference(s), " << frameIndex.EventCount()
-                        << " event(s), " << auxiliaryFrames.size()
-                        << " auxiliary frame(s)" << endl;
+        Long64_t nCobo = 0;
+        for (const auto& r : records) {
+            if (r.frameType == 1 || r.frameType == 2) {
+                frameIndex.Add(static_cast<uint32_t>(i), r.offset, r.eventId);
+                ++nCobo;
             }
-            std::vector<LKGETOfflineFrameIndex::SourceRecord> finalSourceRecords;
-            if (!ReadSourceRecords(fTriggerInputFileNameArray, finalSourceRecords)
-                    || !SameSourceRecords(initialSourceRecords, finalSourceRecords)) {
-                lk_warning << "Raw input changed while indexing; MFM event index was not saved" << endl;
-            }
-            else if (SaveMFMEventIndex(fTriggerInputFileNameArray, initialSourceRecords,
-                        sourceFrameCounts, sourceMinimumEvents, sourceMaximumEvents,
-                        frameIndex, auxiliaryFrames)) {
-                struct stat savedIndexStatus = {};
-                struct stat savedRangesStatus = {};
-                const bool haveIndexSize = ::stat(cacheIndexPath.c_str(), &savedIndexStatus) == 0;
-                const bool haveRangesSize = ::stat(cacheRangesPath.c_str(), &savedRangesStatus) == 0;
-                lk_info << "Saved MFM event-index cache: " << cacheIndexPath
-                        << " (" << (haveIndexSize ? uint64_t(savedIndexStatus.st_size) : 0)
-                        << " bytes)" << endl;
-                lk_info << "Saved MFM event-range metadata: " << cacheRangesPath
-                        << " (" << (haveRangesSize ? uint64_t(savedRangesStatus.st_size) : 0)
-                        << " bytes)" << endl;
-            }
-            else {
-                lk_warning << "Could not save MFM event index; inputs must be one complete numbered file family in a writable directory" << endl;
-            }
+            else if (r.frameType == 0x7 || r.frameType == 0x8)
+                auxiliaryFrames.push_back({i, r});
         }
-        else {
-            lk_info << "MFM event-index cache saving is disabled" << endl;
-        }
+        lk_info << "Source " << i << ": " << nCobo << " CoBo frame(s)" << endl;
     }
+
+    // CoBo topology (0x7) and MuTanT (0x8) frames go to the converter before the events.
+    for (const auto& aux : auxiliaryFrames) {
+        auto& input = inputs[aux.first];
+        input.clear();
+        input.seekg(static_cast<std::streamoff>(aux.second.offset), ios::beg);
+        LKGETRawFrame frame;
+        if (!input.good() || !fParser.ReadNextFrame(input, frame) || frame.frameType != aux.second.frameType) {
+            lk_error << "Could not re-read frame type " << aux.second.frameType << " in source " << aux.first
+                     << " at byte " << aux.second.offset << endl;
+            fRun->SignalEndOfRun();
+            return;
+        }
+        fConverter->ProcessFrame(frame);
+    }
+
+    lk_info << "Sorting " << frameIndex.Size() << " compact frame reference(s); index uses "
+            << frameIndex.CapacityBytes() / (1024 * 1024) << " MiB" << endl;
+    frameIndex.Sort();
 
     if (fMFMEventIndexOnly) {
         lk_info << "MFM event index-only mode complete; skipping event reconstruction" << endl;

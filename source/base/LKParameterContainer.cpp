@@ -1382,6 +1382,10 @@ Int_t LKParameterContainer::AddLine(std::string ssline)
         ssline.erase(endpos+1);
     }
 
+    // a tab in the indentation counts as 4 spaces
+    for (size_t i=0; i<ssline.size() && (ssline[i]==' ' || ssline[i]=='\t'); ++i)
+        if (ssline[i]=='\t') ssline.replace(i, 1, "    ");
+
     if (ssline.find("#") == 0) {
         TString line2 = TString(ssline);
         line2 = line2(1,line2.Sizeof()-2);
@@ -1491,7 +1495,7 @@ Int_t LKParameterContainer::AddLine(std::string ssline)
     // value -------------------------------------------
     parValues = ssline;
     parValues.Remove(0,sizeOfHead);
-    while (parValues[0]==' ')
+    while (parValues[0]==' ' || parValues[0]=='\t')
         parValues.Remove(0,1);
 
     // comment -------------------------------------------
@@ -1499,13 +1503,13 @@ Int_t LKParameterContainer::AddLine(std::string ssline)
     TString parComment;
     if (icomment>=0) {
         parComment = parValues(icomment+1,parValues.Sizeof()-1);
-        while (parComment[0]==' ')
+        while (parComment[0]==' ' || parComment[0]=='\t')
             parComment.Remove(0,1);
         // split parValues
         parValues = parValues(0,icomment);
-        while (parValues[0]==' ')
+        while (parValues[0]==' ' || parValues[0]=='\t')
             parValues.Remove(0,1);
-        while (parValues[parValues.Sizeof()-2]==' ')
+        while (parValues[parValues.Sizeof()-2]==' ' || parValues[parValues.Sizeof()-2]=='\t')
             parValues.Remove(parValues.Sizeof()-2,1);
     }
 
@@ -1985,17 +1989,33 @@ LKParameterContainer* LKParameterContainer::CreateAnyContainer(TString any)
 
 void LKParameterContainer::Require(TString name, TString value, TString comment, TString type, int compare)
 {
-    if (fParameterCollectionMode && fCollectedParameterContainer->FindPar(name)==nullptr)
+    // Look up without recording it, so the collection below gets the user's own value when it is set.
+    bool collecting = fParameterCollectionMode;
+    fParameterCollectionMode = false;
+    auto par = FindParFree(name,false);
+    fParameterCollectionMode = collecting;
+
+    TString typeUserSet = type;
+    typeUserSet.ReplaceAll("/",""); // a value the user set is never written commented out
+
+    if (collecting && fCollectedParameterContainer->FindPar(name)==nullptr)
     {
-        auto parc = fCollectedParameterContainer -> SetPar(name, value, value, comment);
-        if (!type.IsNull()) parc -> SetType(type);
+        LKParameter *parc = nullptr;
+        if (par!=nullptr) {
+            TString userComment = par -> GetComment();
+            parc = fCollectedParameterContainer -> SetPar(name, par->GetRaw(), par->GetValue(), userComment.IsNull()?comment:userComment);
+            if (!typeUserSet.IsNull()) parc -> SetType(typeUserSet);
+        }
+        else { // not set by the user: write the default commented out so the next run behaves the same
+            parc = fCollectedParameterContainer -> SetPar(name, value, value, comment);
+            if (!type.IsNull()) parc -> SetType(type);
+            parc -> SetIsCommentOut();
+        }
         if (compare>=0) parc -> SetCompare(compare);
     }
 
-    auto par = FindParFree(name,false);
     if (par!=nullptr) {
-        type.ReplaceAll("/","");
-        if (!type.IsNull()) par -> SetType(type);
+        if (!typeUserSet.IsNull()) par -> SetType(typeUserSet);
         if (compare>=0) par -> SetCompare(compare);
     }
 }
@@ -2092,6 +2112,11 @@ LKParameter *LKParameterContainer::FindParFree(TString givenName, bool terminate
         if (parameterIsFound) line = Form("%s",parameterFound->GetLine().Data());
         else                  line = Form("%s",givenName.Data());
         fCollectedParameterContainer -> AddLine(line);
+        if (!parameterIsFound) {
+            // Not set by the user: write the suggestion commented out so the next run behaves the same.
+            auto suggested = fCollectedParameterContainer -> FindPar(givenName);
+            if (suggested != nullptr) suggested -> SetIsCommentOut();
+        }
     }
 
     if (parameterIsFound)
@@ -2164,6 +2189,11 @@ LKParameter *LKParameterContainer::FindPar(TString givenName, bool terminateIfNu
         if (parameterIsFound) line = Form("%s",parameterFound->GetLine().Data());
         else                  line = Form("%s",givenName.Data());
         fCollectedParameterContainer -> AddLine(line);
+        if (!parameterIsFound) {
+            // Not set by the user: write the suggestion commented out so the next run behaves the same.
+            auto suggested = fCollectedParameterContainer -> FindPar(givenName);
+            if (suggested != nullptr) suggested -> SetIsCommentOut();
+        }
     }
 
     if (parameterIsFound)
@@ -2194,8 +2224,8 @@ void LKParameterContainer::PrintCollection(TString fileName)
     fCollectedParameterContainer -> Sort();
     if (fileName.IsNull() || fileName=="print")
         fCollectedParameterContainer -> Print("raw:idx:parcm:lcm");
-    else
-        fCollectedParameterContainer -> SaveAs(fileName);
+    else // raw: keep {lilak_data}, e{RUN} and other references instead of this machine's values
+        fCollectedParameterContainer -> SaveAs(fileName, "raw:parcm");
 }
 
 LKCut* LKParameterContainer::GetParCut(TString name)

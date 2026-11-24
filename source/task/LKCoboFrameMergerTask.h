@@ -31,9 +31,11 @@
  *                                        online           # online (watcher) mode
  *   LKCoboFrameMergerTask/watcherIP      ip0 ip1 ...       # one ip per source (online)
  *   LKCoboFrameMergerTask/watcherPort    port0 port1 ...   # one port per source (online)
- *   LKCoboFrameMergerTask/save_mfm_event_index true         # persist viewer-compatible index
- *   LKCoboFrameMergerTask/use_mfm_event_index true          # load a valid existing index
- *   LKCoboFrameMergerTask/mfm_event_index_only false        # stop after creating/loading index
+ *   LKCoboFrameMergerTask/save_mfm_event_index true         # save each file's frame index beside it
+ *   LKCoboFrameMergerTask/use_mfm_event_index true          # reuse a file's valid frame index
+ *   LKCoboFrameMergerTask/mfm_event_index_only false        # stop after creating/loading the indexes
+ * The frame index of a raw file is ".<file name>.scope_index" beside it, the same file the Scope
+ * viewer writes and reads (format in get_convter/LKGETFrameFileIndex.h).
  * Inputs may also be supplied through LKRun (LKRun/SearchRun, AddInputFile),
  * in which case every input file is treated as one source.
  */

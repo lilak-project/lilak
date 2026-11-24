@@ -18,6 +18,13 @@ bool LKGETConversionTask::Init()
     fEventHeaderArray = fRun->RegisterBranchA("FrameHeader", "LKEventHeader", 1);
     fChannelArray = fRun->RegisterBranchA("RawData", "GETChannel", 1000);
 
+    // Read every parameter before the input check: make_meta and collect_par run Init() without input.
+    fConverter = new LKGETRawConverter();
+    fConverter->SetPar(fPar);
+    TString zeroSuppressionMode = "auto";
+    fPar->UpdatePar(zeroSuppressionMode,
+            "LKGETConversionTask/zero_suppression_mode auto # auto | none | linear_interpolation");
+
     if (fPar->CheckPar("LKGETConversionTask/InputFileName")) {
         auto inputFileName = fPar->GetParString("LKGETConversionTask/InputFileName");
         if (fTriggerInputFileNameArray.size() > 0) {
@@ -35,11 +42,6 @@ bool LKGETConversionTask::Init()
         return false;
     }
 
-    fConverter = new LKGETRawConverter();
-    fConverter->SetPar(fPar);
-    TString zeroSuppressionMode = "auto";
-    fPar->UpdatePar(zeroSuppressionMode,
-            "LKGETConversionTask/zero_suppression_mode auto # auto | none | linear_interpolation");
     if (!fConverter->SetZeroSuppressionMode(zeroSuppressionMode))
         return false;
     fConverter->SetChannelArray(fChannelArray);
