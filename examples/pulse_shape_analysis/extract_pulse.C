@@ -1,14 +1,3 @@
-R__ADD_INCLUDE_PATH(/Users/jungwoo/Research/lilak/source/base)
-R__ADD_INCLUDE_PATH(/Users/jungwoo/Research/lilak/source/tool)
-R__ADD_INCLUDE_PATH(/Users/jungwoo/Research/lilak/source/tool/drawing)
-R__ADD_INCLUDE_PATH(/Users/jungwoo/Research/lilak/source/tool/pulse_analysis)
-R__ADD_INCLUDE_PATH(/Users/jungwoo/Research/lilak/source/geometry)
-
-#include "LKDrawingGroup.h"
-#include "LKChannelSimulator.h"
-#include "LKPulseExtractor.h"
-#include "LKPulse.h"
-
 #include "draw_channels.C"
 
 void extract_pulse(bool parametersOnly=true)

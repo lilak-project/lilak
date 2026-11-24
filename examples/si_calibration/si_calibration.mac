@@ -1,11 +1,13 @@
+# Needs the stark project (SKSiCalibrationTask); it does not run with core LILAK alone.
+# STARK_DATA: STARK data directory with raw/ and reco/ (default ./data), e.g. STARK_DATA=/path/to/stark lilak run ...
 # Usage examples:
-#   RUN=151 STAGE=0 MAPPING=mapping_X6_DepV_Test1 lilak run si_calibration.mac  # raw histograms
-#   RUN=151 STAGE=1 MAPPING=mapping_X6_DepV_Test1 lilak run si_calibration.mac  # single channel C0
-#   RUN=151 STAGE=2 MAPPING=mapping_X6_DepV_Test1 lilak run si_calibration.mac  # paired channel C1
-#   RUN=151 STAGE=3 MAPPING=mapping_X6_DepV_Test1 lilak run si_calibration.mac  # paired channel C2
-#   RUN=151 STAGE=4 MAPPING=mapping_X6_DepV_Test1 lilak run si_calibration.mac  # C2-corrected histograms
-#   RUN=151 STAGE=5 MAPPING=mapping_X6_DepV_Test1 lilak run si_calibration.mac  # paired channel C3
-#   RUN=151 STAGE=6 MAPPING=mapping_X6_DepV_Test1 lilak run si_calibration.mac  # final calibration
+#   RUN=151 STAGE=0 MAPPING=mapping_X6_DepV_Test2 lilak run si_calibration.mac  # raw histograms
+#   RUN=151 STAGE=1 MAPPING=mapping_X6_DepV_Test2 lilak run si_calibration.mac  # single channel C0
+#   RUN=151 STAGE=2 MAPPING=mapping_X6_DepV_Test2 lilak run si_calibration.mac  # paired channel C1
+#   RUN=151 STAGE=3 MAPPING=mapping_X6_DepV_Test2 lilak run si_calibration.mac  # paired channel C2
+#   RUN=151 STAGE=4 MAPPING=mapping_X6_DepV_Test2 lilak run si_calibration.mac  # C2-corrected histograms
+#   RUN=151 STAGE=5 MAPPING=mapping_X6_DepV_Test2 lilak run si_calibration.mac  # paired channel C3
+#   RUN=151 STAGE=6 MAPPING=mapping_X6_DepV_Test2 lilak run si_calibration.mac  # final calibration
 
 lilak/run  0
 lilak/add  LKSiliconArray
@@ -14,7 +16,7 @@ lilak/add  SKSiCalibrationTask
 LKRun/Name       pre_li7
 LKRun/RunID      e{RUN}
 LKRun/Tag        si_calibration_stage_e{STAGE}
-LKRun/InputPath  /Users/jungwoo/data/stark/reco
+LKRun/InputPath  e{STARK_DATA:-data}/reco
 LKRun/SearchRun  reco
 LKRun/OutputPath .
 LKRun/AutoTerminate true
