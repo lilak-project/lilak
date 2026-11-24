@@ -1640,11 +1640,8 @@ lilak() {{
             python3 "$LILAK_PATH/macros/lilak_js_launcher.py" "$@"
             ;;
         par)
-            if [ -z "$2" ]; then
-                python3 "$LILAK_PATH/macros/lilak_parameter_editor.py"
-            else
-                python3 "$LILAK_PATH/macros/lilak_parameter_editor.py" "$2"
-            fi
+            shift
+            python3 "$LILAK_PATH/macros/lilak_parameter_editor.py" "$@"
             ;;
         si_mapping)
             if [ -z "$2" ]; then
@@ -1755,69 +1752,8 @@ lilak() {{
             if [ -z "$2" ]; then
                 echo "Error: Please provide parameter file."
                 return 1
-            else
-                local source_par="$2"
-                local backup_par="${{source_par}}.old"
-                local temp_par
-                local temp_lilak
-                if [ ! -f "$source_par" ]; then
-                    echo "Error: Parameter file not found: $source_par"
-                    return 1
-                fi
-                if ! cp -p -- "$source_par" "$backup_par"; then
-                    echo "Error: Failed to create backup: $backup_par"
-                    return 1
-                fi
-                echo "Backup: $backup_par"
-                temp_par=$(mktemp "/tmp/lilak_collect_par.XXXXXX.mac")
-                temp_lilak=$(mktemp "/tmp/lilak_collect_lines.XXXXXX.txt")
-                cp "$source_par" "$temp_par"
-                grep '^[[:space:]]*lilak/' "$source_par" | grep -v '^[[:space:]]*lilak/collect_par' > "$temp_lilak" || true
-                printf '\n%s\n' "lilak/collect_par $source_par" >> "$temp_par"
-                root -l "$LILAK_PATH/macros/run_lilak.C(\\"$temp_par\\")"
-                local run_status=$?
-                if [ -f "$source_par" ]; then
-                    python3 - "$temp_lilak" "$source_par" <<'PY'
-import re
-import sys
-from pathlib import Path
-
-line_path = Path(sys.argv[1])
-output_path = Path(sys.argv[2])
-
-active_lilak_lines = [line.strip() for line in line_path.read_text().splitlines() if line.strip()]
-
-output_lines = output_path.read_text().splitlines()
-rewritten_lines = []
-inside_lilak_block = False
-inserted_lilak_block = False
-
-for line in output_lines:
-    stripped = line.lstrip()
-    is_lilak_line = re.match(r"#?lilak/", stripped) is not None
-    if is_lilak_line:
-        if not inserted_lilak_block:
-            rewritten_lines.extend(active_lilak_lines)
-            inserted_lilak_block = True
-        inside_lilak_block = True
-        continue
-    if inside_lilak_block and stripped == "":
-        rewritten_lines.append(line)
-        inside_lilak_block = False
-        continue
-    rewritten_lines.append(line)
-
-if not inserted_lilak_block and active_lilak_lines:
-    rewritten_lines.append("")
-    rewritten_lines.extend(active_lilak_lines)
-
-output_path.write_text("\\n".join(rewritten_lines) + "\\n")
-PY
-                fi
-                rm -f "$temp_par"
-                rm -f "$temp_lilak"
-                return "$run_status"
             fi
+            python3 "$LILAK_PATH/macros/lilak_collect_par.py" "$2"
             ;;
         read)
             if [ -z "$2" ]; then

@@ -4,6 +4,8 @@ import argparse
 import json
 import mimetypes
 import os
+import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -18,7 +20,6 @@ from typing import Optional
 
 
 FORMAT_SUFFIXES = [".mac", ".conf", ".par", ".txt", ".log"]
-FIND_LIMIT = 50
 
 
 def build_search_paths():
@@ -255,117 +256,187 @@ def parse_parameter_candidate(inner: str, current_group: str):
     }
 
 
+def row_snapshot(row):
+    """The editable fields of a row, normalized the way the browser keeps them."""
+    return {
+        "kind": row.get("kind") or "parameter",
+        "enabled": row.get("enabled") is True,
+        "group": row.get("group") or "",
+        "name": row.get("name") or "",
+        "value": row.get("value") or "",
+        "unit": row.get("unit") or "",
+        "comment": row.get("comment") or "",
+    }
+
+
 def parse_parameter_text(content: str):
+    """Split a parameter file into editor rows.
+
+    Every row also keeps what is needed to write it back unchanged: its original line (raw),
+    the blank lines and group headers just before it (pre, and post on the last row), the
+    indentation group it was read under (ctx, indent) and its parsed fields (orig).
+    Like LKParameterContainer, comment lines do not change the indentation groups and a tab
+    in the indentation counts as 4 spaces.
+    """
     rows = []
     previous_indent = 0
     indent_stack = []
     group_stack = []
+    current_group = ""
+    pending = []
+
+    def add_row(row, raw_line, lead, group):
+        nonlocal pending
+        row["line_no"] = line_no
+        row["raw"] = raw_line
+        row["pre"] = pending
+        row["ctx"] = group
+        row["indent"] = lead
+        row["orig"] = row_snapshot(row)
+        pending = []
+        rows.append(row)
 
     for line_no, raw_line in enumerate(content.splitlines(), start=1):
         if not raw_line.strip():
+            pending.append(raw_line)
             continue
 
-        stripped = raw_line.lstrip(" ")
-        indent = len(raw_line) - len(stripped)
-        current_group, previous_indent = update_group_context(
-            indent, previous_indent, indent_stack, group_stack
-        )
+        stripped = raw_line.lstrip(" \t")
+        lead = raw_line[: len(raw_line) - len(stripped)]
+        indent = len(lead.replace("\t", "    "))
 
         if stripped.startswith("#"):
+            group = current_group if indent > 0 else ""
             is_enabled_comment = stripped.startswith("##") and (len(stripped) == 2 or stripped[2].isspace())
             is_line_comment = (len(stripped) == 1 or stripped[1].isspace()) or is_enabled_comment
             if is_line_comment:
                 inner = stripped[2:].lstrip() if is_enabled_comment else stripped[1:].lstrip()
-                rows.append(
-                    {
-                        "kind": "comment",
-                        "enabled": is_enabled_comment,
-                        "group": "",
-                        "name": "",
-                        "value": "",
-                        "unit": "",
-                        "comment": inner,
-                        "line_no": line_no,
-                    }
-                )
+                comment_row = {"kind": "comment", "enabled": is_enabled_comment, "group": "", "name": "",
+                               "value": "", "unit": "", "comment": inner}
+                add_row(comment_row, raw_line, lead, group)
                 continue
 
             inner = stripped[1:]
             if should_try_parameter(inner):
-                parsed = parse_parameter_candidate(inner, current_group)
+                parsed = parse_parameter_candidate(inner, group)
                 if parsed["kind"] == "group":
-                    group_stack.append(parsed["full_name"] + "/")
+                    pending.append(raw_line)  # a commented-out group header is only a comment for LILAK
                     continue
                 parsed["enabled"] = True
                 parsed["unit"] = "#"
-                parsed["line_no"] = line_no
-                rows.append(parsed)
+                add_row(parsed, raw_line, lead, group)
                 continue
 
-            rows.append(
-                {
-                    "kind": "comment",
-                    "enabled": False,
-                    "group": "",
-                    "name": "",
-                    "value": "",
-                    "unit": "",
-                    "comment": inner.lstrip(),
-                    "line_no": line_no,
-                }
-            )
+            comment_row = {"kind": "comment", "enabled": False, "group": "", "name": "",
+                           "value": "", "unit": "", "comment": inner.lstrip()}
+            add_row(comment_row, raw_line, lead, group)
             continue
 
+        current_group, previous_indent = update_group_context(
+            indent, previous_indent, indent_stack, group_stack
+        )
         parsed = parse_parameter_candidate(stripped, current_group)
         if parsed["kind"] == "group":
             group_stack.append(parsed["full_name"] + "/")
+            pending.append(raw_line)
             continue
+        add_row(parsed, raw_line, lead, current_group)
 
-        parsed["line_no"] = line_no
-        rows.append(parsed)
-
+    if rows:
+        rows[-1]["post"] = pending
     return rows
 
 
-def serialize_rows(rows):
+def format_row(row, ctx="", indent=""):
+    """One row as a line. Inside an indentation group (ctx) the name is written relative to it;
+    returns None when the row no longer belongs to that group."""
+    if (row.get("kind") or "parameter") == "comment":
+        prefix = "##" if row.get("enabled", False) else "#"
+        return f"{indent}{prefix} {(row.get('comment') or '').strip()}".rstrip()
+
+    group = (row.get("group") or "").strip().strip("/")
+    name = (row.get("name") or "").strip()
+    full_name = f"{group}/{name}" if group and name else name
+    if not full_name:
+        return None
+    if ctx:
+        if not full_name.startswith(ctx):
+            return None
+        full_name = full_name[len(ctx):]
+    else:
+        indent = ""
+
+    value = (row.get("value") or "").strip()
+    unit = (row.get("unit") or "").strip()
+    comment = (row.get("comment") or "").strip()
+    is_commented_parameter = unit == "#"
+    prefix = "#" if is_commented_parameter else ("" if row.get("enabled", True) else "#")
+    line = f"{indent}{prefix}{'' if is_commented_parameter else unit}{full_name}"
+    if value:
+        line += f"  {value}"
+    if comment:
+        line += f"  # {comment}"
+    return line
+
+
+def serialize_rows_preserving(rows):
+    """Unchanged rows keep their original line, blank lines and group headers; changed and new
+    rows are written in the indentation group they sit in. None if that is not possible."""
+    lines = []
+    ctx, indent = "", ""
+    for row in rows:
+        lines.extend(row.get("pre") or [])
+        if "raw" in row:
+            ctx, indent = row.get("ctx") or "", row.get("indent") or ""
+            if row.get("orig") == row_snapshot(row):
+                lines.append(row["raw"])
+                continue
+        line = format_row(row, ctx, indent)
+        if line is None:
+            return None
+        lines.append(line)
+    if rows:
+        lines.extend(rows[-1].get("post") or [])
+    return "\n".join(lines) + "\n" if lines else ""
+
+
+def serialize_rows_flat(rows):
+    """Every parameter as group/name on its own line (the file shape is not kept)."""
     lines = []
     previous_parameter_group = None
     previous_kind = None
     for row in rows:
         kind = row.get("kind", "parameter")
         if kind == "comment":
-            comment = row.get("comment", "").strip()
-            prefix = "##" if row.get("enabled", False) else "#"
-            lines.append(f"{prefix} {comment}".rstrip())
+            lines.append(format_row(row))
             previous_kind = "comment"
             continue
-
-        group = row.get("group", "").strip().strip("/")
-        name = row.get("name", "").strip()
-        full_name = f"{group}/{name}" if group and name else name
-        if not full_name:
+        line = format_row(row)
+        if not line:
             continue
-
-        value = row.get("value", "").strip()
-        unit = row.get("unit", "").strip()
-        comment = row.get("comment", "").strip()
-        is_commented_parameter = unit == "#"
-        prefix = "#" if is_commented_parameter else ("" if row.get("enabled", True) else "#")
+        group = (row.get("group") or "").strip().strip("/")
+        unit = (row.get("unit") or "").strip()
         group_key = f"{unit}{group}" if group else unit
         if lines and previous_kind == "parameter" and previous_parameter_group != group_key and lines[-1] != "":
             lines.append("")
-        line = f"{prefix}{'' if is_commented_parameter else unit}{full_name}"
-        if value:
-            line += f"  {value}"
-        if comment:
-            line += f"  # {comment}"
         lines.append(line)
         previous_parameter_group = group_key
         previous_kind = "parameter"
-
     return "\n".join(lines) + ("\n" if lines else "")
 
 
+def serialize_rows(rows):
+    """Write rows back to text, keeping the file's shape when the result reads back to the same
+    rows; otherwise (e.g. the first row of an indented group was removed) fall back to flat."""
+    preserved = serialize_rows_preserving(rows)
+    if preserved is not None:
+        reread = [row_snapshot(row) for row in parse_parameter_text(preserved)]
+        if reread == [row_snapshot(row) for row in rows]:
+            return preserved
+    return serialize_rows_flat(rows)
+
+
+# Restored from HEAD (2026-11-23): lilak_configure_flow_editor.py still imports normalize_searchrun_mfm_rows.
 def parameter_key(row):
     return ((row.get("group") or "").strip(), (row.get("name") or "").strip())
 
@@ -525,7 +596,7 @@ def build_root_runtime_env(repo_root: Path):
 
     if not env.get("NPLib_DIR"):
         research_root = repo_root.parent
-        matches = list(research_root.rglob("libNPCore.dylib"))
+        matches = [m for m in research_root.rglob("libNPCore.*") if m.suffix in (".dylib", ".so")]
         if matches:
             env["NPLib_DIR"] = str(matches[0].parent.parent)
             runtime_paths.append(str(matches[0].parent))
@@ -538,6 +609,15 @@ def build_root_runtime_env(repo_root: Path):
                 merged.append(item)
         env[key] = ":".join(merged)
     return env
+
+
+def shared_library(directory: Path, base_name: str) -> str:
+    """libX.dylib on macOS, libX.so on Linux: whichever exists."""
+    for suffix in (".dylib", ".so"):
+        candidate = directory / f"{base_name}{suffix}"
+        if candidate.exists():
+            return str(candidate)
+    return str(directory / f"{base_name}{'.dylib' if sys.platform == 'darwin' else '.so'}")
 
 
 def nptool_library_load_args(repo_root: Path):
@@ -568,7 +648,7 @@ def nptool_library_load_args(repo_root: Path):
             break
         lib_name = trimmed.split()[0] if trimmed.split() else ""
         if lib_name and lib_name != "${NPTOOL_NPLIB_LIST}":
-            root_args.extend(["-e", f'gSystem->Load("{nplib_dir}/lib/lib{lib_name}.dylib");'])
+            root_args.extend(["-e", f'gSystem->Load("{shared_library(Path(nplib_dir) / "lib", "lib" + lib_name)}");'])
     return root_args
 
 
@@ -603,17 +683,35 @@ def make_temp_run_file(content: str, path_hint: str = ""):
     return temp_path, lilak_root_path()
 
 
-def run_root_macro_with_parameter(content: str, path_hint: str = "", set_print_plane: int = 1, set_allow_run: int = 1):
+def run_root_macro_with_parameter(content: str, path_hint: str = "", set_print_plane: int = 1, set_allow_run: int = 1,
+                                  dry_init: int = 0):
+    """Run run_lilak.C on content. dry_init=1 (LKRun::SetDryInit) writes no output file, no log under
+    data/ and no elog: its temporary files go to a private TMPDIR that is removed here."""
+    if dry_init:
+        with tempfile.TemporaryDirectory(prefix="lilak_dry_init.") as tmp:
+            result = run_root_macro_once(content, path_hint, set_print_plane, set_allow_run, 1, tmp)
+            match = re.search(r"Dry init log: (\S+)", result["stdout"])
+            result["log_info"] = (log_info_for_path(Path(match.group(1)), raw_target=match.group(1))
+                                  if match else log_info_for_path(None))
+            return result
+    result = run_root_macro_once(content, path_hint, set_print_plane, set_allow_run, 0, None)
+    result["log_info"] = read_last_lk_output_log_info()
+    return result
+
+
+def run_root_macro_once(content, path_hint, set_print_plane, set_allow_run, dry_init, tmpdir):
     lilak_root = lilak_root_path()
     env = build_root_runtime_env(lilak_root)
+    if tmpdir:
+        env["TMPDIR"] = tmpdir
     temp_path, run_cwd = make_temp_run_file(content, path_hint)
     run_path = str(temp_path)
 
-    macro_arg = f'{(lilak_root / "macros" / "run_lilak.C").as_posix()}("{run_path}",{set_print_plane},{set_allow_run})'
+    macro_arg = f'{(lilak_root / "macros" / "run_lilak.C").as_posix()}("{run_path}",{set_print_plane},{set_allow_run},{dry_init})'
 
     root_args = ["root", "-l", "-b", "-q", "-n"]
     root_args.extend(nptool_library_load_args(lilak_root))
-    root_args.extend(["-e", f'gSystem->Load("{lilak_root}/build/libLILAK.dylib");'])
+    root_args.extend(["-e", f'gSystem->Load("{shared_library(Path(lilak_root) / "build", "libLILAK")}");'])
     root_args.append(macro_arg)
     root_args.extend(["-e", 'gSystem->Exit(0);'])
 
@@ -638,7 +736,6 @@ def run_root_macro_with_parameter(content: str, path_hint: str = "", set_print_p
         "stderr": result.stderr,
         "returncode": result.returncode,
         "path": run_path,
-        "log_info": read_last_lk_output_log_info(),
     }
 
 
@@ -687,28 +784,6 @@ def normalize_with_lkparametercontainer(content: str):
                 continue
             cleaned_lines.append(line)
         return "\n".join(cleaned_lines).strip() + "\n"
-
-
-def find_matching_files(query: str):
-    query = query.strip().lower()
-    if not query:
-        return []
-
-    results = []
-    seen = set()
-    for base in build_search_paths():
-        if not base.exists():
-            continue
-        for suffix in FORMAT_SUFFIXES:
-            for path in base.rglob(f"*{query}*{suffix}"):
-                resolved = path.resolve()
-                if resolved in seen:
-                    continue
-                seen.add(resolved)
-                results.append(str(resolved))
-                if len(results) >= FIND_LIMIT:
-                    return sorted(results)
-    return sorted(results)
 
 
 def lilak_root_path() -> Path:
@@ -898,7 +973,7 @@ def build_configure_report(content: str, path_hint: str = ""):
         seen.add(class_name)
         class_names.append(class_name)
 
-    configure_run = run_root_macro_with_parameter(content, path_hint, set_print_plane=0, set_allow_run=0)
+    configure_run = run_root_macro_with_parameter(content, path_hint, set_print_plane=0, set_allow_run=0, dry_init=1)
     log_info = configure_run.get("log_info", {})
     repeated_log = {}
     resolved_log_path = Path(log_info.get("resolved_path", "")) if log_info.get("resolved_path") else None
@@ -1226,7 +1301,18 @@ def find_matching_classes_for_branch(branch_name: str, class_name: str):
     }
 
 
-def run_lilak_with_content(content: str, path_hint: str = ""):
+def planned_output_file(content: str, path_hint: str = "") -> str:
+    """The output file a run would write, found with a dry init (nothing is written)."""
+    result = run_root_macro_with_parameter(content, path_hint, set_print_plane=0, set_allow_run=0, dry_init=1)
+    match = re.search(r"Dry init: output file would be (.+?) \(not written\)", result["stdout"])
+    return match.group(1) if match else ""
+
+
+def run_lilak_with_content(content: str, path_hint: str = "", overwrite: bool = False):
+    if not overwrite:
+        output_file = planned_output_file(content, path_hint)
+        if output_file and Path(output_file).exists():
+            return {"needs_confirm": True, "output_file": output_file}
     return run_root_macro_with_parameter(content, path_hint, set_print_plane=1, set_allow_run=1)
 
 
@@ -1333,7 +1419,13 @@ def read_last_lk_output_log_info():
     resolved_path = Path(raw_target)
     if not resolved_path.is_absolute():
         resolved_path = (link_path.parent / resolved_path).resolve()
+    return log_info_for_path(resolved_path, link_path, raw_target)
 
+
+def log_info_for_path(resolved_path, link_path=None, raw_target=""):
+    if resolved_path is None:
+        return {"link_path": "", "link_target": "", "resolved_path": "", "kind": "missing",
+                "summary": "Run failed: no init log was written", "content": "", "parsed": {}}
     content = ""
     parsed = {}
     if resolved_path.is_file():
@@ -1350,7 +1442,7 @@ def read_last_lk_output_log_info():
         kind = "eor"
 
     info = {
-        "link_path": str(link_path),
+        "link_path": str(link_path or ""),
         "link_target": raw_target,
         "resolved_path": str(resolved_path),
         "kind": kind,
@@ -1836,6 +1928,19 @@ HTML_PAGE = """<!doctype html>
     }
     tr.comment-row {
       background: var(--comment);
+    }
+    .cond-chip {
+      display: inline-block;
+      margin: 2px 4px 0 0;
+      padding: 0 6px;
+      border-radius: 8px;
+      font-size: 11px;
+      background: #fff3cd;
+      color: #7a5b00;
+    }
+    td input[type="text"].deprecated-mark {
+      background: #fde2e2;
+      color: #9b1c1c;
     }
     tr.commented-parameter-row td {
       background: #eceff1;
@@ -2378,7 +2483,7 @@ HTML_PAGE = """<!doctype html>
 
               <div class="toolbar-group" data-menu-panel="parameter">
                 <span class="menu-label">PARAMETER</span>
-                <button class="toolbar-button" data-action="file-find"><span class="icon">?</span>find</button>
+                <button class="toolbar-button" data-action="file-find"><span class="icon">?</span>find class</button>
                 <button class="toolbar-button" data-action="row-add-parameter"><span class="icon">+</span>+par</button>
                 <button class="toolbar-button" data-action="row-add-comment"><span class="icon">#</span>+comment</button>
                 <button class="toolbar-button" data-action="row-remove"><span class="icon">-</span>remove</button>
@@ -2421,7 +2526,7 @@ HTML_PAGE = """<!doctype html>
       </div>
     </section>
 
-    <div class="footer">Columns: #, toggle, group, name, value, unit, comment</div>
+    <div class="footer">Columns: #, toggle, group, name, value, mark, comment</div>
   </div>
 
   <script>
@@ -2524,7 +2629,7 @@ HTML_PAGE = """<!doctype html>
       if (state.viewMode === "raw") {
         return tab.rawDraft ?? tab.content ?? "";
       }
-      return serializeRowsForRaw(rowsInCurrentViewOrder(tab));
+      return serializeRowsForRaw(tab.rows);
     }
 
     function canRunCurrentTab(tab) {
@@ -2562,7 +2667,12 @@ HTML_PAGE = """<!doctype html>
     }
 
     function cloneRow(row) {
-      return JSON.parse(JSON.stringify({ ...row, id: nextRowId() }));
+      const copy = JSON.parse(JSON.stringify({ ...row, id: nextRowId() }));
+      delete copy.raw;
+      delete copy.orig;
+      copy.pre = [];
+      copy.post = [];
+      return copy;
     }
 
     function normalizeRow(row) {
@@ -2574,7 +2684,14 @@ HTML_PAGE = """<!doctype html>
         name: row.name || "",
         value: row.value || "",
         unit: row.unit || "",
-        comment: row.comment || ""
+        comment: row.comment || "",
+        // written back unchanged when untouched (see serialize_rows on the server)
+        raw: row.raw,
+        pre: row.pre || [],
+        post: row.post || [],
+        ctx: row.ctx || "",
+        indent: row.indent || "",
+        orig: row.orig
       };
     }
 
@@ -2674,6 +2791,22 @@ HTML_PAGE = """<!doctype html>
 
     function computeContent(tab) {
       return serializeRowsForRaw(tab.rows);
+    }
+
+    async function serializeOnServer(tab) {
+      const response = await fetch("/api/serialize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows: tab.rows })
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Failed to build raw text");
+      }
+      tab.content = payload.content;
+      tab.rawDraft = payload.content;
+      tab.normalizedSource = "";
+      tab.dirty = tab.content !== tab.originalContent;
     }
 
     async function parseContentToRows(content) {
@@ -3134,7 +3267,7 @@ HTML_PAGE = """<!doctype html>
               <th>group</th>
               <th>name</th>
               <th>value</th>
-              <th>unit</th>
+              <th title="line mark: * temporary, &lt; include file, # commented out. ! &amp; @ are old marks, still read but not for new files">mark</th>
               <th>comment</th>
             </tr>
             ${groupViewHeaderHtml}
@@ -3426,6 +3559,33 @@ HTML_PAGE = """<!doctype html>
       }
     }
 
+    function conditionChips(row) {
+      // split like LKParameterContainer: a slash inside {...} or "..." does not end a segment
+      const parts = [];
+      let current = "", depth = 0, quoted = false;
+      for (const char of row.group || "") {
+        if (char === '"') quoted = !quoted;
+        else if (!quoted && char === "{") depth += 1;
+        else if (!quoted && char === "}") depth -= 1;
+        if (char === "/" && depth === 0 && !quoted) {
+          parts.push(current);
+          current = "";
+        } else {
+          current += char;
+        }
+      }
+      parts.push(current);
+      const conditions = parts.filter((part) => part.startsWith("?"));
+      return conditions.map((part) => `<span class="cond-chip" title="condition: this line is used only when it is true">${escapeHtml(part)}</span>`).join("");
+    }
+
+    function markAttributes(row) {
+      if (/[!&@]/.test(row.unit || "")) {
+        return 'class="deprecated-mark" title="old mark (! &amp; @): still read, but write new files with ? conditions"';
+      }
+      return 'title="* temporary, &lt; include file, # commented out"';
+    }
+
     function renderRow(row, visualIndex, duplicateIds = new Set()) {
       const selected = state.selectedRowIds.includes(row.id) ? "selected" : "";
       const commentClass = row.kind === "comment" ? "comment-row" : "";
@@ -3455,10 +3615,10 @@ HTML_PAGE = """<!doctype html>
           <tr class="${selected} ${commentClass} ${commentedParameterClass} ${duplicateParameterClass} ${duplicateStateClass}" data-row-id="${row.id}">
             <td class="row-id">${visualIndex}</td>
             <td><input type="checkbox" data-field="selected" ${checked}></td>
-            <td><input type="text" data-field="group" value="${escapeHtml(row.group || "")}"></td>
+            <td><input type="text" data-field="group" value="${escapeHtml(row.group || "")}">${conditionChips(row)}</td>
             <td><input type="text" data-field="name" value="${escapeHtml(row.name || "")}"></td>
             <td><div class="value-cell-tools"><span class="sub-row-label">${parts.length} values</span><button class="mini-button" data-action="add-part">+ value</button></div></td>
-            <td><input type="text" data-field="unit" value="${escapeHtml(row.unit || "")}"></td>
+            <td><input type="text" data-field="unit" ${markAttributes(row)} value="${escapeHtml(row.unit || "")}"></td>
             <td>
               <input type="text" data-field="comment" value="${escapeHtml(row.comment || "")}">
             </td>
@@ -3480,10 +3640,10 @@ HTML_PAGE = """<!doctype html>
         <tr class="${selected} ${commentClass} ${commentedParameterClass} ${duplicateParameterClass} ${duplicateStateClass}" data-row-id="${row.id}">
           <td class="row-id">${visualIndex}</td>
           <td><input type="checkbox" data-field="selected" ${checked}></td>
-          <td><input type="text" data-field="group" value="${escapeHtml(row.group || "")}"></td>
+          <td><input type="text" data-field="group" value="${escapeHtml(row.group || "")}">${conditionChips(row)}</td>
           <td><input type="text" data-field="name" value="${escapeHtml(row.name || "")}"></td>
           <td><input type="text" data-field="value" value="${escapeHtml(row.value || "")}"></td>
-          <td><input type="text" data-field="unit" value="${escapeHtml(row.unit || "")}"></td>
+          <td><input type="text" data-field="unit" ${markAttributes(row)} value="${escapeHtml(row.unit || "")}"></td>
           <td><input type="text" data-field="comment" value="${escapeHtml(row.comment || "")}"></td>
         </tr>
       `;
@@ -3609,7 +3769,23 @@ HTML_PAGE = """<!doctype html>
       const selectedIds = selectedRowIdsForTab(tab);
       if (!tab || selectedIds.length === 0) return;
       const firstIndex = tab.rows.findIndex((row) => row.id === selectedIds[0]);
-      tab.rows = tab.rows.filter((row) => !selectedIds.includes(row.id));
+      let carried = [];
+      const kept = [];
+      for (const row of tab.rows) {
+        if (selectedIds.includes(row.id)) {
+          carried.push(...(row.pre || []), ...(row.post || []));
+          continue;
+        }
+        if (carried.length) {
+          row.pre = [...carried, ...(row.pre || [])];
+          carried = [];
+        }
+        kept.push(row);
+      }
+      if (carried.length && kept.length) {
+        kept[kept.length - 1].post = [...(kept[kept.length - 1].post || []), ...carried];
+      }
+      tab.rows = kept;
       const nextId = tab.rows[firstIndex]?.id || tab.rows[firstIndex - 1]?.id || null;
       setSelectedRows(nextId ? [nextId] : [], nextId);
       updateDirty(tab);
@@ -3705,7 +3881,6 @@ HTML_PAGE = """<!doctype html>
         tab.content = tab.rawDraft ?? tab.content ?? "";
         tab.dirty = tab.content !== tab.originalContent;
       } else {
-        tab.rows = rowsInCurrentViewOrder(tab);
         updateDirty(tab);
       }
       const response = await fetch("/api/save", {
@@ -3714,7 +3889,7 @@ HTML_PAGE = """<!doctype html>
         body: JSON.stringify(
           state.viewMode === "raw"
             ? { path, content: tab.rawDraft ?? tab.content ?? "" }
-            : { path, rows: rowsInCurrentViewOrder(tab) }
+            : { path, rows: tab.rows }
         )
       });
       const payload = await response.json();
@@ -3730,7 +3905,7 @@ HTML_PAGE = """<!doctype html>
       tab.rawDraft = payload.content;
       tab.dirty = false;
       render();
-      setStatus(`Saved at ${payload.saved_at}`, "ok");
+      setStatus(payload.backup ? `Saved at ${payload.saved_at} (previous file: ${payload.backup})` : `Saved at ${payload.saved_at}`, "ok");
     }
 
     async function restoreActiveTab() {
@@ -3761,6 +3936,12 @@ HTML_PAGE = """<!doctype html>
     function closeTab(tabId, options = {}) {
       const index = state.tabs.findIndex((tab) => tab.id === tabId);
       if (index < 0) return;
+      if (state.tabs[index].dirty && state.pendingCloseTabId !== tabId) {
+        state.pendingCloseTabId = tabId;
+        setStatus("Unsaved changes: close again to discard them", "warn");
+        return;
+      }
+      state.pendingCloseTabId = null;
       state.tabs.splice(index, 1);
       if (state.activeTabId === tabId) {
         state.activeTabId = state.tabs[index]?.id || state.tabs[index - 1]?.id || null;
@@ -4116,19 +4297,29 @@ HTML_PAGE = """<!doctype html>
       setStatus("Running current parameter file...");
 
       const content = currentRunContent(tab);
+      // An existing output file is overwritten only after a second run click on the same content.
+      const pending = state.pendingOverwrite;
+      const overwrite = Boolean(pending && pending.tabId === tab.id && pending.content === content);
 
       const response = await fetch("/api/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           path: tab.path || "",
-          content
+          content,
+          overwrite
         })
       });
       const payload = await response.json();
       if (!response.ok) {
         throw new Error(payload.error || "Run failed");
       }
+      if (payload.needs_confirm) {
+        state.pendingOverwrite = { tabId: tab.id, content };
+        setStatus(`${payload.output_file} already exists: run again to overwrite it`, "warn");
+        return;
+      }
+      state.pendingOverwrite = null;
 
       const blocks = [];
       if (payload.command) {
@@ -4249,6 +4440,13 @@ HTML_PAGE = """<!doctype html>
               await syncRawDraft(tab, true);
             } catch (error) {
               rawParseWarning = error.message || "Failed to parse raw text";
+            }
+          }
+          if (state.viewMode !== "raw" && button.dataset.viewMode === "raw" && tab && Array.isArray(tab.rows)) {
+            try {
+              await serializeOnServer(tab);
+            } catch (error) {
+              rawParseWarning = error.message || "Failed to build raw text";
             }
           }
           state.viewMode = button.dataset.viewMode;
@@ -4383,15 +4581,17 @@ HTML_PAGE = """<!doctype html>
       return false;
     }
 
+    window.addEventListener("beforeunload", (event) => {
+      if (state.tabs.some((tab) => tab.dirty)) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    });
+
     window.addEventListener("keydown", (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
         saveActiveTab().catch((error) => setStatus(error.message, "warn"));
-        return;
-      }
-      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "z") {
-        event.preventDefault();
-        restoreActiveTab().catch((error) => setStatus(error.message, "warn"));
         return;
       }
       if (!event.metaKey && !event.ctrlKey && !event.altKey && (event.key === "Delete" || event.key === "Backspace")) {
@@ -4495,22 +4695,29 @@ class RequestHandler(BaseHTTPRequestHandler):
                     target = (Path.cwd() / target).resolve()
                 target.parent.mkdir(parents=True, exist_ok=True)
                 if "content" in payload:
-                    rows = parse_parameter_text(payload.get("content", ""))
+                    content = payload.get("content", "")  # raw view: written exactly as typed
                 else:
-                    rows = payload.get("rows", [])
-                rows = normalize_searchrun_mfm_rows(rows)
-                content = serialize_rows(rows)
-                rows = parse_parameter_text(content)
+                    content = serialize_rows(payload.get("rows", []))
+                backup = ""
+                if target.is_file() and target.read_text(encoding="utf-8") != content:
+                    backup_path = target.with_name(target.name + ".old")
+                    shutil.copy2(str(target), str(backup_path))
+                    backup = str(backup_path)
                 target.write_text(content, encoding="utf-8")
                 self._send_json(
                     {
                         "name": target.name,
                         "path": str(target),
                         "content": content,
-                        "rows": rows,
+                        "rows": parse_parameter_text(content),
+                        "backup": backup,
                         "saved_at": time.strftime("%H:%M:%S"),
                     }
                 )
+                return
+
+            if parsed.path == "/api/serialize":
+                self._send_json({"content": serialize_rows(payload.get("rows", []))})
                 return
 
             if parsed.path == "/api/parse":
@@ -4526,16 +4733,11 @@ class RequestHandler(BaseHTTPRequestHandler):
             if parsed.path == "/api/run":
                 content = payload.get("content", "")
                 path_hint = payload.get("path", "")
-                self._send_json(run_lilak_with_content(content, path_hint))
+                self._send_json(run_lilak_with_content(content, path_hint, bool(payload.get("overwrite"))))
                 return
 
             if parsed.path == "/api/run_log_info":
                 self._send_json(read_last_lk_output_log_info())
-                return
-
-            if parsed.path == "/api/find":
-                matches = find_matching_files(payload.get("query", ""))
-                self._send_json({"matches": matches})
                 return
 
             if parsed.path == "/api/classdir":
@@ -4639,6 +4841,9 @@ def main():
     else:
         print(f"Opening {initial_file}")
     print(f"Parameter editor: {url}")
+    if args.host not in ("127.0.0.1", "localhost", "::1"):
+        print(f"WARNING: --host {args.host} lets anyone who can reach this port read and write files "
+              "and run ROOT as you; there is no login.", file=sys.stderr)
     print("Press Ctrl-C to stop the server.")
 
     if not args.no_browser:
@@ -4647,7 +4852,7 @@ def main():
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\\nStopping parameter editor.")
+        print("\nStopping parameter editor.")
     finally:
         server.server_close()
     return 0
