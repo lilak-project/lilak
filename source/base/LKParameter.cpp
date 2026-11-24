@@ -296,9 +296,19 @@ Int_t LKParameter::Compare(const TObject *obj) const
     return sortSame;
 }
 
+TString LKParameter::ValueAt(int idx) const
+{
+    if (idx<0)
+        return fValue;
+    if (idx<(int)fValueArray.size())
+        return fValueArray[idx];
+    e_error << "Parameter " << fName << " has " << fValueArray.size() << " value(s); no value at index " << idx << endl;
+    return "";
+}
+
 bool LKParameter::CheckTypeInt(int idx) const
 {
-    TString value = ((idx>=0) ? fValue : fValueArray[idx]);
+    TString value = ValueAt(idx);
     if (!value.IsDec()) {
         if (CheckFormulaValidity(value,true)) return true;
         else return false;
@@ -308,7 +318,7 @@ bool LKParameter::CheckTypeInt(int idx) const
 
 bool LKParameter::CheckTypeLong(int idx) const
 {
-    TString value = ((idx>=0) ? fValue : fValueArray[idx]);
+    TString value = ValueAt(idx);
     if (!value.IsDec()) {
         if (CheckFormulaValidity(value,true)) return true;
         else return false;
@@ -318,7 +328,7 @@ bool LKParameter::CheckTypeLong(int idx) const
 
 bool LKParameter::CheckTypeBool(int idx) const
 {
-    TString value = ((idx>=0) ? fValue : fValueArray[idx]);
+    TString value = ValueAt(idx);
     value.ToLower();
     if (value=="true"||value=="1"||value=="false"||value=="0")
         return true;
@@ -327,7 +337,7 @@ bool LKParameter::CheckTypeBool(int idx) const
 
 bool LKParameter::CheckTypeDouble(int idx) const
 {
-    TString value = ((idx>=0) ? fValue : fValueArray[idx]);
+    TString value = ValueAt(idx);
     if (!value.IsFloat()) {
         if (CheckFormulaValidity(value,true)) return true;
         else return false;
@@ -340,7 +350,7 @@ bool LKParameter::CheckTypeString(int idx) const { return true; }
 
 bool LKParameter::CheckTypeColor(int idx) const
 {
-    TString value = ((idx>=0) ? fValue : fValueArray[idx]);
+    TString value = ValueAt(idx);
     if (value.Index("k")==0)
     {
         value.ReplaceAll("kWhite"  ,"0");
@@ -368,7 +378,7 @@ bool LKParameter::CheckTypeColor(int idx) const
 
 bool LKParameter::CheckTypeAxis(int idx) const
 {
-    TString value = ((idx>=0) ? fValue : fValueArray[idx]);
+    TString value = ValueAt(idx);
          if (value== "x") return true;
     else if (value== "y") return true;
     else if (value== "z") return true;
@@ -395,8 +405,7 @@ bool LKParameter::CheckTypeV3() const
 
 int LKParameter::GetInt(int idx) const
 {
-    TString value = fValue;
-    if (idx>=0) value = fValueArray[idx];
+    TString value = ValueAt(idx);
 
     if (!value.IsDec()) {
         if (CheckFormulaValidity(value,true)) return TFormula("formula",value).Eval(0);
@@ -407,8 +416,7 @@ int LKParameter::GetInt(int idx) const
 
 Long64_t LKParameter::GetLong(int idx) const
 {
-    TString value = fValue;
-    if (idx>=0) value = fValueArray[idx];
+    TString value = ValueAt(idx);
 
     if (!value.IsDec())
         ProcessTypeError("Long64_t", value);
@@ -418,8 +426,7 @@ Long64_t LKParameter::GetLong(int idx) const
 
 bool LKParameter::GetBool(int idx) const
 {
-    TString value = fValue;
-    if (idx>=0) value = fValueArray[idx];
+    TString value = ValueAt(idx);
 
     value.ToLower();
     if (value=="true"||value=="1") return true;
@@ -431,8 +438,7 @@ bool LKParameter::GetBool(int idx) const
 
 double LKParameter::GetDouble(int idx) const
 {
-    TString value = fValue;
-    if (idx>=0) value = fValueArray[idx];
+    TString value = ValueAt(idx);
 
     if (!value.IsDec()) {
         if (CheckFormulaValidity(value,true)) return TFormula("formula",value).Eval(0);
@@ -443,16 +449,14 @@ double LKParameter::GetDouble(int idx) const
 
 TString LKParameter::GetString(int idx) const
 {
-    TString value = fValue;
-    if (idx>=0) value = fValueArray[idx];
+    TString value = ValueAt(idx);
 
     return value;
 }
 
 int LKParameter::GetColor(int idx)
 {
-    TString value = fValue;
-    if (idx>=0) value = fValueArray[idx];
+    TString value = ValueAt(idx);
     TString value0  = value;
 
     value.ReplaceAll(" ","");
@@ -500,18 +504,17 @@ int LKParameter::GetColor(int idx)
         value = Form("%d", colorIndex);
     }
 
-    if (idx>=0)
-        fValueArray[idx] = value;
-    else
+    if (idx<0)
         fValue = value;
+    else if (idx<(int)fValueArray.size())
+        fValueArray[idx] = value;
 
     return value.Atoi();
 }
 
 axis_t LKParameter::GetAxis(int idx) const
 {
-    TString value = fValue;
-    if (idx>=0) value = fValueArray[idx];
+    TString value = ValueAt(idx);
 
          if (value== "x") return LKVector3::kX;
     else if (value== "y") return LKVector3::kY;

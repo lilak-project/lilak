@@ -10,6 +10,7 @@
 
 #include <fstream>
 #include <vector>
+#include <map>
 
 class LKGETRawConverter : public TObject
 {
@@ -89,6 +90,7 @@ class LKGETRawConverter : public TObject
     Int_t fMutantCounter = 0;
     Int_t** fAsadIsTriggered = nullptr;
 
+    std::map<UInt_t, ULong64_t> fMuTanTTimeStamp; ///< MuTanT timestamp by event id
     std::vector<UInt_t> fListOfEventIdx;
     std::vector<UInt_t> fListOfTimeStamp;
     std::vector<UInt_t> fListOfD2PTime;

@@ -70,7 +70,8 @@ bool LKCoboFrameMergerTask::Init()
     fPar->UpdatePar(zeroSuppressionMode,
             "LKCoboFrameMergerTask/zero_suppression_mode auto # auto | none | linear_interpolation");
 
-    if (fPar->CheckPar("LKCoboFrameMergerTask/InputFileName")) {
+    // A line with the name but no value (as templates write it) counts as not set.
+    if (fPar->CheckPar("LKCoboFrameMergerTask/InputFileName") && fPar->GetParN("LKCoboFrameMergerTask/InputFileName") > 0) {
         auto numInputs = fPar->GetParN("LKCoboFrameMergerTask/InputFileName");
         auto firstInput = fPar->GetParString("LKCoboFrameMergerTask/InputFileName", 0);
         if (firstInput == "online") {
